@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -20,7 +21,6 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
-    "gh-pages": "^6.1.1",
     "oxlint": "^1.75.0",
     "vite": "^8.2.0"
   }
