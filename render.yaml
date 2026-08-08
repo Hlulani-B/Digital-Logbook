@@ -3,6 +3,7 @@ services:
   - type: web
     name: auth-service
     env: node
+    plan: free
     buildCommand: cd services/auth-service && npm install
     startCommand: cd services/auth-service && npm start
     envVars:
@@ -17,6 +18,7 @@ services:
   - type: web
     name: dashboard-service
     env: node
+    plan: free
     buildCommand: cd services/dashboard-service && npm install
     startCommand: cd services/dashboard-service && npm start
     envVars:
@@ -31,6 +33,7 @@ services:
   - type: web
     name: project-service
     env: node
+    plan: free
     buildCommand: cd services/project-service && npm install
     startCommand: cd services/project-service && npm start
     envVars:
