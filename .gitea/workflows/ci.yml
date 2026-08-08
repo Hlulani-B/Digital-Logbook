@@ -1,0 +1,48 @@
+name: Continuous Integration (CI) Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 1. Frontend
+      - name: Install & Test Frontend
+        run: |
+          cd frontend
+          npm install
+          npm test --if-present
+
+      # 2. Auth Service
+      - name: Install & Test Auth Service
+        run: |
+          cd services/auth-service
+          npm install
+          npm test --if-present
+
+      # 3. Dashboard Service
+      - name: Install & Test Dashboard Service
+        run: |
+          cd services/dashboard-service
+          npm install
+          npm test --if-present
+
+      # 4. Project Service
+      - name: Install & Test Project Service
+        run: |
+          cd services/project-service
+          npm install
+          npm test --if-present
