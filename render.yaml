@@ -1,0 +1,42 @@
+services:
+  # 1. Auth Service
+  - type: web
+    name: auth-service
+    env: node
+    buildCommand: cd services/auth-service && npm install
+    startCommand: cd services/auth-service && npm start
+    envVars:
+      - key: PORT
+        value: 5001
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+
+  # 2. Dashboard Service
+  - type: web
+    name: dashboard-service
+    env: node
+    buildCommand: cd services/dashboard-service && npm install
+    startCommand: cd services/dashboard-service && npm start
+    envVars:
+      - key: PORT
+        value: 5002
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+
+  # 3. Project Service
+  - type: web
+    name: project-service
+    env: node
+    buildCommand: cd services/project-service && npm install
+    startCommand: cd services/project-service && npm start
+    envVars:
+      - key: PORT
+        value: 5003
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
