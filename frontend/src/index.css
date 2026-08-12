@@ -214,6 +214,20 @@ body {
   color: var(--text-muted);
 }
 
+.auth-trouble-link {
+  display: block;
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.auth-trouble-link:hover {
+  color: var(--accent-light);
+}
+
 /* CAPTCHA */
 .captcha-wrapper {
   display: flex;

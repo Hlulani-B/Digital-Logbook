@@ -5,7 +5,7 @@ import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 
 export function Dashboard() {
-  const { user, signOut, deleteAccount } = useAuth();
+  const { user, signOut, deleteAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -189,6 +189,7 @@ export function Dashboard() {
         provider={provider}
         onClose={() => setSettingsOpen(false)}
         onDeleteAccount={handleDeleteAccount}
+        onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
       />

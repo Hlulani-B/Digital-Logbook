@@ -29,6 +29,7 @@ interface SettingsPanelProps {
   provider: string;
   onClose: () => void;
   onDeleteAccount: () => void;
+  onResetPassword: (email: string) => Promise<void>;
   deleting: boolean;
   deleteError: string | null;
 }
@@ -48,6 +49,82 @@ function saveSettings(key: string, data: unknown) {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
+/* Inline reset password component for the Account tab */
+function ResetPasswordInline({
+  email,
+  onResetPassword,
+}: {
+  email: string;
+  onResetPassword: (email: string) => Promise<void>;
+}) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSend = async () => {
+    setSending(true);
+    setError(null);
+    try {
+      await onResetPassword(email);
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send reset email");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div
+        style={{
+          padding: "0.75rem 1rem",
+          borderRadius: "var(--radius-xs)",
+          background: "rgba(34,197,94,0.1)",
+          border: "1px solid rgba(34,197,94,0.2)",
+          color: "#86efac",
+          fontSize: "0.8125rem",
+          lineHeight: "1.5",
+        }}
+      >
+        A password reset link has been sent to <strong>{email}</strong>.
+        Check your inbox (and spam folder). The link expires in 1 hour.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <p className="danger-desc" style={{ color: "var(--text-muted)" }}>
+        Send a password reset link to your email address. This is useful if you need to set up
+        email-based sign-in alongside your OAuth provider.
+      </p>
+      {error && (
+        <div
+          style={{
+            padding: "0.5rem 0.75rem",
+            borderRadius: "var(--radius-xs)",
+            background: "var(--danger-glow)",
+            border: "1px solid rgba(239,68,68,0.2)",
+            color: "#fca5a5",
+            fontSize: "0.8125rem",
+            marginBottom: "0.75rem",
+          }}
+        >
+          {error}
+        </div>
+      )}
+      <button
+        onClick={handleSend}
+        disabled={sending || !email}
+        className="btn-secondary"
+      >
+        {sending ? "Sending..." : "Send Reset Link"}
+      </button>
+    </>
+  );
+}
+
 export function SettingsPanel({
   open,
   initialTab,
@@ -58,6 +135,7 @@ export function SettingsPanel({
   provider,
   onClose,
   onDeleteAccount,
+  onResetPassword,
   deleting,
   deleteError,
 }: SettingsPanelProps) {
@@ -462,6 +540,14 @@ export function SettingsPanel({
                     <span className="setting-value mono">{userId}</span>
                   </div>
                 </div>
+              </div>
+
+              <hr className="divider" />
+
+              {/* Reset Password */}
+              <div className="panel-section">
+                <p className="panel-section-title">Password</p>
+                <ResetPasswordInline email={email} onResetPassword={onResetPassword} />
               </div>
 
               <hr className="divider" />

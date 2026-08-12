@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
 
@@ -84,6 +85,13 @@ export function SignIn() {
           <p className="auth-hint">
             Sign in with your preferred account. A new account will be created automatically if you don't have one.
           </p>
+
+          <Link
+            to="/reset-password"
+            className="auth-trouble-link"
+          >
+            Trouble signing in?
+          </Link>
         </div>
       </div>
     </>
