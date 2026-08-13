@@ -16,6 +16,7 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
 
   const handleSignIn = async (provider: Provider) => {
@@ -44,9 +45,9 @@ export function SignIn() {
     setSuccess(null);
     try {
       if (mode === "signin") {
-        await signInWithEmail(email, password);
+        await signInWithEmail(email, password, captchaToken || undefined);
       } else {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password, captchaToken || undefined);
         setSuccess(
           "Account created! Please check your email to confirm your account before signing in."
         );
@@ -201,9 +202,18 @@ export function SignIn() {
           <div className="captcha-wrapper">
             <Turnstile
               siteKey={SITE_KEY}
-              onSuccess={() => setCaptchaVerified(true)}
-              onError={() => setCaptchaVerified(false)}
-              onExpire={() => setCaptchaVerified(false)}
+              onSuccess={(token) => {
+                setCaptchaVerified(true);
+                setCaptchaToken(token);
+              }}
+              onError={() => {
+                setCaptchaVerified(false);
+                setCaptchaToken(null);
+              }}
+              onExpire={() => {
+                setCaptchaVerified(false);
+                setCaptchaToken(null);
+              }}
               options={{
                 theme: "dark",
                 size: "flexible",

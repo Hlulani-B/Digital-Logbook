@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 type Tab = "profile" | "preferences" | "account";
 
@@ -29,7 +30,7 @@ interface SettingsPanelProps {
   provider: string;
   onClose: () => void;
   onDeleteAccount: () => void;
-  onResetPassword: (email: string) => Promise<void>;
+  onResetPassword: (email: string, captchaToken?: string) => Promise<void>;
   deleting: boolean;
   deleteError: string | null;
 }
@@ -55,17 +56,19 @@ function ResetPasswordInline({
   onResetPassword,
 }: {
   email: string;
-  onResetPassword: (email: string) => Promise<void>;
+  onResetPassword: (email: string, captchaToken?: string) => Promise<void>;
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const handleSend = async () => {
     setSending(true);
     setError(null);
     try {
-      await onResetPassword(email);
+      await onResetPassword(email, captchaToken || undefined);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
@@ -116,11 +119,33 @@ function ResetPasswordInline({
       )}
       <button
         onClick={handleSend}
-        disabled={sending || !email}
+        disabled={sending || !email || !captchaVerified}
         className="btn-secondary"
       >
         {sending ? "Sending..." : "Send Reset Link"}
       </button>
+
+      <div className="captcha-wrapper" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
+        <Turnstile
+          siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+          onSuccess={(token) => {
+            setCaptchaVerified(true);
+            setCaptchaToken(token);
+          }}
+          onError={() => {
+            setCaptchaVerified(false);
+            setCaptchaToken(null);
+          }}
+          onExpire={() => {
+            setCaptchaVerified(false);
+            setCaptchaToken(null);
+          }}
+          options={{
+            theme: "dark",
+            size: "flexible",
+          }}
+        />
+      </div>
     </>
   );
 }

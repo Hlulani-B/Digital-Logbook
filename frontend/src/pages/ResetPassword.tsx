@@ -11,6 +11,7 @@ export function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const { resetPassword } = useAuth();
 
   const handleReset = async (e: FormEvent) => {
@@ -19,7 +20,7 @@ export function ResetPassword() {
     setError(null);
 
     try {
-      await resetPassword(email);
+      await resetPassword(email, captchaToken || undefined);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
@@ -95,9 +96,18 @@ export function ResetPassword() {
               <div className="captcha-wrapper">
                 <Turnstile
                   siteKey={SITE_KEY}
-                  onSuccess={() => setCaptchaVerified(true)}
-                  onError={() => setCaptchaVerified(false)}
-                  onExpire={() => setCaptchaVerified(false)}
+                  onSuccess={(token) => {
+                    setCaptchaVerified(true);
+                    setCaptchaToken(token);
+                  }}
+                  onError={() => {
+                    setCaptchaVerified(false);
+                    setCaptchaToken(null);
+                  }}
+                  onExpire={() => {
+                    setCaptchaVerified(false);
+                    setCaptchaToken(null);
+                  }}
                   options={{
                     theme: "dark",
                     size: "flexible",
