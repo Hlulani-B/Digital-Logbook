@@ -46,3 +46,10 @@ jobs:
           cd services/project-service
           npm install
           npm test --if-present
+
+      # 5. Profile Service
+      - name: Install & Test Profile Service
+        run: |
+          cd services/profile-service
+          npm install
+          npm test --if-present

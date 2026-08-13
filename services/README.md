@@ -20,7 +20,11 @@ codacaine/
 │   │   ├── index.js
 │   │   ├── package.json
 │   │   └── .env
-│   └── project-service/       # Project entries, timeline, search, stats
+│   ├── project-service/       # Project entries, timeline, search, stats
+│   │   ├── index.js
+│   │   ├── package.json
+│   │   └── .env
+│   └── profile-service/       # User profile management
 │       ├── index.js
 │       ├── package.json
 │       └── .env
@@ -53,6 +57,8 @@ cd ..\dashboard-service
 npm install
 cd ..\project-service
 npm install
+cd ..\profile-service
+npm install
 cd ..\..
 ```
 
@@ -73,6 +79,7 @@ Create a `.env` file inside each service folder:
 - `services/auth-service/.env`
 - `services/dashboard-service/.env`
 - `services/project-service/.env`
+- `services/profile-service/.env`
 
 Each file should contain:
 
@@ -89,6 +96,7 @@ Use the same `SUPABASE_URL` and `SUPABASE_KEY` across all three services (shared
 | auth-service | 4001 |
 | dashboard-service | 4002 |
 | project-service | 4003 |
+| profile-service | 4004 |
 
 Get the Supabase URL and key from the team lead or Supabase project settings — do not commit these values to the repo.
 
@@ -108,6 +116,11 @@ node index.js
 
 ```powershell
 cd services\project-service
+node index.js
+```
+
+```powershell
+cd services\profile-service
 node index.js
 ```
 

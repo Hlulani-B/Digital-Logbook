@@ -43,3 +43,18 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+
+  - type: web
+    name: profile-service
+    env: node
+    plan: free
+    rootDir: services/profile-service
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 5004
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

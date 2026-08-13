@@ -15,50 +15,70 @@ user into the same entry shape, which doesn't satisfy that requirement. Two
 tables solve this without needing a schema migration every time a user adds a
 field.
 
-## `fields` table
+## users
 
-Defines the shape of a user's custom entry form.
+| Column | Type | Notes |
+|---|---|---|
+| id | INT | PK, identity |
+| username | VARCHAR(50) | NOT NULL, UNIQUE |
+| name | VARCHAR(100) | NOT NULL |
+| email | VARCHAR(255) | NOT NULL, UNIQUE |
+| avatar | TEXT | |
+| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+
+## projects
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INT | PK, identity |
+| project_name | VARCHAR(150) | NOT NULL |
+| user_id | INT | NOT NULL, FK → users(id), ON DELETE CASCADE |
+| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+
+## fields
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK, default gen_random_uuid() |
+| user_email | VARCHAR(255) | NOT NULL |
+| table_name | VARCHAR(100) | NOT NULL |
+| field_name | VARCHAR(100) | NOT NULL |
+| data_type | VARCHAR(50) | e.g. text, number, boolean, date |
+| is_required | BOOLEAN | default false |
+| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
+
+## entries
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK, default gen_random_uuid() |
+| user_email | VARCHAR(255) | NOT NULL, indexed |
+| project_name | VARCHAR(255) | NOT NULL, indexed |
+| entries | JSONB | NOT NULL, dynamic field values |
+| due_date | TIMESTAMPTZ | nullable, indexed |
+| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
 ```sql
-CREATE TABLE fields (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_email VARCHAR(255) NOT NULL,
-    table_name VARCHAR(100) NOT NULL,
-    field_name VARCHAR(100) NOT NULL,
-    data_type VARCHAR(50) NOT NULL,
-    is_required BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+ALTER TABLE entries
+ADD COLUMN due_date TIMESTAMP WITH TIME ZONE;
 
-CREATE INDEX idx_fields_user_email ON fields(user_email);
-```
-
-## `entries` table
-
-Stores the actual submitted data as a flexible object.
-
-```sql
-CREATE TABLE entries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_email VARCHAR(255) NOT NULL,
-    project_name VARCHAR(255) NOT NULL,
-    entries JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_entries_user_email ON entries(user_email);
-CREATE INDEX idx_entries_project_name ON entries(project_name);
+CREATE INDEX idx_entries_due_date ON entries(due_date);
 ```
 
 ## Design rationale
 
 | Decision | Why |
 |---|---|
-| `user_email` directly on each table | Keeps lookups simple at this project's scale, rather than joining through a separate `users` table via foreign key |
+| `id` as `INT GENERATED ALWAYS AS IDENTITY` on `users`/`projects` | Simple auto-incrementing keys are enough for tables that stay small and relational — no need for UUIDs here since these rows are rarely referenced outside the database itself |
+| `id` as `UUID` on `fields`/`entries` | These rows get referenced from the frontend and possibly across services, so UUIDs avoid leaking a guessable sequential count and avoid collisions if entries are ever created offline before syncing |
+| `user_id` FK with `ON DELETE CASCADE` on `projects` | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup |
+| `user_email` directly on `fields`/`entries` (not a FK) | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email rather than the internal `users.id` |
 | `table_name` on `fields` | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one |
 | Field definitions stored as **rows**, not columns | Avoids `ALTER TABLE` migrations every time a user adds or changes a custom field — the database structure itself never has to change |
 | `entries` stored as `JSONB` | The shape of an entry varies per user/project, so a fixed set of SQL columns can't represent it. JSONB stores the submitted values as one flexible object while staying natively indexable and queryable in Postgres |
+| `due_date` as a real column, not inside `entries` JSONB | Overdue checks need to run a fast, indexed comparison against `now()` across every row. A value buried in JSONB can't be indexed the same way, so pulling it out keeps "show me anything overdue" cheap even as entries grow |
 | Indexes on `user_email` and `project_name` | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows |
+| Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
 
 ## Trade-off
 
