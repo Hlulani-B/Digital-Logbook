@@ -19,10 +19,9 @@ field.
 
 | Column | Type | Notes |
 |---|---|---|
-| id | INT | PK, identity |
+| email | VARCHAR(255) | PK, NOT NULL, UNIQUE |
 | username | VARCHAR(50) | NOT NULL, UNIQUE |
 | name | VARCHAR(100) | NOT NULL |
-| email | VARCHAR(255) | NOT NULL, UNIQUE |
 | avatar | TEXT | |
 | created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
 
@@ -30,9 +29,8 @@ field.
 
 | Column | Type | Notes |
 |---|---|---|
-| id | INT | PK, identity |
 | project_name | VARCHAR(150) | NOT NULL |
-| user_id | INT | NOT NULL, FK → users(id), ON DELETE CASCADE |
+| user_email | VARCHAR(255) | NOT NULL, FK → users(email) |
 | created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
 
 ## fields
