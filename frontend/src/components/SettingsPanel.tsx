@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 type Tab = "profile" | "preferences" | "account";
 
@@ -62,16 +62,21 @@ function ResetPasswordInline({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captchaVerified, setCaptchaVerified] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaTokenRef = useRef<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const handleSend = async () => {
     setSending(true);
     setError(null);
     try {
-      await onResetPassword(email, captchaToken || undefined);
+      await onResetPassword(email, captchaTokenRef.current || undefined);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
+      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
+      turnstileRef.current?.reset();
+      setCaptchaVerified(false);
+      captchaTokenRef.current = null;
     } finally {
       setSending(false);
     }
@@ -127,18 +132,19 @@ function ResetPasswordInline({
 
       <div className="captcha-wrapper" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
         <Turnstile
+          ref={turnstileRef}
           siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
           onSuccess={(token) => {
             setCaptchaVerified(true);
-            setCaptchaToken(token);
+            captchaTokenRef.current = token;
           }}
           onError={() => {
             setCaptchaVerified(false);
-            setCaptchaToken(null);
+            captchaTokenRef.current = null;
           }}
           onExpire={() => {
             setCaptchaVerified(false);
-            setCaptchaToken(null);
+            captchaTokenRef.current = null;
           }}
           options={{
             theme: "dark",

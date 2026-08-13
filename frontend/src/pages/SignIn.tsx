@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
 
 type Provider = "google" | "github";
@@ -16,7 +16,8 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [captchaVerified, setCaptchaVerified] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaTokenRef = useRef<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
 
   const handleSignIn = async (provider: Provider) => {
@@ -45,15 +46,19 @@ export function SignIn() {
     setSuccess(null);
     try {
       if (mode === "signin") {
-        await signInWithEmail(email, password, captchaToken || undefined);
+        await signInWithEmail(email, password, captchaTokenRef.current || undefined);
       } else {
-        await signUpWithEmail(email, password, captchaToken || undefined);
+        await signUpWithEmail(email, password, captchaTokenRef.current || undefined);
         setSuccess(
           "Account created! Please check your email to confirm your account before signing in."
         );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
+      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
+      turnstileRef.current?.reset();
+      setCaptchaVerified(false);
+      captchaTokenRef.current = null;
     } finally {
       setEmailLoading(false);
     }
@@ -201,18 +206,19 @@ export function SignIn() {
           {/* CAPTCHA */}
           <div className="captcha-wrapper">
             <Turnstile
+              ref={turnstileRef}
               siteKey={SITE_KEY}
               onSuccess={(token) => {
                 setCaptchaVerified(true);
-                setCaptchaToken(token);
+                captchaTokenRef.current = token;
               }}
               onError={() => {
                 setCaptchaVerified(false);
-                setCaptchaToken(null);
+                captchaTokenRef.current = null;
               }}
               onExpire={() => {
                 setCaptchaVerified(false);
-                setCaptchaToken(null);
+                captchaTokenRef.current = null;
               }}
               options={{
                 theme: "dark",

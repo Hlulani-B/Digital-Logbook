@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
 
 const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
@@ -11,7 +11,8 @@ export function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaTokenRef = useRef<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const { resetPassword } = useAuth();
 
   const handleReset = async (e: FormEvent) => {
@@ -20,10 +21,14 @@ export function ResetPassword() {
     setError(null);
 
     try {
-      await resetPassword(email, captchaToken || undefined);
+      await resetPassword(email, captchaTokenRef.current || undefined);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
+      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
+      turnstileRef.current?.reset();
+      setCaptchaVerified(false);
+      captchaTokenRef.current = null;
     } finally {
       setLoading(false);
     }
@@ -95,18 +100,19 @@ export function ResetPassword() {
               {/* CAPTCHA */}
               <div className="captcha-wrapper">
                 <Turnstile
+                  ref={turnstileRef}
                   siteKey={SITE_KEY}
                   onSuccess={(token) => {
                     setCaptchaVerified(true);
-                    setCaptchaToken(token);
+                    captchaTokenRef.current = token;
                   }}
                   onError={() => {
                     setCaptchaVerified(false);
-                    setCaptchaToken(null);
+                    captchaTokenRef.current = null;
                   }}
                   onExpire={() => {
                     setCaptchaVerified(false);
-                    setCaptchaToken(null);
+                    captchaTokenRef.current = null;
                   }}
                   options={{
                     theme: "dark",
