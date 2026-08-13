@@ -15,8 +15,6 @@ user into the same entry shape, which doesn't satisfy that requirement. Two
 tables solve this without needing a schema migration every time a user adds a
 field.
 
-# Database Schema
-
 ## users
 
 | Column | Type | Notes |
@@ -59,12 +57,14 @@ field.
 | entries | JSONB | NOT NULL, dynamic field values |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
-
 ## Design rationale
 
 | Decision | Why |
 |---|---|
-| `user_email` directly on each table | Keeps lookups simple at this project's scale, rather than joining through a separate `users` table via foreign key |
+| `id` as `INT GENERATED ALWAYS AS IDENTITY` on `users`/`projects` | Simple auto-incrementing keys are enough for tables that stay small and relational — no need for UUIDs here since these rows are rarely referenced outside the database itself |
+| `id` as `UUID` on `fields`/`entries` | These rows get referenced from the frontend and possibly across services, so UUIDs avoid leaking a guessable sequential count and avoid collisions if entries are ever created offline before syncing |
+| `user_id` FK with `ON DELETE CASCADE` on `projects` | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup |
+| `user_email` directly on `fields`/`entries` (not a FK) | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email rather than the internal `users.id` |
 | `table_name` on `fields` | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one |
 | Field definitions stored as **rows**, not columns | Avoids `ALTER TABLE` migrations every time a user adds or changes a custom field — the database structure itself never has to change |
 | `entries` stored as `JSONB` | The shape of an entry varies per user/project, so a fixed set of SQL columns can't represent it. JSONB stores the submitted values as one flexible object while staying natively indexable and queryable in Postgres |
