@@ -55,7 +55,15 @@ field.
 | user_email | VARCHAR(255) | NOT NULL, indexed |
 | project_name | VARCHAR(255) | NOT NULL, indexed |
 | entries | JSONB | NOT NULL, dynamic field values |
+| due_date | TIMESTAMPTZ | nullable, indexed |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
+
+```sql
+ALTER TABLE entries
+ADD COLUMN due_date TIMESTAMP WITH TIME ZONE;
+
+CREATE INDEX idx_entries_due_date ON entries(due_date);
+```
 
 ## Design rationale
 
@@ -68,7 +76,9 @@ field.
 | `table_name` on `fields` | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one |
 | Field definitions stored as **rows**, not columns | Avoids `ALTER TABLE` migrations every time a user adds or changes a custom field — the database structure itself never has to change |
 | `entries` stored as `JSONB` | The shape of an entry varies per user/project, so a fixed set of SQL columns can't represent it. JSONB stores the submitted values as one flexible object while staying natively indexable and queryable in Postgres |
+| `due_date` as a real column, not inside `entries` JSONB | Overdue checks need to run a fast, indexed comparison against `now()` across every row. A value buried in JSONB can't be indexed the same way, so pulling it out keeps "show me anything overdue" cheap even as entries grow |
 | Indexes on `user_email` and `project_name` | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows |
+| Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
 
 ## Trade-off
 
