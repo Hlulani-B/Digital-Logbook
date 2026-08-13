@@ -17,6 +17,26 @@ field.
 
 # Database Schema
 
+## users
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INT | PK, identity |
+| username | VARCHAR(50) | NOT NULL, UNIQUE |
+| name | VARCHAR(100) | NOT NULL |
+| email | VARCHAR(255) | NOT NULL, UNIQUE |
+| avatar | TEXT | |
+| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+
+## projects
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INT | PK, identity |
+| project_name | VARCHAR(150) | NOT NULL |
+| user_id | INT | NOT NULL, FK → users(id), ON DELETE CASCADE |
+| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+
 ## fields
 
 | Column | Type | Notes |
