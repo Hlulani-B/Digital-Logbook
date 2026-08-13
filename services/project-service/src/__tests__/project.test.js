@@ -53,7 +53,7 @@ describe('Project', () => {
 
   // ─── editProjectName ─────────────────────────────────────────
   describe('editProjectName', () => {
-    it('should update entries and project name successfully', async () => {
+    it('should update entries, fields and project name successfully', async () => {
       let callCount = 0;
       supabase.from.mockImplementation((tableName) => {
         callCount += 1;
@@ -64,8 +64,9 @@ describe('Project', () => {
 
       expect(result).toEqual({ success: true, message: 'Project name updated successfully' });
       expect(supabase.from).toHaveBeenNthCalledWith(1, 'entries');
-      expect(supabase.from).toHaveBeenNthCalledWith(2, 'projects');
-      expect(callCount).toBe(2);
+      expect(supabase.from).toHaveBeenNthCalledWith(2, 'fields');
+      expect(supabase.from).toHaveBeenNthCalledWith(3, 'projects');
+      expect(callCount).toBe(3);
     });
 
     it('should return failure when entries update fails', async () => {
@@ -84,12 +85,34 @@ describe('Project', () => {
       expect(supabase.from).toHaveBeenCalledWith('entries');
     });
 
-    it('should return failure when projects update fails after entries succeed', async () => {
+    it('should return failure when fields update fails after entries succeed', async () => {
       let callCount = 0;
       supabase.from.mockImplementation((tableName) => {
         callCount += 1;
         if (callCount === 1) {
           return createMockSupabaseClient({ entries: { data: [] } }).from(tableName);
+        }
+        if (callCount === 2) {
+          return createMockSupabaseClient({ fields: { error: { message: 'fields update failed' } } }).from(tableName);
+        }
+        return createMockSupabaseClient().from(tableName);
+      });
+
+      const result = await project.editProjectName('a@b.com', 'New', 'Old');
+
+      expect(result).toEqual({ success: false, message: 'fields update failed' });
+      expect(supabase.from).toHaveBeenNthCalledWith(2, 'fields');
+    });
+
+    it('should return failure when projects update fails after entries and fields succeed', async () => {
+      let callCount = 0;
+      supabase.from.mockImplementation((tableName) => {
+        callCount += 1;
+        if (callCount === 1) {
+          return createMockSupabaseClient({ entries: { data: [] } }).from(tableName);
+        }
+        if (callCount === 2) {
+          return createMockSupabaseClient({ fields: { data: [] } }).from(tableName);
         }
         return createMockSupabaseClient({ projects: { error: { message: 'projects update failed' } } }).from(tableName);
       });
@@ -102,7 +125,7 @@ describe('Project', () => {
 
   // ─── deleteProject ───────────────────────────────────────────
   describe('deleteProject', () => {
-    it('should delete entries and project successfully', async () => {
+    it('should delete entries, fields and project successfully', async () => {
       let callCount = 0;
       supabase.from.mockImplementation((tableName) => {
         callCount += 1;
@@ -113,8 +136,9 @@ describe('Project', () => {
 
       expect(result).toEqual({ success: true, message: 'Project deleted successfully' });
       expect(supabase.from).toHaveBeenNthCalledWith(1, 'entries');
-      expect(supabase.from).toHaveBeenNthCalledWith(2, 'projects');
-      expect(callCount).toBe(2);
+      expect(supabase.from).toHaveBeenNthCalledWith(2, 'fields');
+      expect(supabase.from).toHaveBeenNthCalledWith(3, 'projects');
+      expect(callCount).toBe(3);
     });
 
     it('should return failure when entries delete fails', async () => {
@@ -132,12 +156,34 @@ describe('Project', () => {
       expect(result).toEqual({ success: false, message: 'entries delete failed' });
     });
 
-    it('should return failure when projects delete fails after entries succeed', async () => {
+    it('should return failure when fields delete fails after entries succeed', async () => {
       let callCount = 0;
       supabase.from.mockImplementation((tableName) => {
         callCount += 1;
         if (callCount === 1) {
           return createMockSupabaseClient({ entries: { data: [] } }).from(tableName);
+        }
+        if (callCount === 2) {
+          return createMockSupabaseClient({ fields: { error: { message: 'fields delete failed' } } }).from(tableName);
+        }
+        return createMockSupabaseClient().from(tableName);
+      });
+
+      const result = await project.deleteProject('a@b.com', 'My Project');
+
+      expect(result).toEqual({ success: false, message: 'fields delete failed' });
+      expect(supabase.from).toHaveBeenNthCalledWith(2, 'fields');
+    });
+
+    it('should return failure when projects delete fails after entries and fields succeed', async () => {
+      let callCount = 0;
+      supabase.from.mockImplementation((tableName) => {
+        callCount += 1;
+        if (callCount === 1) {
+          return createMockSupabaseClient({ entries: { data: [] } }).from(tableName);
+        }
+        if (callCount === 2) {
+          return createMockSupabaseClient({ fields: { data: [] } }).from(tableName);
         }
         return createMockSupabaseClient({ projects: { error: { message: 'projects delete failed' } } }).from(tableName);
       });

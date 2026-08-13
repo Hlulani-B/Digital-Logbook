@@ -21,7 +21,7 @@ export class Project {
   }
 
   async editProjectName(user_email, new_project_name, old_project_name) {
-    // Also update all the project entries that have this project name
+    // Also update all the project entries and custom fields that have this project name
     try {
       let error;
 
@@ -30,6 +30,17 @@ export class Project {
         .from('entries')
         .update({ project_name: new_project_name })
         .eq('project_name', old_project_name)
+        .eq('user_email', user_email));
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the custom fields tied to this project (table_name == project_name)
+      ({ error } = await supabase
+        .from('fields')
+        .update({ table_name: new_project_name })
+        .eq('table_name', old_project_name)
         .eq('user_email', user_email));
 
       if (error) {
@@ -56,7 +67,7 @@ export class Project {
   }
 
   async deleteProject(user_email, project_name) {
-    // When deleting a project, also delete all of its entries
+    // When deleting a project, also delete all of its entries and custom fields
     try {
       let error;
 
@@ -64,6 +75,17 @@ export class Project {
         .from('entries')
         .delete()
         .eq('project_name', project_name)
+        .eq('user_email', user_email));
+
+      if (error) {
+        throw error;
+      }
+
+      // Delete custom fields tied to this project (table_name == project_name)
+      ({ error } = await supabase
+        .from('fields')
+        .delete()
+        .eq('table_name', project_name)
         .eq('user_email', user_email));
 
       if (error) {
