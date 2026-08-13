@@ -54,6 +54,7 @@ field.
 | project_name | VARCHAR(255) | NOT NULL, indexed |
 | entries | JSONB | NOT NULL, dynamic field values |
 | due_date | TIMESTAMPTZ | nullable, indexed |
+| priority | priority_level (ENUM) | nullable |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
 ```sql
@@ -61,20 +62,32 @@ ALTER TABLE entries
 ADD COLUMN due_date TIMESTAMP WITH TIME ZONE;
 
 CREATE INDEX idx_entries_due_date ON entries(due_date);
+
+CREATE TYPE priority_level AS ENUM (
+  'Urgent and important',
+  'Urgent but not important',
+  'Not urgent, not important'
+);
+
+ALTER TABLE entries
+ADD COLUMN priority priority_level;
 ```
 
 ## Design rationale
 
 | Decision | Why |
 |---|---|
-| `id` as `INT GENERATED ALWAYS AS IDENTITY` on `users`/`projects` | Simple auto-incrementing keys are enough for tables that stay small and relational — no need for UUIDs here since these rows are rarely referenced outside the database itself |
+| `email` as PK on `users` | Supabase Auth already identifies sessions by email rather than an internal id, so making it the PK removes a redundant surrogate key and matches how other tables already reference users |
 | `id` as `UUID` on `fields`/`entries` | These rows get referenced from the frontend and possibly across services, so UUIDs avoid leaking a guessable sequential count and avoid collisions if entries are ever created offline before syncing |
-| `user_id` FK with `ON DELETE CASCADE` on `projects` | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup |
-| `user_email` directly on `fields`/`entries` (not a FK) | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email rather than the internal `users.id` |
+| `projects` has no surrogate `id` | Now that `users` is keyed by `email`, `projects` doesn't need its own auto-incrementing id either — `user_email` + `project_name` is enough to identify a project without carrying an extra unused key |
+| `user_email` FK with `ON DELETE CASCADE` on `projects` | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup |
+| `user_email` directly on `fields`/`entries` (not a FK) | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email |
 | `table_name` on `fields` | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one |
 | Field definitions stored as **rows**, not columns | Avoids `ALTER TABLE` migrations every time a user adds or changes a custom field — the database structure itself never has to change |
 | `entries` stored as `JSONB` | The shape of an entry varies per user/project, so a fixed set of SQL columns can't represent it. JSONB stores the submitted values as one flexible object while staying natively indexable and queryable in Postgres |
 | `due_date` as a real column, not inside `entries` JSONB | Overdue checks need to run a fast, indexed comparison against `now()` across every row. A value buried in JSONB can't be indexed the same way, so pulling it out keeps "show me anything overdue" cheap even as entries grow |
+| `priority` as a Postgres ENUM, not inside `entries` JSONB | Priority is a fixed, small set of values shared by every project regardless of their custom fields, so it belongs alongside `due_date` as a real column rather than something the user defines per-project. An ENUM also stops bad values from ever being written, which JSONB can't guarantee |
+| `priority` nullable | Not every entry needs a priority assigned, so the column has no default and no `NOT NULL` — it's opt-in |
 | Indexes on `user_email` and `project_name` | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows |
 | Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
 
