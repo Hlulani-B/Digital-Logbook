@@ -15,40 +15,30 @@ user into the same entry shape, which doesn't satisfy that requirement. Two
 tables solve this without needing a schema migration every time a user adds a
 field.
 
-## `fields` table
+# Database Schema
 
-Defines the shape of a user's custom entry form.
+## fields
 
-```sql
-CREATE TABLE fields (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_email VARCHAR(255) NOT NULL,
-    table_name VARCHAR(100) NOT NULL,
-    field_name VARCHAR(100) NOT NULL,
-    data_type VARCHAR(50) NOT NULL,
-    is_required BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK, default gen_random_uuid() |
+| user_email | VARCHAR(255) | NOT NULL |
+| table_name | VARCHAR(100) | NOT NULL |
+| field_name | VARCHAR(100) | NOT NULL |
+| data_type | VARCHAR(50) | e.g. text, number, boolean, date |
+| is_required | BOOLEAN | default false |
+| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
-CREATE INDEX idx_fields_user_email ON fields(user_email);
-```
+## entries
 
-## `entries` table
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK, default gen_random_uuid() |
+| user_email | VARCHAR(255) | NOT NULL, indexed |
+| project_name | VARCHAR(255) | NOT NULL, indexed |
+| entries | JSONB | NOT NULL, dynamic field values |
+| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
-Stores the actual submitted data as a flexible object.
-
-```sql
-CREATE TABLE entries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_email VARCHAR(255) NOT NULL,
-    project_name VARCHAR(255) NOT NULL,
-    entries JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_entries_user_email ON entries(user_email);
-CREATE INDEX idx_entries_project_name ON entries(project_name);
-```
 
 ## Design rationale
 
