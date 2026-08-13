@@ -68,7 +68,9 @@ export function SignIn() {
 
   return (
     <>
-      <div className="bg-mesh" />
+      <div className="bg-mesh">
+        <div className="orb" />
+      </div>
       <div className="auth-container">
         <div className="glass auth-card animate-in">
           <div className="auth-logo">DL</div>
@@ -76,23 +78,7 @@ export function SignIn() {
           <p className="auth-subtitle">Track your time, own your progress</p>
 
           {error && <div className="auth-error">{error}</div>}
-          {success && (
-            <div
-              style={{
-                padding: "0.75rem 1rem",
-                borderRadius: "var(--radius-xs)",
-                background: "rgba(34,197,94,0.1)",
-                border: "1px solid rgba(34,197,94,0.2)",
-                color: "#86efac",
-                fontSize: "0.8125rem",
-                lineHeight: "1.5",
-                textAlign: "left",
-                marginBottom: "1rem",
-              }}
-            >
-              {success}
-            </div>
-          )}
+          {success && <div className="auth-success">{success}</div>}
 
           {/* Email/Password Form */}
           <form onSubmit={handleEmailSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
@@ -135,8 +121,7 @@ export function SignIn() {
             <button
               type="submit"
               disabled={emailLoading || !captchaVerified}
-              className="btn-primary"
-              style={{ padding: "0.75rem", fontSize: "0.875rem" }}
+              className="btn-primary auth-submit"
             >
               {emailLoading
                 ? mode === "signin"
@@ -205,6 +190,7 @@ export function SignIn() {
               onClick={() => handleSignIn("google")}
               disabled={isLoading || !captchaVerified}
               className="oauth-btn"
+              data-provider="google"
               aria-label="Continue with Google"
               title="Continue with Google"
             >
@@ -220,6 +206,7 @@ export function SignIn() {
               onClick={() => handleSignIn("github")}
               disabled={isLoading || !captchaVerified}
               className="oauth-btn"
+              data-provider="github"
               aria-label="Continue with GitHub"
               title="Continue with GitHub"
             >
