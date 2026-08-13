@@ -38,6 +38,7 @@ All feature requirements and design decisions were directed by me (the student):
 - I shared the existing Codacaine team repository structure (backend microservices on Render, Supabase database)
 - I specified that authentication should use Supabase with Google OAuth
 - I requested GitHub be added as a second OAuth provider
+- I requested email/password sign-in and sign-up be added to support the password reset flow
 - I requested Cloudflare Turnstile CAPTCHA be integrated
 - I directed the UI redesign ("make it look like a million bucks")
 - I requested the avatar-based profile menu and settings panel
@@ -51,7 +52,7 @@ The AI generated the following code based on my instructions:
 
 | File | Description | AI Contribution |
 |---|---|---|
-| `src/pages/SignIn.tsx` | Sign-in page with Google/GitHub OAuth + CAPTCHA | AI generated from my requirements |
+| `src/pages/SignIn.tsx` | Sign-in page with Google/GitHub OAuth, email/password, and CAPTCHA | AI generated from my requirements |
 | `src/pages/Dashboard.tsx` | Dashboard with stats, greeting, quick actions | AI generated from my requirements |
 | `src/pages/AuthCallback.tsx` | OAuth redirect handler | AI generated |
 | `src/pages/ResetPassword.tsx` | Password reset request page | AI generated |
@@ -84,6 +85,7 @@ The AI generated the following code based on my instructions:
 | Supabase permissions (couldn't edit redirect URLs) | Me (student) | AI (advised asking project admin or creating own Supabase project) |
 | Google Cloud Console redirect URIs | Me (student, asked) | AI (provided correct values) |
 | GitHub provider addition | Me (student, requested) | AI (added signInWithGitHub to AuthContext and SignIn page) |
+| Email/password auth addition | Me (student, requested) | AI (added signInWithEmail and signUpWithEmail forms to SignIn page) |
 | Reset password inaccessible from UI | Me (student, identified) | AI (added "Trouble signing in?" link and settings panel option) |
 
 ---

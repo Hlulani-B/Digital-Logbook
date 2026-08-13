@@ -208,6 +208,45 @@ body {
   flex-shrink: 0;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 1.25rem 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-divider span {
+  padding: 0 0.75rem;
+}
+
+.auth-mode-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.auth-mode-toggle:hover {
+  color: var(--accent-light);
+}
+
 .auth-hint {
   margin-top: 1.5rem;
   font-size: 0.8125rem;

@@ -28,10 +28,11 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Key details:**
 - **Google OAuth** — one-click sign-in/sign-up via Google accounts
 - **GitHub OAuth** — alternative provider for developer-friendly authentication
+- **Email / Password** — traditional sign-in and sign-up with CAPTCHA-gated form; supports the password reset flow end-to-end
 - **Cloudflare Turnstile CAPTCHA** — invisible bot protection that must be verified before any sign-in button becomes active
-- **"Trouble signing in?" link** — accessible entry point to the password reset flow
+- **"Forgot password?" link** — accessible entry point to the password reset flow
 - Animated gradient background with glassmorphism card design
-- Accounts are created automatically on first sign-in (no separate sign-up step)
+- OAuth accounts are created automatically on first sign-in (no separate sign-up step)
 
 ### 2. OAuth Callback Handler (`/auth/callback`)
 
@@ -86,7 +87,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 - **Weekly log reminder** — toggle Friday nudges to log hours
 
 #### Account Tab
-- **Account information** — email, sign-in method (Google/GitHub), and user ID
+- **Account information** — email, sign-in method (Google/GitHub/email), and user ID
 - **Password reset** — send a reset link to your email (sets up email-based auth alongside OAuth)
 - **Danger Zone** — permanently delete account with confirmation dialog
 
