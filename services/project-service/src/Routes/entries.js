@@ -6,7 +6,7 @@ const entries = new Entries();
 /**
  * input:
  *     function
- *  values("add","update","delete","get","sort")
+ *  values("add","update","delete","get","getAll","sort")
  */
 router.post('/entry', async (req, res) => {
     const { function: func, values } = req.body;
@@ -30,6 +30,11 @@ router.post('/entry', async (req, res) => {
         case "get": {
             const { user_email, project_name } = values;
             const result = await entries.getEntries(user_email, project_name);
+            return res.json(result);
+        }
+        case "getAll": {
+            const { user_email } = values;
+            const result = await entries.getAllEntries(user_email);
             return res.json(result);
         }
         case "sort": {

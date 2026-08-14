@@ -31,7 +31,6 @@ field.
 |---|---|---|
 | project_name | VARCHAR(150) | PK, NOT NULL |
 | user_email | VARCHAR(255) | NOT NULL, FK → users(email) |
-| is_archived | BOOLEAN | default false |
 | archived | BOOLEAN | default false |
 | created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
 
@@ -58,6 +57,9 @@ field.
 | due_date | TIMESTAMPTZ | nullable, indexed |
 | priority | priority_level (ENUM) | nullable |
 | archived | BOOLEAN | default false |
+| started_at | TIMESTAMPTZ | nullable, set when user starts a work session |
+| ended_at | TIMESTAMPTZ | nullable, set when user stops the session |
+| duration | INTERVAL | generated, `ended_at - started_at` |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
 ```sql
@@ -76,17 +78,18 @@ ALTER TABLE entries
 ADD COLUMN priority priority_level;
 
 ALTER TABLE projects
-ADD COLUMN is_archived BOOLEAN DEFAULT false;
-
-ALTER TABLE projects
 ADD COLUMN archived BOOLEAN DEFAULT false;
 
 ALTER TABLE entries
 ADD COLUMN archived BOOLEAN DEFAULT false;
 
-CREATE INDEX idx_projects_is_archived ON projects(is_archived);
 CREATE INDEX idx_projects_archived ON projects(archived);
 CREATE INDEX idx_entries_archived ON entries(archived);
+
+ALTER TABLE entries
+ADD COLUMN started_at TIMESTAMPTZ,
+ADD COLUMN ended_at TIMESTAMPTZ,
+ADD COLUMN duration INTERVAL GENERATED ALWAYS AS (ended_at - started_at) STORED;
 ```
 
 ## Design rationale
@@ -104,10 +107,13 @@ CREATE INDEX idx_entries_archived ON entries(archived);
 | `due_date` as a real column, not inside `entries` JSONB | Overdue checks need to run a fast, indexed comparison against `now()` across every row. A value buried in JSONB can't be indexed the same way, so pulling it out keeps "show me anything overdue" cheap even as entries grow |
 | `priority` as a Postgres ENUM, not inside `entries` JSONB | Priority is a fixed, small set of values shared by every project regardless of their custom fields, so it belongs alongside `due_date` as a real column rather than something the user defines per-project. An ENUM also stops bad values from ever being written, which JSONB can't guarantee |
 | `priority` nullable | Not every entry needs a priority assigned, so the column has no default and no `NOT NULL` — it's opt-in |
+| `started_at` / `ended_at` as real columns, not inside `entries` JSONB | Time tracking totals need fast, native date-math (`SUM(duration)` per project), which JSONB values can't do efficiently. Keeping them as real timestamp columns also lets `duration` be a generated column instead of something recalculated manually every time |
+| `duration` as a `GENERATED ALWAYS AS ... STORED` column | Postgres computes `ended_at - started_at` automatically whenever those two columns are set, so the app never risks the stored duration going stale or being calculated inconsistently across different code paths |
+| `started_at` / `ended_at` both nullable | Supports two logging styles: a live "start/stop" timer flow (set `started_at` immediately, `ended_at` on stop) and a manual after-the-fact entry (both set at once when saving) — neither is forced on the user |
 | Indexes on `user_email` and `project_name` | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows |
 | Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
-| `is_archived` on `projects`, `archived` on `entries` | Soft-archive support lets users hide projects/entries without deleting data. Projects use the more explicit `is_archived` name because the table already represents a noun (`projects`), so a boolean predicate (`is_archived`) reads more clearly in queries; entries keep `archived` because it was the original naming convention. Both default `false` so existing rows remain visible |
-| Indexes on `is_archived` / `archived` | Keeps "show only active" / "show only archived" filters fast as data grows |
+| `archived` on `projects`/`entries` | Soft-archive support lets users hide projects/entries without deleting data. Both default `false` so existing rows remain visible |
+| Indexes on `archived` | Keeps "show only active" / "show only archived" filters fast as data grows |
 
 ## Trade-off
 

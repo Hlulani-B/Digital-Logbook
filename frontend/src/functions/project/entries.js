@@ -27,6 +27,15 @@ export async function getEntries(user_email, project_name) {
   return res.json();
 }
 
+export async function getAllEntries(user_email) {
+  const res = await fetch(url + '/service/entry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ function: 'getAll', values: { user_email } })
+  });
+  return res.json();
+}
+
 export async function deleteEntry(user_email, project_name, entry) {
   const res = await fetch(url + '/service/entry', {
     method: 'POST',

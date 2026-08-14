@@ -126,6 +126,33 @@ describe('Entries', () => {
     });
   });
 
+  // ─── getAllEntries ───────────────────────────────────────────
+  describe('getAllEntries', () => {
+    it('should retrieve all entries for a user across projects', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: [{ id: 1, entries: 'entry-1' }, { id: 2, entries: 'entry-2' }] } }).from(tableName)
+      );
+
+      const result = await entries.getAllEntries('a@b.com');
+
+      expect(result).toEqual({
+        success: true,
+        message: 'All entries retrieved successfully',
+        data: [{ id: 1, entries: 'entry-1' }, { id: 2, entries: 'entry-2' }],
+      });
+    });
+
+    it('should return failure when Supabase returns an error', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { message: 'select failed' } } }).from(tableName)
+      );
+
+      const result = await entries.getAllEntries('a@b.com');
+
+      expect(result).toEqual({ success: false, message: 'select failed' });
+    });
+  });
+
   // ─── deleteEntry ─────────────────────────────────────────────
   describe('deleteEntry', () => {
     it('should delete an existing entry', async () => {
