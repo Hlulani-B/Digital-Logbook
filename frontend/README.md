@@ -1,16 +1,208 @@
-# React + Vite
+# Digital Logbook — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A modern, premium frontend for the **Digital Logbook** application built as part of the **COMS3011A Project 7** (University of the Witwatersrand). This frontend handles user authentication, profile management, and dashboard functionality using React, Supabase, and Cloudflare Turnstile.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Tech Stack
 
-## React Compiler
+| Technology | Purpose |
+|---|---|
+| **React 19 + TypeScript** | UI framework with type safety |
+| **Vite 6** | Build tool and dev server |
+| **React Router v7** | Client-side routing |
+| **Supabase** | Authentication (Google & GitHub OAuth) |
+| **Cloudflare Turnstile** | CAPTCHA bot protection |
+| **CSS (custom)** | Premium glassmorphism UI (no Tailwind dependency) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## Features
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### 1. Sign-In Page (`/signin`)
+
+**What it does:** Provides a clean, secure entry point for users to authenticate using their Google or GitHub accounts.
+
+**Why:** The project specification requires users to sign up and sign in using established authentication libraries. OAuth eliminates the need for users to remember passwords and leverages trusted identity providers.
+
+**Key details:**
+- **Google OAuth** — one-click sign-in/sign-up via Google accounts
+- **GitHub OAuth** — alternative provider for developer-friendly authentication
+- **Email / Password** — traditional sign-in and sign-up with CAPTCHA-gated form; supports the password reset flow end-to-end
+- **Cloudflare Turnstile CAPTCHA** — invisible bot protection that must be verified before any sign-in button becomes active
+- **"Forgot password?" link** — accessible entry point to the password reset flow
+- Animated gradient background with glassmorphism card design
+- OAuth accounts are created automatically on first sign-in (no separate sign-up step)
+
+### 2. OAuth Callback Handler (`/auth/callback`)
+
+**What it does:** Handles the redirect from Google/GitHub after authentication, exchanges the authorization code for a Supabase session, and redirects the user to the dashboard.
+
+**Why:** OAuth flows require a callback URL to complete authentication. This handler ensures a seamless transition from the identity provider back to the application.
+
+### 3. Dashboard (`/dashboard`)
+
+**What it does:** The main authenticated landing page showing a personalized greeting, stats overview, and quick actions.
+
+**Why:** Provides users with an immediate overview of their logbook activity and fast access to common actions.
+
+**Key details:**
+- **Smart greeting** — displays "Welcome" for first-time users and "Welcome back" for returning users, tracked per-user in `localStorage`
+- **Stats cards** — Total Entries, This Week, and Projects with animated entrance and hover effects
+- **Quick actions** — New Entry, View All Entries, Export Data buttons
+- **Gradient text** on the greeting heading for visual impact
+
+### 4. Profile Menu (Avatar Dropdown)
+
+**What it does:** Clicking the user's avatar/name in the navbar opens a dropdown menu with quick access to profile management, settings, and sign-out.
+
+**Why:** Keeps the navbar clean while providing instant access to account management without navigating away from the current page.
+
+**Key details:**
+- Shows user's name and email at the top
+- **Manage Profile** — opens the Profile tab in the settings panel
+- **Settings** — opens the Preferences tab
+- **Sign Out** — securely ends the session
+- Closes on outside click or Escape key
+
+### 5. Settings Panel (Slide-Out)
+
+**What it does:** A full-featured slide-out panel from the right side of the screen with three tabs for managing the user's account and preferences.
+
+**Why:** Allows users to personalise their logbook experience without leaving the dashboard, making the app easier to use over time.
+
+#### Profile Tab
+- **Preferred Name** — customise how the app greets you (overrides the Google/GitHub name on the dashboard)
+- **Role** — Student, Lecturer, Tutor, or Professional
+- **Student Number** — for Wits student identification
+- **Bio / Notes** — private notes visible only to the user
+
+#### Preferences Tab
+- **Default View** — choose where you land after sign-in (Dashboard, Entries, Projects, Calendar)
+- **Week Starts On** — Monday, Sunday, or Saturday
+- **Time Format** — 24-hour or 12-hour clock
+- **Auto-save entries** — toggle automatic draft saving
+- **Compact mode** — tighter layout to see more data at once
+- **Email notifications** — toggle account update emails
+- **Weekly log reminder** — toggle Friday nudges to log hours
+
+#### Account Tab
+- **Account information** — email, sign-in method (Google/GitHub/email), and user ID
+- **Password reset** — send a reset link to your email (sets up email-based auth alongside OAuth)
+- **Danger Zone** — permanently delete account with confirmation dialog
+
+### 6. Reset Password Flow (`/reset-password`)
+
+**What it does:** Allows users to request a password reset link via email, protected by CAPTCHA.
+
+**Why:** The project specification requires password reset functionality. This serves users who need email-based authentication alongside their OAuth provider.
+
+**Key details:**
+- Accessible from the sign-in page ("Trouble signing in?") and the Settings panel Account tab
+- CAPTCHA-protected to prevent abuse
+- Reset link expires in 1 hour
+- Success confirmation shows which email received the link
+
+### 7. Update Password (`/auth/update-password`)
+
+**What it does:** After clicking a reset link, users set a new password with real-time feedback.
+
+**Why:** Provides a secure, user-friendly password update experience with visual guidance.
+
+**Key details:**
+- **Password strength meter** — 4-bar indicator (Weak → Fair → Good → Strong) with colour coding
+- **Live validation** — real-time "Passwords do not match" / "Passwords match" indicators
+- Submit button disables until passwords match and meet minimum length
+- Redirects to dashboard on success
+
+### 8. Protected Routes
+
+**What it does:** Ensures only authenticated users can access the dashboard. Unauthenticated users are redirected to the sign-in page.
+
+**Why:** Prevents unauthorised access to protected resources.
+
+### 9. Delete Account
+
+**What it does:** Permanently deletes the user's account and all associated data via a Supabase RPC function.
+
+**Why:** The project specification requires account deletion capability. A confirmation dialog prevents accidental deletion.
+
+---
+
+## UI Design Philosophy
+
+- **Glassmorphism** — frosted-glass cards with backdrop blur on a deep dark background
+- **Animated gradient orbs** — floating background elements for visual depth
+- **Staggered animations** — content enters with sequential fade-in-up transitions
+- **Gradient accents** — indigo-to-purple gradients on the logo, buttons, and greeting text
+- **Responsive** — works on mobile (full-width panels) and desktop
+- **Custom favicon** — SVG-based "DL" badge matching the brand colour
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- A Supabase project with Google and GitHub OAuth providers enabled
+- A Cloudflare Turnstile widget with your site key
+
+### Setup
+
+```bash
+cd frontend
+cp .env.example .env
+# Fill in your credentials in .env
+npm install
+npm run dev
+```
+
+### Environment Variables
+
+See `.env.example` for all required variables:
+- `VITE_SUPABASE_URL` — your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` — your Supabase anonymous key
+- `VITE_AUTH_SERVICE_URL` — auth microservice URL
+- `VITE_DASHBOARD_SERVICE_URL` — dashboard microservice URL
+- `VITE_PROJECT_SERVICE_URL` — project microservice URL
+- `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key
+
+### Supabase Configuration
+
+1. Enable **Google** provider: Authentication → Providers → Google (paste Client ID + Secret)
+2. Enable **GitHub** provider: Authentication → Providers → GitHub (paste Client ID + Secret)
+3. Set **Site URL** to `http://localhost:3000`
+4. Add `http://localhost:3000/**` to **Redirect URLs**
+5. Run `supabase/setup.sql` to create the `delete_user()` RPC function
+
+---
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── ProfileMenu.tsx      # Avatar dropdown menu
+│   │   ├── ProtectedRoute.tsx   # Route guard component
+│   │   └── SettingsPanel.tsx    # Slide-out settings panel
+│   ├── context/
+│   │   └── AuthContext.tsx      # Auth state management
+│   ├── lib/
+│   │   ├── api.ts               # Backend API helper
+│   │   └── supabase.ts          # Supabase client
+│   ├── pages/
+│   │   ├── AuthCallback.tsx     # OAuth redirect handler
+│   │   ├── Dashboard.tsx        # Main dashboard
+│   │   ├── ResetPassword.tsx    # Reset password request
+│   │   ├── SignIn.tsx           # Sign-in page
+│   │   └── UpdatePassword.tsx   # Set new password
+│   ├── App.tsx                  # Router setup
+│   ├── index.css                # Premium UI styles
+│   └── main.tsx                 # App entry point
+├── .env.example                 # Environment template
+├── index.html                   # HTML entry
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```

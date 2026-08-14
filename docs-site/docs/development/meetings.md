@@ -29,7 +29,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 ## Meeting 2 — 3 August 2026
 
 **Venue:** Commerce Library, Room 3
-**Attendees:** *(confirm/add if different from full team)*
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** The Digital Logbook project had now been officially assigned to us.
 
@@ -56,7 +56,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 ## Meeting 3 — 4 August 2026
 
 **Venue:** MSL005
-**Attendees:** *(confirm/add)* + tutor/client
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo + tutor/client
 
 **Context:** First meeting with our assigned tutor/client.
 
@@ -78,7 +78,7 @@ Auth/Firestore clarification and other confirmed decisions on the
 ## Meeting 4 — 7 August 2026
 
 **Venue:** Wartenweiler Library, Discussion Room 2
-**Attendees:** *(confirm/add)*
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** Team now had a clear, shared understanding of project requirements.
 
@@ -105,3 +105,33 @@ approach, which surfaced later during initial implementation).
     Add a new entry after every future meeting — attendees, what was
     discussed, decisions made, and anything left open. Even a few lines per
     meeting is enough to count as evidence.
+
+### Meeting 5 — 13 August 2026
+
+**Venue:** Wartenweiler Library, Discussion Room 2  
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
+
+**Context:** Authentication functionality had reached a working structure, including sign-up and login. The team met to discuss how to proceed with Sprint 1 implementation and establish a database design that would support the project requirements efficiently.
+
+**What we did:**
+- Reviewed progress on the sign-up and login implementation
+- Discussed the next development priorities for Sprint 1
+- Analysed the project brief and user stories to determine what data needed to be stored
+- Explored different approaches for structuring the database schema
+- Discussed how project data, logbook entries, and user information should be related
+- Considered how to support customisable logbook formats while keeping the design efficient and maintainable
+
+**Decisions made:**
+- Database design would be treated as a priority before implementing additional features
+- The schema should be driven by the project brief and user story acceptance criteria rather than by assumptions about future features
+- The dashboard and project-management functionality would be built around the core entities required for Sprint 1
+
+**Open questions:**
+- Whether project records should be linked to users via Supabase Auth UUIDs rather than email addresses
+- How dynamic/custom fields should be represented in the database
+- Whether projects should use a dedicated UUID primary key instead of relying on project names
+- Final review and approval of the proposed schema before implementation begins
+
+**Next step decided:**
+- Refine and finalise the database schema
+- Begin implementation of the dashboard and project-creation functionality once the schema has been agreed upon
