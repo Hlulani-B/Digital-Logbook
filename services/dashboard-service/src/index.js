@@ -1,17 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+
+import searchRouter from './Routes/search.js';
 
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5003;
 
 app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.json({ service: 'dashboard-service', status: 'healthy' });
+  res.json({ service: 'dashboard-service', status: 'ok' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Dashboard Service running on port ${PORT}`);
+app.use('/service', searchRouter);
+
+app.listen(PORT, () => {
+  console.log(`dashboard-service running on port ${PORT}`);
 });
+
+export default app;
