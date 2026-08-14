@@ -31,6 +31,7 @@ field.
 |---|---|---|
 | project_name | VARCHAR(150) | NOT NULL |
 | user_email | VARCHAR(255) | NOT NULL, FK → users(email) |
+| archived | BOOLEAN | default false |
 | created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
 
 ## fields
@@ -55,6 +56,7 @@ field.
 | entries | JSONB | NOT NULL, dynamic field values |
 | due_date | TIMESTAMPTZ | nullable, indexed |
 | priority | priority_level (ENUM) | nullable |
+| archived | BOOLEAN | default false |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
 ```sql
@@ -71,6 +73,15 @@ CREATE TYPE priority_level AS ENUM (
 
 ALTER TABLE entries
 ADD COLUMN priority priority_level;
+
+ALTER TABLE projects
+ADD COLUMN archived BOOLEAN DEFAULT false;
+
+ALTER TABLE entries
+ADD COLUMN archived BOOLEAN DEFAULT false;
+
+CREATE INDEX idx_projects_archived ON projects(archived);
+CREATE INDEX idx_entries_archived ON entries(archived);
 ```
 
 ## Design rationale
@@ -90,6 +101,8 @@ ADD COLUMN priority priority_level;
 | `priority` nullable | Not every entry needs a priority assigned, so the column has no default and no `NOT NULL` — it's opt-in |
 | Indexes on `user_email` and `project_name` | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows |
 | Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
+| `archived` as a real column | Soft-archive support lets users hide projects/entries without deleting data; default `false` keeps existing rows visible |
+| Indexes on `archived` | Keeps "show only active" / "show only archived" filters fast as data grows |
 
 ## Trade-off
 
