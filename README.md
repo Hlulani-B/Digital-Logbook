@@ -1,4 +1,24 @@
 
+## Architecture Boundary
+
+**Frontend is presentation-only.** It renders UI and calls the Express API. It never:
+- Imports `@supabase/supabase-js` or any database client
+- Holds database credentials or Supabase keys
+- Contains business logic (validation, data shaping, access rules)
+
+**Backend owns all data access.** If the frontend needs new data or a new
+capability, the fix is always in `backend/`:
+- Missing endpoint → add a new route + service function in Express
+- Wrong response shape → change the service function, not the frontend
+- New feature needing data → build it as a backend service first, then
+  call it from the frontend like everything else
+
+If you're editing frontend code and find yourself reaching for a database
+client, a `.env` credential, or writing a query — stop, that logic belongs
+in `backend/functions/`.
+
+
+
 
 ##  Deployed Live Services
 
