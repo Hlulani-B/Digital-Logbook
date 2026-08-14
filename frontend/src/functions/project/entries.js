@@ -1,4 +1,4 @@
-const url = "";
+const url = "https://project-service-96ml.onrender.com";
 
 export async function addEntry(user_email, project_name, entry_object, due_date) {
   const res = await fetch(url + '/service/entry', {
