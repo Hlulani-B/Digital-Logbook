@@ -83,7 +83,24 @@ export class Entries {
       return { success: false, message: error.message };
     }
   }
+async getAllEntries(user_email) {
+    try {
+      const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .eq('user_email', user_email)
+        .order('created_at', { ascending: false });
 
+      if (error) {
+        throw error;
+      }
+
+      return { success: true, message: 'All entries retrieved successfully', data };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
   async deleteEntry(user_email, project_name, entry) {
     try {
       const { data, error } = await supabase
