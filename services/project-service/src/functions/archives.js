@@ -5,7 +5,7 @@ export class Archives {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ archived: true })
+        .update({ is_archived: true })
         .eq('user_email', user_email)
         .eq('project_name', project_name);
 
@@ -23,7 +23,7 @@ export class Archives {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ archived: false })
+        .update({ is_archived: false })
         .eq('user_email', user_email)
         .eq('project_name', project_name);
 
