@@ -1,4 +1,3 @@
-
 ## Architecture Boundary
 
 **Frontend is presentation-only.** It renders UI and calls the Express API. It never:
@@ -18,7 +17,13 @@ client, a `.env` credential, or writing a query — stop, that logic belongs
 in `backend/functions/`.
 
 
+## Before Pushing to `main`
 
+1. `git pull origin main` — get the latest changes
+2. Run the app locally and confirm it builds/runs without errors
+3. Only then push
+
+Never push straight to `main` without pulling and testing first.
 
 ##  Deployed Live Services
 
