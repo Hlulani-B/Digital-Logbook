@@ -49,7 +49,7 @@ interface SettingsPanelProps {
 const STORAGE_PREFIX = "dl_settings_";
 
 function applyFont(fontFamily: string) {
-  if (fontFamily === "jakarta") {
+  if (fontFamily === "lora") {
     document.documentElement.removeAttribute("data-font");
   } else {
     document.documentElement.setAttribute("data-font", fontFamily);
@@ -218,7 +218,7 @@ export function SettingsPanel({
     weekStartsOn: "monday",
     timeFormat: "24h",
     theme: "light",
-    fontFamily: "jakarta",
+    fontFamily: "lora",
     cornerStyle: "rounded",
     autoSave: true,
     compactMode: false,
@@ -582,9 +582,9 @@ export function SettingsPanel({
                       applyFont(newFont);
                     }}
                   >
-                    <option value="jakarta">Plus Jakarta Sans (Default)</option>
+                    <option value="lora">Lora (Default)</option>
+                    <option value="jakarta">Plus Jakarta Sans</option>
                     <option value="playfair">Playfair Display</option>
-                    <option value="lora">Lora</option>
                     <option value="crimson">Crimson Text</option>
                     <option value="garamond">EB Garamond</option>
                   </select>

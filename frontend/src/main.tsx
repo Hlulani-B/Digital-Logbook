@@ -5,7 +5,7 @@ import "./index.css";
 
 // Restore saved font before first render
 const savedFont = localStorage.getItem("dl_font");
-if (savedFont && savedFont !== "jakarta") {
+if (savedFont && savedFont !== "lora") {
   document.documentElement.setAttribute("data-font", savedFont);
 }
 
