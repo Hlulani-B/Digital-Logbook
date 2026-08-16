@@ -100,58 +100,43 @@ export function SignIn() {
   const isLoading = oauthLoading !== null || emailLoading;
 
   return (
-    <>
-      {/* Video background */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden" }}>
-        <video
-          ref={video1Ref}
-          src="/video1.mp4"
-          autoPlay
-          muted
-          playsInline
-          onEnded={handleVideo1End}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: activeVideo === 1 ? 1 : 0,
-            transition: "opacity 1.5s ease",
-          }}
-        />
-        <video
-          ref={video2Ref}
-          src="/video2.mp4"
-          muted
-          playsInline
-          onEnded={handleVideo2End}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: activeVideo === 2 ? 1 : 0,
-            transition: "opacity 1.5s ease",
-          }}
-        />
-        {/* Dark overlay for readability */}
-        <div style={{
-          position: "absolute",
-          inset: 0,
-          background: isDark
-            ? "rgba(0,0,0,0.55)"
-            : "rgba(0,0,0,0.3)",
-        }} />
+    <div className="split-auth">
+      {/* Left panel — video showcase */}
+      <div className="split-left">
+        <div className="split-video-container">
+          <video
+            ref={video1Ref}
+            src="/video1.mp4"
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleVideo1End}
+            className="split-video"
+            style={{ opacity: activeVideo === 1 ? 1 : 0 }}
+          />
+          <video
+            ref={video2Ref}
+            src="/video2.mp4"
+            muted
+            playsInline
+            onEnded={handleVideo2End}
+            className="split-video"
+            style={{ opacity: activeVideo === 2 ? 1 : 0 }}
+          />
+        </div>
+        <div className="split-video-overlay" />
+        <div className="split-video-caption">
+          <img src="/notebook.jpeg" alt="Digital Logbook" className="split-caption-img" />
+          <h2>Digital Logbook</h2>
+          <p>Track your time, own your progress</p>
+        </div>
       </div>
-      <div className="auth-container">
-        <div className="glass auth-card animate-in">
-          <div className="auth-logo">
-            <img src="/notebook.jpeg" alt="Digital Logbook" style={{ width: 48, height: 48, borderRadius: "12px", objectFit: "cover" }} />
-          </div>
-          <h1 className="auth-title">Digital Logbook</h1>
-          <p className="auth-subtitle">Track your time, own your progress</p>
+
+      {/* Right panel — form */}
+      <div className="split-right">
+        <div className="split-form-wrapper">
+          <h1 className="auth-title">Welcome</h1>
+          <p className="auth-subtitle">Sign in to continue to your logbook</p>
 
           {error && <div className="auth-error">{error}</div>}
           {success && <div className="auth-success">{success}</div>}
@@ -293,6 +278,6 @@ export function SignIn() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
