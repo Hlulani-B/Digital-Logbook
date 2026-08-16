@@ -15,6 +15,7 @@ export function SignIn() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +80,12 @@ export function SignIn() {
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!captchaVerified) return;
+
+    if (mode === "signup" && password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setEmailLoading(true);
     setError(null);
     setSuccess(null);
@@ -185,6 +192,25 @@ export function SignIn() {
               )}
             </div>
 
+            {mode === "signup" && (
+              <div className="field-group">
+                <label htmlFor="confirmPassword" className="field-label">
+                  Confirm password
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="field-input"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={emailLoading || !captchaVerified}
@@ -208,6 +234,7 @@ export function SignIn() {
                 setMode(mode === "signin" ? "signup" : "signin");
                 setError(null);
                 setSuccess(null);
+                setConfirmPassword("");
               }}
               className="auth-mode-toggle"
             >
