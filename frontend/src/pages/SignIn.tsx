@@ -1,4 +1,4 @@
-import { useState, useRef, type FormEvent } from "react";
+import { useState, useRef, useCallback, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
@@ -24,6 +24,21 @@ export function SignIn() {
   const turnstileRef = useRef<TurnstileInstance>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
   const { isDark } = useTheme();
+
+  // Video background: alternate between two videos for seamless loop
+  const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
+  const video1Ref = useRef<HTMLVideoElement>(null);
+  const video2Ref = useRef<HTMLVideoElement>(null);
+
+  const handleVideo1End = useCallback(() => {
+    setActiveVideo(2);
+    video2Ref.current?.play();
+  }, []);
+
+  const handleVideo2End = useCallback(() => {
+    setActiveVideo(1);
+    video1Ref.current?.play();
+  }, []);
 
   const routeAfterAuth = async (userEmail: string) => {
     localStorage.setItem("email", userEmail);
@@ -86,8 +101,49 @@ export function SignIn() {
 
   return (
     <>
-      <div className="bg-mesh">
-        <div className="orb" />
+      {/* Video background */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden" }}>
+        <video
+          ref={video1Ref}
+          src="/video1.mp4"
+          autoPlay
+          muted
+          playsInline
+          onEnded={handleVideo1End}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: activeVideo === 1 ? 1 : 0,
+            transition: "opacity 1.5s ease",
+          }}
+        />
+        <video
+          ref={video2Ref}
+          src="/video2.mp4"
+          muted
+          playsInline
+          onEnded={handleVideo2End}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: activeVideo === 2 ? 1 : 0,
+            transition: "opacity 1.5s ease",
+          }}
+        />
+        {/* Dark overlay for readability */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: isDark
+            ? "rgba(0,0,0,0.55)"
+            : "rgba(0,0,0,0.3)",
+        }} />
       </div>
       <div className="auth-container">
         <div className="glass auth-card animate-in">

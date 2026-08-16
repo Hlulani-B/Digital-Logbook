@@ -23,6 +23,7 @@ interface Preferences {
   weekStartsOn: string;
   timeFormat: string;
   theme: string;
+  fontFamily: string;
   autoSave: boolean;
   compactMode: boolean;
   notifications: boolean;
@@ -45,6 +46,15 @@ interface SettingsPanelProps {
 }
 
 const STORAGE_PREFIX = "dl_settings_";
+
+function applyFont(fontFamily: string) {
+  if (fontFamily === "jakarta") {
+    document.documentElement.removeAttribute("data-font");
+  } else {
+    document.documentElement.setAttribute("data-font", fontFamily);
+  }
+  localStorage.setItem("dl_font", fontFamily);
+}
 
 function loadSettings<T>(key: string, defaults: T): T {
   try {
@@ -198,6 +208,7 @@ export function SettingsPanel({
     weekStartsOn: "monday",
     timeFormat: "24h",
     theme: "light",
+    fontFamily: "jakarta",
     autoSave: true,
     compactMode: false,
     notifications: true,
@@ -243,6 +254,7 @@ export function SettingsPanel({
     saveSettings(profileKey, profile);
     saveSettings(prefsKey, prefs);
     setTheme(prefs.theme as Theme);
+    applyFont(prefs.fontFamily);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -540,6 +552,31 @@ export function SettingsPanel({
                   </select>
                   <p className="field-hint">
                     Choose how the logbook looks to you.
+                  </p>
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="fontFamily">
+                    Font
+                  </label>
+                  <select
+                    id="fontFamily"
+                    className="field-input"
+                    value={prefs.fontFamily}
+                    onChange={(e) => {
+                      const newFont = e.target.value;
+                      setPrefs((p) => ({ ...p, fontFamily: newFont }));
+                      applyFont(newFont);
+                    }}
+                  >
+                    <option value="jakarta">Plus Jakarta Sans (Default)</option>
+                    <option value="playfair">Playfair Display</option>
+                    <option value="lora">Lora</option>
+                    <option value="crimson">Crimson Text</option>
+                    <option value="garamond">EB Garamond</option>
+                  </select>
+                  <p className="field-hint">
+                    Change the typography across the entire logbook.
                   </p>
                 </div>
               </div>
