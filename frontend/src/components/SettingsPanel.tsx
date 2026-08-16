@@ -7,6 +7,7 @@ import {
   getProfile,
   updateName,
   updateUsername,
+  addEmail,
 } from "@/lib/profileService";
 
 type Tab = "profile" | "preferences" | "account";
@@ -291,11 +292,28 @@ export function SettingsPanel({
       try {
         const result = await getProfile(email);
         if (cancelled) return;
-        if (result?.error) throw new Error(result.error);
-        const profileData = result?.data || result;
-        setServerProfile(profileData);
-        setName(profileData?.name || "");
-        setUsername(profileData?.username || "");
+        
+        // If profile doesn't exist, create it first
+        if (result?.success === false || result?.error) {
+          const addResult = await addEmail(email);
+          if (addResult?.success || addResult?.message?.includes('duplicate')) {
+            // Fetch again after creating
+            const freshResult = await getProfile(email);
+            if (!cancelled) {
+              const profileData = freshResult?.data || freshResult;
+              setServerProfile(profileData);
+              setName(profileData?.name || "");
+              setUsername(profileData?.username || "");
+            }
+          } else {
+            throw new Error(addResult?.message || 'Failed to create profile');
+          }
+        } else {
+          const profileData = result?.data || result;
+          setServerProfile(profileData);
+          setName(profileData?.name || "");
+          setUsername(profileData?.username || "");
+        }
       } catch (err) {
         if (!cancelled) {
           setProfileError(err instanceof Error ? err.message : "Could not load profile");

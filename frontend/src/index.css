@@ -44,35 +44,35 @@
 
 /* ========== DARK THEME ========== */
 [data-theme="dark"] {
-  --bg: #1e1c1a;
-  --surface: #262320;
-  --surface-hover: #2e2a26;
-  --surface-solid: #262320;
-  --bg-subtle: #262320;
-  --border: #3a352f;
-  --border-hover: #4a443c;
-  --text: #f5f2ea;
-  --text-dim: #9c9488;
-  --text-muted: #6d6560;
-  --accent: #8a9670;
-  --accent-light: #9da882;
-  --accent-glow: rgba(138,150,112,0.15);
-  --success: #6ab07a;
-  --danger: #e5484d;
-  --danger-glow: rgba(229,72,77,0.12);
-  --navbar-bg: rgba(30,28,26,0.92);
-  --toggle-track: #3a352f;
-  --scrollbar-thumb: #3a352f;
-  --scrollbar-thumb-hover: #4a443c;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-card-hover: 0 12px 32px rgba(0,0,0,0.4), 0 4px 10px rgba(0,0,0,0.3);
-  --shadow-dropdown: 0 16px 48px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
-  --overlay-bg: rgba(0,0,0,0.5);
-  --error-text: #f09090;
-  --success-text: #86efac;
-  --danger-text: #f08080;
-  --danger-text-dark: #f09090;
-  --btn-primary-hover: #7d8a63;
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-hover: #1a1a1a;
+  --surface-solid: #141414;
+  --bg-subtle: #141414;
+  --border: #262626;
+  --border-hover: #333333;
+  --text: #ffffff;
+  --text-dim: #a0a0a0;
+  --text-muted: #666666;
+  --accent: #e0e0e0;
+  --accent-light: #ffffff;
+  --accent-glow: rgba(255,255,255,0.08);
+  --success: #4ade80;
+  --danger: #ef4444;
+  --danger-glow: rgba(239,68,68,0.12);
+  --navbar-bg: rgba(10,10,10,0.92);
+  --toggle-track: #333333;
+  --scrollbar-thumb: #333333;
+  --scrollbar-thumb-hover: #4d4d4d;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-card-hover: 0 12px 32px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.5);
+  --shadow-dropdown: 0 16px 48px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.5);
+  --overlay-bg: rgba(0,0,0,0.7);
+  --error-text: #f87171;
+  --success-text: #4ade80;
+  --danger-text: #f87171;
+  --danger-text-dark: #fca5a5;
+  --btn-primary-hover: #ffffff;
 }
 
 [data-theme="dark"] .glass {
@@ -86,7 +86,7 @@
 }
 
 [data-theme="dark"] .split-left {
-  background: #151311;
+  background: #000000;
 }
 
 [data-theme="dark"] .split-video-overlay {
@@ -99,26 +99,26 @@
 }
 
 [data-theme="dark"] .bg-mesh::before {
-  background: radial-gradient(circle, rgba(138,150,112,0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
 }
 
 [data-theme="dark"] .bg-mesh::after {
-  background: radial-gradient(circle, rgba(160,148,130,0.04) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.02) 0%, transparent 70%);
 }
 
 [data-theme="dark"] .bg-mesh .orb {
-  background: radial-gradient(circle, rgba(138,150,112,0.03) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.015) 0%, transparent 70%);
 }
 
 [data-theme="dark"] .auth-title {
-  background: linear-gradient(180deg, #f5f2ea 0%, #9c9488 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #a0a0a0 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 [data-theme="dark"] .dash-greeting h1 {
-  background: linear-gradient(135deg, #f5f2ea 30%, #9c9488);
+  background: linear-gradient(135deg, #ffffff 30%, #a0a0a0);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -138,36 +138,36 @@
 [data-theme="dark"] .stat-icon.purple,
 [data-theme="dark"] .stat-icon.green,
 [data-theme="dark"] .stat-icon.amber {
-  background: #2e2a26;
+  background: #1a1a1a;
   border: 1px solid var(--border);
-  color: var(--accent-light);
+  color: var(--accent);
 }
 
 [data-theme="dark"] .profile-avatar-badge {
-  background: rgba(138,150,112,0.08);
-  border: 1px solid rgba(138,150,112,0.18);
-  color: var(--accent-light);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--accent);
 }
 
 [data-theme="dark"] ::selection {
-  background: rgba(138,150,112,0.25);
+  background: rgba(255,255,255,0.15);
   color: var(--text);
 }
 
 [data-theme="dark"] .nav-avatar {
-  background: var(--accent);
+  background: #333333;
 }
 
 [data-theme="dark"] .avatar-btn .nav-avatar {
-  background: var(--accent);
+  background: #333333;
 }
 
 [data-theme="dark"] .avatar-btn:hover .nav-avatar {
-  border-color: var(--accent-light);
+  border-color: var(--accent);
 }
 
 [data-theme="dark"] .profile-avatar-lg {
-  background: var(--accent);
+  background: #333333;
 }
 
 /* ========== PINK THEME ========== */
