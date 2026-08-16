@@ -11,8 +11,9 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 | **React 19 + TypeScript** | UI framework with type safety |
 | **Vite 6** | Build tool and dev server |
 | **React Router v7** | Client-side routing |
-| **Supabase** | Authentication (Google & GitHub OAuth) |
+| **Supabase** | Authentication (Google OAuth, GitHub OAuth, Email/Password) |
 | **Cloudflare Turnstile** | CAPTCHA bot protection |
+| **Brevo** | SMTP email delivery (confirmation and reset emails) |
 | **CSS (custom)** | Premium glassmorphism UI (no Tailwind dependency) |
 
 ---
@@ -21,18 +22,49 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 
 ### 1. Sign-In Page (`/signin`)
 
-**What it does:** Provides a clean, secure entry point for users to authenticate using their Google or GitHub accounts.
+**What it does:** Provides a clean, secure entry point for users to authenticate using Google OAuth, GitHub OAuth, or email/password.
 
-**Why:** The project specification requires users to sign up and sign in using established authentication libraries. OAuth eliminates the need for users to remember passwords and leverages trusted identity providers.
+**Why:** The project specification requires users to sign up and sign in using established authentication libraries. Multiple providers give users flexibility while email/password supports the password reset flow end-to-end.
+
+**Layout:**
+- **Split-screen design** — left panel shows a looping video showcase of the app; right panel contains the sign-in/sign-up form
+- **Video background** — two videos alternate seamlessly for a continuous loop effect
+- **Theme-aware CAPTCHA** — Turnstile widget switches between dark and light mode based on the app's current theme
+- **Post-auth routing** — after sign-in, the app checks if the user has a profile; new users are routed to `/create-profile`, returning users to `/dashboard`
+
+**Three Authentication Methods:**
+
+| Method | Flow | Notes |
+|---|---|---|
+| **Google OAuth** | One-click sign-in via Google accounts | Account created automatically on first sign-in; no separate sign-up step |
+| **GitHub OAuth** | One-click sign-in via GitHub accounts | Same as Google — instant account creation |
+| **Email / Password** | Sign-up with confirmation email → sign in with credentials | Supports full password reset flow; CAPTCHA-gated to prevent bot abuse |
+
+**How Email/Password Works (End-to-End):**
+1. User clicks "Create one" to switch to sign-up mode
+2. Enters email, password, and confirm password (must match)
+3. Completes the Cloudflare Turnstile CAPTCHA challenge
+4. Clicks "Create Account" — Supabase creates the user and sends a confirmation email via Brevo SMTP
+5. User clicks the confirmation link in the email
+6. Returns to the sign-in page, enters email and password
+7. Completes CAPTCHA and clicks "Sign In"
+8. App checks if user profile exists → routes to dashboard or create-profile page
+
+**Password Reset Flow:**
+1. User clicks "Forgot password?" on the sign-in page
+2. Enters their email and completes CAPTCHA
+3. Receives a reset link via email (expires in 1 hour)
+4. Clicks the link → sets a new password with strength meter feedback
+5. Redirected to dashboard on success
+
+**Important edge cases:**
+- If an email is already registered (e.g., from a previous Google OAuth sign-in), Supabase returns success silently but does not send a duplicate confirmation email. The user should use "Forgot password?" to set a password for that account.
+- OAuth users who want email/password access can use the password reset flow to link both methods.
 
 **Key details:**
-- **Google OAuth** — one-click sign-in/sign-up via Google accounts
-- **GitHub OAuth** — alternative provider for developer-friendly authentication
-- **Email / Password** — traditional sign-in and sign-up with CAPTCHA-gated form; supports the password reset flow end-to-end
-- **Cloudflare Turnstile CAPTCHA** — invisible bot protection that must be verified before any sign-in button becomes active
+- **Cloudflare Turnstile CAPTCHA** — invisible bot protection that must be verified before any authentication action
+- **Confirm password field** — appears only in sign-up mode to prevent typos
 - **"Forgot password?" link** — accessible entry point to the password reset flow
-- Animated gradient background with glassmorphism card design
-- OAuth accounts are created automatically on first sign-in (no separate sign-up step)
 
 ### 2. OAuth Callback Handler (`/auth/callback`)
 
@@ -131,10 +163,12 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 
 ## UI Design Philosophy
 
+- **Split-screen sign-in** — video showcase on the left, form on the right for a modern, immersive first impression
 - **Glassmorphism** — frosted-glass cards with backdrop blur on a deep dark background
 - **Animated gradient orbs** — floating background elements for visual depth
 - **Staggered animations** — content enters with sequential fade-in-up transitions
 - **Gradient accents** — indigo-to-purple gradients on the logo, buttons, and greeting text
+- **Theme support** — dark and light mode with CAPTCHA widget that adapts automatically
 - **Responsive** — works on mobile (full-width panels) and desktop
 - **Custom favicon** — SVG-based "DL" badge matching the brand colour
 
@@ -174,6 +208,9 @@ See `.env.example` for all required variables:
 3. Set **Site URL** to `http://localhost:3000`
 4. Add `http://localhost:3000/**` to **Redirect URLs**
 5. Run `supabase/setup.sql` to create the `delete_user()` RPC function
+6. **Enable email confirmations:** Authentication → Sign In / Providers → Confirm email → ON
+7. **Configure CAPTCHA:** Authentication → Attack Protection → Enable Captcha → choose Turnstile → paste the secret key (not the site key)
+8. **Configure SMTP:** Authentication → Emails → SMTP Settings → enable custom SMTP with Brevo credentials
 
 ---
 
@@ -188,6 +225,11 @@ frontend/
 │   │   └── SettingsPanel.tsx    # Slide-out settings panel
 │   ├── context/
 │   │   └── AuthContext.tsx      # Auth state management
+│   ├── functions/
+│   │   └── profile/
+│   │       └── login.js         # checkUser helper for post-auth routing
+│   ├── hooks/
+│   │   └── useTheme.ts         # Dark/light theme hook
 │   ├── lib/
 │   │   ├── api.ts               # Backend API helper
 │   │   └── supabase.ts          # Supabase client
@@ -195,7 +237,7 @@ frontend/
 │   │   ├── AuthCallback.tsx     # OAuth redirect handler
 │   │   ├── Dashboard.tsx        # Main dashboard
 │   │   ├── ResetPassword.tsx    # Reset password request
-│   │   ├── SignIn.tsx           # Sign-in page
+│   │   ├── SignIn.tsx           # Sign-in page (split layout)
 │   │   └── UpdatePassword.tsx   # Set new password
 │   ├── App.tsx                  # Router setup
 │   ├── index.css                # Premium UI styles
@@ -206,3 +248,44 @@ frontend/
 ├── tsconfig.json
 └── vite.config.ts
 ```
+
+---
+
+## Troubles Encountered
+
+### 1. CAPTCHA Secret Key Mismatch
+**Problem:** The Turnstile secret key field in Supabase was accidentally filled with the **site key** instead of the **secret key**, causing `invalid-input-secret` errors on every email/password request. Additionally, the key was truncated when pasting.
+**Fix:** Copied the correct secret key from the Cloudflare Turnstile widget edit page and pasted the full value into Supabase → Authentication → Attack Protection → Captcha secret.
+
+### 2. Email Confirmation Emails Not Sending
+**Problem:** After sign-up, no confirmation email arrived. Resend (initial SMTP provider) logs were completely empty.
+**Root cause:** Supabase's custom SMTP was not being used because either the "Enable custom SMTP" toggle was off, or the SMTP credentials were misconfigured.
+**Fix:** Switched to Brevo as the SMTP provider. Configured Supabase SMTP settings with Brevo credentials (`smtp-relay.brevo.com`, port 587, username `ab9b48001@smtp-brevo.com`, and the Brevo SMTP key as password). Verified the sender email in Brevo before configuring Supabase.
+
+### 3. Existing Users Not Receiving Confirmation Emails
+**Problem:** After fixing SMTP, sign-up returned "Account created!" success but no email was sent for previously-used email addresses.
+**Root cause:** Supabase's `signUp` endpoint returns HTTP 200 for already-registered emails (security measure to prevent email enumeration), but silently skips sending the confirmation email.
+**Fix:** Delete the old user from Supabase → Authentication → Users and sign up fresh, or use "Forgot password?" to set a password for existing accounts.
+
+### 4. Vite Config Precedence Issue
+**Problem:** The `@/` path alias was not resolving, causing module not found errors.
+**Root cause:** A duplicate `vite.config.js` existed alongside `vite.config.ts`. Vite loads `.js` before `.ts`, so the alias configuration in `.ts` was ignored.
+**Fix:** Deleted the duplicate `vite.config.js` so Vite uses `vite.config.ts` with the correct path alias.
+
+### 5. Duplicate Files After Git Merge
+**Problem:** After merging the Authentication branch into main (which had unrelated histories), duplicate files (`App.jsx`, `main.jsx`) were left behind, causing Vite to resolve the wrong entry points.
+**Fix:** Deleted the duplicate `.jsx` files and kept the `.tsx` versions from the Authentication branch.
+
+---
+
+## AI Usage Declaration
+
+This frontend was developed with significant AI assistance using **Qoder** (an AI coding assistant integrated with VS Code). A full AI usage declaration is available in [`AI_DECLARATION.md`](./AI_DECLARATION.md).
+
+**Summary of AI involvement:**
+- **Human-directed:** All feature requirements, design decisions, authentication provider choices, and deployment strategy were decided by the student (Nasiphi Ntontela)
+- **AI-assisted:** Code generation, UI styling, debugging guidance, and configuration instructions were provided by the AI under the student's direct supervision
+- **Human-configured:** All external services (Supabase OAuth, Google Cloud Console, Cloudflare Turnstile, Brevo SMTP, Gitea) were configured manually by the student
+- **Human-tested:** All features were manually tested in the browser after each change
+
+The AI accelerated implementation but did not independently make product, design, or architectural decisions.
