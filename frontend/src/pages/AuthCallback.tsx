@@ -20,8 +20,9 @@ export function AuthCallback() {
           try {
             const result = await checkUser(email);
             navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
-          } catch {
-            navigate("/create-profile", { replace: true });
+          } catch (err) {
+            console.error("checkUser failed:", err);
+            navigate("/dashboard", { replace: true });
           }
           return;
         }
@@ -34,8 +35,9 @@ export function AuthCallback() {
           try {
             const result = await checkUser(email);
             navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
-          } catch {
-            navigate("/create-profile", { replace: true });
+          } catch (err) {
+            console.error("checkUser failed:", err);
+            navigate("/dashboard", { replace: true });
           }
           return;
         }

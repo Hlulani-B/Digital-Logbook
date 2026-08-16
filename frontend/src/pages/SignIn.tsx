@@ -44,9 +44,15 @@ export function SignIn() {
     localStorage.setItem("email", userEmail);
     try {
       const result = await checkUser(userEmail);
-      navigate(result.exists ? "/dashboard" : "/create-profile");
-    } catch {
-      navigate("/create-profile");
+      if (result.exists) {
+        navigate("/dashboard");
+      } else {
+        navigate("/create-profile");
+      }
+    } catch (err) {
+      console.error("checkUser failed:", err);
+      // On error, default to dashboard - let protected routes handle redirects
+      navigate("/dashboard");
     }
   };
 
