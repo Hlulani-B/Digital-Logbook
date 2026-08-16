@@ -12,7 +12,12 @@ import archiveRoutes from './Routes/archive.js';
 const app = express();
 const PORT = process.env.PORT || 5003;
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.options('*', cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
