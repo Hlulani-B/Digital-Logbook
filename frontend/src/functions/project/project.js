@@ -26,3 +26,12 @@ export async function deleteProject(user_email, project_name) {
   });
   return res.json();
 }
+
+export async function getProjectsByEmail(user_email) {
+  const res = await fetch(url + '/service/project', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ function: 'getProjects', values: { user_email } })
+  });
+  return res.json();
+}

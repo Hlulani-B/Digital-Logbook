@@ -66,6 +66,25 @@ export class Project {
     }
   }
 
+  async getProjectsByEmail(user_email) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('project_name, created_at, archived')
+        .eq('user_email', user_email)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true, projects: data || [] };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
+
   async deleteProject(user_email, project_name) {
     // When deleting a project, also delete all of its entries and custom fields
     try {

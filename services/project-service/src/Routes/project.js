@@ -27,6 +27,12 @@ router.post('/project', async (req, res) => {
             const result = await project.deleteProject(user_email, project_name);
             return res.json(result);
         }
+        case "getProjects": {
+            const { user_email } = values;
+            if (!user_email) return res.status(400).json({ error: 'user_email is required' });
+            const result = await project.getProjectsByEmail(user_email);
+            return res.json(result);
+        }
         default:
             return res.status(400).json({ error: 'Invalid function' });
     }
