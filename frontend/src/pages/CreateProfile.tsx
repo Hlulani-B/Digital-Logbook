@@ -28,15 +28,15 @@ export function CreateProfile() {
     try {
       // Insert user row first (new users don't exist in users table yet)
       const emailResult = await addEmail(email);
-      if (emailResult?.error && !emailResult.message?.includes('duplicate')) {
-        throw new Error(emailResult.error || emailResult.message);
+      if (!emailResult?.success && !emailResult?.message?.includes('duplicate')) {
+        throw new Error(emailResult?.message || 'Failed to add email');
       }
 
       const nameResult = await updateName(email, name.trim());
-      if (nameResult?.error) throw new Error(nameResult.error || nameResult.message);
+      if (!nameResult?.success) throw new Error(nameResult?.message || 'Failed to update name');
 
       const usernameResult = await updateUsername(email, username.trim());
-      if (usernameResult?.error) throw new Error(usernameResult.error || usernameResult.message);
+      if (!usernameResult?.success) throw new Error(usernameResult?.message || 'Failed to update username');
 
       navigate("/avatar", { replace: true });
     } catch (err) {

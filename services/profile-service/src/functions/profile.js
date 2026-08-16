@@ -7,6 +7,10 @@ import { supabase } from '../supabase.js';
 export class Username {
   async username(email, username) {
     try {
+      if (!supabase) {
+        return { success: false, message: 'Database not connected' };
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('username')
@@ -39,6 +43,10 @@ export class Username {
 export class Email {
   async email(email) {
     try {
+      if (!supabase) {
+        return { success: false, message: 'Database not connected' };
+      }
+
       const { error } = await supabase
         .from('users')
         .insert({ email });
@@ -59,6 +67,10 @@ export class Email {
 export class Name {
   async name(email, new_name) {
     try {
+      if (!supabase) {
+        return { success: false, message: 'Database not connected' };
+      }
+
       const { error } = await supabase
         .from('users')
         .update({ name: new_name })
@@ -80,6 +92,10 @@ export class Name {
 export class Avatar {
   async avatar(email, url) {
     try {
+      if (!supabase) {
+        return { success: false, message: 'Database not connected' };
+      }
+
       const { error } = await supabase
         .from('users')
         .update({ avatar: url })
@@ -99,11 +115,12 @@ export class Avatar {
  * Aggregates read/delete operations for a user profile.
  */
 export class Profile {
-  /**
-   * Fetch a profile by email.
-   */
   async getProfile(email) {
     try {
+      if (!supabase) {
+        return { success: false, message: 'Database not connected' };
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -119,11 +136,12 @@ export class Profile {
     }
   }
 
-  /**
-   * Delete a profile and all rows across every table tied to this email.
-   */
   async deleteProfile(email) {
     try {
+      if (!supabase) {
+        return { success: false, message: 'Database not connected' };
+      }
+
       let error;
 
       ({ error } = await supabase.from('entries').delete().eq('user_email', email));
