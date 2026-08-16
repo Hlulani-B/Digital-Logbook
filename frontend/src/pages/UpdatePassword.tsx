@@ -89,7 +89,7 @@ export function UpdatePassword() {
                           flex: 1,
                           height: "3px",
                           borderRadius: "2px",
-                          background: i <= strength.level ? strength.color : "rgba(255,255,255,0.06)",
+                          background: i <= strength.level ? strength.color : "#e5e7eb",
                           transition: "background 0.3s",
                         }}
                       />
@@ -126,7 +126,7 @@ export function UpdatePassword() {
                 <p
                   style={{
                     fontSize: "0.6875rem",
-                    color: "#f87171",
+                    color: "#dc2626",
                     marginTop: "0.375rem",
                   }}
                 >
@@ -137,7 +137,7 @@ export function UpdatePassword() {
                 <p
                   style={{
                     fontSize: "0.6875rem",
-                    color: "#4ade80",
+                    color: "#16a34a",
                     marginTop: "0.375rem",
                     display: "flex",
                     alignItems: "center",

@@ -90,7 +90,7 @@ function ResetPasswordInline({
           borderRadius: "var(--radius-xs)",
           background: "rgba(34,197,94,0.1)",
           border: "1px solid rgba(34,197,94,0.2)",
-          color: "#86efac",
+          color: "#15803d",
           fontSize: "0.8125rem",
           lineHeight: "1.5",
         }}
@@ -114,7 +114,7 @@ function ResetPasswordInline({
             borderRadius: "var(--radius-xs)",
             background: "var(--danger-glow)",
             border: "1px solid rgba(239,68,68,0.2)",
-            color: "#fca5a5",
+            color: "#b91c1c",
             fontSize: "0.8125rem",
             marginBottom: "0.75rem",
           }}
@@ -147,7 +147,7 @@ function ResetPasswordInline({
             captchaTokenRef.current = null;
           }}
           options={{
-            theme: "dark",
+            theme: "light",
             size: "flexible",
           }}
         />
@@ -584,7 +584,7 @@ export function SettingsPanel({
               <hr className="divider" />
 
               <div className="panel-section danger-zone">
-                <p className="panel-section-title" style={{ color: "#f87171" }}>
+                <p className="panel-section-title" style={{ color: "#dc2626" }}>
                   Danger Zone
                 </p>
                 <p className="danger-desc">
@@ -636,7 +636,7 @@ export function SettingsPanel({
               <span
                 style={{
                   fontSize: "0.8125rem",
-                  color: "#4ade80",
+                  color: "#16a34a",
                   display: "flex",
                   alignItems: "center",
                   gap: "0.375rem",

@@ -57,7 +57,7 @@ export function ResetPassword() {
                   borderRadius: "var(--radius-xs)",
                   background: "rgba(34,197,94,0.1)",
                   border: "1px solid rgba(34,197,94,0.2)",
-                  color: "#86efac",
+                  color: "#15803d",
                   fontSize: "0.8125rem",
                   lineHeight: "1.5",
                   textAlign: "left",
@@ -115,7 +115,7 @@ export function ResetPassword() {
                     captchaTokenRef.current = null;
                   }}
                   options={{
-                    theme: "dark",
+                    theme: "light",
                     size: "flexible",
                   }}
                 />

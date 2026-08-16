@@ -174,7 +174,7 @@ export function SignIn() {
                 captchaTokenRef.current = null;
               }}
               options={{
-                theme: "dark",
+                theme: "light",
                 size: "flexible",
               }}
             />
