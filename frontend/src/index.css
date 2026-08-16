@@ -423,6 +423,15 @@ body {
   overflow-x: hidden;
 }
 
+/* Ensure font applies to ALL elements including form controls */
+input, button, select, textarea, optgroup {
+  font-family: inherit;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, li, a, label {
+  font-family: inherit;
+}
+
 /* ========== ANIMATED BACKGROUND ========== */
 .bg-mesh {
   position: fixed;
