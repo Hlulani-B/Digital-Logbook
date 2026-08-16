@@ -1,12 +1,10 @@
-import { useState, useRef, type FormEvent, useEffect } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
-import {checkUser} from "../functions/profile/login.js"
-import {useNavigate} from "react-router-dom";
-
-
+import { checkUser } from "../functions/profile/login.js";
+import { useNavigate } from "react-router-dom";
 
 type Provider = "google" | "github";
 
@@ -27,30 +25,15 @@ export function SignIn() {
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
   const { theme } = useTheme();
 
-
-
-  useEffect(() => {
-    if (!email) return;
-    localStorage.setItem("email", email);
-
-    const verify = async () => {
-      try {
-        const exists = await checkUser(email);
-        if (exists) {
-          navigate("/dashboard");
-        } else {
-          navigate("/create-profile");
-        }
-      } catch {
-        navigate("/create-profile");
-      }
-    };
-
-    verify();
-  }, [email, navigate]);
-
-
-
+  const routeAfterAuth = async (userEmail: string) => {
+    localStorage.setItem("email", userEmail);
+    try {
+      const exists = await checkUser(userEmail);
+      navigate(exists ? "/dashboard" : "/create-profile");
+    } catch {
+      navigate("/create-profile");
+    }
+  };
 
   const handleSignIn = async (provider: Provider) => {
     if (!captchaVerified) return;
@@ -63,6 +46,8 @@ export function SignIn() {
       } else {
         await signInWithGitHub();
       }
+      // Note: OAuth redirects away from this page, so routeAfterAuth here
+      // won't run for OAuth — handle post-login routing in AuthCallback instead.
     } catch (err) {
       const label = provider === "google" ? "Google" : "GitHub";
       setError(err instanceof Error ? err.message : `${label} sign-in failed`);
@@ -79,6 +64,7 @@ export function SignIn() {
     try {
       if (mode === "signin") {
         await signInWithEmail(email, password, captchaTokenRef.current || undefined);
+        await routeAfterAuth(email);
       } else {
         await signUpWithEmail(email, password, captchaTokenRef.current || undefined);
         setSuccess(

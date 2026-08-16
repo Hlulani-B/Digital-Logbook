@@ -7,6 +7,8 @@ import { AuthCallback } from "@/pages/AuthCallback";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { UpdatePassword } from "@/pages/UpdatePassword";
 import { Dashboard } from "@/pages/Dashboard";
+import { CreateProfile } from "@/pages/CreateProfile";
+import { AvatarPage } from "@/pages/Avatar";
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -86,6 +88,22 @@ export function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-profile"
+            element={
+              <ProtectedRoute>
+                <CreateProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/avatar"
+            element={
+              <ProtectedRoute>
+                <AvatarPage />
               </ProtectedRoute>
             }
           />
