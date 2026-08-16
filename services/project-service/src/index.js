@@ -1,7 +1,6 @@
 import './config.js';
 
 import express from 'express';
-import cors from 'cors';
 
 import projectRoutes from './Routes/project.js';
 import entryRoutes from './Routes/entries.js';

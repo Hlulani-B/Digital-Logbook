@@ -1,7 +1,6 @@
 import './config.js';
 
 import express from 'express';
-import cors from 'cors';
 
 import loginRoutes from './Routes/login.js';
 import profileRoutes from './Routes/profile.js';
