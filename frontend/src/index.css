@@ -96,20 +96,6 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.04) 100%);
 }
 
-[data-theme="dark"] .auth-logo {
-  background: linear-gradient(135deg, var(--accent) 0%, #a855f7 50%, #ec4899 100%);
-  background-size: 200% 200%;
-  animation: logoShine 8s ease infinite;
-  box-shadow:
-    0 8px 32px var(--accent-glow),
-    0 0 0 1px rgba(255,255,255,0.1) inset;
-}
-
-@keyframes logoShine {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
 [data-theme="dark"] .bg-mesh::before {
   background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
 }
@@ -509,14 +495,10 @@ body {
   height: 48px;
   margin: 0 auto 0.75rem;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 50%, #ec4899 100%);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow:
-    0 8px 24px var(--accent-glow),
-    0 2px 8px rgba(0,0,0,0.08);
 }
 
 .auth-title {
