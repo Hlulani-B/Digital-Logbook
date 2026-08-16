@@ -1,4 +1,4 @@
-const url = "https://profile-service.onrender.com";
+const url = "https://profile-service-0zk7.onrender.com";
 
 export async function updateUsername(email, username) {
   const res = await fetch(url + '/service/profile', {

@@ -8,6 +8,7 @@ The backend microservices are deployed on Render:
 | **Auth Service** | Backend API | [https://auth-service-hl52.onrender.com](https://auth-service-hl52.onrender.com) |
 | **Dashboard Service** | Backend API | [https://dashboard-service-bpc5.onrender.com](https://dashboard-service-bpc5.onrender.com) |
 | **Project Service** | Backend API | [https://project-service-96ml.onrender.com](https://project-service-96ml.onrender.com) |
+| **Profile Service** | Backend API | [https://profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com) |
 
 
 
