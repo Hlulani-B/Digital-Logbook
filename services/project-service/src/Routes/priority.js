@@ -2,24 +2,46 @@ import express from 'express';
 import { Priority } from '../functions/priority.js';
 
 const router = express.Router();
-const priority = new Priority();
+
+// Instantiate class safely
+let priority;
+try {
+  priority = new Priority();
+} catch (err) {
+  console.error('Failed to instantiate Priority handler:', err);
+}
+
 /**
  * input:
  *     function
  *  values("set")
  */
 router.post('/priority', async (req, res) => {
-    const { function: func, values } = req.body;
-    if (!func) return res.status(400).json({ error: 'Function not provided' });
-    switch (func) {
-        case "set": {
-            const { user_email, priorityValue, project_name, entry_object } = values;
-            const result = await priority.setPriority(user_email, priorityValue, project_name, entry_object);
-            return res.json(result);
-        }
-        default:
-            return res.status(400).json({ error: 'Invalid function' });
+  try {
+    if (!priority) {
+      return res.status(500).json({ error: 'Priority service uninitialized' });
     }
+
+    const { function: func, values = {} } = req.body || {};
+    if (!func) return res.status(400).json({ error: 'Function not provided' });
+
+    switch (func) {
+      case "set": {
+        const { user_email, priorityValue, project_name, entry_object } = values;
+        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await priority.setPriority(user_email, priorityValue, project_name, entry_object);
+        return res.json(result);
+      }
+      default:
+        return res.status(400).json({ error: 'Invalid function' });
+    }
+  } catch (error) {
+    console.error('Error in POST /service/priority:', error);
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      details: error.message 
+    });
+  }
 });
 
 export default router;
