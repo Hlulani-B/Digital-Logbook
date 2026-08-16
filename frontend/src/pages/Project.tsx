@@ -4,7 +4,7 @@ import {
   editProjectName,
   deleteProject,
   getProjectsByEmail,
-} from "@/lib/projectService";
+} from "../functions/project/project.js";
 
 interface ProjectsPageProps {
   email: string;

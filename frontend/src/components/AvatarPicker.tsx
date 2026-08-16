@@ -1,6 +1,17 @@
 import { useState, useRef, type ChangeEvent } from "react";
 import { updateAvatar } from "@/lib/profileService";
 import { useTheme } from "@/hooks/useTheme";
+import {
+  FiSmile,
+  FiSun,
+  FiCompass,
+  FiFeather,
+  FiMonitor,
+  FiMusic,
+  FiHeart,
+  FiStar,
+} from "react-icons/fi";
+import type { IconType } from "react-icons";
 
 interface AvatarPickerProps {
   currentAvatar?: string | null;
@@ -8,15 +19,15 @@ interface AvatarPickerProps {
   onAvatarChange?: (url: string) => void;
 }
 
-const PRESET_AVATARS = [
-  "https://api.dicebear.com/72/fluent-emoji/1F600.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F60E.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F680.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F331.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F4BB.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F3B5.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F431.png",
-  "https://api.dicebear.com/72/fluent-emoji/1F98A.png",
+const PRESET_AVATARS: { icon: IconType; bg: string; fg: string; label: string }[] = [
+  { icon: FiSmile, bg: "#fef3c7", fg: "#d97706", label: "Smiley" },
+  { icon: FiSun, bg: "#fce7f3", fg: "#db2777", label: "Sun" },
+  { icon: FiCompass, bg: "#dbeafe", fg: "#2563eb", label: "Compass" },
+  { icon: FiFeather, bg: "#dcfce7", fg: "#16a34a", label: "Feather" },
+  { icon: FiMonitor, bg: "#e0e7ff", fg: "#4f46e5", label: "Tech" },
+  { icon: FiMusic, bg: "#fae8ff", fg: "#a855f7", label: "Music" },
+  { icon: FiHeart, bg: "#ffe4e6", fg: "#e11d48", label: "Heart" },
+  { icon: FiStar, bg: "#fef9c3", fg: "#ca8a04", label: "Star" },
 ];
 
 export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPickerProps) {
@@ -41,12 +52,6 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
       onAvatarChange?.(url);
     };
     reader.readAsDataURL(file);
-  };
-
-  const handlePresetSelect = (url: string) => {
-    setAvatar(url);
-    onAvatarChange?.(url);
-    setShowPresets(false);
   };
 
   const handleSave = async () => {
@@ -83,12 +88,21 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
         }}
       >
         {avatar ? (
-          <img
-            src={avatar}
-            alt="Avatar"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            referrerPolicy="no-referrer"
-          />
+          avatar.startsWith("preset:") ? (
+            (() => {
+              const preset = PRESET_AVATARS.find(p => `preset:${p.label}` === avatar);
+              if (!preset) return null;
+              const Icon = preset.icon;
+              return <Icon size={36} style={{ color: preset.fg }} />;
+            })()
+          ) : (
+            <img
+              src={avatar}
+              alt="Avatar"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              referrerPolicy="no-referrer"
+            />
+          )
         ) : (
           "?"
         )}
@@ -135,29 +149,38 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
             border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`,
           }}
         >
-          {PRESET_AVATARS.map((url) => (
-            <button
-              key={url}
-              type="button"
-              onClick={() => handlePresetSelect(url)}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "50%",
-                overflow: "hidden",
-                border: avatar === url ? "2px solid var(--accent)" : "2px solid transparent",
-                cursor: "pointer",
-                background: "none",
-                padding: 0,
-              }}
-            >
-              <img
-                src={url}
-                alt="Preset avatar"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            </button>
-          ))}
+          {PRESET_AVATARS.map((preset) => {
+            const Icon = preset.icon;
+            const isActive = avatar === `preset:${preset.label}`;
+            return (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  setAvatar(`preset:${preset.label}`);
+                  onAvatarChange?.(`preset:${preset.label}`);
+                  setShowPresets(false);
+                }}
+                aria-label={preset.label}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                  cursor: "pointer",
+                  background: preset.bg,
+                  color: preset.fg,
+                  padding: 0,
+                  transition: "border-color 0.15s ease, transform 0.15s ease",
+                }}
+              >
+                <Icon size={22} />
+              </button>
+            );
+          })}
         </div>
       )}
 
