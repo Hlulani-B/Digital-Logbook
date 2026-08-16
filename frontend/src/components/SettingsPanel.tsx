@@ -170,7 +170,7 @@ export function SettingsPanel({
   open,
   initialTab,
   userId,
-  displayName,
+  displayName: _displayName,
   email,
   avatarUrl,
   provider,
@@ -204,13 +204,13 @@ export function SettingsPanel({
     weeklyReminder: false,
   };
 
-  const [profile, setProfile] = useState<ProfileSettings>(() =>
+  const [profile] = useState<ProfileSettings>(() =>
     loadSettings(profileKey, defaultProfile)
   );
   const [prefs, setPrefs] = useState<Preferences>(() =>
     loadSettings(prefsKey, defaultPrefs)
   );
-  const { theme, setTheme, isDark } = useTheme();
+  const { setTheme, isDark } = useTheme();
 
   // Reset tab when panel opens
   useEffect(() => {
