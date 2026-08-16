@@ -13,8 +13,8 @@ const allowedOrigins = [
   'http://localhost:3000'
 ];
 
-// CORS middleware with dynamic origin checking
-app.use(cors({
+// CORS configuration with dynamic origin checking
+const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
@@ -27,7 +27,13 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
+};
+
+// Apply CORS options globally
+app.use(cors(corsOptions));
+
+// Safe preflight wildcard handler for Express 5 (regex instead of '*')
+app.options(/(.*)/, cors(corsOptions));
 
 app.use(express.json());
 
