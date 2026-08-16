@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { updateName, updateUsername } from "@/lib/profileService";
+import { addEmail, updateName, updateUsername } from "@/lib/profileService";
 
 export function CreateProfile() {
   const navigate = useNavigate();
@@ -26,11 +26,17 @@ export function CreateProfile() {
     setLoading(true);
     setError(null);
     try {
+      // Insert user row first (new users don't exist in users table yet)
+      const emailResult = await addEmail(email);
+      if (emailResult?.error && !emailResult.message?.includes('duplicate')) {
+        throw new Error(emailResult.error || emailResult.message);
+      }
+
       const nameResult = await updateName(email, name.trim());
-      if (nameResult?.error) throw new Error(nameResult.error);
+      if (nameResult?.error) throw new Error(nameResult.error || nameResult.message);
 
       const usernameResult = await updateUsername(email, username.trim());
-      if (usernameResult?.error) throw new Error(usernameResult.error);
+      if (usernameResult?.error) throw new Error(usernameResult.error || usernameResult.message);
 
       navigate("/avatar", { replace: true });
     } catch (err) {
