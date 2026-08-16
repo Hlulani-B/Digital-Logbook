@@ -282,6 +282,7 @@ export function SettingsPanel({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [debugResponse, setDebugResponse] = useState<string>("");
 
   // Fetch profile from service when panel opens
   useEffect(() => {
@@ -293,6 +294,8 @@ export function SettingsPanel({
         const result = await getProfile(email);
         if (cancelled) return;
         
+        setDebugResponse(JSON.stringify(result, null, 2));
+        
         // If profile doesn't exist, create it first
         if (result?.success === false || result?.error) {
           const addResult = await addEmail(email);
@@ -300,10 +303,11 @@ export function SettingsPanel({
             // Fetch again after creating
             const freshResult = await getProfile(email);
             if (!cancelled) {
+              setDebugResponse("After create: " + JSON.stringify(freshResult, null, 2));
               const profileData = freshResult?.data || freshResult;
               setServerProfile(profileData);
-              setName(profileData?.name || "");
-              setUsername(profileData?.username || "");
+              setName((profileData as Record<string, unknown>)?.name as string || "");
+              setUsername((profileData as Record<string, unknown>)?.username as string || "");
             }
           } else {
             throw new Error(addResult?.message || 'Failed to create profile');
@@ -311,8 +315,8 @@ export function SettingsPanel({
         } else {
           const profileData = result?.data || result;
           setServerProfile(profileData);
-          setName(profileData?.name || "");
-          setUsername(profileData?.username || "");
+          setName((profileData as Record<string, unknown>)?.name as string || "");
+          setUsername((profileData as Record<string, unknown>)?.username as string || "");
         }
       } catch (err) {
         if (!cancelled) {
@@ -443,7 +447,25 @@ export function SettingsPanel({
                 {loadingProfile ? (
                   <p className="field-hint">Loading profile...</p>
                 ) : (
-                  <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                  <>
+                    {debugResponse && (
+                      <pre style={{
+                        fontSize: "0.7rem",
+                        padding: "0.5rem",
+                        borderRadius: "var(--radius-xs)",
+                        background: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6",
+                        border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`,
+                        color: isDark ? "#a0a0a0" : "#6b7280",
+                        marginBottom: "0.75rem",
+                        overflow: "auto",
+                        maxHeight: "120px",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-all",
+                      }}>
+                        {debugResponse}
+                      </pre>
+                    )}
+                    <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                     <div className="field-group">
                       <label className="field-label" htmlFor="settings-name">Full name</label>
                       <input
@@ -492,6 +514,7 @@ export function SettingsPanel({
                       {profileSaving ? "Saving..." : "Save changes"}
                     </button>
                   </form>
+                  </>
                 )}
               </div>
             </>
