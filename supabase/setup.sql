@@ -1,18 +1,38 @@
--- Supabase SQL: Account Deletion RPC Function
--- Run this in your Supabase SQL Editor to enable account deletion
+-- ============================================================
+-- Supabase SQL Setup — Digital Logbook
+-- Run ALL of this in Supabase SQL Editor (one shot):
 -- https://supabase.com/dashboard/project/_/sql
+-- ============================================================
 
+-- 1. Profile service: users table
+--    Used by profile-service for checkUser, getProfile, username/email/name/avatar updates.
+--    Frontend inserts only { email } on signup; username/name/avatar filled later.
+CREATE TABLE IF NOT EXISTS public.users (
+  email      VARCHAR(255) PRIMARY KEY,
+  username   VARCHAR(50)  UNIQUE,
+  name       VARCHAR(100),
+  avatar     TEXT,
+  created_at TIMESTAMPTZ  DEFAULT now()
+);
+
+-- 2. Delete-user RPC (account deletion from Settings panel)
+--    Looks up the user's email from auth, cleans up app tables, then removes the auth account.
 CREATE OR REPLACE FUNCTION delete_user()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  user_email TEXT;
 BEGIN
-  -- Delete user data from your tables first (add your own tables here)
-  -- DELETE FROM public.entries WHERE user_id = auth.uid();
-  -- DELETE FROM public.projects WHERE user_id = auth.uid();
-  
-  -- Delete the user's auth account
+  SELECT u.email INTO user_email
+    FROM auth.users u
+   WHERE u.id = auth.uid();
+
+  -- Clean up profile-service table
+  DELETE FROM public.users   WHERE email = user_email;
+
+  -- Finally remove the auth account itself
   DELETE FROM auth.users WHERE id = auth.uid();
 END;
 $$;
