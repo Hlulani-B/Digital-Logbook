@@ -212,6 +212,64 @@ See `.env.example` for all required variables:
 7. **Configure CAPTCHA:** Authentication → Attack Protection → Enable Captcha → choose Turnstile → paste the secret key (not the site key)
 8. **Configure SMTP:** Authentication → Emails → SMTP Settings → enable custom SMTP with Brevo credentials
 
+### External Services Configuration
+
+#### Google Cloud Console (OAuth)
+Google OAuth is required for the Google sign-in button. Configure it before enabling the Google provider in Supabase.
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or use an existing one)
+2. Navigate to **APIs & Services → Credentials**
+3. Click **Create Credentials → OAuth Client ID**
+4. Application type: **Web application**
+5. Under **Authorised JavaScript origins**, add:
+   - `http://localhost:3000`
+   - `https://<your-supabase-project-ref>.supabase.co`
+6. Under **Authorised redirect URIs**, add:
+   - `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`
+7. Copy the **Client ID** and **Client Secret**
+8. Paste them into **Supabase → Authentication → Providers → Google**
+
+#### Cloudflare Turnstile (CAPTCHA)
+Turnstile provides invisible bot protection for email/password and password reset flows. Both a site key (frontend) and a secret key (Supabase server-side) are required.
+
+1. Go to the [Cloudflare Turnstile dashboard](https://dash.cloudflare.com/) → **Turnstile → Add widget**
+2. Widget name: `Digital Logbook`
+3. Mode: **Managed** (recommended) or **Non-interactive**
+4. Add your domain: `localhost` (for local dev) and your production domain
+5. Copy the **Site key** — paste it into `.env` as `VITE_TURNSTILE_SITE_KEY`
+6. Copy the **Secret key** — paste it into **Supabase → Authentication → Attack Protection → Captcha secret**
+7. Click **Save changes** in Supabase
+
+> **Important:** The secret key and site key are different values. Pasting the site key into the secret field causes `invalid-input-secret` errors on every authentication request.
+
+#### Brevo SMTP (Email Delivery)
+Brevo sends transactional emails on behalf of Supabase: account confirmation emails on sign-up and password reset links.
+
+1. Create a [Brevo account](https://app.brevo.com/) (free tier: 300 emails/day)
+2. Go to **SMTP & API → SMTP** tab
+3. Note your SMTP credentials:
+   - **Server:** `smtp-relay.brevo.com`
+   - **Port:** `587`
+   - **Login:** your Brevo SMTP login (e.g. `ab9b48001@smtp-brevo.com`)
+4. Click **Activate for SMTP keys** (if prompted)
+5. Create a new SMTP key and copy the full value
+6. Go to **Senders & IPs → Senders** and add a verified sender:
+   - Add your sender email (e.g. `yourname@gmail.com`)
+   - Sender name: `Digital Logbook`
+   - Verify the email by clicking the confirmation link Brevo sends you
+7. Configure Supabase SMTP:
+   - Go to **Supabase → Authentication → Emails → SMTP Settings**
+   - **Enable custom SMTP:** ON
+   - **Sender email:** your verified Brevo sender email
+   - **Sender name:** `Digital Logbook`
+   - **Host:** `smtp-relay.brevo.com`
+   - **Port:** `587`
+   - **Username:** your Brevo SMTP login
+   - **Password:** the full SMTP key value
+   - Click **Save changes**
+
+> **Tip:** If Brevo transactional logs are empty after sign-up, verify that "Enable custom SMTP" is actually toggled ON and that "Confirm email" is enabled under Sign In / Providers.
+
 ---
 
 ## Project Structure
