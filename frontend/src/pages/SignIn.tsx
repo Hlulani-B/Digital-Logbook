@@ -1,14 +1,19 @@
-import { useState, useRef, type FormEvent } from "react";
+import { useState, useRef, type FormEvent, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
+import {checkUser} from "../functions/profile/login.js"
+import {useNavigate} from "react-router-dom";
+
+
 
 type Provider = "google" | "github";
 
 const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
 
 export function SignIn() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +26,31 @@ export function SignIn() {
   const turnstileRef = useRef<TurnstileInstance>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
   const { theme } = useTheme();
+
+
+
+  useEffect(() => {
+    if (!email) return;
+    localStorage.setItem("email", email);
+
+    const verify = async () => {
+      try {
+        const exists = await checkUser(email);
+        if (exists) {
+          navigate("/dashboard");
+        } else {
+          navigate("/create-profile");
+        }
+      } catch {
+        navigate("/create-profile");
+      }
+    };
+
+    verify();
+  }, [email, navigate]);
+
+
+
 
   const handleSignIn = async (provider: Provider) => {
     if (!captchaVerified) return;

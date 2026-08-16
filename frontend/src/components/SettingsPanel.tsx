@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useTheme } from "@/hooks/useTheme";
+import { AvatarPicker } from "@/components/AvatarPicker";
+import {
+  getProfile,
+  updateName,
+  updateUsername,
+} from "@/lib/profileService";
 
 type Tab = "profile" | "preferences" | "account";
 
@@ -242,6 +248,63 @@ export function SettingsPanel({
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Real profile data from profile service
+  const [serverProfile, setServerProfile] = useState<Record<string, unknown> | null>(null);
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+
+  // Fetch profile from service when panel opens
+  useEffect(() => {
+    if (!open || !email) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const result = await getProfile(email);
+        if (cancelled) return;
+        if (result?.error) throw new Error(result.error);
+        setServerProfile(result);
+        setName(result?.name || "");
+        setUsername(result?.username || "");
+      } catch (err) {
+        if (!cancelled) {
+          setProfileError(err instanceof Error ? err.message : "Could not load profile");
+        }
+      } finally {
+        if (!cancelled) setLoadingProfile(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [open, email]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setProfileSaving(true);
+    setProfileError(null);
+    setProfileSuccess(false);
+    try {
+      const nameResult = await updateName(email, name.trim());
+      if (nameResult?.error) throw new Error(nameResult.error);
+
+      const usernameResult = await updateUsername(email, username.trim());
+      if (usernameResult?.error) throw new Error(usernameResult.error);
+
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 2000);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Could not save changes");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -294,105 +357,98 @@ export function SettingsPanel({
           {/* ===== PROFILE TAB ===== */}
           {tab === "profile" && (
             <>
-              {/* Avatar section */}
-              <div className="profile-avatar-section">
-                <div className="profile-avatar-lg">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="" referrerPolicy="no-referrer" />
-                  ) : (
-                    displayName.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div className="profile-avatar-info">
-                  <p className="profile-avatar-name">{displayName}</p>
-                  <p className="profile-avatar-email">{email}</p>
-                  <span className="profile-avatar-badge">
-                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {provider}
-                  </span>
-                </div>
+              {/* Avatar picker */}
+              <div className="panel-section">
+                <AvatarPicker
+                  currentAvatar={serverProfile?.avatar_url as string || avatarUrl}
+                  email={email}
+                />
               </div>
 
+              {/* Profile details */}
               <div className="panel-section">
-                <p className="panel-section-title">Personal Information</p>
+                <p className="panel-section-title">Profile Details</p>
 
-                <div className="field-group">
-                  <label className="field-label" htmlFor="preferredName">
-                    Preferred Name
-                  </label>
-                  <input
-                    id="preferredName"
-                    type="text"
-                    className="field-input"
-                    placeholder={displayName}
-                    value={profile.preferredName}
-                    onChange={(e) =>
-                      setProfile((p) => ({ ...p, preferredName: e.target.value }))
-                    }
-                  />
-                  <p className="field-hint">
-                    This is how you'll be greeted across the logbook.
-                  </p>
-                </div>
+                {profileError && (
+                  <div style={{
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "var(--radius-xs)",
+                    background: "var(--danger-glow)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: theme === "dark" ? "#fca5a5" : "#b91c1c",
+                    fontSize: "0.8125rem",
+                    marginBottom: "0.75rem",
+                  }}>
+                    {profileError}
+                  </div>
+                )}
+                {profileSuccess && (
+                  <div style={{
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "var(--radius-xs)",
+                    background: "rgba(34,197,94,0.1)",
+                    border: "1px solid rgba(34,197,94,0.2)",
+                    color: theme === "dark" ? "#86efac" : "#15803d",
+                    fontSize: "0.8125rem",
+                    marginBottom: "0.75rem",
+                  }}>
+                    Profile updated!
+                  </div>
+                )}
 
-                <div className="field-group">
-                  <label className="field-label" htmlFor="role">Role</label>
-                  <select
-                    id="role"
-                    className="field-input"
-                    value={profile.role}
-                    onChange={(e) =>
-                      setProfile((p) => ({ ...p, role: e.target.value }))
-                    }
-                  >
-                    <option value="student">Student</option>
-                    <option value="lecturer">Lecturer</option>
-                    <option value="tutor">Tutor</option>
-                    <option value="professional">Professional</option>
-                  </select>
-                </div>
+                {loadingProfile ? (
+                  <p className="field-hint">Loading profile...</p>
+                ) : (
+                  <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                    <div className="field-group">
+                      <label className="field-label" htmlFor="settings-name">Full name</label>
+                      <input
+                        id="settings-name"
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="field-input"
+                      />
+                    </div>
 
-                <div className="field-group">
-                  <label className="field-label" htmlFor="studentNumber">
-                    Student Number
-                  </label>
-                  <input
-                    id="studentNumber"
-                    type="text"
-                    className="field-input"
-                    placeholder="e.g. 2456789"
-                    value={profile.studentNumber}
-                    onChange={(e) =>
-                      setProfile((p) => ({
-                        ...p,
-                        studentNumber: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
+                    <div className="field-group">
+                      <label className="field-label" htmlFor="settings-username">Username</label>
+                      <input
+                        id="settings-username"
+                        type="text"
+                        required
+                        minLength={3}
+                        value={username}
+                        onChange={(e) =>
+                          setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+                        }
+                        className="field-input"
+                      />
+                    </div>
 
-              <div className="panel-section">
-                <p className="panel-section-title">About You</p>
-                <div className="field-group">
-                  <label className="field-label" htmlFor="bio">
-                    Bio / Notes
-                  </label>
-                  <textarea
-                    id="bio"
-                    className="field-input"
-                    placeholder="Tell us about yourself, your goals, or anything you'd like to remember..."
-                    value={profile.bio}
-                    onChange={(e) =>
-                      setProfile((p) => ({ ...p, bio: e.target.value }))
-                    }
-                  />
-                  <p className="field-hint">
-                    Optional — visible only to you.
-                  </p>
-                </div>
+                    <div className="field-group">
+                      <label className="field-label">Email</label>
+                      <input
+                        type="email"
+                        value={email}
+                        disabled
+                        className="field-input"
+                        style={{ opacity: 0.6, cursor: "not-allowed" }}
+                      />
+                      <p className="field-hint">Email cannot be changed here.</p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={profileSaving || !name.trim() || username.trim().length < 3}
+                      className="btn-primary"
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      {profileSaving ? "Saving..." : "Save changes"}
+                    </button>
+                  </form>
+                )}
               </div>
             </>
           )}

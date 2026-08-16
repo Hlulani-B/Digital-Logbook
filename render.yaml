@@ -1,5 +1,22 @@
 services:
   - type: web
+    name: digital-logbook
+    env: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+
+  - type: web
     name: auth-service
     env: node
     plan: free
