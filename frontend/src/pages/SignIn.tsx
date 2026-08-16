@@ -28,8 +28,8 @@ export function SignIn() {
   const routeAfterAuth = async (userEmail: string) => {
     localStorage.setItem("email", userEmail);
     try {
-      const exists = await checkUser(userEmail);
-      navigate(exists ? "/dashboard" : "/create-profile");
+      const result = await checkUser(userEmail);
+      navigate(result.exists ? "/dashboard" : "/create-profile");
     } catch {
       navigate("/create-profile");
     }
