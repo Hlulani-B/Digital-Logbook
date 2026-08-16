@@ -555,13 +555,13 @@ export function SettingsPanel({
                       setTheme(newTheme);
                     }}
                   >
-                    <option value="light">Light (White)</option>
+                    <option value="light">Ivory (Default)</option>
                     <option value="dark">Dark</option>
-                    <option value="pink">Pink</option>
-                    <option value="blue">Blue</option>
-                    <option value="purple">Purple</option>
-                    <option value="green">Green</option>
-                    <option value="brown">Brown (Vintage)</option>
+                    <option value="pink">Blush</option>
+                    <option value="blue">Powder Blue</option>
+                    <option value="purple">Pale Lilac</option>
+                    <option value="green">Sage Mist</option>
+                    <option value="brown">Soft Tan</option>
                   </select>
                   <p className="field-hint">
                     Choose how the logbook looks to you.
