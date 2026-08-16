@@ -2,6 +2,7 @@ import { useState, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/hooks/useTheme";
 
 type Provider = "google" | "github";
 
@@ -19,6 +20,7 @@ export function SignIn() {
   const captchaTokenRef = useRef<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
+  const { theme } = useTheme();
 
   const handleSignIn = async (provider: Provider) => {
     if (!captchaVerified) return;
@@ -174,7 +176,7 @@ export function SignIn() {
                 captchaTokenRef.current = null;
               }}
               options={{
-                theme: "light",
+                theme: theme === "dark" ? "dark" : "light",
                 size: "flexible",
               }}
             />

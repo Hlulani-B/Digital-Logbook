@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/hooks/useTheme";
 
 export function UpdatePassword() {
   const [password, setPassword] = useState("");
@@ -9,6 +10,8 @@ export function UpdatePassword() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { updatePassword } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault();
@@ -89,7 +92,7 @@ export function UpdatePassword() {
                           flex: 1,
                           height: "3px",
                           borderRadius: "2px",
-                          background: i <= strength.level ? strength.color : "#e5e7eb",
+                          background: i <= strength.level ? strength.color : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"),
                           transition: "background 0.3s",
                         }}
                       />
@@ -126,7 +129,7 @@ export function UpdatePassword() {
                 <p
                   style={{
                     fontSize: "0.6875rem",
-                    color: "#dc2626",
+                    color: isDark ? "#f87171" : "#dc2626",
                     marginTop: "0.375rem",
                   }}
                 >
@@ -137,7 +140,7 @@ export function UpdatePassword() {
                 <p
                   style={{
                     fontSize: "0.6875rem",
-                    color: "#16a34a",
+                    color: isDark ? "#4ade80" : "#16a34a",
                     marginTop: "0.375rem",
                     display: "flex",
                     alignItems: "center",

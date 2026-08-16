@@ -2,6 +2,7 @@ import { useState, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/hooks/useTheme";
 
 const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
 
@@ -14,6 +15,7 @@ export function ResetPassword() {
   const captchaTokenRef = useRef<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const { resetPassword } = useAuth();
+  const { theme } = useTheme();
 
   const handleReset = async (e: FormEvent) => {
     e.preventDefault();
@@ -57,7 +59,7 @@ export function ResetPassword() {
                   borderRadius: "var(--radius-xs)",
                   background: "rgba(34,197,94,0.1)",
                   border: "1px solid rgba(34,197,94,0.2)",
-                  color: "#15803d",
+                  color: theme === "dark" ? "#86efac" : "#15803d",
                   fontSize: "0.8125rem",
                   lineHeight: "1.5",
                   textAlign: "left",
@@ -115,7 +117,7 @@ export function ResetPassword() {
                     captchaTokenRef.current = null;
                   }}
                   options={{
-                    theme: "light",
+                    theme: theme === "dark" ? "dark" : "light",
                     size: "flexible",
                   }}
                 />

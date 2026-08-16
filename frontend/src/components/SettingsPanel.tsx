@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { useTheme } from "@/hooks/useTheme";
 
 type Tab = "profile" | "preferences" | "account";
 
@@ -14,6 +15,7 @@ interface Preferences {
   defaultView: string;
   weekStartsOn: string;
   timeFormat: string;
+  theme: string;
   autoSave: boolean;
   compactMode: boolean;
   notifications: boolean;
@@ -64,6 +66,7 @@ function ResetPasswordInline({
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const captchaTokenRef = useRef<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
+  const { theme } = useTheme();
 
   const handleSend = async () => {
     setSending(true);
@@ -90,7 +93,7 @@ function ResetPasswordInline({
           borderRadius: "var(--radius-xs)",
           background: "rgba(34,197,94,0.1)",
           border: "1px solid rgba(34,197,94,0.2)",
-          color: "#15803d",
+          color: theme === "dark" ? "#86efac" : "#15803d",
           fontSize: "0.8125rem",
           lineHeight: "1.5",
         }}
@@ -114,7 +117,7 @@ function ResetPasswordInline({
             borderRadius: "var(--radius-xs)",
             background: "var(--danger-glow)",
             border: "1px solid rgba(239,68,68,0.2)",
-            color: "#b91c1c",
+            color: theme === "dark" ? "#fca5a5" : "#b91c1c",
             fontSize: "0.8125rem",
             marginBottom: "0.75rem",
           }}
@@ -147,7 +150,7 @@ function ResetPasswordInline({
             captchaTokenRef.current = null;
           }}
           options={{
-            theme: "light",
+            theme: theme === "dark" ? "dark" : "light",
             size: "flexible",
           }}
         />
@@ -187,6 +190,7 @@ export function SettingsPanel({
     defaultView: "dashboard",
     weekStartsOn: "monday",
     timeFormat: "24h",
+    theme: "light",
     autoSave: true,
     compactMode: false,
     notifications: true,
@@ -199,6 +203,7 @@ export function SettingsPanel({
   const [prefs, setPrefs] = useState<Preferences>(() =>
     loadSettings(prefsKey, defaultPrefs)
   );
+  const { theme, setTheme } = useTheme();
 
   // Reset tab when panel opens
   useEffect(() => {
@@ -230,6 +235,7 @@ export function SettingsPanel({
   const handleSave = () => {
     saveSettings(profileKey, profile);
     saveSettings(prefsKey, prefs);
+    setTheme(prefs.theme as "light" | "dark");
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -453,6 +459,28 @@ export function SettingsPanel({
                     <option value="12h">12-hour (2:30 PM)</option>
                   </select>
                 </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="theme">
+                    Theme
+                  </label>
+                  <select
+                    id="theme"
+                    className="field-input"
+                    value={prefs.theme}
+                    onChange={(e) => {
+                      const newTheme = e.target.value as "light" | "dark";
+                      setPrefs((p) => ({ ...p, theme: newTheme }));
+                      setTheme(newTheme);
+                    }}
+                  >
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                  <p className="field-hint">
+                    Choose how the logbook looks to you.
+                  </p>
+                </div>
               </div>
 
               <div className="panel-section">
@@ -584,7 +612,7 @@ export function SettingsPanel({
               <hr className="divider" />
 
               <div className="panel-section danger-zone">
-                <p className="panel-section-title" style={{ color: "#dc2626" }}>
+                <p className="panel-section-title" style={{ color: "var(--danger-text)" }}>
                   Danger Zone
                 </p>
                 <p className="danger-desc">
@@ -636,7 +664,7 @@ export function SettingsPanel({
               <span
                 style={{
                   fontSize: "0.8125rem",
-                  color: "#16a34a",
+                  color: theme === "dark" ? "#4ade80" : "#16a34a",
                   display: "flex",
                   alignItems: "center",
                   gap: "0.375rem",

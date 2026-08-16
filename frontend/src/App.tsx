@@ -1,11 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/hooks/useTheme";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SignIn } from "@/pages/SignIn";
 import { AuthCallback } from "@/pages/AuthCallback";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { UpdatePassword } from "@/pages/UpdatePassword";
 import { Dashboard } from "@/pages/Dashboard";
+
+function ThemeInitializer({ children }: { children: React.ReactNode }) {
+  useTheme(); // applies data-theme on mount
+  return <>{children}</>;
+}
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -43,7 +49,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 export function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <ThemeInitializer>
+        <AuthProvider>
         <Routes>
           <Route
             path="/"
@@ -85,6 +92,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/signin" replace />} />
         </Routes>
       </AuthProvider>
-    </BrowserRouter>
+    </ThemeInitializer>
+  </BrowserRouter>
   );
 }
