@@ -60,7 +60,11 @@ export function App() {
           />
           <Route
             path="/signin"
-            element={<SignIn />}
+            element={
+              <PublicRoute>
+                <SignIn />
+              </PublicRoute>
+            }
           />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route

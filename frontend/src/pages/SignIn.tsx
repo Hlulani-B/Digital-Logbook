@@ -43,18 +43,16 @@ export function SignIn() {
 
   const routeAfterAuth = async (userEmail: string) => {
     localStorage.setItem("email", userEmail);
+    let destination = "/dashboard";
     try {
       const result = await checkUser(userEmail);
-      if (result.exists) {
-        navigate("/dashboard");
-      } else {
-        navigate("/create-profile");
+      if (!result.exists) {
+        destination = "/create-profile";
       }
     } catch (err) {
-      console.error("checkUser failed:", err);
-      // On error, default to dashboard - let protected routes handle redirects
-      navigate("/dashboard");
+      console.error("checkUser failed, defaulting to dashboard:", err);
     }
+    navigate(destination);
   };
 
   const handleSignIn = async (provider: Provider) => {
