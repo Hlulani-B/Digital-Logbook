@@ -85,7 +85,13 @@ export function Dashboard() {
       <nav className="navbar">
         <div className="navbar-inner">
           <div className="nav-brand">
-            <div className="nav-logo">DL</div>
+            <div className="nav-logo">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                <path d="M8 7h6" />
+                <path d="M8 11h4" />
+              </svg>
+            </div>
             <span className="nav-title">Digital Logbook</span>
           </div>
 

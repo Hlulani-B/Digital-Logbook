@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -21,18 +21,18 @@
   --success: #16a34a;
   --danger: #dc2626;
   --danger-glow: rgba(220,38,38,0.08);
-  --radius: 16px;
-  --radius-sm: 10px;
-  --radius-xs: 8px;
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-xs: 10px;
   --surface-solid: #ffffff;
   --bg-subtle: #f9fafb;
   --navbar-bg: rgba(255,255,255,0.92);
   --toggle-track: #d1d5db;
   --scrollbar-thumb: #d1d5db;
   --scrollbar-thumb-hover: #9ca3af;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-card-hover: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
-  --shadow-dropdown: 0 10px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  --shadow-card-hover: 0 12px 32px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-dropdown: 0 12px 48px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
   --overlay-bg: rgba(0,0,0,0.2);
   --error-text: #b91c1c;
   --success-text: #15803d;
@@ -375,7 +375,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -504,25 +504,24 @@ body {
 }
 
 .auth-logo {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   margin: 0 auto 1.5rem;
-  border-radius: 18px;
-  background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 50%, #ec4899 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 1.35rem;
   color: white;
   box-shadow:
-    0 4px 16px var(--accent-glow);
+    0 8px 24px var(--accent-glow),
+    0 2px 8px rgba(0,0,0,0.08);
 }
 
 .auth-title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   margin-bottom: 0.35rem;
   color: var(--text);
 }
@@ -772,22 +771,21 @@ body {
 }
 
 .nav-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), #6366f1);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 0.75rem;
   color: white;
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .nav-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .nav-user {
@@ -853,16 +851,17 @@ body {
 }
 
 .dash-greeting h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   color: var(--text);
 }
 
 .dash-greeting p {
   margin-top: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  font-weight: 500;
 }
 
 /* Stat Cards */
@@ -912,17 +911,17 @@ body {
 }
 
 .stat-label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .stat-value {
   font-size: 2rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   margin-top: 0.25rem;
 }
 
@@ -946,7 +945,7 @@ body {
 }
 
 .btn-primary {
-  padding: 0.5rem 1.25rem;
+  padding: 0.55rem 1.35rem;
   border-radius: var(--radius-xs);
   border: none;
   background: var(--accent);
@@ -954,8 +953,9 @@ body {
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px var(--accent-glow);
+  letter-spacing: 0.01em;
 }
 
 .btn-primary:hover {
