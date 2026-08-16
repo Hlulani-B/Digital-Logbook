@@ -9,6 +9,11 @@ import { supabase } from '../supabase.js';
 export class Login {
   async checkUser(email) {
     try {
+      if (!supabase) {
+        console.error('Supabase client not initialized');
+        return false;
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('email')
