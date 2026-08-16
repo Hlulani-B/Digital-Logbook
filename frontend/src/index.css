@@ -626,142 +626,143 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
 }
 
-/* Right panel — form (always dark theme) */
+/* Right panel — form (warm dark theme to match nature LHS) */
 .split-right {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0f;
+  background: #1c1915;
   overflow-y: auto;
   padding: 2rem;
   position: relative;
 }
 
-/* Force dark theme variables inside the right panel */
+/* Warm dark theme variables — earth tones to complement nature imagery */
 .split-right {
-  --bg: #0a0a0f;
-  --surface: rgba(255,255,255,0.03);
-  --surface-hover: rgba(255,255,255,0.06);
-  --border: rgba(255,255,255,0.06);
-  --border-hover: rgba(255,255,255,0.12);
-  --text: #f0f0f5;
-  --text-dim: #8b8b9e;
-  --text-muted: #55556a;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-glow: rgba(99,102,241,0.15);
-  --success: #22c55e;
-  --danger: #ef4444;
-  --danger-glow: rgba(239,68,68,0.15);
+  --bg: #1c1915;
+  --surface: rgba(255,245,230,0.04);
+  --surface-hover: rgba(255,245,230,0.07);
+  --border: rgba(255,245,230,0.08);
+  --border-hover: rgba(255,245,230,0.14);
+  --text: #f5efe6;
+  --text-dim: #a89b8a;
+  --text-muted: #6d6153;
+  --accent: #c9a96e;
+  --accent-light: #d9be8a;
+  --accent-glow: rgba(201,169,110,0.15);
+  --success: #6ab07a;
+  --danger: #c4654a;
+  --danger-glow: rgba(196,101,74,0.12);
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --shadow-card: none;
-  --btn-primary-hover: #5b52e0;
-  color: #f0f0f5;
+  --btn-primary-hover: #b89555;
+  color: #f5efe6;
   font-family: var(--font-body);
 }
 
 .split-right .auth-title {
-  background: linear-gradient(180deg, #fff 0%, #8b8b9e 100%);
+  background: linear-gradient(180deg, #f5efe6 0%, #a89b8a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .split-right .auth-subtitle {
-  color: #8b8b9e;
+  color: #a89b8a;
 }
 
 .split-right .field-label {
-  color: #8b8b9e;
+  color: #a89b8a;
 }
 
 .split-right .field-input {
-  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
-  border-color: rgba(255,255,255,0.06);
-  color: #f0f0f5;
+  background: linear-gradient(180deg, rgba(255,245,230,0.05) 0%, rgba(255,245,230,0.02) 100%);
+  border-color: rgba(255,245,230,0.08);
+  color: #f5efe6;
 }
 
 .split-right .field-input::placeholder {
-  color: #55556a;
+  color: #6d6153;
 }
 
 .split-right .field-input:hover {
-  border-color: rgba(255,255,255,0.12);
+  border-color: rgba(255,245,230,0.14);
 }
 
 .split-right .field-input:focus {
-  border-color: #6366f1;
-  background: linear-gradient(180deg, rgba(99,102,241,0.06) 0%, rgba(99,102,241,0.02) 100%);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  border-color: #c9a96e;
+  background: linear-gradient(180deg, rgba(201,169,110,0.08) 0%, rgba(201,169,110,0.02) 100%);
+  box-shadow: 0 0 0 3px rgba(201,169,110,0.12);
 }
 
 .split-right .field-hint {
-  color: #55556a;
+  color: #6d6153;
 }
 
 .split-right .btn-primary {
-  background: linear-gradient(135deg, #6366f1, #7c3aed);
-  box-shadow: 0 4px 12px rgba(99,102,241,0.15);
-  color: white;
+  background: linear-gradient(135deg, #c9a96e, #a8854a);
+  box-shadow: 0 4px 12px rgba(201,169,110,0.15);
+  color: #1c1915;
+  font-weight: 600;
 }
 
 .split-right .btn-primary:hover {
-  background: linear-gradient(135deg, #6366f1, #7c3aed);
-  box-shadow: 0 8px 24px rgba(99,102,241,0.15);
+  background: linear-gradient(135deg, #d4b57a, #b89555);
+  box-shadow: 0 8px 24px rgba(201,169,110,0.2);
 }
 
 .split-right .auth-mode-toggle {
-  color: #8b8b9e;
+  color: #a89b8a;
 }
 
 .split-right .auth-mode-toggle:hover {
-  color: #818cf8;
+  color: #d9be8a;
 }
 
 .split-right .auth-trouble-link {
-  color: #55556a;
+  color: #6d6153;
 }
 
 .split-right .auth-trouble-link:hover {
-  color: #818cf8;
+  color: #d9be8a;
 }
 
 .split-right .auth-divider {
-  color: #55556a;
+  color: #6d6153;
 }
 
 .split-right .auth-divider::before,
 .split-right .auth-divider::after {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,245,230,0.08) 50%, transparent 100%);
 }
 
 .split-right .oauth-btn {
-  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-  border-color: rgba(255,255,255,0.06);
-  color: #f0f0f5;
+  background: linear-gradient(180deg, rgba(255,245,230,0.05) 0%, rgba(255,245,230,0.02) 100%);
+  border-color: rgba(255,245,230,0.08);
+  color: #f5efe6;
 }
 
 .split-right .oauth-btn:hover {
-  border-color: rgba(255,255,255,0.12);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+  border-color: rgba(201,169,110,0.25);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.2);
 }
 
 .split-right .captcha-wrapper {
-  background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-  border-color: rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(255,245,230,0.04) 0%, rgba(255,245,230,0.01) 100%);
+  border-color: rgba(255,245,230,0.08);
 }
 
 .split-right .auth-error {
-  background: linear-gradient(180deg, rgba(239,68,68,0.1) 0%, rgba(239,68,68,0.05) 100%);
-  border-color: rgba(239,68,68,0.15);
-  color: #fca5a5;
+  background: linear-gradient(180deg, rgba(196,101,74,0.12) 0%, rgba(196,101,74,0.05) 100%);
+  border-color: rgba(196,101,74,0.18);
+  color: #e8a090;
 }
 
 .split-right .auth-success {
-  background: linear-gradient(180deg, rgba(34,197,94,0.1) 0%, rgba(34,197,94,0.05) 100%);
-  border-color: rgba(34,197,94,0.15);
-  color: #86efac;
+  background: linear-gradient(180deg, rgba(106,176,122,0.12) 0%, rgba(106,176,122,0.05) 100%);
+  border-color: rgba(106,176,122,0.18);
+  color: #a0d4a8;
 }
 
 .split-form-wrapper {
