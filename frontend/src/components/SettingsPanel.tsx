@@ -24,6 +24,7 @@ interface Preferences {
   timeFormat: string;
   theme: string;
   fontFamily: string;
+  cornerStyle: string;
   autoSave: boolean;
   compactMode: boolean;
   notifications: boolean;
@@ -54,6 +55,15 @@ function applyFont(fontFamily: string) {
     document.documentElement.setAttribute("data-font", fontFamily);
   }
   localStorage.setItem("dl_font", fontFamily);
+}
+
+function applyCorners(cornerStyle: string) {
+  if (cornerStyle === "rounded") {
+    document.documentElement.removeAttribute("data-corners");
+  } else {
+    document.documentElement.setAttribute("data-corners", cornerStyle);
+  }
+  localStorage.setItem("dl_corners", cornerStyle);
 }
 
 function loadSettings<T>(key: string, defaults: T): T {
@@ -209,6 +219,7 @@ export function SettingsPanel({
     timeFormat: "24h",
     theme: "light",
     fontFamily: "jakarta",
+    cornerStyle: "rounded",
     autoSave: true,
     compactMode: false,
     notifications: true,
@@ -255,6 +266,7 @@ export function SettingsPanel({
     saveSettings(prefsKey, prefs);
     setTheme(prefs.theme as Theme);
     applyFont(prefs.fontFamily);
+    applyCorners(prefs.cornerStyle);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -549,6 +561,7 @@ export function SettingsPanel({
                     <option value="blue">Blue</option>
                     <option value="purple">Purple</option>
                     <option value="green">Green</option>
+                    <option value="brown">Brown (Vintage)</option>
                   </select>
                   <p className="field-hint">
                     Choose how the logbook looks to you.
@@ -577,6 +590,29 @@ export function SettingsPanel({
                   </select>
                   <p className="field-hint">
                     Change the typography across the entire logbook.
+                  </p>
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="cornerStyle">
+                    Corner Style
+                  </label>
+                  <select
+                    id="cornerStyle"
+                    className="field-input"
+                    value={prefs.cornerStyle}
+                    onChange={(e) => {
+                      const newCorners = e.target.value;
+                      setPrefs((p) => ({ ...p, cornerStyle: newCorners }));
+                      applyCorners(newCorners);
+                    }}
+                  >
+                    <option value="rounded">Rounded (Default)</option>
+                    <option value="soft">Soft</option>
+                    <option value="sharp">Sharp (Vintage)</option>
+                  </select>
+                  <p className="field-hint">
+                    Control how rounded the corners are across the logbook.
                   </p>
                 </div>
               </div>

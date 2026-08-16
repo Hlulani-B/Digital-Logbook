@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 
-export type Theme = "light" | "dark" | "pink" | "blue" | "purple" | "green";
+export type Theme = "light" | "dark" | "pink" | "blue" | "purple" | "green" | "brown";
 
-const VALID_THEMES: Theme[] = ["light", "dark", "pink", "blue", "purple", "green"];
+const VALID_THEMES: Theme[] = ["light", "dark", "pink", "blue", "purple", "green", "brown"];
 const STORAGE_KEY = "dl_theme";
 
 function getInitialTheme(): Theme {

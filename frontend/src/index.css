@@ -356,6 +356,59 @@
   background: rgba(34,197,94,0.2);
 }
 
+/* ========== BROWN (VINTAGE) THEME ========== */
+[data-theme="brown"] {
+  --bg: #f5f0e8;
+  --surface: #faf7f2;
+  --surface-hover: #ede8dd;
+  --border: #d6cbb8;
+  --border-hover: #c4b69e;
+  --text: #3b2f1e;
+  --text-dim: #6b5d4a;
+  --text-muted: #9a8b74;
+  --accent: #8b5e3c;
+  --accent-light: #a67c52;
+  --accent-glow: rgba(139,94,60,0.15);
+  --success: #4a7c59;
+  --danger: #a0522d;
+  --danger-glow: rgba(160,82,45,0.1);
+  --surface-solid: #faf7f2;
+  --bg-subtle: #f5f0e8;
+  --navbar-bg: rgba(245,240,232,0.94);
+  --toggle-track: #c4b69e;
+  --scrollbar-thumb: #c4b69e;
+  --scrollbar-thumb-hover: #a67c52;
+  --shadow-card: 0 1px 3px rgba(139,94,60,0.06), 0 1px 2px rgba(139,94,60,0.04);
+  --shadow-card-hover: 0 10px 25px rgba(139,94,60,0.1), 0 4px 10px rgba(139,94,60,0.06);
+  --shadow-dropdown: 0 10px 40px rgba(139,94,60,0.12), 0 2px 8px rgba(139,94,60,0.06);
+  --overlay-bg: rgba(59,47,30,0.25);
+  --error-text: #a0522d;
+  --success-text: #4a7c59;
+  --danger-text: #a0522d;
+  --danger-text-dark: #6b3a1f;
+  --btn-primary-hover: #6b4226;
+}
+
+[data-theme="brown"] .bg-mesh::before {
+  background: radial-gradient(circle, rgba(139,94,60,0.07) 0%, transparent 70%);
+}
+[data-theme="brown"] .bg-mesh::after {
+  background: radial-gradient(circle, rgba(166,124,82,0.05) 0%, transparent 70%);
+}
+[data-theme="brown"] .btn-primary {
+  background: linear-gradient(135deg, #8b5e3c, #a67c52);
+  color: #faf7f2;
+}
+[data-theme="brown"] .btn-primary:hover {
+  background: linear-gradient(135deg, #6b4226, #8b5e3c);
+}
+[data-theme="brown"] ::selection {
+  background: rgba(139,94,60,0.2);
+}
+[data-theme="brown"] .auth-title {
+  color: #3b2f1e;
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -1841,4 +1894,16 @@ img { max-width: 100%; }
 }
 [data-font="garamond"] {
   --font-body: 'EB Garamond', Georgia, 'Times New Roman', serif;
+}
+
+/* ========== CORNER STYLE OPTIONS ========== */
+[data-corners="sharp"] {
+  --radius: 4px;
+  --radius-sm: 2px;
+  --radius-xs: 2px;
+}
+[data-corners="soft"] {
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
 }
