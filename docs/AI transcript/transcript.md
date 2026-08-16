@@ -1,6 +1,6 @@
 # AI Pair-Programming Transcript — Digital Logbook
 
-**Date:** 14 August 2026  
+**Date:** 14–16 August 2026  
 **Project:** Codacaine Digital Logbook (React frontend + Node/Express microservices + Supabase)  
 **Repository:** `https://github.com/Hlulani-B/Digital-Logbook.git` / Gitea mirror  
 
@@ -154,3 +154,46 @@ curl -X POST http://localhost:5004/service/login \
 
 - The frontend profile-service URL is currently set to `https://profile-service.onrender.com`. Update it to the actual Render deployment URL once the service is deployed.
 - An uncommitted `getAllEntries` method in `services/project-service/src/functions/entries.js` was preserved and included in the commit.
+
+---
+
+## 7. UI Theme Overhaul — White/Professional + Dark/Light Toggle (16 August 2026)
+
+### Initial request: make UI white and professional
+The original UI used a dark glass-morphism theme (`#0a0a0f` background, translucent cards, neon accents). The user requested a clean, white, professional look.
+
+**Changes made (commit `d6c2b4d`):**
+- Replaced `:root` CSS variables: dark backgrounds → `#f8f9fb`, light text → `#1f2937`, etc.
+- Removed glass morphism (`backdrop-filter`) from cards; replaced with white `#ffffff` surfaces and subtle box shadows.
+- Updated navbar to white translucent background (`rgba(255,255,255,0.92)`).
+- Updated dropdown, settings panel, and form inputs to white backgrounds.
+- Changed stat icons, buttons, badges, and toggle switches to light-theme-appropriate colors.
+- Switched all CAPTCHA widgets from `theme: "dark"` to `theme: "light"`.
+- Updated all inline dark-mode colors (error/success text, danger zone, password strength bars) to readable light-theme equivalents.
+
+**Files changed:** `index.css`, `SignIn.tsx`, `ResetPassword.tsx`, `UpdatePassword.tsx`, `SettingsPanel.tsx`
+
+### Follow-up request: add dark/light theme toggle
+The user then wanted both themes available as a user-selectable option.
+
+**Changes made (commit `eb08267`):**
+- Created `frontend/src/hooks/useTheme.ts` — a React hook that:
+  - Reads saved theme from `localStorage` (key: `dl_theme`)
+  - Defaults to `"light"` if no saved preference
+  - Applies/removes `data-theme="dark"` attribute on `<html>`
+  - Provides `theme`, `setTheme`, and `toggleTheme` methods
+- Added `[data-theme="dark"]` CSS block in `index.css` with full dark theme variable overrides and component-specific dark styles (glass morphism restored, gradient text, dark orbs, etc.).
+- Replaced all remaining hard-coded color values in CSS rules with CSS custom properties (`--surface-solid`, `--navbar-bg`, `--toggle-track`, `--error-text`, `--danger-text`, etc.) so dark theme can override them.
+- Added `ThemeInitializer` wrapper in `App.tsx` to apply saved theme on app load.
+- Added **Theme selector** dropdown (Light / Dark) in **Settings > Preferences > Display**.
+- Made CAPTCHA widgets dynamic — they switch between `"light"` and `"dark"` Turnstile themes based on active theme.
+- Made all inline colors in TSX files theme-aware (ternary on `theme === "dark"` for error/success text, password strength bars, saved indicator).
+
+**Files changed:** `hooks/useTheme.ts` (new), `index.css`, `App.tsx`, `SettingsPanel.tsx`, `SignIn.tsx`, `ResetPassword.tsx`, `UpdatePassword.tsx`
+
+### How the theme system works
+1. Default theme is **Light** (white).
+2. User goes to **Settings > Preferences > Theme** to switch.
+3. Selection is saved to `localStorage` and applied instantly via `data-theme` attribute.
+4. Theme persists across sessions.
+5. All components (cards, navbar, dropdowns, panels, forms, CAPTCHAs, buttons) adapt automatically.
