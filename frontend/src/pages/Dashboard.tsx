@@ -1,8 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { getProjectsByEmail } from "@/functions/project/project.js";
+import { getAllEntries } from "@/functions/project/entries.js";
 
 export function Dashboard() {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
@@ -12,6 +14,52 @@ export function Dashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
   const navigate = useNavigate();
+
+  // Backend data stats
+  const [totalEntries, setTotalEntries] = useState(0);
+  const [weekEntries, setWeekEntries] = useState(0);
+  const [projectCount, setProjectCount] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  const email = user?.email || "";
+
+  const loadStats = useCallback(async () => {
+    if (!email) return;
+    setStatsLoading(true);
+    try {
+      const [projectsRes, entriesRes] = await Promise.all([
+        getProjectsByEmail(email),
+        getAllEntries(email),
+      ]);
+
+      // Projects count (exclude archived)
+      const projects = projectsRes?.projects || [];
+      setProjectCount(projects.filter((p: Record<string, unknown>) => !p.archived).length);
+
+      // Entries count
+      const allEntries = entriesRes?.data || [];
+      setTotalEntries(allEntries.length);
+
+      // This week entries (since start of current week — Monday)
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      monday.setHours(0, 0, 0, 0);
+      const weekCount = allEntries.filter((e: Record<string, unknown>) => {
+        const created = new Date(e.created_at as string);
+        return created >= monday;
+      }).length;
+      setWeekEntries(weekCount);
+    } catch (err) {
+      console.error("Failed to load dashboard stats:", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   // Check if this is a new user synchronously and mark as visited
   const isNewUser = useMemo(() => {
@@ -128,7 +176,7 @@ export function Dashboard() {
               </svg>
             </div>
             <p className="stat-label">Total Entries</p>
-            <p className="stat-value">0</p>
+            <p className="stat-value">{statsLoading ? "—" : totalEntries}</p>
           </div>
 
           <div className="glass glass-hover stat-card animate-in animate-in-delay-2">
@@ -138,7 +186,7 @@ export function Dashboard() {
               </svg>
             </div>
             <p className="stat-label">This Week</p>
-            <p className="stat-value">0</p>
+            <p className="stat-value">{statsLoading ? "—" : weekEntries}</p>
           </div>
 
           <div className="glass glass-hover stat-card animate-in animate-in-delay-3">
@@ -148,7 +196,7 @@ export function Dashboard() {
               </svg>
             </div>
             <p className="stat-label">Projects</p>
-            <p className="stat-value">0</p>
+            <p className="stat-value">{statsLoading ? "—" : projectCount}</p>
           </div>
         </div>
 
@@ -156,7 +204,7 @@ export function Dashboard() {
         <div className="glass section-card animate-in animate-in-delay-3">
           <h2 className="section-title">Quick Actions</h2>
           <div className="actions-row">
-            <button className="btn-primary">
+            <button className="btn-primary" onClick={() => navigate("/projects")}>
               <span className="flex items-center gap-2">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -164,15 +212,33 @@ export function Dashboard() {
                 New Entry
               </span>
             </button>
-            <button className="btn-secondary">
+            <button className="btn-secondary" onClick={() => navigate("/projects")}>
               <span className="flex items-center gap-2">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
-                View All Entries
+                Your Projects
               </span>
             </button>
-            <button className="btn-secondary">
+            <button
+              className="btn-secondary"
+              onClick={async () => {
+                if (!email) return;
+                try {
+                  const res = await getAllEntries(email);
+                  const entries = res?.data || [];
+                  const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `logbook-entries-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error("Export failed:", err);
+                }
+              }}
+            >
               <span className="flex items-center gap-2">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

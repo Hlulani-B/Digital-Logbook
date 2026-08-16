@@ -292,9 +292,10 @@ export function SettingsPanel({
         const result = await getProfile(email);
         if (cancelled) return;
         if (result?.error) throw new Error(result.error);
-        setServerProfile(result);
-        setName(result?.name || "");
-        setUsername(result?.username || "");
+        const profileData = result?.data || result;
+        setServerProfile(profileData);
+        setName(profileData?.name || "");
+        setUsername(profileData?.username || "");
       } catch (err) {
         if (!cancelled) {
           setProfileError(err instanceof Error ? err.message : "Could not load profile");
@@ -385,7 +386,7 @@ export function SettingsPanel({
               {/* Avatar picker */}
               <div className="panel-section">
                 <AvatarPicker
-                  currentAvatar={serverProfile?.avatar_url as string || avatarUrl}
+                  currentAvatar={serverProfile?.avatar as string || avatarUrl}
                   email={email}
                 />
               </div>

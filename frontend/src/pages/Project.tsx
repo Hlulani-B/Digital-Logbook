@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   addProject,
   editProjectName,
   deleteProject,
   getProjectsByEmail,
 } from "../functions/project/project.js";
-
-interface ProjectsPageProps {
-  email: string;
-}
 
 type ProjectRecord = { project_name: string; [key: string]: unknown };
 
@@ -20,7 +17,9 @@ function colorForName(name: string) {
   return TAB_COLORS[Math.abs(hash) % TAB_COLORS.length];
 }
 
-export function ProjectsPage({ email }: ProjectsPageProps) {
+export function ProjectsPage() {
+  const { user } = useAuth();
+  const email = user?.email || "";
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

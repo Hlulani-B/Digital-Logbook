@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { updateAvatar } from "../functions/profile/profile.js";
  
 // Preset avatar options (DiceBear "identicon" / "shapes" style seeds)
@@ -34,7 +35,8 @@ interface AvatarPageProps {
 }
  
 export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
-  const email = localStorage.getItem("email");
+  const { user } = useAuth();
+  const email = user?.email || "";
   const navigate = useNavigate();
   const [selected, setSelected] = useState(currentAvatar || AVATAR_OPTIONS[0]);
   const [saving, setSaving] = useState(false);

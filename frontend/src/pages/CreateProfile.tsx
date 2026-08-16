@@ -1,23 +1,16 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { addEmail, updateName, updateUsername } from "@/lib/profileService";
 
 export function CreateProfile() {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState<string | null>(null);
+  const email = user?.email || null;
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedEmail = localStorage.getItem("email");
-    if (!storedEmail) {
-      navigate("/signin", { replace: true });
-      return;
-    }
-    setEmail(storedEmail);
-  }, [navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

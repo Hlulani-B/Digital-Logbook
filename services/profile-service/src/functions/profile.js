@@ -39,6 +39,7 @@ export class Username {
 
 /**
  * Inserts a new user's email during sign-up.
+ * Generates a default username from the email prefix to satisfy NOT NULL constraint.
  */
 export class Email {
   async email(email) {
@@ -47,9 +48,12 @@ export class Email {
         return { success: false, message: 'Database not connected' };
       }
 
+      // Generate a default username from the email prefix (before @)
+      const defaultUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
       const { error } = await supabase
         .from('users')
-        .insert({ email });
+        .insert({ email, username: defaultUsername, name: defaultUsername });
 
       if (error) throw error;
 
