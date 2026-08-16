@@ -25,7 +25,7 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
   const [error, setError] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,14 +72,14 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
           height: 80,
           borderRadius: "50%",
           overflow: "hidden",
-          background: theme === "dark" ? "rgba(255,255,255,0.08)" : "#f3f4f6",
+          background: isDark ? "rgba(255,255,255,0.08)" : "#f3f4f6",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: "2rem",
           fontWeight: 700,
-          color: theme === "dark" ? "#e5e7eb" : "#6b7280",
-          border: `2px solid ${theme === "dark" ? "rgba(255,255,255,0.12)" : "#e5e7eb"}`,
+          color: isDark ? "#e5e7eb" : "#6b7280",
+          border: `2px solid ${isDark ? "rgba(255,255,255,0.12)" : "#e5e7eb"}`,
         }}
       >
         {avatar ? (
@@ -131,8 +131,8 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
             gap: "0.5rem",
             padding: "0.75rem",
             borderRadius: "var(--radius-sm)",
-            background: theme === "dark" ? "rgba(255,255,255,0.04)" : "#f9fafb",
-            border: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`,
+            background: isDark ? "rgba(255,255,255,0.04)" : "#f9fafb",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`,
           }}
         >
           {PRESET_AVATARS.map((url) => (

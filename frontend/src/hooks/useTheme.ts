@@ -1,22 +1,23 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
-export type Theme = "light" | "dark";
+export type Theme = "light" | "dark" | "pink" | "blue" | "purple" | "green";
 
+const VALID_THEMES: Theme[] = ["light", "dark", "pink", "blue", "purple", "green"];
 const STORAGE_KEY = "dl_theme";
 
 function getInitialTheme(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "light") return stored;
+    if (stored && VALID_THEMES.includes(stored as Theme)) return stored as Theme;
   } catch {}
   return "light";
 }
 
 function applyTheme(theme: Theme) {
-  if (theme === "dark") {
-    document.documentElement.setAttribute("data-theme", "dark");
-  } else {
+  if (theme === "light") {
     document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", theme);
   }
 }
 
@@ -37,5 +38,7 @@ export function useTheme() {
     setTheme(theme === "light" ? "dark" : "light");
   }, [theme, setTheme]);
 
-  return { theme, setTheme, toggleTheme };
+  const isDark = theme === "dark";
+
+  return useMemo(() => ({ theme, setTheme, toggleTheme, isDark }), [theme, setTheme, toggleTheme, isDark]);
 }

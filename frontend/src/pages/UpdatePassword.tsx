@@ -10,8 +10,7 @@ export function UpdatePassword() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { updatePassword } = useAuth();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const { isDark } = useTheme();
 
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault();

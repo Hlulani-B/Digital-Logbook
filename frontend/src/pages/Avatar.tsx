@@ -1,7 +1,10 @@
+
+
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { updateAvatar } from "@/lib/profileService";
-
+import { updateAvatar } from "../functions/profile/profile.js";
+ 
 // Preset avatar options (DiceBear "identicon" / "shapes" style seeds)
 const AVATAR_OPTIONS = [
   "https://api.dicebear.com/7.x/identicon/svg?seed=Sunset",
@@ -16,13 +19,20 @@ const AVATAR_OPTIONS = [
   "https://api.dicebear.com/7.x/shapes/svg?seed=Nebula",
   "https://api.dicebear.com/7.x/shapes/svg?seed=Solstice",
   "https://api.dicebear.com/7.x/shapes/svg?seed=Zenith",
+  // Feminine-styled additions (DiceBear "avataaars" style, soft palettes)
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Bella&backgroundColor=ffd6e8",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Rosa&backgroundColor=ffe0f0",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna&backgroundColor=f3d9fa",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia&backgroundColor=ffe4ec",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Ivy&backgroundColor=fbe4ff",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco&backgroundColor=ffe9f3",
 ];
-
+ 
 interface AvatarPageProps {
   currentAvatar?: string;
   onUpdated?: (avatarUrl: string) => void;
 }
-
+ 
 export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
   const email = localStorage.getItem("email");
   const navigate = useNavigate();
@@ -30,7 +40,7 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
+ 
   const handleSelect = async (avatarUrl: string) => {
     if (!email || saving) return;
     setSelected(avatarUrl);
@@ -50,7 +60,7 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
       setSaving(false);
     }
   };
-
+ 
   return (
     <>
       <div className="bg-mesh">
@@ -61,10 +71,10 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
           <div className="auth-logo">DL</div>
           <h1 className="auth-title">Choose your avatar</h1>
           <p className="auth-subtitle">Pick one that represents you</p>
-
+ 
           {error && <div className="auth-error">{error}</div>}
           {success && <div className="auth-success">Avatar updated!</div>}
-
+ 
           <div
             style={{
               display: "grid",
@@ -114,3 +124,4 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
     </>
   );
 }
+ 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme, type Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import {
   getProfile,
@@ -72,7 +72,7 @@ function ResetPasswordInline({
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const captchaTokenRef = useRef<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
 
   const handleSend = async () => {
     setSending(true);
@@ -99,7 +99,7 @@ function ResetPasswordInline({
           borderRadius: "var(--radius-xs)",
           background: "rgba(34,197,94,0.1)",
           border: "1px solid rgba(34,197,94,0.2)",
-          color: theme === "dark" ? "#86efac" : "#15803d",
+          color: isDark ? "#86efac" : "#15803d",
           fontSize: "0.8125rem",
           lineHeight: "1.5",
         }}
@@ -123,7 +123,7 @@ function ResetPasswordInline({
             borderRadius: "var(--radius-xs)",
             background: "var(--danger-glow)",
             border: "1px solid rgba(239,68,68,0.2)",
-            color: theme === "dark" ? "#fca5a5" : "#b91c1c",
+            color: isDark ? "#fca5a5" : "#b91c1c",
             fontSize: "0.8125rem",
             marginBottom: "0.75rem",
           }}
@@ -156,7 +156,7 @@ function ResetPasswordInline({
             captchaTokenRef.current = null;
           }}
           options={{
-            theme: theme === "dark" ? "dark" : "light",
+            theme: isDark ? "dark" : "light",
             size: "flexible",
           }}
         />
@@ -209,7 +209,7 @@ export function SettingsPanel({
   const [prefs, setPrefs] = useState<Preferences>(() =>
     loadSettings(prefsKey, defaultPrefs)
   );
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isDark } = useTheme();
 
   // Reset tab when panel opens
   useEffect(() => {
@@ -241,7 +241,7 @@ export function SettingsPanel({
   const handleSave = () => {
     saveSettings(profileKey, profile);
     saveSettings(prefsKey, prefs);
-    setTheme(prefs.theme as "light" | "dark");
+    setTheme(prefs.theme as Theme);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -375,7 +375,7 @@ export function SettingsPanel({
                     borderRadius: "var(--radius-xs)",
                     background: "var(--danger-glow)",
                     border: "1px solid rgba(239,68,68,0.2)",
-                    color: theme === "dark" ? "#fca5a5" : "#b91c1c",
+                    color: isDark ? "#fca5a5" : "#b91c1c",
                     fontSize: "0.8125rem",
                     marginBottom: "0.75rem",
                   }}>
@@ -388,7 +388,7 @@ export function SettingsPanel({
                     borderRadius: "var(--radius-xs)",
                     background: "rgba(34,197,94,0.1)",
                     border: "1px solid rgba(34,197,94,0.2)",
-                    color: theme === "dark" ? "#86efac" : "#15803d",
+                    color: isDark ? "#86efac" : "#15803d",
                     fontSize: "0.8125rem",
                     marginBottom: "0.75rem",
                   }}>
@@ -525,13 +525,17 @@ export function SettingsPanel({
                     className="field-input"
                     value={prefs.theme}
                     onChange={(e) => {
-                      const newTheme = e.target.value as "light" | "dark";
+                      const newTheme = e.target.value as Theme;
                       setPrefs((p) => ({ ...p, theme: newTheme }));
                       setTheme(newTheme);
                     }}
                   >
-                    <option value="light">Light</option>
+                    <option value="light">Light (White)</option>
                     <option value="dark">Dark</option>
+                    <option value="pink">Pink</option>
+                    <option value="blue">Blue</option>
+                    <option value="purple">Purple</option>
+                    <option value="green">Green</option>
                   </select>
                   <p className="field-hint">
                     Choose how the logbook looks to you.
@@ -720,7 +724,7 @@ export function SettingsPanel({
               <span
                 style={{
                   fontSize: "0.8125rem",
-                  color: theme === "dark" ? "#4ade80" : "#16a34a",
+                  color: isDark ? "#4ade80" : "#16a34a",
                   display: "flex",
                   alignItems: "center",
                   gap: "0.375rem",

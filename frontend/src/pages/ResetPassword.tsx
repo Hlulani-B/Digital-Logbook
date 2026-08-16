@@ -15,7 +15,7 @@ export function ResetPassword() {
   const captchaTokenRef = useRef<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const { resetPassword } = useAuth();
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
 
   const handleReset = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,7 +59,7 @@ export function ResetPassword() {
                   borderRadius: "var(--radius-xs)",
                   background: "rgba(34,197,94,0.1)",
                   border: "1px solid rgba(34,197,94,0.2)",
-                  color: theme === "dark" ? "#86efac" : "#15803d",
+                  color: isDark ? "#86efac" : "#15803d",
                   fontSize: "0.8125rem",
                   lineHeight: "1.5",
                   textAlign: "left",
@@ -117,7 +117,7 @@ export function ResetPassword() {
                     captchaTokenRef.current = null;
                   }}
                   options={{
-                    theme: theme === "dark" ? "dark" : "light",
+                    theme: isDark ? "dark" : "light",
                     size: "flexible",
                   }}
                 />

@@ -23,7 +23,7 @@ export function SignIn() {
   const captchaTokenRef = useRef<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
 
   const routeAfterAuth = async (userEmail: string) => {
     localStorage.setItem("email", userEmail);
@@ -192,7 +192,7 @@ export function SignIn() {
                 captchaTokenRef.current = null;
               }}
               options={{
-                theme: theme === "dark" ? "dark" : "light",
+                theme: isDark ? "dark" : "light",
                 size: "flexible",
               }}
             />
