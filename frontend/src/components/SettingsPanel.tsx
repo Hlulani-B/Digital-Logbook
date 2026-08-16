@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { useTheme, type Theme } from "@/hooks/useTheme";
+import { useTheme } from "@/hooks/useTheme";
+import type { Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import {
   getProfile,
