@@ -101,7 +101,7 @@ export function SignIn() {
           {success && <div className="auth-success">{success}</div>}
 
           {/* Email/Password Form */}
-          <form onSubmit={handleEmailSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          <form onSubmit={handleEmailSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
             <div className="field-group">
               <label htmlFor="email" className="field-label">
                 Email address
@@ -154,7 +154,7 @@ export function SignIn() {
           </form>
 
           {/* Toggle + Forgot Password */}
-          <div style={{ textAlign: "center", marginTop: "1rem" }}>
+          <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
             <button
               type="button"
               onClick={() => {

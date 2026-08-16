@@ -469,13 +469,14 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .auth-card {
   width: 100%;
   max-width: 440px;
-  padding: 3rem 2.5rem;
+  padding: 1.5rem 2rem;
   text-align: center;
   position: relative;
   background: var(--surface-solid);
@@ -504,10 +505,10 @@ body {
 }
 
 .auth-logo {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 1.5rem;
-  border-radius: 20px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 0.75rem;
+  border-radius: 14px;
   background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 50%, #ec4899 100%);
   display: flex;
   align-items: center;
@@ -519,18 +520,18 @@ body {
 }
 
 .auth-title {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.04em;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
   color: var(--text);
 }
 
 .auth-subtitle {
   color: var(--text-dim);
-  font-size: 0.9rem;
-  margin-bottom: 2rem;
-  line-height: 1.5;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  line-height: 1.4;
 }
 
 /* ========== OAUTH BUTTONS ========== */
@@ -608,7 +609,7 @@ body {
 .auth-divider {
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
+  margin: 0.75rem 0;
   color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 500;
@@ -678,7 +679,7 @@ body {
 .captcha-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 1.25rem;
+  margin-top: 0.5rem;
   padding: 0.875rem;
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
@@ -973,8 +974,8 @@ body {
 
 .auth-submit {
   width: 100%;
-  padding: 0.85rem 1.25rem;
-  margin-top: 0.5rem;
+  padding: 0.7rem 1.25rem;
+  margin-top: 0.25rem;
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.01em;
