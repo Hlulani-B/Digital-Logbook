@@ -134,6 +134,50 @@ export function Dashboard() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Calculate total time tracked (including in-progress tasks)
+  const totalTimeTracked = useMemo(() => {
+    const now = Date.now();
+    let totalMs = 0;
+    let inProgressCount = 0;
+
+    entries.forEach((entry) => {
+      // For completed tasks: use stored duration directly
+      if (entry.duration && entry.ended_at) {
+        // Parse duration string (format: "HH:MM:SS" or similar)
+        const durationStr = String(entry.duration);
+        const parts = durationStr.split(':').map(Number);
+        
+        if (parts.length === 3 && parts.every(p => !isNaN(p))) {
+          // Format: HH:MM:SS
+          const [hours, minutes, seconds] = parts;
+          totalMs += (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
+        } else if (parts.length === 2 && parts.every(p => !isNaN(p))) {
+          // Format: MM:SS
+          const [minutes, seconds] = parts;
+          totalMs += (minutes * 60000) + (seconds * 1000);
+        }
+      }
+      // For in-progress tasks: calculate live duration
+      else if (entry.started_at && !entry.ended_at) {
+        const start = new Date(entry.started_at as string).getTime();
+        if (!isNaN(start)) {
+          totalMs += (now - start);
+          inProgressCount++;
+        }
+      }
+    });
+
+    // Convert to hours and minutes
+    const totalMinutes = Math.floor(totalMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return {
+      display: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
+      inProgressCount,
+    };
+  }, [entries]);
+
   // Filtered entries — uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // If search results are available, use them
@@ -477,6 +521,17 @@ export function Dashboard() {
                     <div className="feed-stat-item">
                       <span className="feed-stat-value">{dueSoonRows.length}</span>
                       <span className="feed-stat-label">Due Soon</span>
+                    </div>
+                    <div className="feed-stat-item">
+                      <span className="feed-stat-value">{totalTimeTracked.display}</span>
+                      <span className="feed-stat-label">
+                        Time Tracked
+                        {totalTimeTracked.inProgressCount > 0 && (
+                          <span style={{ fontSize: "0.7rem", opacity: 0.7, marginLeft: "0.25rem" }}>
+                            ({totalTimeTracked.inProgressCount} in progress)
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
