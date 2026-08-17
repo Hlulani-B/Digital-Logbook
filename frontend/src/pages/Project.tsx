@@ -163,46 +163,30 @@ export function ProjectsPage() {
       {error && <div className="auth-error" style={{ marginBottom: "1rem" }}>{error}</div>}
 
       {creating && (
-        <form
-          onSubmit={handleCreate}
+        <div
           className="glass"
           style={{
             display: "flex",
             gap: "0.75rem",
             alignItems: "center",
+            justifyContent: "center",
             padding: "1rem 1.25rem",
             borderRadius: "0.85rem",
             marginBottom: "1.25rem",
             borderLeft: "6px solid #ec4899",
+            color: "var(--text-dim, #6b7280)",
+            fontSize: "0.875rem",
           }}
         >
-          <input
-            autoFocus
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Name this project..."
-            className="field-input"
-            style={{ flex: 1 }}
-          />
-          <button type="submit" disabled={saving || !newName.trim()} className="btn-primary">
-            {saving ? "Saving..." : "Create"}
-          </button>
+          Project creation is not available yet. Check back soon.
           <button
             type="button"
-            onClick={() => {
-              setCreating(false);
-              setNewName("");
-              setCreateError(null);
-            }}
+            onClick={() => { setCreating(false); setCreateError(null); }}
             className="btn-secondary"
           >
-            Cancel
+            Close
           </button>
-          {createError && (
-            <span style={{ color: "#dc2626", fontSize: "0.8rem" }}>{createError}</span>
-          )}
-        </form>
+        </div>
       )}
 
       {loading && (

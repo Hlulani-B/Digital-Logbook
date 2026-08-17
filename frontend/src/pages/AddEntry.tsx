@@ -3,10 +3,16 @@ import { addEntry } from "../functions/project/entries.js";
 import { getFields } from "../functions/project/fields.js";
 
 const PRIORITY_LABELS: Record<string, string> = {
-  "3": "No priority",
   "0": "Urgent and important",
   "1": "Urgent but not important",
   "2": "Not urgent, not important",
+  "3": "No priority",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  up_next: "Up Next",
+  in_motion: "In Motion",
+  done_and_dusted: "Done & Dusted",
 };
 
 interface FieldDef {
@@ -57,6 +63,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [dueDate, setDueDate] = useState("");
   const [priorityValue, setPriorityValue] = useState("3");
+  const [statusValue, setStatusValue] = useState("up_next");
   const [saving, setSaving] = useState(false);
   const [loadingFields, setLoadingFields] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,14 +125,16 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           entryObject[f.field_name] = parseFieldValue(val, f.data_type);
         }
       }
-      // Include priority in entry object
-      entryObject["priority"] = priorityValue;
+      // Convert priority index to label (null = no priority)
+      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
 
       const result = await addEntry(
         user_email,
         project_name,
         entryObject,
-        dueDate ? new Date(dueDate).toISOString() : null
+        dueDate ? new Date(dueDate).toISOString() : null,
+        priorityLabel,
+        statusValue
       );
 
       if (result?.error) throw new Error(result.error);
@@ -215,6 +224,25 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             disabled={saving}
           >
             {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="add-entry__group">
+          <label className="add-entry__label" htmlFor="status">
+            Status
+          </label>
+          <select
+            id="status"
+            className="add-entry__input"
+            value={statusValue}
+            onChange={(e) => setStatusValue(e.target.value)}
+            disabled={saving}
+          >
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>

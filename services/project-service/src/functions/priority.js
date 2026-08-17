@@ -7,57 +7,37 @@ const PRIORITY = Object.freeze({
 });
 
 export class Priority {
-  async setPriority(user_email, priorityValue, project_name, entry_object) {
+  async setPriority(user_email, priorityValue, project_name, entry_id) {
     try {
+      let newPriority;
       switch (String(priorityValue)) {
-        case '0': {
-          const { error } = await supabase
-            .from('entries')
-            .update({ priority: PRIORITY[0] })
-            .eq('user_email', user_email)
-            .eq('project_name', project_name)
-            .eq('entries', entry_object);
-          if (error) throw error;
-          return { success: true, message: 'Priority set to Urgent and important' };
-        }
-
-        case '1': {
-          const { error } = await supabase
-            .from('entries')
-            .update({ priority: PRIORITY[1] })
-            .eq('user_email', user_email)
-            .eq('project_name', project_name)
-            .eq('entries', entry_object);
-          if (error) throw error;
-          return { success: true, message: 'Priority set to Urgent but not important' };
-        }
-
-        case '2': {
-          const { error } = await supabase
-            .from('entries')
-            .update({ priority: PRIORITY[2] })
-            .eq('user_email', user_email)
-            .eq('project_name', project_name)
-            .eq('entries', entry_object);
-          if (error) throw error;
-          return { success: true, message: 'Priority set to Not urgent, not important' };
-        }
-
-        case '3': {
-          // remove priority
-          const { error } = await supabase
-            .from('entries')
-            .update({ priority: null })
-            .eq('user_email', user_email)
-            .eq('project_name', project_name)
-            .eq('entries', entry_object);
-          if (error) throw error;
-          return { success: true, message: 'Priority removed' };
-        }
-
+        case '0':
+          newPriority = PRIORITY[0];
+          break;
+        case '1':
+          newPriority = PRIORITY[1];
+          break;
+        case '2':
+          newPriority = PRIORITY[2];
+          break;
+        case '3':
+          newPriority = null;
+          break;
         default:
           return { success: false, message: 'Invalid priority value' };
       }
+
+      const { error } = await supabase
+        .from('entries')
+        .update({ priority: newPriority })
+        .eq('id', entry_id)
+        .eq('user_email', user_email)
+        .eq('project_name', project_name);
+
+      if (error) throw error;
+
+      const label = newPriority || 'none';
+      return { success: true, message: `Priority set to ${label}` };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };

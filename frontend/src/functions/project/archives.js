@@ -18,20 +18,20 @@ export async function unarchiveProject(user_email, project_name) {
   return res.json();
 }
 
-export async function archiveEntry(user_email, project_name, entry) {
+export async function archiveEntry(user_email, project_name, entry_id) {
   const res = await fetch(url + '/service/archive', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ function: 'archive_entry', values: { user_email, project_name, entry } })
+    body: JSON.stringify({ function: 'archive_entry', values: { user_email, project_name, entry_id } })
   });
   return res.json();
 }
 
-export async function unarchiveEntry(user_email, project_name, entry) {
+export async function unarchiveEntry(user_email, project_name, entry_id) {
   const res = await fetch(url + '/service/archive', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ function: 'unarchive_entry', values: { user_email, project_name, entry } })
+    body: JSON.stringify({ function: 'unarchive_entry', values: { user_email, project_name, entry_id } })
   });
   return res.json();
 }

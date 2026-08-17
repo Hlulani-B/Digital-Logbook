@@ -37,14 +37,14 @@ export class Archives {
     }
   }
 
-  async archive_entry(user_email, project_name, entry) {
+  async archive_entry(user_email, project_name, entry_id) {
     try {
       const { error } = await supabase
         .from('entries')
         .update({ archived: true })
+        .eq('id', entry_id)
         .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .eq('entries', entry);
+        .eq('project_name', project_name);
 
       if (error) throw error;
 
@@ -56,14 +56,14 @@ export class Archives {
     }
   }
 
-  async unarchive_entry(user_email, project_name, entry) {
+  async unarchive_entry(user_email, project_name, entry_id) {
     try {
       const { error } = await supabase
         .from('entries')
         .update({ archived: false })
+        .eq('id', entry_id)
         .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .eq('entries', entry);
+        .eq('project_name', project_name);
 
       if (error) throw error;
 
@@ -104,7 +104,7 @@ export class Archives {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('archived', false);
+        .or('archived.eq.false,archived.is.null');
 
       if (project_name) {
         query = query.eq('project_name', project_name);

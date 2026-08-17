@@ -1,19 +1,19 @@
 const url = "https://project-service-96ml.onrender.com";
 
-export async function addEntry(user_email, project_name, entry_object, due_date) {
+export async function addEntry(user_email, project_name, entry_object, due_date, priority, status) {
   const res = await fetch(url + '/service/entry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ function: 'add', values: { user_email, project_name, entry_object, due_date } })
+    body: JSON.stringify({ function: 'add', values: { user_email, project_name, entry_object, due_date, priority, status } })
   });
   return res.json();
 }
 
-export async function updateEntry(user_email, project_name, old_entry, new_entry) {
+export async function updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status) {
   const res = await fetch(url + '/service/entry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ function: 'update', values: { user_email, project_name, old_entry, new_entry } })
+    body: JSON.stringify({ function: 'update', values: { user_email, project_name, entry_id, new_entry, due_date, priority, status } })
   });
   return res.json();
 }

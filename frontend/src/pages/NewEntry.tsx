@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
-import { setPriority } from "../functions/project/priority.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
@@ -140,11 +139,13 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
-  const entryFields = Object.entries(entries || {});
+  const entryFields = Object.entries(entries || {}).filter(([, value]) => {
+    if (value === 0 || value === "0") return false;
+    if (value === null || value === undefined || value === "") return false;
+    return true;
+  });
   const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
-  const startedLabel = formatDate(started_at);
-  const endedLabel = formatDate(ended_at);
 
   const priorityClass = priority ? (PRIORITY_CLASS[priority] || "priority-neutral") : "";
 
@@ -189,38 +190,25 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         }
       }
 
-      const priorityChanged =
-        draftPriorityValue !==
-        (priority && PRIORITY_TO_VALUE[priority] !== undefined
-          ? PRIORITY_TO_VALUE[priority]
-          : "3");
+      // Convert priority index to label string (or null for "No priority")
+      const newPriorityLabel = draftPriorityValue === "3"
+        ? null
+        : PRIORITY_LABELS[draftPriorityValue];
+
+      const newDueDate = draftDueDate
+        ? new Date(draftDueDate).toISOString()
+        : null;
 
       const updatedEntry: EntryRow = {
         ...entry,
         entries: newEntryObject,
-        due_date: draftDueDate ? new Date(draftDueDate).toISOString() : due_date,
-        priority: priorityChanged
-          ? PRIORITY_LABELS[draftPriorityValue] === "No priority"
-            ? null
-            : PRIORITY_LABELS[draftPriorityValue]
-          : priority,
+        due_date: newDueDate,
+        priority: newPriorityLabel,
         status: draftStatus,
       };
 
-      await updateEntry(user_email, project_name, entries, newEntryObject);
-
-      if (draftDueDate !== toInputDate(due_date)) {
-        await updateEntry(user_email, project_name, entries, newEntryObject);
-      }
-
-      if (priorityChanged) {
-        await setPriority(
-          user_email,
-          project_name,
-          PRIORITY_LABELS[draftPriorityValue] === "No priority" ? null : PRIORITY_LABELS[draftPriorityValue],
-          entries
-        );
-      }
+      // Single update call with fields, due_date, priority, and status
+      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus);
 
       onUpdated?.(updatedEntry);
       setIsEditing(false);
@@ -238,8 +226,8 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     setMenuOpen(false);
     try {
       const result = archived
-        ? await unarchiveEntry(user_email, project_name, entries)
-        : await archiveEntry(user_email, project_name, entries);
+        ? await unarchiveEntry(user_email, project_name, id)
+        : await archiveEntry(user_email, project_name, id);
 
       if (result?.error) throw new Error(result.error);
       if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
@@ -322,94 +310,71 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
   }
 
   return (
-    <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
-      <div className="entry-box__header">
-        <div className="entry-box__tags">
+    <div className={`entry-card ${archived ? "entry-card--archived" : ""}`}>
+      {/* Top row: project + badges + menu */}
+      <div className="entry-card__top">
+        <span className="entry-card__project">{project_name}</span>
+        <div className="entry-card__badges">
           {priority && (
-            <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
+            <span className={`entry-card__badge ${priorityClass}`}>{priority}</span>
           )}
-          <span className={`entry-box__tag ${STATUS_CLASS[status]}`}>
+          <span className={`entry-card__badge ${STATUS_CLASS[status]}`}>
             {STATUS_LABELS[status]}
           </span>
         </div>
-        <span className="entry-box__project">{project_name}</span>
+        <div className="entry-card__menu-wrap" ref={menuRef}>
+          <button
+            type="button"
+            className="entry-card__menu-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Entry options"
+            aria-expanded={menuOpen}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div className="entry-card__menu">
+              <button type="button" className="entry-card__menu-item" onClick={handleEnterEdit}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className="entry-card__menu-item entry-card__menu-item--danger"
+                onClick={handleToggleArchive}
+                disabled={archiving}
+              >
+                {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="entry-box__menu-wrap" ref={menuRef}>
-        <button
-          type="button"
-          className="entry-box__menu-btn"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Entry options"
-          aria-expanded={menuOpen}
-        >
-          ⋯
-        </button>
-        {menuOpen && (
-          <div className="entry-box__menu">
-            <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-              Edit
-            </button>
-            <button
-              type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleToggleArchive}
-              disabled={archiving}
-            >
-              {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
-            </button>
-          </div>
-        )}
-      </div>
-
+      {/* Middle row: content as natural description */}
       {entryFields.length > 0 && (
-        <table className="entry-box__table">
-          <tbody>
-            {entryFields.map(([key, value]) => (
-              <tr className="entry-box__row" key={key}>
-                <td className="entry-box__field-key">{formatFieldKey(key)}</td>
-                <td className="entry-box__field-value">{formatFieldValue(value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="entry-card__content">
+          {entryFields.map(([key, value]) => (
+            <span className="entry-card__field" key={key}>
+              <span className="entry-card__field-key">{formatFieldKey(key)}</span>
+              <span className="entry-card__field-value">{formatFieldValue(value)}</span>
+            </span>
+          ))}
+        </div>
       )}
 
-      <div className="entry-box__meta">
-        {createdLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Created</span>
-            <span className="entry-box__meta-value">{createdLabel}</span>
-          </span>
-        )}
-        {dueLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Due</span>
-            <span className="entry-box__meta-value">{dueLabel}</span>
-          </span>
-        )}
-        {startedLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Started</span>
-            <span className="entry-box__meta-value">{startedLabel}</span>
-          </span>
-        )}
-        {endedLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Ended</span>
-            <span className="entry-box__meta-value">{endedLabel}</span>
-          </span>
-        )}
-        {duration && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Duration</span>
-            <span className="entry-box__meta-value">{duration}</span>
-          </span>
-        )}
-        {archived && <span className="entry-box__archived-tag">Archived</span>}
+      {/* Bottom row: metadata inline */}
+      <div className="entry-card__meta">
+        <div className="entry-card__meta-left">
+          {createdLabel && <span>Created {createdLabel}</span>}
+          {dueLabel && <span>Due {dueLabel}</span>}
+          {duration && <span>{duration}</span>}
+        </div>
+        <div className="entry-card__meta-right">
+          {archived && <span className="entry-card__archived-tag">Archived</span>}
+        </div>
       </div>
 
-      {error && <div className="entry-box__error">{error}</div>}
+      {error && <div className="entry-card__error">{error}</div>}
     </div>
   );
 }
