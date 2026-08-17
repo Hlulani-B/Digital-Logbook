@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
-import { setPriority } from "../functions/project/priority.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
@@ -189,38 +188,25 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         }
       }
 
-      const priorityChanged =
-        draftPriorityValue !==
-        (priority && PRIORITY_TO_VALUE[priority] !== undefined
-          ? PRIORITY_TO_VALUE[priority]
-          : "3");
+      // Convert priority index to label string (or null for "No priority")
+      const newPriorityLabel = draftPriorityValue === "3"
+        ? null
+        : PRIORITY_LABELS[draftPriorityValue];
+
+      const newDueDate = draftDueDate
+        ? new Date(draftDueDate).toISOString()
+        : null;
 
       const updatedEntry: EntryRow = {
         ...entry,
         entries: newEntryObject,
-        due_date: draftDueDate ? new Date(draftDueDate).toISOString() : due_date,
-        priority: priorityChanged
-          ? PRIORITY_LABELS[draftPriorityValue] === "No priority"
-            ? null
-            : PRIORITY_LABELS[draftPriorityValue]
-          : priority,
+        due_date: newDueDate,
+        priority: newPriorityLabel,
         status: draftStatus,
       };
 
-      await updateEntry(user_email, project_name, entries, newEntryObject);
-
-      if (draftDueDate !== toInputDate(due_date)) {
-        await updateEntry(user_email, project_name, entries, newEntryObject);
-      }
-
-      if (priorityChanged) {
-        await setPriority(
-          user_email,
-          project_name,
-          PRIORITY_LABELS[draftPriorityValue] === "No priority" ? null : PRIORITY_LABELS[draftPriorityValue],
-          entries
-        );
-      }
+      // Single update call with fields, due_date, and priority
+      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel);
 
       onUpdated?.(updatedEntry);
       setIsEditing(false);

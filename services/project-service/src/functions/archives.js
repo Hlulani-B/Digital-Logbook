@@ -104,7 +104,7 @@ export class Archives {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('archived', false);
+        .or('archived.eq.false,archived.is.null');
 
       if (project_name) {
         query = query.eq('project_name', project_name);

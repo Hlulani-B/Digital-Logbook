@@ -38,14 +38,18 @@ export class Entries {
     }
   }
 
-  async updateEntry(user_email, project_name, old_entry, new_entry) {
+  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority) {
     try {
+      const updateData = { entries: new_entry };
+      if (due_date !== undefined) updateData.due_date = due_date;
+      if (priority !== undefined) updateData.priority = priority;
+
       const { data, error } = await supabase
         .from('entries')
-        .update({ entries: new_entry })
+        .update(updateData)
+        .eq('id', entry_id)
         .eq('user_email', user_email)
         .eq('project_name', project_name)
-        .eq('entries', old_entry)
         .select();
 
       if (error) {
@@ -134,7 +138,7 @@ async getAllEntries(user_email) {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('archived', false);
+        .or('archived.eq.false,archived.is.null');
 
       if (project_name) {
         query = query.eq('project_name', project_name);

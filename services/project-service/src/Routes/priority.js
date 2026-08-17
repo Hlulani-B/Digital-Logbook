@@ -27,9 +27,9 @@ router.post('/priority', async (req, res) => {
 
     switch (func) {
       case "set": {
-        const { user_email, priorityValue, project_name, entry_object } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await priority.setPriority(user_email, priorityValue, project_name, entry_object);
+        const { user_email, priorityValue, project_name, entry_id } = values;
+        if (!user_email || !project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await priority.setPriority(user_email, priorityValue, project_name, entry_id);
         return res.json(result);
       }
       default:

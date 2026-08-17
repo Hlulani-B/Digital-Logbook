@@ -33,9 +33,9 @@ router.post('/entry', async (req, res) => {
         return res.json(result);
       }
       case "update": {
-        const { user_email, project_name, old_entry, new_entry } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await entries.updateEntry(user_email, project_name, old_entry, new_entry);
+        const { user_email, project_name, entry_id, new_entry, due_date, priority } = values;
+        if (!user_email || !project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await entries.updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority);
         return res.json(result);
       }
       case "delete": {
