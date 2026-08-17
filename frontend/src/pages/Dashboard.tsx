@@ -4,11 +4,12 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
-import { getAllEntries, addEntry, sortUnarchivedEntries } from "@/functions/project/entries.js";
+import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject, archiveEntry } from "@/functions/project/archives.js";
 import { dueSoon, upNext } from "@/functions/dashboard.js";
 import { searchAll, searchProject } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
+import { AddEntry } from "@/pages/AddEntry";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -54,8 +55,6 @@ export function Dashboard() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState("");
-  const [newEntryContent, setNewEntryContent] = useState("");
-  const [creatingEntry, setCreatingEntry] = useState(false);
 
   const email = user?.email || "";
 
@@ -218,22 +217,6 @@ export function Dashboard() {
       console.error("Failed to create project:", err);
     } finally {
       setCreatingProject(false);
-    }
-  };
-
-  const handleCreateEntry = async () => {
-    if (!newEntryContent.trim() || !newEntryProject || !email) return;
-    setCreatingEntry(true);
-    try {
-      await addEntry(email, newEntryProject, newEntryContent.trim(), null);
-      setNewEntryOpen(false);
-      setNewEntryContent("");
-      setNewEntryProject("");
-      await loadData();
-    } catch (err) {
-      console.error("Failed to create entry:", err);
-    } finally {
-      setCreatingEntry(false);
     }
   };
 
@@ -622,34 +605,40 @@ export function Dashboard() {
 
       {/* New Entry Modal */}
       {newEntryOpen && (
-        <div className="modal-overlay" onClick={() => setNewEntryOpen(false)}>
-          <div className="modal-card glass" onClick={(e) => e.stopPropagation()}>
-            <h2 className="modal-title">New Entry</h2>
-            <select
-              className="field-input"
-              value={newEntryProject}
-              onChange={(e) => setNewEntryProject(e.target.value)}
-            >
-              <option value="">Select a project...</option>
-              {projects.filter((p) => !p.archived).map((p) => (
-                <option key={p.project_name as string} value={p.project_name as string}>{p.project_name as string}</option>
-              ))}
-            </select>
-            <textarea
-              placeholder="What did you work on?"
-              value={newEntryContent}
-              onChange={(e) => setNewEntryContent(e.target.value)}
-              className="field-input"
-              rows={4}
-              autoFocus
-              style={{ resize: "vertical", minHeight: "80px" }}
-            />
-            <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setNewEntryOpen(false)}>Cancel</button>
-              <button className="btn-primary" onClick={handleCreateEntry} disabled={creatingEntry || !newEntryContent.trim() || !newEntryProject}>
-                {creatingEntry ? "Saving..." : "Save Entry"}
-              </button>
-            </div>
+        <div className="modal-overlay" onClick={() => { setNewEntryOpen(false); setNewEntryProject(""); }}>
+          <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
+            {!newEntryProject ? (
+              <>
+                <h2 className="modal-title">New Entry</h2>
+                <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", margin: 0 }}>Select a project:</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                  {projects.filter((p) => !p.archived).map((p) => (
+                    <button
+                      key={p.project_name as string}
+                      className="drawer-item"
+                      onClick={() => setNewEntryProject(p.project_name as string)}
+                      style={{ textAlign: "left", justifyContent: "flex-start" }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                      {p.project_name as string}
+                    </button>
+                  ))}
+                  {projects.filter((p) => !p.archived).length === 0 && (
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>No projects yet. Create one first.</p>
+                  )}
+                </div>
+                <div className="modal-actions">
+                  <button className="btn-secondary" onClick={() => { setNewEntryOpen(false); setNewEntryProject(""); }}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <AddEntry
+                user_email={email}
+                project_name={newEntryProject}
+                onAdded={() => { setNewEntryOpen(false); setNewEntryProject(""); loadData(); }}
+                onCancel={() => { setNewEntryOpen(false); setNewEntryProject(""); }}
+              />
+            )}
           </div>
         </div>
       )}
