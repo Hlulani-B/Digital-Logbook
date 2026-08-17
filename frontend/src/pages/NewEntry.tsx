@@ -246,8 +246,18 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
       };
 
       // Single update call with all schema columns
-      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus, newStartedAt, newEndedAt, newDuration);
+      const result = await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus, newStartedAt, newEndedAt, newDuration);
 
+      if (result?.success === false) {
+        setError(result.message || "Failed to save changes");
+        return;
+      }
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      // Always reload from database to show actual state
       onUpdated?.(updatedEntry);
       setIsEditing(false);
     } catch (err) {
@@ -284,7 +294,16 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     setError(null);
     try {
       const now = new Date().toISOString();
-      await updateEntry(user_email, project_name, id, entries, due_date, priority, status, now, null, null);
+      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, status, now, null, null);
+      if (result?.success === false) {
+        setError(result.message || "Failed to start task");
+        return;
+      }
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      // Always reload from database to show actual state
       onUpdated?.({ ...entry, started_at: now });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start task");
@@ -299,7 +318,16 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     setError(null);
     try {
       const now = new Date().toISOString();
-      await updateEntry(user_email, project_name, id, entries, due_date, priority, status, started_at, now, null);
+      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, status, started_at, now, null);
+      if (result?.success === false) {
+        setError(result.message || "Failed to end task");
+        return;
+      }
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      // Always reload from database to show actual state
       onUpdated?.({ ...entry, ended_at: now });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to end task");

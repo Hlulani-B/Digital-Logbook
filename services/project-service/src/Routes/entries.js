@@ -19,11 +19,13 @@ try {
 router.post('/entry', async (req, res) => {
   try {
     if (!entries) {
-      return res.status(500).json({ error: 'Entries service uninitialized' });
+      return res.status(500).json({ success: false, error: 'Entries service uninitialized' });
     }
 
     const { function: func, values = {} } = req.body || {};
-    if (!func) return res.status(400).json({ error: 'Function not provided' });
+    if (!func) return res.status(400).json({ success: false, error: 'Function not provided' });
+
+    console.log(`[/entry] func=${func}, values keys=${Object.keys(values).join(',')}`);
 
     // Use the verified email from the JWT, not the user_email supplied by the client.
     const user_email = req.userEmail;
@@ -71,13 +73,14 @@ router.post('/entry', async (req, res) => {
         return res.json(result);
       }
       default:
-        return res.status(400).json({ error: 'Invalid function' });
+        return res.status(400).json({ success: false, error: 'Invalid function' });
     }
   } catch (error) {
     console.error('Error in POST /service/entry:', error);
     return res.status(500).json({ 
+      success: false,
       error: 'Internal Server Error', 
-      details: error.message 
+      message: error.message 
     });
   }
 });

@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { Stats } from "@/components/Stats";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
-import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
+import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject } from "@/functions/dashboard/search.js";
@@ -38,9 +39,6 @@ export function Dashboard() {
   // View mode: "due-soon" shows only entries due within 3 days, "all-entries" shows everything
   const [viewMode, setViewMode] = useState<"due-soon" | "all-entries">("due-soon");
 
-  // Stats panel
-  const [statsOpen, setStatsOpen] = useState(false);
-
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -65,14 +63,17 @@ export function Dashboard() {
 
   const email = user?.email || "";
 
-  // Load data
+  // Load data — always fetch sorted to reflect current sortBy
   const loadData = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     try {
+      const sortType = sortBy === "priority" ? 1 : 0;
+      const project = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives") ? activeView : null;
+
       const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
         getProjectsByEmail(email),
-        getAllEntries(email),
+        sortUnarchivedEntries(email, project, sortType),
         dueSoon(email, null),
       ]);
       if (projectsRes.status === "fulfilled") {
@@ -90,12 +91,22 @@ export function Dashboard() {
       } else {
         console.error("Failed to load due soon:", dueSoonRes.reason);
       }
+
+      // Also fetch archived rows for archive view
+      if (activeView === "archives") {
+        try {
+          const archiveData = await sortArchivedEntries(email, project, sortType);
+          setArchiveRows(archiveData?.data || []);
+        } catch (archiveErr) {
+          console.error("Failed to load archives:", archiveErr);
+        }
+      }
     } catch (err) {
-      console.error("Failed to load data:", err);
+      console.error("[Dashboard] loadData exception:", err);
     } finally {
       setLoading(false);
     }
-  }, [email]);
+  }, [email, sortBy, activeView]);
 
   useEffect(() => {
     loadData();
@@ -172,23 +183,6 @@ export function Dashboard() {
     })();
     return () => { cancelled = true; };
   }, [searchQuery, activeView, email]);
-
-  // Sort using provided sort functions
-  useEffect(() => {
-    if (!email || searchResults !== null) return;
-    (async () => {
-      const project = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts") ? activeView : null;
-      const sortType = sortBy === "priority" ? 1 : 0;
-      if (activeView === "archives") {
-        const { sortArchivedEntries } = await import("@/functions/project/entries.js");
-        const result = await sortArchivedEntries(email, project, sortType);
-        if (result?.data) setArchiveRows(result.data);
-      } else {
-        const result = await sortUnarchivedEntries(email, project, sortType);
-        if (result?.data) setEntries(result.data);
-      }
-    })();
-  }, [activeView, email, searchResults, sortBy]);
 
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
@@ -458,39 +452,7 @@ export function Dashboard() {
                 </p>
               )}
             </div>
-            <div className="feed-stats-box">
-              {statsOpen ? (
-                <div className="feed-stats-panel">
-                  <div className="feed-stats-panel-header">
-                    <span className="feed-stats-panel-title">Quick Stats</span>
-                    <button className="feed-stats-panel-close" onClick={() => setStatsOpen(false)} aria-label="Close stats">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="feed-stats-panel-body">
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{entries.length}</span>
-                      <span className="feed-stat-label">Total Entries</span>
-                    </div>
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{projects.length}</span>
-                      <span className="feed-stat-label">Projects</span>
-                    </div>
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{dueSoonRows.length}</span>
-                      <span className="feed-stat-label">Due Soon</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button className="feed-stats-btn" onClick={() => setStatsOpen(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                  View Stats
-                </button>
-              )}
-            </div>
+            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
 

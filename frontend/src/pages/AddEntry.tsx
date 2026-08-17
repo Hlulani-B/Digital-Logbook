@@ -62,7 +62,6 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [dueDate, setDueDate] = useState("");
-  const [startedAt, setStartedAt] = useState("");
   const [priorityValue, setPriorityValue] = useState("3");
   const [statusValue, setStatusValue] = useState("up_next");
   const [saving, setSaving] = useState(false);
@@ -136,13 +135,17 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         dueDate ? new Date(dueDate).toISOString() : null,
         priorityLabel,
         statusValue,
-        startedAt ? new Date(startedAt).toISOString() : null,
+        null, // started_at - set via Start Task button
         null, // ended_at - set via End Task button
         null  // duration - calculated in Supabase
       );
 
-      if (result?.error) throw new Error(result.error);
-      if (result?.success === false) throw new Error(result.message || "Failed to add entry");
+      if (result?.success === false) {
+        throw new Error(result.message || "Failed to add entry");
+      }
+      if (result?.error) {
+        throw new Error(result.error);
+      }
 
       onAdded?.(result);
     } catch (err) {
@@ -179,14 +182,14 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           {fields.map((field) => (
             <div className="add-entry__field-row" key={field.field_name}>
               <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
-                {field.field_name}
+                {field.field_name.replace(/_/g, " ")}
                 {field.is_required && <span className="add-entry__required">*</span>}
               </label>
               <input
                 id={`field-${field.field_name}`}
                 type={inputTypeForDataType(field.data_type)}
                 className="add-entry__field-input"
-                placeholder={`Enter ${field.field_name}`}
+                placeholder={`Enter ${field.field_name.replace(/_/g, " ")}`}
                 value={fieldValues[field.field_name] || ""}
                 onChange={(e) => handleValueChange(field.field_name, e.target.value)}
                 disabled={saving}
@@ -212,20 +215,6 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             className="add-entry__input"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
-        <div className="add-entry__group">
-          <label className="add-entry__label" htmlFor="started-at">
-            Started At
-          </label>
-          <input
-            id="started-at"
-            type="datetime-local"
-            className="add-entry__input"
-            value={startedAt}
-            onChange={(e) => setStartedAt(e.target.value)}
             disabled={saving}
           />
         </div>
