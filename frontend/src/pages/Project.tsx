@@ -25,8 +25,6 @@ export function ProjectsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [createError, setCreateError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -59,31 +57,6 @@ export function ProjectsPage() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
-
-  const handleCreate = async (e: FormEvent) => {
-    e.preventDefault();
-    const name = newName.trim();
-    if (!name || !email) return;
-
-    if (projects.some((p) => p.project_name.toLowerCase() === name.toLowerCase())) {
-      setCreateError("You already have a project with this name.");
-      return;
-    }
-
-    setSaving(true);
-    setCreateError(null);
-    try {
-      const result = await addProject(email, name);
-      if (result?.error) throw new Error(result.error);
-      setNewName("");
-      setCreating(false);
-      await loadProjects();
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Could not create project");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const startEdit = (name: string) => {
     setEditingName(name);
@@ -151,7 +124,6 @@ export function ProjectsPage() {
           type="button"
           onClick={() => {
             setCreating(true);
-            setCreateError(null);
           }}
           className="btn-primary"
           style={{ whiteSpace: "nowrap" }}
@@ -181,7 +153,7 @@ export function ProjectsPage() {
           Project creation is not available yet. Check back soon.
           <button
             type="button"
-            onClick={() => { setCreating(false); setCreateError(null); }}
+            onClick={() => { setCreating(false); }}
             className="btn-secondary"
           >
             Close
