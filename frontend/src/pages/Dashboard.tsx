@@ -5,6 +5,7 @@ import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
+import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon } from "@/functions/dashboard.js";
@@ -14,6 +15,12 @@ import { AddEntry } from "@/pages/AddEntry";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
+
+type ProjectFieldDraft = {
+  field_name: string;
+  data_type: "text" | "number" | "date" | "boolean";
+  is_required: boolean;
+};
 
 export function Dashboard() {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
@@ -56,6 +63,7 @@ export function Dashboard() {
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
   const [newProjectError, setNewProjectError] = useState<string | null>(null);
+  const [projectFields, setProjectFields] = useState<ProjectFieldDraft[]>([]);
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -228,15 +236,66 @@ export function Dashboard() {
     setSettingsOpen(true);
   };
 
+  const resetProjectForm = () => {
+    setNewProjectName("");
+    setNewProjectDescription("");
+    setNewProjectError(null);
+    setProjectFields([]);
+  };
+
+  const addProjectField = () => {
+    setProjectFields((prev) => [
+      ...prev,
+      { field_name: "", data_type: "text", is_required: false },
+    ]);
+  };
+
+  const removeProjectField = (index: number) => {
+    setProjectFields((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateProjectField = (
+    index: number,
+    updates: Partial<ProjectFieldDraft>
+  ) => {
+    setProjectFields((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...updates };
+      return next;
+    });
+  };
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
     setCreatingProject(true);
     setNewProjectError(null);
+
     try {
-      await addProject(email, newProjectName.trim(), newProjectDescription.trim() || undefined);
+      const projectName = newProjectName.trim();
+      await addProject(email, projectName, newProjectDescription.trim() || undefined);
+
+      // Save any non-empty project fields (best-effort after project is created)
+      const validFields = projectFields.filter((f) => f.field_name.trim());
+      if (validFields.length > 0) {
+        const results = await Promise.allSettled(
+          validFields.map((f) =>
+            addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
+          )
+        );
+        const failures = results
+          .map((r, i) =>
+            r.status === "rejected" ? validFields[i].field_name : null
+          )
+          .filter((name): name is string => Boolean(name));
+        if (failures.length > 0) {
+          window.alert(
+            `Project created, but these fields could not be saved: ${failures.join(", ")}`
+          );
+        }
+      }
+
       setNewProjectOpen(false);
-      setNewProjectName("");
-      setNewProjectDescription("");
+      resetProjectForm();
       await loadData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create project";
@@ -610,13 +669,92 @@ export function Dashboard() {
               rows={3}
               style={{ resize: "vertical", minHeight: "60px" }}
             />
+
+            {/* Project Fields */}
+            <div className="project-fields-section" style={{ marginTop: "1rem" }}>
+              <h3 className="project-fields-title" style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.5rem" }}>
+                Project Fields
+              </h3>
+              {projectFields.length === 0 && (
+                <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", margin: "0 0 0.5rem" }}>
+                  No fields defined. Add fields to build the entry form for this project.
+                </p>
+              )}
+              {projectFields.map((field, index) => (
+                <div
+                  key={index}
+                  className="project-field-row"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto auto auto",
+                    gap: "0.5rem",
+                    alignItems: "center",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Field name"
+                    value={field.field_name}
+                    onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
+                    className="field-input"
+                  />
+                  <select
+                    value={field.data_type}
+                    onChange={(e) =>
+                      updateProjectField(index, { data_type: e.target.value as ProjectFieldDraft["data_type"] })
+                    }
+                    className="field-input"
+                    style={{ width: "auto" }}
+                  >
+                    <option value="text">Text</option>
+                    <option value="number">Number</option>
+                    <option value="date">Date</option>
+                    <option value="boolean">Boolean</option>
+                  </select>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                      fontSize: "0.875rem",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={field.is_required}
+                      onChange={(e) => updateProjectField(index, { is_required: e.target.checked })}
+                    />
+                    Required
+                  </label>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => removeProjectField(index)}
+                    title="Remove field"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={addProjectField}
+                style={{ marginTop: "0.25rem" }}
+              >
+                + Add Another Project Field
+              </button>
+            </div>
+
             {newProjectError && (
-              <div className="auth-error" style={{ marginBottom: "0.75rem" }}>
+              <div className="auth-error" style={{ marginBottom: "0.75rem", marginTop: "0.75rem" }}>
                 {newProjectError}
               </div>
             )}
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => { setNewProjectOpen(false); setNewProjectDescription(""); setNewProjectError(null); }}>Cancel</button>
+              <button className="btn-secondary" onClick={() => { setNewProjectOpen(false); resetProjectForm(); }}>Cancel</button>
               <button className="btn-primary" onClick={handleCreateProject} disabled={creatingProject || !newProjectName.trim()}>
                 {creatingProject ? "Creating..." : "Create"}
               </button>
