@@ -205,8 +205,8 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         status: draftStatus,
       };
 
-      // Single update call with fields, due_date, and priority
-      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel);
+      // Single update call with fields, due_date, priority, and status
+      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus);
 
       onUpdated?.(updatedEntry);
       setIsEditing(false);

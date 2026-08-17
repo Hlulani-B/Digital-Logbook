@@ -1,7 +1,7 @@
 import { supabase } from '../supabase.js';
 
 export class Entries {
-  async addEntry(user_email, project_name, entry_object, due_date) {
+  async addEntry(user_email, project_name, entry_object, due_date, priority, status) {
     try {
       // Check if an identical entry already exists before adding
       let error, data;
@@ -21,9 +21,14 @@ export class Entries {
         return { success: true, message: 'Entry already exists' };
       }
 
+      const insertData = { user_email, project_name, entries: entry_object };
+      if (due_date !== undefined) insertData.due_date = due_date;
+      if (priority !== undefined) insertData.priority = priority;
+      if (status !== undefined) insertData.status = status;
+
       ({ error } = await supabase
         .from('entries')
-        .insert({ user_email, project_name, entries: entry_object, due_date })
+        .insert(insertData)
         .select());
 
       if (error) {
@@ -38,11 +43,12 @@ export class Entries {
     }
   }
 
-  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority) {
+  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status) {
     try {
       const updateData = { entries: new_entry };
       if (due_date !== undefined) updateData.due_date = due_date;
       if (priority !== undefined) updateData.priority = priority;
+      if (status !== undefined) updateData.status = status;
 
       const { data, error } = await supabase
         .from('entries')
