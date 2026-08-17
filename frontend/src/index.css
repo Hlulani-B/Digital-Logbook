@@ -127,12 +127,32 @@
 [data-theme="dark"] .btn-primary {
   background: var(--accent);
   box-shadow: 0 2px 8px var(--accent-glow);
-  color: var(--text);
+  color: #000000;
 }
 
 [data-theme="dark"] .btn-primary:hover {
-  background: var(--btn-primary-hover);
+  background: #ffffff;
   box-shadow: 0 4px 14px var(--accent-glow);
+  color: #000000;
+}
+
+[data-theme="dark"] .btn-save {
+  background: var(--accent);
+  color: #000000;
+}
+
+[data-theme="dark"] .btn-save:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .btn-secondary {
+  color: var(--text-dim);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
 }
 
 [data-theme="dark"] .stat-icon.purple,
