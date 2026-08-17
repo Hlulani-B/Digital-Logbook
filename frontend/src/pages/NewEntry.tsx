@@ -1,431 +1,311 @@
-import { useState, useRef, useEffect } from "react";
-import { updateEntry } from "../functions/project/entries.js";
-import { setPriority } from "../functions/project/priority.js";
-import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
+/* EntryBox.css — Notion-style card: bold title, top-right menu, colored tags, table-like fields */
 
-type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
-
-const PRIORITY_LABELS: Record<string, string> = {
-  "0": "Urgent and important",
-  "1": "Urgent but not important",
-  "2": "Not urgent, not important",
-  "3": "No priority",
-};
-
-const PRIORITY_TO_VALUE: Record<string, string> = {
-  "Urgent and important": "0",
-  "Urgent but not important": "1",
-  "Not urgent, not important": "2",
-};
-
-interface EntryRow {
-  id: string;
-  user_email: string;
-  project_name: string;
-  entries: Record<string, unknown>;
-  created_at: string;
-  due_date?: string | null;
-  priority?: string | null;
-  archived?: boolean;
-  started_at?: string | null;
-  ended_at?: string | null;
-  duration?: string | null;
-  status?: EntryStatus;
+.entry-box {
+  position: relative;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e3e2e0);
+  border-radius: 8px;
+  padding: 1.1rem 1.3rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  font-family: var(--font-body, "Lora", serif);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-interface EntryBoxProps {
-  entry: EntryRow;
-  onUpdated?: (updatedEntry: EntryRow) => void;
-  onArchiveToggled?: (entryId: string, archived: boolean) => void;
+.entry-box:hover {
+  border-color: var(--text-muted, #9c9488);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-const STATUS_LABELS: Record<EntryStatus, string> = {
-  up_next: "Up Next",
-  in_motion: "In Motion",
-  done_and_dusted: "Done & Dusted",
-};
-
-const STATUS_CLASS: Record<EntryStatus, string> = {
-  up_next: "status-up-next",
-  in_motion: "status-in-motion",
-  done_and_dusted: "status-done",
-};
-
-function formatDate(value?: string | null): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+.entry-box--editing {
+  border-color: var(--text, #37352f);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
-function toInputDate(value?: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
+.entry-box--archived {
+  opacity: 0.6;
 }
 
-function formatFieldKey(key: string): string {
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+/* ---------- Top-right three-dot menu ---------- */
+
+.entry-box__menu-btn {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #9c9488);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+  border-radius: 6px;
+  z-index: 5;
 }
 
-function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+.entry-box__menu-btn:hover {
+  color: var(--text, #37352f);
+  background: var(--bg, #f5f4f2);
 }
 
-function stringifyForInput(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+.entry-box__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e3e2e0);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 140px;
+  z-index: 10;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  text-align: left;
 }
 
-export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [archiving, setArchiving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
-    )
-  );
-  const [draftDueDate, setDraftDueDate] = useState(toInputDate(entry.due_date));
-  const [draftPriorityValue, setDraftPriorityValue] = useState<string>(
-    PRIORITY_TO_VALUE[entry.priority || ""] ?? "3"
-  );
-  const [draftStatus, setDraftStatus] = useState<EntryStatus>(entry.status || "up_next");
-
-  const {
-    id,
-    project_name,
-    entries,
-    created_at,
-    due_date,
-    priority,
-    archived = false,
-    started_at,
-    ended_at,
-    duration,
-    status = "up_next",
-    user_email,
-  } = entry;
-
-  const entryFields = entries ? Object.entries(entries) : [];
-  const createdLabel = formatDate(created_at);
-  const dueLabel = formatDate(due_date);
-  const startedLabel = formatDate(started_at);
-  const endedLabel = formatDate(ended_at);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [menuOpen]);
-
-  const handleEnterEdit = () => {
-    setDraftFields(
-      Object.fromEntries(
-        Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
-      )
-    );
-    setDraftDueDate(toInputDate(entry.due_date));
-    setDraftPriorityValue(PRIORITY_TO_VALUE[entry.priority || ""] ?? "3");
-    setDraftStatus(entry.status || "up_next");
-    setError(null);
-    setMenuOpen(false);
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setError(null);
-  };
-
-  const handleFieldChange = (key: string, value: string) => {
-    setDraftFields((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSave = async () => {
-    if (!user_email || saving) return;
-    setSaving(true);
-    setError(null);
-
-    try {
-      const newEntryObject: Record<string, unknown> = {};
-      for (const [key, rawValue] of Object.entries(draftFields)) {
-        try {
-          newEntryObject[key] = JSON.parse(rawValue);
-        } catch {
-          newEntryObject[key] = rawValue;
-        }
-      }
-
-      const updateResult = await updateEntry(
-        user_email,
-        project_name,
-        entries,
-        newEntryObject
-      );
-      if (updateResult?.error) throw new Error(updateResult.error);
-
-      const priorityChanged =
-        draftPriorityValue !== (PRIORITY_TO_VALUE[priority || ""] ?? "3");
-
-      if (priorityChanged) {
-        const priorityResult = await setPriority(
-          user_email,
-          draftPriorityValue,
-          project_name,
-          newEntryObject
-        );
-        if (priorityResult?.error) throw new Error(priorityResult.error);
-      }
-
-      const updatedEntry: EntryRow = {
-        ...entry,
-        entries: newEntryObject,
-        due_date: draftDueDate ? new Date(draftDueDate).toISOString() : due_date,
-        priority: priorityChanged
-          ? PRIORITY_LABELS[draftPriorityValue] === "No priority"
-            ? null
-            : PRIORITY_LABELS[draftPriorityValue]
-          : priority,
-        status: draftStatus,
-      };
-
-      onUpdated?.(updatedEntry);
-      setIsEditing(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save changes");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleToggleArchive = async () => {
-    if (!user_email || archiving) return;
-    setArchiving(true);
-    setError(null);
-    setMenuOpen(false);
-    try {
-      const result = archived
-        ? await unarchiveEntry(user_email, project_name, entries)
-        : await archiveEntry(user_email, project_name, entries);
-
-      if (result?.error) throw new Error(result.error);
-      if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
-
-      onArchiveToggled?.(id, !archived);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update archive state");
-    } finally {
-      setArchiving(false);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <div className="entry-box entry-box--editing">
-        <div className="entry-box__header">
-          <span className="entry-box__project">{project_name}</span>
-          <div className="entry-box__header-right">
-            <select
-              className="entry-box__priority-select"
-              value={draftPriorityValue}
-              onChange={(e) => setDraftPriorityValue(e.target.value)}
-              disabled={saving}
-            >
-              {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="entry-box__status-select"
-              value={draftStatus}
-              onChange={(e) => setDraftStatus(e.target.value as EntryStatus)}
-              disabled={saving}
-            >
-              {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {error && <div className="entry-box__error">{error}</div>}
-
-        <div className="entry-box__fields entry-box__fields--editing">
-          {Object.entries(draftFields).map(([key, value]) => (
-            <div className="entry-box__field entry-box__field--editing" key={key}>
-              <label className="entry-box__field-key" htmlFor={`field-${key}`}>
-                {formatFieldKey(key)}
-              </label>
-              <input
-                id={`field-${key}`}
-                className="entry-box__field-input"
-                type="text"
-                value={value}
-                onChange={(e) => handleFieldChange(key, e.target.value)}
-                disabled={saving}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="entry-box__field entry-box__field--editing">
-          <label className="entry-box__field-key" htmlFor="due-date">
-            Due Date
-          </label>
-          <input
-            id="due-date"
-            className="entry-box__field-input"
-            type="date"
-            value={draftDueDate}
-            onChange={(e) => setDraftDueDate(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
-        <div className="entry-box__edit-actions">
-          <button
-            type="button"
-            className="entry-box__btn entry-box__btn--cancel"
-            onClick={handleCancel}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="entry-box__btn entry-box__btn--save"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
-      <div className="entry-box__header">
-        <span className="entry-box__project">{project_name}</span>
-        <div className="entry-box__header-right">
-          {priority && <span className="entry-box__priority">{priority}</span>}
-          <span className={`entry-box__status ${STATUS_CLASS[status]}`}>
-            {STATUS_LABELS[status]}
-          </span>
-
-          <div className="entry-box__menu-wrap" ref={menuRef}>
-            <button
-              type="button"
-              className="entry-box__menu-btn"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Entry options"
-              aria-expanded={menuOpen}
-            >
-              ⋯
-            </button>
-            {menuOpen && (
-              <div className="entry-box__menu">
-                <button
-                  type="button"
-                  className="entry-box__menu-item"
-                  onClick={handleEnterEdit}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item entry-box__menu-item--danger"
-                  onClick={handleToggleArchive}
-                  disabled={archiving}
-                >
-                  {archiving
-                    ? archived
-                      ? "Unarchiving..."
-                      : "Archiving..."
-                    : archived
-                    ? "Unarchive"
-                    : "Archive"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {entryFields.length > 0 && (
-        <div className="entry-box__fields">
-          {entryFields.map(([key, value]) => (
-            <div className="entry-box__field" key={key}>
-              <span className="entry-box__field-key">{formatFieldKey(key)}</span>
-              <span className="entry-box__field-value">{formatFieldValue(value)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="entry-box__meta">
-        {createdLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Created</span>
-            <span className="entry-box__meta-value">{createdLabel}</span>
-          </span>
-        )}
-        {dueLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Due</span>
-            <span className="entry-box__meta-value">{dueLabel}</span>
-          </span>
-        )}
-        {startedLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Started</span>
-            <span className="entry-box__meta-value">{startedLabel}</span>
-          </span>
-        )}
-        {endedLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Ended</span>
-            <span className="entry-box__meta-value">{endedLabel}</span>
-          </span>
-        )}
-        {duration && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Duration</span>
-            <span className="entry-box__meta-value">{duration}</span>
-          </span>
-        )}
-        {archived && <span className="entry-box__archived-tag">Archived</span>}
-      </div>
-
-      {error && <div className="entry-box__error">{error}</div>}
-    </div>
-  );
+.entry-box__menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.55rem 0.9rem;
+  font-family: var(--font-body, "Lora", serif);
+  font-size: 0.85rem;
+  color: var(--text, #37352f);
+  cursor: pointer;
 }
 
-export default EntryBox;
+.entry-box__menu-item:hover {
+  background: var(--bg, #f5f4f2);
+}
+
+.entry-box__menu-item--danger {
+  color: #d1453b;
+}
+
+.entry-box__menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Header ---------- */
+
+.entry-box__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-right: 1.8rem; /* leave room for menu button */
+}
+
+.entry-box__project {
+  font-family: var(--font-heading, "Playfair Display", serif);
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--text, #1f1e1c);
+  letter-spacing: 0.01em;
+}
+
+.entry-box__tags {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.entry-box__tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+/* Status tags */
+.status-up-next {
+  background: #e9e9e7;
+  color: #52504a;
+}
+
+.status-in-motion {
+  background: #fdecc8;
+  color: #a06b1a;
+}
+
+.status-done {
+  background: #dbeddb;
+  color: #2f7e3e;
+}
+
+/* Priority tags */
+.priority-urgent-important {
+  background: #fbe4e4;
+  color: #c4453b;
+}
+
+.priority-urgent {
+  background: #fdecd3;
+  color: #b3711a;
+}
+
+.priority-low {
+  background: #e3e9fb;
+  color: #3a5fc4;
+}
+
+.priority-neutral {
+  background: #ececea;
+  color: #6b6a66;
+}
+
+/* ---------- Field/value table ---------- */
+
+.entry-box__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.entry-box__row {
+  border-top: 1px solid var(--border, #edece9);
+}
+
+.entry-box__row:first-child {
+  border-top: none;
+}
+
+.entry-box__field-key {
+  padding: 0.5rem 0.7rem 0.5rem 0;
+  color: var(--text-muted, #8b8a85);
+  font-weight: 600;
+  width: 38%;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.entry-box__field-value {
+  padding: 0.5rem 0;
+  color: var(--text, #37352f);
+  word-break: break-word;
+}
+
+/* ---------- Editing state ---------- */
+
+.entry-box__fields--editing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.entry-box__field--editing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.entry-box__field-input {
+  font-family: var(--font-body, "Lora", serif);
+  font-size: 0.85rem;
+  background: var(--bg, #f7f6f3);
+  border: 1px solid var(--border, #e3e2e0);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  color: var(--text, #37352f);
+}
+
+.entry-box__field-input:focus {
+  outline: none;
+  border-color: var(--text, #37352f);
+}
+
+.entry-box__priority-select,
+.entry-box__status-select {
+  font-family: var(--font-body, "Lora", serif);
+  font-size: 0.75rem;
+  background: var(--bg, #f7f6f3);
+  color: var(--text, #37352f);
+  border: 1px solid var(--border, #e3e2e0);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+}
+
+/* ---------- Meta row ---------- */
+
+.entry-box__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border, #edece9);
+}
+
+.entry-box__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.entry-box__meta-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #9c9488);
+}
+
+.entry-box__meta-value {
+  font-size: 0.8rem;
+  color: var(--text, #37352f);
+}
+
+.entry-box__archived-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted, #9c9488);
+  border: 1px solid var(--border, #e3e2e0);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  align-self: center;
+}
+
+/* ---------- Edit actions ---------- */
+
+.entry-box__edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.entry-box__btn {
+  font-family: var(--font-body, "Lora", serif);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border: 1px solid var(--border, #e3e2e0);
+}
+
+.entry-box__btn--cancel {
+  background: transparent;
+  color: var(--text-muted, #9c9488);
+}
+
+.entry-box__btn--save {
+  background: var(--text, #37352f);
+  color: var(--surface, #ffffff);
+  border-color: var(--text, #37352f);
+}
+
+.entry-box__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Error ---------- */
+
+.entry-box__error {
+  font-size: 0.82rem;
+  color: #d1453b;
+}
