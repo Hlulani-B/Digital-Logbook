@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js';
 export class Archives {
   async archive_project(user_email, project_name) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { error } = await supabase
         .from('projects')
         .update({ archived: true })
@@ -21,6 +22,7 @@ export class Archives {
 
   async unarchive_project(user_email, project_name) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { error } = await supabase
         .from('projects')
         .update({ archived: false })
@@ -39,6 +41,7 @@ export class Archives {
 
   async archive_entry(user_email, project_name, entry_id) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { error } = await supabase
         .from('entries')
         .update({ archived: true })
@@ -58,6 +61,7 @@ export class Archives {
 
   async unarchive_entry(user_email, project_name, entry_id) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { error } = await supabase
         .from('entries')
         .update({ archived: false })
@@ -77,6 +81,7 @@ export class Archives {
 
   async getArchives(user_email, project_name) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let query = supabase
         .from('entries')
         .select('*')
@@ -100,6 +105,7 @@ export class Archives {
 
   async getUnarchived(user_email, project_name) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let query = supabase
         .from('entries')
         .select('*')

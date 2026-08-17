@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js';
 export class Project {
   async addProject(user_email, project_name, description) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { error } = await supabase
         .from('projects')
         .insert({ user_email, project_name, description })
@@ -27,6 +28,7 @@ export class Project {
   async editProjectName(user_email, new_project_name, old_project_name) {
     // Also update all the project entries and custom fields that have this project name
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let error;
 
       // Update related entries first
@@ -72,6 +74,7 @@ export class Project {
 
   async getProjectsByEmail(user_email) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { data, error } = await supabase
         .from('projects')
         .select('project_name, description, created_at, archived')
@@ -92,6 +95,7 @@ export class Project {
   async deleteProject(user_email, project_name) {
     // When deleting a project, also delete all of its entries and custom fields
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let error;
 
       ({ error } = await supabase

@@ -9,6 +9,7 @@ const PRIORITY = Object.freeze({
 export class Priority {
   async setPriority(user_email, priorityValue, project_name, entry_id) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let newPriority;
       switch (String(priorityValue)) {
         case '0':

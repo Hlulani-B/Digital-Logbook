@@ -3,58 +3,60 @@ import { supabase } from '../supabase.js';
 export class Entries {
   async addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration) {
     try {
-      // Check if an identical entry already exists before adding
-      let error, data;
-      ({ data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('project_name', project_name));
-
-      if (error) {
-        throw error;
-      }
-
-      const duplicate = data.find((entry) => entry.entries === entry_object);
-      if (duplicate) {
-        console.log('Entry already exists');
-        return { success: true, message: 'Entry already exists' };
-      }
+      if (!supabase) throw new Error('Supabase client not initialized');
 
       const insertData = { user_email, project_name, entries: entry_object };
-      if (due_date !== undefined) insertData.due_date = due_date;
-      if (priority !== undefined) insertData.priority = priority;
-      if (status !== undefined) insertData.status = status;
-      if (started_at !== undefined) insertData.started_at = started_at;
-      if (ended_at !== undefined) insertData.ended_at = ended_at;
-      if (duration !== undefined) insertData.duration = duration;
+      if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;
+      if (priority !== undefined && priority !== null) insertData.priority = priority;
+      if (status !== undefined && status !== null) insertData.status = status;
+      if (started_at !== undefined && started_at !== null) insertData.started_at = started_at;
+      if (ended_at !== undefined && ended_at !== null) insertData.ended_at = ended_at;
+      if (duration !== undefined && duration !== null) insertData.duration = duration;
 
-      ({ error } = await supabase
+      console.log('[addEntry] Inserting:', JSON.stringify(insertData));
+
+      const { data, error } = await supabase
         .from('entries')
         .insert(insertData)
-        .select());
+        .select();
 
       if (error) {
+        console.error('[addEntry] Supabase error:', error.message, error.details || '');
         throw error;
       }
 
-      console.log('Entry added successfully');
-      return { success: true, message: 'Entry added successfully' };
+      console.log('[addEntry] Success, id:', data?.[0]?.id);
+      return { success: true, message: 'Entry added successfully', data };
     } catch (error) {
-      console.log(error);
+      console.error('[addEntry] FAILED:', error.message);
       return { success: false, message: error.message };
     }
   }
 
   async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration) {
     try {
-      const updateData = { entries: new_entry };
+      if (!supabase) throw new Error('Supabase client not initialized');
+
+      const updateData = {};
+
+      // Only include entries object if it was explicitly provided
+      if (new_entry !== undefined && new_entry !== null) {
+        updateData.entries = new_entry;
+      }
       if (due_date !== undefined) updateData.due_date = due_date;
       if (priority !== undefined) updateData.priority = priority;
       if (status !== undefined) updateData.status = status;
-      if (started_at !== undefined) updateData.started_at = started_at;
-      if (ended_at !== undefined) updateData.ended_at = ended_at;
-      if (duration !== undefined) updateData.duration = duration;
+      // Timestamp columns: only include when actually set (they may have DEFAULT constraints)
+      if (started_at !== undefined && started_at !== null) updateData.started_at = started_at;
+      if (ended_at !== undefined && ended_at !== null) updateData.ended_at = ended_at;
+      // duration is computed by the database — never set it explicitly
+
+      // If nothing to update, return early
+      if (Object.keys(updateData).length === 0) {
+        return { success: true, message: 'No changes to update' };
+      }
+
+      console.log('[updateEntry] Updating entry_id:', entry_id, 'data:', JSON.stringify(updateData));
 
       const { data, error } = await supabase
         .from('entries')
@@ -65,24 +67,26 @@ export class Entries {
         .select();
 
       if (error) {
+        console.error('[updateEntry] Supabase error:', error.message, error.details || '');
         throw error;
       }
 
       if (!data || data.length === 0) {
-        console.log('Entry not found. Something went wrong');
-        return { success: false, message: 'Entry not found. Something went wrong' };
+        console.error('[updateEntry] No rows matched. id:', entry_id, 'user:', user_email, 'project:', project_name);
+        return { success: false, message: 'Entry not found. Check that the entry exists and belongs to this user/project.' };
       }
 
-      console.log('Entry updated successfully');
+      console.log('[updateEntry] Success, id:', data[0].id);
       return { success: true, message: 'Entry updated successfully', data };
     } catch (error) {
-      console.log(error);
+      console.error('[updateEntry] FAILED:', error.message);
       return { success: false, message: error.message };
     }
   }
 
   async getEntries(user_email, project_name) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { data, error } = await supabase
         .from('entries')
         .select('*')
@@ -101,6 +105,7 @@ export class Entries {
   }
 async getAllEntries(user_email) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { data, error } = await supabase
         .from('entries')
         .select('*')
@@ -113,12 +118,13 @@ async getAllEntries(user_email) {
 
       return { success: true, message: 'All entries retrieved successfully', data };
     } catch (error) {
-      console.log(error);
+      console.log('getAllEntries error:', error);
       return { success: false, message: error.message };
     }
   }
   async deleteEntry(user_email, project_name, entry) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { data, error } = await supabase
         .from('entries')
         .delete()
@@ -132,20 +138,21 @@ async getAllEntries(user_email) {
       }
 
       if (!data || data.length === 0) {
-        console.log('Entry not found. Something went wrong');
+        console.log('Entry not found for delete');
         return { success: false, message: 'Entry not found. Something went wrong' };
       }
 
       console.log('Entry deleted successfully');
       return { success: true, message: 'Entry deleted successfully' };
     } catch (error) {
-      console.log(error);
+      console.log('deleteEntry error:', error);
       return { success: false, message: error.message };
     }
   }
 
   async sortUnarchivedEntries(user_email, project_name, sort_type) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let query = supabase
         .from('entries')
         .select('*')
@@ -194,6 +201,7 @@ async getAllEntries(user_email) {
 
   async sortArchivedEntries(user_email, project_name, sort_type) {
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       let query = supabase
         .from('entries')
         .select('*')
