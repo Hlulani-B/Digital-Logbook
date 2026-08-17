@@ -36,3 +36,12 @@ BEGIN
   DELETE FROM auth.users WHERE id = auth.uid();
 END;
 $$;
+
+-- 3. Backfill existing auth users into public.users
+--    Run this once after creating the table to avoid FK errors for users who signed up before.
+INSERT INTO public.users (email)
+SELECT DISTINCT email
+FROM auth.users
+WHERE email IS NOT NULL
+  AND email NOT IN (SELECT email FROM public.users)
+ON CONFLICT (email) DO NOTHING;

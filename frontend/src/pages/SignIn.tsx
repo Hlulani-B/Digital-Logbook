@@ -44,14 +44,14 @@ export function SignIn() {
 
   const routeAfterAuth = async (userEmail: string) => {
     localStorage.setItem("email", userEmail);
-    let destination = "/dashboard";
+    let destination = "/create-profile";
     try {
       const result = await checkUser(userEmail);
-      if (!result.exists) {
-        destination = "/create-profile";
+      if (result.exists) {
+        destination = "/dashboard";
       }
     } catch (err) {
-      console.error("checkUser failed, defaulting to dashboard:", err);
+      console.error("checkUser failed, defaulting to create-profile:", err);
     }
     navigate(destination);
   };
