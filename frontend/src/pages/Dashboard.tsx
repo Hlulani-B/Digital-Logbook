@@ -6,6 +6,8 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
 import { getAllEntries, addEntry } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject, archiveEntry } from "@/functions/project/archives.js";
+import { dueSoon, upNext } from "@/functions/dashboard.js";
+import { EntryBox } from "@/pages/NewEntry";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -32,6 +34,8 @@ export function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
+  const [upNextRows, setUpNextRows] = useState<Entry[]>([]);
 
   // Sort state
   const [sortBy, setSortBy] = useState<"date" | "priority">("date");
@@ -57,12 +61,16 @@ export function Dashboard() {
     if (!email) return;
     setLoading(true);
     try {
-      const [projectsRes, entriesRes] = await Promise.all([
+      const [projectsRes, entriesRes, dueSoonRes, upNextRes] = await Promise.all([
         getProjectsByEmail(email),
         getAllEntries(email),
+        dueSoon(email, null),
+        upNext(email, null),
       ]);
       setProjects(projectsRes?.projects || []);
       setEntries(entriesRes?.data || []);
+      setDueSoonRows(dueSoonRes?.data || []);
+      setUpNextRows(upNextRes?.data || []);
     } catch (err) {
       console.error("Failed to load data:", err);
     } finally {
@@ -503,7 +511,7 @@ export function Dashboard() {
         )}
 
         {/* Sections: Due Soon + Up Next */}
-        {!loading && filteredEntries.length > 0 && (
+        {!loading && (
           <div className="dashboard-sections">
             {/* Due Soon — top left, default view */}
             <section className="dash-section dash-section-due">
@@ -514,32 +522,11 @@ export function Dashboard() {
                 </h2>
               </div>
               <div className="dash-section-body">
-                {filteredEntries.slice(0, Math.ceil(filteredEntries.length / 2)).map((entry, i) => (
-                  <div key={`due-${entry.project_name}-${i}`} className="entry-block glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
-                    <div className="entry-block-top">
-                      <span className="entry-block-project">{entry.project_name as string}</span>
-                      <span className="entry-block-date">{getEntryDate(entry)}</span>
-                    </div>
-                    <div className="entry-block-content">
-                      {getEntrySnippet(entry)}
-                    </div>
-                    <div className="entry-block-footer">
-                      {entry.archived ? (
-                        <span className="entry-block-archived-tag">Archived</span>
-                      ) : (
-                        <button
-                          className="entry-block-action"
-                          onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
-                          title="Archive entry"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-                          Archive
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {filteredEntries.length === 0 && (
+                {dueSoonRows.length > 0 ? (
+                  dueSoonRows.map((row, i) => (
+                    <EntryBox key={`due-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                  ))
+                ) : (
                   <p className="dash-section-empty">Nothing due soon</p>
                 )}
               </div>
@@ -554,32 +541,11 @@ export function Dashboard() {
                 </h2>
               </div>
               <div className="dash-section-body">
-                {filteredEntries.slice(Math.ceil(filteredEntries.length / 2)).map((entry, i) => (
-                  <div key={`upnext-${entry.project_name}-${i}`} className="entry-block glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
-                    <div className="entry-block-top">
-                      <span className="entry-block-project">{entry.project_name as string}</span>
-                      <span className="entry-block-date">{getEntryDate(entry)}</span>
-                    </div>
-                    <div className="entry-block-content">
-                      {getEntrySnippet(entry)}
-                    </div>
-                    <div className="entry-block-footer">
-                      {entry.archived ? (
-                        <span className="entry-block-archived-tag">Archived</span>
-                      ) : (
-                        <button
-                          className="entry-block-action"
-                          onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
-                          title="Archive entry"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-                          Archive
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {filteredEntries.length === 0 && (
+                {upNextRows.length > 0 ? (
+                  upNextRows.map((row, i) => (
+                    <EntryBox key={`upnext-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                  ))
+                ) : (
                   <p className="dash-section-empty">Nothing up next this week</p>
                 )}
               </div>
