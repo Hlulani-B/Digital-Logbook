@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { Stats } from "@/components/Stats";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { getAllEntries, sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
@@ -37,9 +38,6 @@ export function Dashboard() {
 
   // View mode: "due-soon" shows only entries due within 3 days, "all-entries" shows everything
   const [viewMode, setViewMode] = useState<"due-soon" | "all-entries">("due-soon");
-
-  // Stats panel
-  const [statsOpen, setStatsOpen] = useState(false);
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -133,50 +131,6 @@ export function Dashboard() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  // Calculate total time tracked (including in-progress tasks)
-  const totalTimeTracked = useMemo(() => {
-    const now = Date.now();
-    let totalMs = 0;
-    let inProgressCount = 0;
-
-    entries.forEach((entry) => {
-      // For completed tasks: use stored duration directly
-      if (entry.duration && entry.ended_at) {
-        // Parse duration string (format: "HH:MM:SS" or similar)
-        const durationStr = String(entry.duration);
-        const parts = durationStr.split(':').map(Number);
-        
-        if (parts.length === 3 && parts.every(p => !isNaN(p))) {
-          // Format: HH:MM:SS
-          const [hours, minutes, seconds] = parts;
-          totalMs += (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
-        } else if (parts.length === 2 && parts.every(p => !isNaN(p))) {
-          // Format: MM:SS
-          const [minutes, seconds] = parts;
-          totalMs += (minutes * 60000) + (seconds * 1000);
-        }
-      }
-      // For in-progress tasks: calculate live duration
-      else if (entry.started_at && !entry.ended_at) {
-        const start = new Date(entry.started_at as string).getTime();
-        if (!isNaN(start)) {
-          totalMs += (now - start);
-          inProgressCount++;
-        }
-      }
-    });
-
-    // Convert to hours and minutes
-    const totalMinutes = Math.floor(totalMs / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    return {
-      display: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
-      inProgressCount,
-    };
-  }, [entries]);
 
   // Filtered entries — uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
@@ -498,50 +452,7 @@ export function Dashboard() {
                 </p>
               )}
             </div>
-            <div className="feed-stats-box">
-              {statsOpen ? (
-                <div className="feed-stats-panel">
-                  <div className="feed-stats-panel-header">
-                    <span className="feed-stats-panel-title">Quick Stats</span>
-                    <button className="feed-stats-panel-close" onClick={() => setStatsOpen(false)} aria-label="Close stats">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="feed-stats-panel-body">
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{entries.length}</span>
-                      <span className="feed-stat-label">Total Entries</span>
-                    </div>
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{projects.length}</span>
-                      <span className="feed-stat-label">Projects</span>
-                    </div>
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{dueSoonRows.length}</span>
-                      <span className="feed-stat-label">Due Soon</span>
-                    </div>
-                    <div className="feed-stat-item">
-                      <span className="feed-stat-value">{totalTimeTracked.display}</span>
-                      <span className="feed-stat-label">
-                        Time Tracked
-                        {totalTimeTracked.inProgressCount > 0 && (
-                          <span style={{ fontSize: "0.7rem", opacity: 0.7, marginLeft: "0.25rem" }}>
-                            ({totalTimeTracked.inProgressCount} in progress)
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button className="feed-stats-btn" onClick={() => setStatsOpen(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                  View Stats
-                </button>
-              )}
-            </div>
+            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
 
