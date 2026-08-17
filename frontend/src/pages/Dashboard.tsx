@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import { getProjectsByEmail } from "@/functions/project/project.js";
+import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon, upNext } from "@/functions/dashboard.js";
@@ -46,6 +46,10 @@ export function Dashboard() {
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectError, setNewProjectError] = useState<string | null>(null);
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -58,16 +62,32 @@ export function Dashboard() {
     if (!email) return;
     setLoading(true);
     try {
-      const [projectsRes, entriesRes, dueSoonRes, upNextRes] = await Promise.all([
+      const [projectsRes, entriesRes, dueSoonRes, upNextRes] = await Promise.allSettled([
         getProjectsByEmail(email),
         getAllEntries(email),
         dueSoon(email, null),
         upNext(email, null),
       ]);
-      setProjects(projectsRes?.projects || []);
-      setEntries(entriesRes?.data || []);
-      setDueSoonRows(dueSoonRes?.data || []);
-      setUpNextRows(upNextRes?.data || []);
+      if (projectsRes.status === "fulfilled") {
+        setProjects(projectsRes.value?.projects || []);
+      } else {
+        console.error("Failed to load projects:", projectsRes.reason);
+      }
+      if (entriesRes.status === "fulfilled") {
+        setEntries(entriesRes.value?.data || []);
+      } else {
+        console.error("Failed to load entries:", entriesRes.reason);
+      }
+      if (dueSoonRes.status === "fulfilled") {
+        setDueSoonRows(dueSoonRes.value?.data || []);
+      } else {
+        console.error("Failed to load due soon:", dueSoonRes.reason);
+      }
+      if (upNextRes.status === "fulfilled") {
+        setUpNextRows(upNextRes.value?.data || []);
+      } else {
+        console.error("Failed to load up next:", upNextRes.reason);
+      }
     } catch (err) {
       console.error("Failed to load data:", err);
     } finally {
@@ -197,6 +217,25 @@ export function Dashboard() {
   const openSettings = (tab: "profile" | "preferences" | "account") => {
     setSettingsTab(tab);
     setSettingsOpen(true);
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim() || !email) return;
+    setCreatingProject(true);
+    setNewProjectError(null);
+    try {
+      await addProject(email, newProjectName.trim(), newProjectDescription.trim() || undefined);
+      setNewProjectOpen(false);
+      setNewProjectName("");
+      setNewProjectDescription("");
+      await loadData();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create project";
+      console.error("Failed to create project:", err);
+      setNewProjectError(message);
+    } finally {
+      setCreatingProject(false);
+    }
   };
 
   const handleArchiveProject = async (projectName: string) => {
@@ -511,16 +550,37 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* New Project Modal — placeholder */}
+      {/* New Project Modal */}
       {newProjectOpen && (
         <div className="modal-overlay" onClick={() => setNewProjectOpen(false)}>
           <div className="modal-card glass" onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-title">New Project</h2>
-            <p style={{ fontSize: "0.875rem", color: "var(--text-dim, var(--text-muted))", margin: "0.5rem 0 1rem", textAlign: "center" }}>
-              Project creation is not available yet. Check back soon.
-            </p>
+            <input
+              type="text"
+              placeholder="Project name"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              className="field-input"
+              autoFocus
+            />
+            <textarea
+              placeholder="Description (optional)"
+              value={newProjectDescription}
+              onChange={(e) => setNewProjectDescription(e.target.value)}
+              className="field-input"
+              rows={3}
+              style={{ resize: "vertical", minHeight: "60px" }}
+            />
+            {newProjectError && (
+              <div className="auth-error" style={{ marginBottom: "0.75rem" }}>
+                {newProjectError}
+              </div>
+            )}
             <div className="modal-actions">
-              <button className="btn-primary" onClick={() => setNewProjectOpen(false)}>OK</button>
+              <button className="btn-secondary" onClick={() => { setNewProjectOpen(false); setNewProjectDescription(""); setNewProjectError(null); }}>Cancel</button>
+              <button className="btn-primary" onClick={handleCreateProject} disabled={creatingProject || !newProjectName.trim()}>
+                {creatingProject ? "Creating..." : "Create"}
+              </button>
             </div>
           </div>
         </div>

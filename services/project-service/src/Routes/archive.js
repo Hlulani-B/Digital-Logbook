@@ -25,40 +25,44 @@ router.post('/archive', async (req, res) => {
     const { function: func, values = {} } = req.body || {};
     if (!func) return res.status(400).json({ error: 'Function not provided' });
 
+    // Use the verified email from the JWT, not the user_email supplied by the client.
+    const user_email = req.userEmail;
+    if (!user_email) {
+      return res.status(401).json({ error: 'Unauthorized: verified email not available' });
+    }
+
     switch (func) {
       case 'archive_project': {
-        const { user_email, project_name } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
+        const { project_name } = values;
+        if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.archive_project(user_email, project_name);
         return res.json(result);
       }
       case 'unarchive_project': {
-        const { user_email, project_name } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
+        const { project_name } = values;
+        if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.unarchive_project(user_email, project_name);
         return res.json(result);
       }
       case 'archive_entry': {
-        const { user_email, project_name, entry_id } = values;
-        if (!user_email || !project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        const { project_name, entry_id } = values;
+        if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.archive_entry(user_email, project_name, entry_id);
         return res.json(result);
       }
       case 'unarchive_entry': {
-        const { user_email, project_name, entry_id } = values;
-        if (!user_email || !project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        const { project_name, entry_id } = values;
+        if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.unarchive_entry(user_email, project_name, entry_id);
         return res.json(result);
       }
       case 'getArchives': {
-        const { user_email, project_name } = values;
-        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const { project_name } = values;
         const result = await archives.getArchives(user_email, project_name || null);
         return res.json(result);
       }
       case 'getUnarchived': {
-        const { user_email, project_name } = values;
-        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const { project_name } = values;
         const result = await archives.getUnarchived(user_email, project_name || null);
         return res.json(result);
       }

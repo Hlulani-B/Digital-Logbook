@@ -3,6 +3,7 @@ import './config.js';
 import express from 'express';
 import cors from 'cors';
 
+import { requireAuth } from './middleware/auth.js';
 import projectRoutes from './Routes/project.js';
 import entryRoutes from './Routes/entries.js';
 import priorityRoutes from './Routes/priority.js';
@@ -47,11 +48,13 @@ app.get('/', (req, res) => {
   res.json({ service: 'project-service', status: 'healthy' });
 });
 
-app.use('/service', projectRoutes);
-app.use('/service', entryRoutes);
-app.use('/service', priorityRoutes);
-app.use('/service', fieldRoutes);
-app.use('/service', archiveRoutes);
+// All /service routes require a valid Supabase JWT.
+// The verified user's email is attached to req.userEmail by requireAuth.
+app.use('/service', requireAuth, projectRoutes);
+app.use('/service', requireAuth, entryRoutes);
+app.use('/service', requireAuth, priorityRoutes);
+app.use('/service', requireAuth, fieldRoutes);
+app.use('/service', requireAuth, archiveRoutes);
 
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
