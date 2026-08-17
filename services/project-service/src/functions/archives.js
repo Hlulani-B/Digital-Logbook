@@ -5,7 +5,7 @@ export class Archives {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ is_archived: true })
+        .update({ archived: true })
         .eq('user_email', user_email)
         .eq('project_name', project_name);
 
@@ -23,7 +23,7 @@ export class Archives {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ is_archived: false })
+        .update({ archived: false })
         .eq('user_email', user_email)
         .eq('project_name', project_name);
 
@@ -69,6 +69,52 @@ export class Archives {
 
       console.log('Entry unarchived successfully');
       return { success: true, message: 'Entry unarchived successfully' };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getArchives(user_email, project_name) {
+    try {
+      let query = supabase
+        .from('entries')
+        .select('*')
+        .eq('user_email', user_email)
+        .eq('archived', true);
+
+      if (project_name) {
+        query = query.eq('project_name', project_name);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return { success: true, data };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getUnarchived(user_email, project_name) {
+    try {
+      let query = supabase
+        .from('entries')
+        .select('*')
+        .eq('user_email', user_email)
+        .eq('archived', false);
+
+      if (project_name) {
+        query = query.eq('project_name', project_name);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return { success: true, data };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };

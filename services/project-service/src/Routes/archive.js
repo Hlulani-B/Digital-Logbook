@@ -14,7 +14,7 @@ try {
 /**
  * input:
  *     function
- *  values("archive_project","unarchive_project","archive_entry","unarchive_entry")
+ *  values("archive_project","unarchive_project","archive_entry","unarchive_entry","getArchives","getUnarchived")
  */
 router.post('/archive', async (req, res) => {
   try {
@@ -48,6 +48,18 @@ router.post('/archive', async (req, res) => {
         const { user_email, project_name, entry } = values;
         if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.unarchive_entry(user_email, project_name, entry);
+        return res.json(result);
+      }
+      case 'getArchives': {
+        const { user_email, project_name } = values;
+        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const result = await archives.getArchives(user_email, project_name || null);
+        return res.json(result);
+      }
+      case 'getUnarchived': {
+        const { user_email, project_name } = values;
+        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const result = await archives.getUnarchived(user_email, project_name || null);
         return res.json(result);
       }
       default:

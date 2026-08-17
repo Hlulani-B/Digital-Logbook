@@ -5,6 +5,7 @@ import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
 import { getAllEntries, addEntry } from "@/functions/project/entries.js";
+import { archiveProject, unarchiveProject, archiveEntry } from "@/functions/project/archives.js";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -203,6 +204,36 @@ export function Dashboard() {
     }
   };
 
+  const handleArchiveProject = async (projectName: string) => {
+    if (!email) return;
+    try {
+      await archiveProject(email, projectName);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to archive project:", err);
+    }
+  };
+
+  const handleUnarchiveProject = async (projectName: string) => {
+    if (!email) return;
+    try {
+      await unarchiveProject(email, projectName);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to unarchive project:", err);
+    }
+  };
+
+  const handleArchiveEntry = async (projectName: string, entry: unknown) => {
+    if (!email) return;
+    try {
+      await archiveEntry(email, projectName, entry);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to archive entry:", err);
+    }
+  };
+
   const getEntrySnippet = (entry: Entry): string => {
     const entryObj = entry.entries as Record<string, unknown> | string;
     if (typeof entryObj === "string") return entryObj.slice(0, 120);
@@ -339,6 +370,13 @@ export function Dashboard() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                 {name}
                 <span className="drawer-badge">{count}</span>
+                <span
+                  className="drawer-item-action"
+                  onClick={(e) => { e.stopPropagation(); handleUnarchiveProject(name); }}
+                  title="Unarchive project"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                </span>
               </button>
             );
           })}
@@ -359,6 +397,13 @@ export function Dashboard() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                   {name}
                   <span className="drawer-badge">{count}</span>
+                  <span
+                    className="drawer-item-action"
+                    onClick={(e) => { e.stopPropagation(); handleArchiveProject(name); }}
+                    title="Archive project"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
+                  </span>
                 </button>
               );
             })}
@@ -445,7 +490,16 @@ export function Dashboard() {
               <div key={`${entry.project_name}-${i}`} className="entry-card glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
                 <div className="entry-card-header">
                   <span className="entry-project-tag">{entry.project_name as string}</span>
-                  <span className="entry-date">{getEntryDate(entry)}</span>
+                  <div className="entry-card-actions">
+                    <span className="entry-date">{getEntryDate(entry)}</span>
+                    <button
+                      className="entry-archive-btn"
+                      onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
+                      title="Archive entry"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+                    </button>
+                  </div>
                 </div>
                 <p className="entry-snippet">{getEntrySnippet(entry)}</p>
               </div>
