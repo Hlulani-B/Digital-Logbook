@@ -204,6 +204,9 @@ export function SettingsPanel({
   const [tab, setTab] = useState<Tab>(initialTab);
   const [saved, setSaved] = useState(false);
 
+  // Get current theme BEFORE initializing prefs so default matches actual theme
+  const { theme: currentTheme, setTheme, isDark } = useTheme();
+
   const profileKey = `${STORAGE_PREFIX}profile_${userId}`;
   const prefsKey = `${STORAGE_PREFIX}prefs_${userId}`;
 
@@ -218,7 +221,7 @@ export function SettingsPanel({
     defaultView: "dashboard",
     weekStartsOn: "monday",
     timeFormat: "24h",
-    theme: "light",
+    theme: currentTheme,
     fontFamily: "lora",
     cornerStyle: "rounded",
     autoSave: true,
@@ -233,7 +236,6 @@ export function SettingsPanel({
   const [prefs, setPrefs] = useState<Preferences>(() =>
     loadSettings(prefsKey, defaultPrefs)
   );
-  const { setTheme, isDark } = useTheme();
 
   // Reset tab when panel opens
   useEffect(() => {
