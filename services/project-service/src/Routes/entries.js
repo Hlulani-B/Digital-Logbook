@@ -27,15 +27,15 @@ router.post('/entry', async (req, res) => {
 
     switch (func) {
       case "add": {
-        const { user_email, project_name, entry_object, due_date, priority, status } = values;
+        const { user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration } = values;
         if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await entries.addEntry(user_email, project_name, entry_object, due_date, priority, status);
+        const result = await entries.addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration);
         return res.json(result);
       }
       case "update": {
-        const { user_email, project_name, entry_id, new_entry, due_date, priority, status } = values;
+        const { user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration } = values;
         if (!user_email || !project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await entries.updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status);
+        const result = await entries.updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration);
         return res.json(result);
       }
       case "delete": {

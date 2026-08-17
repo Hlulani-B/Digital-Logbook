@@ -50,7 +50,9 @@ function toInputDate(value?: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   if (isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
+  // Return YYYY-MM-DDTHH:MM for datetime-local inputs
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatFieldKey(key: string): string {
@@ -121,6 +123,9 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     )
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
+  const [draftStartedAt, setDraftStartedAt] = useState(toInputDate(started_at));
+  const [draftEndedAt, setDraftEndedAt] = useState(toInputDate(ended_at));
+  const [draftDuration, setDraftDuration] = useState(duration || "");
   const [draftPriorityValue, setDraftPriorityValue] = useState(
     priority && PRIORITY_TO_VALUE[priority] !== undefined
       ? PRIORITY_TO_VALUE[priority]
@@ -146,6 +151,8 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
   });
   const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
+  const startedLabel = formatDate(started_at);
+  const endedLabel = formatDate(ended_at);
 
   const priorityClass = priority ? (PRIORITY_CLASS[priority] || "priority-neutral") : "";
 
@@ -160,6 +167,9 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
       )
     );
     setDraftDueDate(toInputDate(due_date));
+    setDraftStartedAt(toInputDate(started_at));
+    setDraftEndedAt(toInputDate(ended_at));
+    setDraftDuration(duration || "");
     setDraftPriorityValue(
       priority && PRIORITY_TO_VALUE[priority] !== undefined
         ? PRIORITY_TO_VALUE[priority]
@@ -198,6 +208,13 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
       const newDueDate = draftDueDate
         ? new Date(draftDueDate).toISOString()
         : null;
+      const newStartedAt = draftStartedAt
+        ? new Date(draftStartedAt).toISOString()
+        : null;
+      const newEndedAt = draftEndedAt
+        ? new Date(draftEndedAt).toISOString()
+        : null;
+      const newDuration = draftDuration || null;
 
       const updatedEntry: EntryRow = {
         ...entry,
@@ -205,10 +222,13 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         due_date: newDueDate,
         priority: newPriorityLabel,
         status: draftStatus,
+        started_at: newStartedAt,
+        ended_at: newEndedAt,
+        duration: newDuration,
       };
 
-      // Single update call with fields, due_date, priority, and status
-      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus);
+      // Single update call with all schema columns
+      await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus, newStartedAt, newEndedAt, newDuration);
 
       onUpdated?.(updatedEntry);
       setIsEditing(false);
@@ -290,9 +310,43 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
           <label className="entry-box__field-key">Due Date</label>
           <input
             className="entry-box__field-input"
-            type="date"
+            type="datetime-local"
             value={draftDueDate}
             onChange={(e) => setDraftDueDate(e.target.value)}
+            disabled={saving}
+          />
+        </div>
+
+        <div className="entry-box__field--editing">
+          <label className="entry-box__field-key">Started At</label>
+          <input
+            className="entry-box__field-input"
+            type="datetime-local"
+            value={draftStartedAt}
+            onChange={(e) => setDraftStartedAt(e.target.value)}
+            disabled={saving}
+          />
+        </div>
+
+        <div className="entry-box__field--editing">
+          <label className="entry-box__field-key">Ended At</label>
+          <input
+            className="entry-box__field-input"
+            type="datetime-local"
+            value={draftEndedAt}
+            onChange={(e) => setDraftEndedAt(e.target.value)}
+            disabled={saving}
+          />
+        </div>
+
+        <div className="entry-box__field--editing">
+          <label className="entry-box__field-key">Duration</label>
+          <input
+            className="entry-box__field-input"
+            type="text"
+            placeholder="e.g. 02:30:00"
+            value={draftDuration}
+            onChange={(e) => setDraftDuration(e.target.value)}
             disabled={saving}
           />
         </div>
@@ -366,6 +420,8 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
       <div className="entry-card__meta">
         <div className="entry-card__meta-left">
           {createdLabel && <span>Created {createdLabel}</span>}
+          {startedLabel && <span>Started {startedLabel}</span>}
+          {endedLabel && <span>Ended {endedLabel}</span>}
           {dueLabel && <span>Due {dueLabel}</span>}
           {duration && <span>{duration}</span>}
         </div>
