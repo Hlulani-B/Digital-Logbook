@@ -502,46 +502,102 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Entries Feed */}
+        {/* Sections: Due Soon + Up Next */}
         {!loading && filteredEntries.length > 0 && (
-          <div className="entries-feed">
-            {/* Sort controls */}
-            <div className="feed-sort-controls">
-              <button className={`sort-btn ${sortBy === "date" ? "active" : ""}`} onClick={() => setSortBy("date")}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Date
-              </button>
-              <button className={`sort-btn ${sortBy === "priority" ? "active" : ""}`} onClick={() => setSortBy("priority")}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-                Priority
-              </button>
-            </div>
-
-            {filteredEntries.map((entry, i) => (
-              <div key={`${entry.project_name}-${i}`} className="entry-block glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
-                <div className="entry-block-top">
-                  <span className="entry-block-project">{entry.project_name as string}</span>
-                  <span className="entry-block-date">{getEntryDate(entry)}</span>
-                </div>
-                <div className="entry-block-content">
-                  {getEntrySnippet(entry)}
-                </div>
-                <div className="entry-block-footer">
-                  {entry.archived ? (
-                    <span className="entry-block-archived-tag">Archived</span>
-                  ) : (
-                    <button
-                      className="entry-block-action"
-                      onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
-                      title="Archive entry"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-                      Archive
-                    </button>
-                  )}
-                </div>
+          <div className="dashboard-sections">
+            {/* Due Soon — top left, default view */}
+            <section className="dash-section dash-section-due">
+              <div className="dash-section-header">
+                <h2 className="dash-section-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Due Soon
+                </h2>
               </div>
-            ))}
+              <div className="dash-section-body">
+                {filteredEntries.slice(0, Math.ceil(filteredEntries.length / 2)).map((entry, i) => (
+                  <div key={`due-${entry.project_name}-${i}`} className="entry-block glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
+                    <div className="entry-block-top">
+                      <span className="entry-block-project">{entry.project_name as string}</span>
+                      <span className="entry-block-date">{getEntryDate(entry)}</span>
+                    </div>
+                    <div className="entry-block-content">
+                      {getEntrySnippet(entry)}
+                    </div>
+                    <div className="entry-block-footer">
+                      {entry.archived ? (
+                        <span className="entry-block-archived-tag">Archived</span>
+                      ) : (
+                        <button
+                          className="entry-block-action"
+                          onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
+                          title="Archive entry"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+                          Archive
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {filteredEntries.length === 0 && (
+                  <p className="dash-section-empty">Nothing due soon</p>
+                )}
+              </div>
+            </section>
+
+            {/* Up Next — This Week */}
+            <section className="dash-section dash-section-upnext">
+              <div className="dash-section-header">
+                <h2 className="dash-section-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Up Next <span className="dash-section-sub">This Week</span>
+                </h2>
+              </div>
+              <div className="dash-section-body">
+                {filteredEntries.slice(Math.ceil(filteredEntries.length / 2)).map((entry, i) => (
+                  <div key={`upnext-${entry.project_name}-${i}`} className="entry-block glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
+                    <div className="entry-block-top">
+                      <span className="entry-block-project">{entry.project_name as string}</span>
+                      <span className="entry-block-date">{getEntryDate(entry)}</span>
+                    </div>
+                    <div className="entry-block-content">
+                      {getEntrySnippet(entry)}
+                    </div>
+                    <div className="entry-block-footer">
+                      {entry.archived ? (
+                        <span className="entry-block-archived-tag">Archived</span>
+                      ) : (
+                        <button
+                          className="entry-block-action"
+                          onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
+                          title="Archive entry"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+                          Archive
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {filteredEntries.length === 0 && (
+                  <p className="dash-section-empty">Nothing up next this week</p>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Sort controls — below sections */}
+        {!loading && filteredEntries.length > 0 && (
+          <div className="feed-sort-controls">
+            <button className={`sort-btn ${sortBy === "date" ? "active" : ""}`} onClick={() => setSortBy("date")}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Date
+            </button>
+            <button className={`sort-btn ${sortBy === "priority" ? "active" : ""}`} onClick={() => setSortBy("priority")}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              Priority
+            </button>
           </div>
         )}
       </main>
