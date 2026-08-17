@@ -440,54 +440,44 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Sections: Due Soon (left) + Up Next (right) — only when NOT searching */}
+        {/* Sections: Due Soon + Up Next — only when NOT searching */}
         {!loading && !searchQuery && (
           <div className="dashboard-sections">
-            {/* Due Soon — top left */}
-            <section className="dash-section dash-section-due">
+            {/* Due Soon */}
+            <div className="dash-section">
               <div className="dash-section-header">
-                <h2 className="dash-section-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  Due Soon
-                </h2>
-                <span className="dash-section-count">{dueSoonRows.length}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <h2 className="dash-section-title">Due Soon</h2>
               </div>
-              <div className="dash-section-body">
+              <hr className="dash-section-divider" />
+              <div className="dash-section-feed">
                 {dueSoonRows.length > 0 ? (
                   dueSoonRows.map((row, i) => (
                     <EntryBox key={`due-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
                   ))
                 ) : (
-                  <div className="dash-section-empty-state">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <p>Nothing due soon</p>
-                  </div>
+                  <p className="dash-section-empty">Nothing due soon</p>
                 )}
               </div>
-            </section>
+            </div>
 
-            {/* Up Next — top right */}
-            <section className="dash-section dash-section-upnext">
+            {/* Up Next */}
+            <div className="dash-section">
               <div className="dash-section-header">
-                <h2 className="dash-section-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Up Next <span className="dash-section-sub">This Week</span>
-                </h2>
-                <span className="dash-section-count">{upNextRows.length}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <h2 className="dash-section-title">Up Next</h2>
               </div>
-              <div className="dash-section-body">
+              <hr className="dash-section-divider" />
+              <div className="dash-section-feed">
                 {upNextRows.length > 0 ? (
                   upNextRows.map((row, i) => (
                     <EntryBox key={`upnext-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
                   ))
                 ) : (
-                  <div className="dash-section-empty-state">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <p>Nothing up next this week</p>
-                  </div>
+                  <p className="dash-section-empty">Nothing up next this week</p>
                 )}
               </div>
-            </section>
+            </div>
           </div>
         )}
 
