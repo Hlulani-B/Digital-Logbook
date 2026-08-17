@@ -238,8 +238,8 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     setMenuOpen(false);
     try {
       const result = archived
-        ? await unarchiveEntry(user_email, project_name, entries)
-        : await archiveEntry(user_email, project_name, entries);
+        ? await unarchiveEntry(user_email, project_name, id)
+        : await archiveEntry(user_email, project_name, id);
 
       if (result?.error) throw new Error(result.error);
       if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
