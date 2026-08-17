@@ -8,7 +8,7 @@ import {
   updateName,
   updateUsername,
   addEmail,
-} from "@/lib/profileService";
+} from "../functions/profile/profile.js";
 
 type Tab = "profile" | "preferences" | "account";
 

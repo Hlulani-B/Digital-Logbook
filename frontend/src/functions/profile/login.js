@@ -2,7 +2,7 @@ const url = "https://profile-service-0zk7.onrender.com";
 
 export async function checkUser(email) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for cold starts
   try {
     const res = await fetch(url + '/service/login', {
       method: 'POST',

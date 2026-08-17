@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateAvatar } from "@/lib/profileService";
+import { updateAvatar } from "../functions/profile/profile.js";
 import { useTheme } from "@/hooks/useTheme";
 
 interface AvatarPickerProps {

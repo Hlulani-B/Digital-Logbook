@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { addEmail, updateName, updateUsername } from "@/lib/profileService";
+import { addEmail, updateName, updateUsername } from "../functions/profile/profile.js";
 
 export function CreateProfile() {
   const { user } = useAuth();

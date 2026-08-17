@@ -21,8 +21,8 @@ export function AuthCallback() {
             const result = await checkUser(email);
             navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
           } catch (err) {
-            console.error("checkUser failed:", err);
-            navigate("/dashboard", { replace: true });
+            console.error("checkUser failed, defaulting to create-profile:", err);
+            navigate("/create-profile", { replace: true });
           }
           return;
         }
@@ -36,8 +36,8 @@ export function AuthCallback() {
             const result = await checkUser(email);
             navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
           } catch (err) {
-            console.error("checkUser failed:", err);
-            navigate("/dashboard", { replace: true });
+            console.error("checkUser failed, defaulting to create-profile:", err);
+            navigate("/create-profile", { replace: true });
           }
           return;
         }
