@@ -4,9 +4,10 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
-import { getAllEntries, addEntry } from "@/functions/project/entries.js";
+import { getAllEntries, addEntry, sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject, archiveEntry } from "@/functions/project/archives.js";
 import { dueSoon, upNext } from "@/functions/dashboard.js";
+import { searchAll, searchProject } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 
 type Entry = Record<string, unknown>;
@@ -36,6 +37,8 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [upNextRows, setUpNextRows] = useState<Entry[]>([]);
+  const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
+  const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
 
   // Sort state
   const [sortBy, setSortBy] = useState<"date" | "priority">("date");
@@ -102,59 +105,62 @@ export function Dashboard() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Filtered entries
+  // Filtered entries — uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
+    // If search results are available, use them
+    if (searchResults !== null) return searchResults;
+
+    // If archive view, use archiveRows
+    if (activeView === "archives") return archiveRows;
+
+    // Otherwise use all entries (unarchived)
     let filtered = [...entries];
 
-    // Filter by view
     if (activeView === "recent") {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       filtered = filtered.filter((e) => new Date(e.created_at as string) >= weekAgo);
-      // Only unarchived in recent
-      filtered = filtered.filter((e) => !e.archived);
-    } else if (activeView === "archives") {
-      // Show only archived entries
-      filtered = filtered.filter((e) => e.archived);
-    } else if (activeView !== "all" && activeView !== "drafts") {
-      // Filter by project name
+    } else if (activeView !== "all" && activeView !== "drafts" && activeView !== "archives") {
       filtered = filtered.filter((e) => e.project_name === activeView);
-      // Only unarchived when viewing a specific project
-      filtered = filtered.filter((e) => !e.archived);
-    } else {
-      // Default: only show unarchived
-      filtered = filtered.filter((e) => !e.archived);
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((e) => {
-        const entryObj = e.entries as Record<string, unknown> | string;
-        const entryStr = typeof entryObj === "string" ? entryObj : JSON.stringify(entryObj);
-        return (
-          (e.project_name as string)?.toLowerCase().includes(q) ||
-          entryStr.toLowerCase().includes(q) ||
-          (e.title as string)?.toLowerCase().includes(q)
-        );
-      });
-    }
-
-    // Sort
-    if (sortBy === "priority") {
-      const priorityOrder = ['Urgent and important', 'Urgent but not important', 'Not urgent, not important'];
-      filtered.sort((a, b) => {
-        const aIdx = priorityOrder.indexOf(a.priority as string);
-        const bIdx = priorityOrder.indexOf(b.priority as string);
-        return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
-      });
-    } else {
-      // Sort by created_at descending
-      filtered.sort((a, b) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime());
     }
 
     return filtered;
-  }, [entries, activeView, searchQuery, sortBy]);
+  }, [entries, activeView, searchResults, archiveRows]);
+
+  // Search using provided search functions
+  useEffect(() => {
+    if (!searchQuery.trim() || !email) {
+      setSearchResults(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const result = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives")
+        ? await searchProject(email, activeView, searchQuery.trim())
+        : await searchAll(email, searchQuery.trim());
+      if (!cancelled) {
+        setSearchResults(result?.data || []);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [searchQuery, activeView, email]);
+
+  // Sort using provided sort functions
+  useEffect(() => {
+    if (!email || searchResults !== null) return; // don't sort search results
+    (async () => {
+      const project = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts") ? activeView : null;
+      const sortType = sortBy === "date" ? 0 : 1;
+      if (activeView === "archives") {
+        const { sortArchivedEntries } = await import("@/functions/project/entries.js");
+        const result = await sortArchivedEntries(email, project, sortType);
+        if (result?.data) setArchiveRows(result.data);
+      } else {
+        const result = await sortUnarchivedEntries(email, project, sortType);
+        if (result?.data) setEntries(result.data);
+      }
+    })();
+  }, [sortBy, activeView, email, searchResults]);
 
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
@@ -482,35 +488,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && filteredEntries.length === 0 && (
-          <div className="empty-state animate-in">
-            <div className="empty-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="11" x2="12" y2="17" />
-                <line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-            </div>
-            <h2 className="empty-title">
-              {searchQuery ? "No matching entries" : "No entries yet"}
-            </h2>
-            <p className="empty-desc">
-              {searchQuery
-                ? `No entries match "${searchQuery}". Try a different search term.`
-                : "Start logging your work. Create your first entry to get started."}
-            </p>
-            {!searchQuery && (
-              <button className="btn-primary empty-cta" onClick={() => setNewEntryOpen(true)}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Create your first entry
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Sections: Due Soon + Up Next */}
+        {/* Sections: Due Soon + Up Next — always visible */}
         {!loading && (
           <div className="dashboard-sections">
             {/* Due Soon — top left, default view */}
@@ -553,6 +531,26 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* Empty State — only when no filtered entries AND not showing sections with data */}
+        {!loading && filteredEntries.length === 0 && !searchQuery && (
+          <div className="empty-state animate-in">
+            <div className="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+              </svg>
+            </div>
+            <h2 className="empty-title">No entries yet</h2>
+            <p className="empty-desc">Start logging your work. Create your first entry to get started.</p>
+            <button className="btn-primary empty-cta" onClick={() => setNewEntryOpen(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create your first entry
+            </button>
+          </div>
+        )}
+
         {/* Sort controls — below sections */}
         {!loading && filteredEntries.length > 0 && (
           <div className="feed-sort-controls">
@@ -564,6 +562,15 @@ export function Dashboard() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
               Priority
             </button>
+          </div>
+        )}
+
+        {/* Entries feed — sorted/searched/filtered entries below sections */}
+        {!loading && filteredEntries.length > 0 && (
+          <div className="entries-feed">
+            {filteredEntries.map((row, i) => (
+              <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+            ))}
           </div>
         )}
       </main>
