@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
 import { setPriority } from "../functions/project/priority.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";

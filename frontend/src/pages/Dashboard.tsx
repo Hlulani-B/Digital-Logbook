@@ -5,7 +5,7 @@ import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
 import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { archiveProject, unarchiveProject, archiveEntry } from "@/functions/project/archives.js";
+import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon, upNext } from "@/functions/dashboard.js";
 import { searchAll, searchProject } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
@@ -240,37 +240,6 @@ export function Dashboard() {
     }
   };
 
-  const handleArchiveEntry = async (projectName: string, entry: unknown) => {
-    if (!email) return;
-    try {
-      await archiveEntry(email, projectName, entry);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to archive entry:", err);
-    }
-  };
-
-  const getEntrySnippet = (entry: Entry): string => {
-    const entryObj = entry.entries as Record<string, unknown> | string;
-    if (typeof entryObj === "string") return entryObj.slice(0, 120);
-    if (entryObj && typeof entryObj === "object") {
-      const values = Object.values(entryObj);
-      return values.join(" ").slice(0, 120);
-    }
-    return "No content";
-  };
-
-  const getEntryDate = (entry: Entry): string => {
-    const date = new Date(entry.created_at as string);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
-
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
@@ -364,6 +333,10 @@ export function Dashboard() {
           <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { setActiveView("drafts"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Drafts
+          </button>
+          <button className="drawer-item" onClick={() => {}} style={{ opacity: 0.6, cursor: "default" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            My Stats
           </button>
         </div>
 
