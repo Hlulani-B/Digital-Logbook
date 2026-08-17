@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
+import { getProjectsByEmail } from "@/functions/project/project.js";
 import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon, upNext } from "@/functions/dashboard.js";

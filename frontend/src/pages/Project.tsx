@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
-  addProject,
   editProjectName,
   deleteProject,
   getProjectsByEmail,
