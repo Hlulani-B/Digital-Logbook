@@ -20,7 +20,7 @@ export function Dashboard() {
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | string>("all");
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>("all");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,6 +99,10 @@ export function Dashboard() {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       filtered = filtered.filter((e) => new Date(e.created_at as string) >= weekAgo);
+    } else if (activeView === "archives") {
+      // Show entries from archived projects only
+      const archivedNames = projects.filter((p) => p.archived).map((p) => p.project_name as string);
+      filtered = filtered.filter((e) => archivedNames.includes(e.project_name as string));
     } else if (activeView !== "all" && activeView !== "drafts") {
       // Filter by project name
       filtered = filtered.filter((e) => e.project_name === activeView);
@@ -316,6 +320,30 @@ export function Dashboard() {
           </button>
         </div>
 
+        <div className="drawer-section">
+          <p className="drawer-section-title">Archive</p>
+          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+            Archived Projects
+            <span className="drawer-badge">{projects.filter((p) => p.archived).length}</span>
+          </button>
+          {projects.filter((p) => p.archived).map((project) => {
+            const name = project.project_name as string;
+            const count = entries.filter((e) => e.project_name === name).length;
+            return (
+              <button
+                key={name}
+                className={`drawer-item drawer-item-archived ${activeView === name ? "active" : ""}`}
+                onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                {name}
+                <span className="drawer-badge">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="drawer-section drawer-projects">
           <p className="drawer-section-title">Projects</p>
           <div className="drawer-project-list">
@@ -353,7 +381,7 @@ export function Dashboard() {
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <h1 className="feed-title">
-            {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView}
+            {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
           </h1>
           {searchQuery && (
             <p className="feed-subtitle">
