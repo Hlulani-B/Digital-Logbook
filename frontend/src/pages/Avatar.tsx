@@ -8,27 +8,32 @@ import { updateAvatar } from "../functions/profile/profile.js";
  
 // Preset avatar options (DiceBear "identicon" / "shapes" style seeds)
 const AVATAR_OPTIONS = [
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Sunset",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Ocean",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Forest",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Ember",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Storm",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Meadow",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Nova",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Comet",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Aurora",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Nebula",
+  // Original Geometric & Abstract Identicons / Shapes
+ 
   "https://api.dicebear.com/7.x/shapes/svg?seed=Solstice",
   "https://api.dicebear.com/7.x/shapes/svg?seed=Zenith",
-  // Feminine-styled additions (DiceBear "avataaars" style, soft palettes)
+
+  // Feminine / Girly Avatars (Avataaars & Lorelei with Pastel/Pink Backgrounds)
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Bella&backgroundColor=ffd6e8",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Rosa&backgroundColor=ffe0f0",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna&backgroundColor=f3d9fa",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia&backgroundColor=ffe4ec",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Ivy&backgroundColor=fbe4ff",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco&backgroundColor=ffe9f3",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Daisy&backgroundColor=ffd1dc",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Chloe&backgroundColor=f3c5ff",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Ruby&backgroundColor=ffe3ec",
+
+  // Retro / Pixel-Art Avatars (8-bit Pixel Art & Classic Arcade Styles)
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Arcade&backgroundColor=f8b195",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=PixelSam&backgroundColor=f87171",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=RetroGirl&backgroundColor=fbbf24",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=GameBoy&backgroundColor=34d399",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=CyberPunk&backgroundColor=60a5fa",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=8BitHero&backgroundColor=a78bfa",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=RetroBot&backgroundColor=f3a683",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=VintageTech&backgroundColor=778beb"
 ];
- 
 interface AvatarPageProps {
   currentAvatar?: string;
   onUpdated?: (avatarUrl: string) => void;
