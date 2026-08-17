@@ -528,24 +528,16 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* New Project Modal */}
+      {/* New Project Modal — placeholder */}
       {newProjectOpen && (
         <div className="modal-overlay" onClick={() => setNewProjectOpen(false)}>
           <div className="modal-card glass" onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-title">New Project</h2>
-            <input
-              type="text"
-              placeholder="Project name"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              className="field-input"
-              autoFocus
-            />
+            <p style={{ fontSize: "0.875rem", color: "var(--text-dim, var(--text-muted))", margin: "0.5rem 0 1rem", textAlign: "center" }}>
+              Project creation is not available yet. Check back soon.
+            </p>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setNewProjectOpen(false)}>Cancel</button>
-              <button className="btn-primary" onClick={handleCreateProject} disabled={creatingProject || !newProjectName.trim()}>
-                {creatingProject ? "Creating..." : "Create"}
-              </button>
+              <button className="btn-primary" onClick={() => setNewProjectOpen(false)}>OK</button>
             </div>
           </div>
         </div>
