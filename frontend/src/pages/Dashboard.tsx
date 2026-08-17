@@ -5,7 +5,7 @@ import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
-import { getAllEntries, sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
+import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject } from "@/functions/dashboard/search.js";
