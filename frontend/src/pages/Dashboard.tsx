@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
+import { getProjectsByEmail } from "@/functions/project/project.js";
 import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon, upNext } from "@/functions/dashboard.js";
@@ -47,8 +47,6 @@ export function Dashboard() {
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
-  const [creatingProject, setCreatingProject] = useState(false);
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -200,21 +198,6 @@ export function Dashboard() {
   const openSettings = (tab: "profile" | "preferences" | "account") => {
     setSettingsTab(tab);
     setSettingsOpen(true);
-  };
-
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim() || !email) return;
-    setCreatingProject(true);
-    try {
-      await addProject(email, newProjectName.trim());
-      setNewProjectOpen(false);
-      setNewProjectName("");
-      await loadData();
-    } catch (err) {
-      console.error("Failed to create project:", err);
-    } finally {
-      setCreatingProject(false);
-    }
   };
 
   const handleArchiveProject = async (projectName: string) => {
