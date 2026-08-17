@@ -1,10 +1,13 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import { getProjectsByEmail } from "@/functions/project/project.js";
-import { getAllEntries } from "@/functions/project/entries.js";
+import { getProjectsByEmail, addProject } from "@/functions/project/project.js";
+import { getAllEntries, addEntry } from "@/functions/project/entries.js";
+
+type Entry = Record<string, unknown>;
+type Project = Record<string, unknown>;
 
 export function Dashboard() {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
@@ -15,71 +18,114 @@ export function Dashboard() {
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
   const navigate = useNavigate();
 
-  // Backend data stats
-  const [totalEntries, setTotalEntries] = useState(0);
-  const [weekEntries, setWeekEntries] = useState(0);
-  const [projectCount, setProjectCount] = useState(0);
-  const [statsLoading, setStatsLoading] = useState(true);
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | string>("all");
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Data state
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // FAB menu
+  const [fabOpen, setFabOpen] = useState(false);
+
+  // New project modal
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  // New entry modal
+  const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [newEntryProject, setNewEntryProject] = useState("");
+  const [newEntryContent, setNewEntryContent] = useState("");
+  const [creatingEntry, setCreatingEntry] = useState(false);
 
   const email = user?.email || "";
 
-  const loadStats = useCallback(async () => {
+  // Load data
+  const loadData = useCallback(async () => {
     if (!email) return;
-    setStatsLoading(true);
+    setLoading(true);
     try {
       const [projectsRes, entriesRes] = await Promise.all([
         getProjectsByEmail(email),
         getAllEntries(email),
       ]);
-
-      // Projects count (exclude archived)
-      const projects = projectsRes?.projects || [];
-      setProjectCount(projects.filter((p: Record<string, unknown>) => !p.archived).length);
-
-      // Entries count
-      const allEntries = entriesRes?.data || [];
-      setTotalEntries(allEntries.length);
-
-      // This week entries (since start of current week — Monday)
-      const now = new Date();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-      monday.setHours(0, 0, 0, 0);
-      const weekCount = allEntries.filter((e: Record<string, unknown>) => {
-        const created = new Date(e.created_at as string);
-        return created >= monday;
-      }).length;
-      setWeekEntries(weekCount);
+      setProjects(projectsRes?.projects || []);
+      setEntries(entriesRes?.data || []);
     } catch (err) {
-      console.error("Failed to load dashboard stats:", err);
+      console.error("Failed to load data:", err);
     } finally {
-      setStatsLoading(false);
+      setLoading(false);
     }
   }, [email]);
 
   useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    loadData();
+  }, [loadData]);
 
-  // Check if this is a new user synchronously and mark as visited
-  const isNewUser = useMemo(() => {
-    if (!user?.id) return true;
-    const key = `dl_visited_${user.id}`;
-    const hasVisited = localStorage.getItem(key);
-    if (!hasVisited) {
-      localStorage.setItem(key, "true");
-      return true;
+  // Focus search input when opened
+  useEffect(() => {
+    if (searchOpen && searchRef.current) {
+      searchRef.current.focus();
     }
-    return false;
-  }, [user?.id]);
+  }, [searchOpen]);
 
-  const fullDisplayName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email ||
-    "User";
+  // Close drawer on escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDrawerOpen(false);
+        setFabOpen(false);
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
-  // Use preferred name if set, otherwise fall back to Google name
+  // Filtered entries
+  const filteredEntries = useMemo(() => {
+    let filtered = [...entries];
+
+    // Filter by view
+    if (activeView === "recent") {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      filtered = filtered.filter((e) => new Date(e.created_at as string) >= weekAgo);
+    } else if (activeView !== "all" && activeView !== "drafts") {
+      // Filter by project name
+      filtered = filtered.filter((e) => e.project_name === activeView);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((e) => {
+        const entryObj = e.entries as Record<string, unknown> | string;
+        const entryStr = typeof entryObj === "string" ? entryObj : JSON.stringify(entryObj);
+        return (
+          (e.project_name as string)?.toLowerCase().includes(q) ||
+          entryStr.toLowerCase().includes(q) ||
+          (e.title as string)?.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    // Sort by created_at descending
+    filtered.sort((a, b) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime());
+
+    return filtered;
+  }, [entries, activeView, searchQuery]);
+
+  // User info
+  const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
   const preferredName = (() => {
     if (!user?.id) return fullDisplayName;
     try {
@@ -91,7 +137,6 @@ export function Dashboard() {
     } catch {}
     return fullDisplayName;
   })();
-
   const avatarUrl = user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || "email";
 
@@ -113,9 +158,7 @@ export function Dashboard() {
       await deleteAccount();
       navigate("/signin");
     } catch (err) {
-      setDeleteError(
-        err instanceof Error ? err.message : "Failed to delete account"
-      );
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
       setDeleting(false);
     }
   };
@@ -125,14 +168,73 @@ export function Dashboard() {
     setSettingsOpen(true);
   };
 
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim() || !email) return;
+    setCreatingProject(true);
+    try {
+      await addProject(email, newProjectName.trim());
+      setNewProjectOpen(false);
+      setNewProjectName("");
+      await loadData();
+    } catch (err) {
+      console.error("Failed to create project:", err);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handleCreateEntry = async () => {
+    if (!newEntryContent.trim() || !newEntryProject || !email) return;
+    setCreatingEntry(true);
+    try {
+      await addEntry(email, newEntryProject, newEntryContent.trim(), null);
+      setNewEntryOpen(false);
+      setNewEntryContent("");
+      setNewEntryProject("");
+      await loadData();
+    } catch (err) {
+      console.error("Failed to create entry:", err);
+    } finally {
+      setCreatingEntry(false);
+    }
+  };
+
+  const getEntrySnippet = (entry: Entry): string => {
+    const entryObj = entry.entries as Record<string, unknown> | string;
+    if (typeof entryObj === "string") return entryObj.slice(0, 120);
+    if (entryObj && typeof entryObj === "object") {
+      const values = Object.values(entryObj);
+      return values.join(" ").slice(0, 120);
+    }
+    return "No content";
+  };
+
+  const getEntryDate = (entry: Entry): string => {
+    const date = new Date(entry.created_at as string);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      {/* Navbar */}
+      {/* Top Navigation */}
       <nav className="navbar">
         <div className="navbar-inner">
-          <div className="nav-brand">
+          <div className="nav-left-group">
+            <button className="nav-hamburger" onClick={() => setDrawerOpen(!drawerOpen)} aria-label="Toggle menu">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <div className="nav-logo">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
@@ -143,112 +245,265 @@ export function Dashboard() {
             <span className="nav-title">Digital Logbook</span>
           </div>
 
-          <div className="nav-user">
-            <ProfileMenu
-              displayName={preferredName}
-              email={user?.email || ""}
-              avatarUrl={avatarUrl}
-              onManageProfile={() => openSettings("profile")}
-              onSettings={() => openSettings("preferences")}
-              onSignOut={handleLogout}
-              signingOut={loggingOut}
-            />
+          <div className="nav-right-group">
+            {searchOpen ? (
+              <div className="nav-search-inline">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  placeholder="Search entries..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="nav-search-input"
+                />
+                <button className="nav-search-close" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <button className="nav-icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </button>
+            )}
+            <div className="nav-user">
+              <ProfileMenu
+                displayName={preferredName}
+                email={user?.email || ""}
+                avatarUrl={avatarUrl}
+                onManageProfile={() => openSettings("profile")}
+                onSettings={() => openSettings("preferences")}
+                onSignOut={handleLogout}
+                signingOut={loggingOut}
+              />
+            </div>
           </div>
         </div>
       </nav>
 
-      {/* Main */}
+      {/* Left Drawer Overlay */}
+      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
+
+      {/* Left Drawer */}
+      <aside className={`drawer ${drawerOpen ? "drawer-open" : ""}`}>
+        <div className="drawer-header">
+          <span className="drawer-title">Navigation</span>
+          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="drawer-section">
+          <p className="drawer-section-title">Views</p>
+          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { setActiveView("all"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            All Entries
+            <span className="drawer-badge">{entries.length}</span>
+          </button>
+          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { setActiveView("recent"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Recent
+          </button>
+          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { setActiveView("drafts"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Drafts
+          </button>
+        </div>
+
+        <div className="drawer-section drawer-projects">
+          <p className="drawer-section-title">Projects</p>
+          <div className="drawer-project-list">
+            {projects.filter((p) => !p.archived).map((project) => {
+              const name = project.project_name as string;
+              const count = entries.filter((e) => e.project_name === name).length;
+              return (
+                <button
+                  key={name}
+                  className={`drawer-item ${activeView === name ? "active" : ""}`}
+                  onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                  {name}
+                  <span className="drawer-badge">{count}</span>
+                </button>
+              );
+            })}
+            {projects.filter((p) => !p.archived).length === 0 && (
+              <p className="drawer-empty">No projects yet</p>
+            )}
+          </div>
+        </div>
+
+        <div className="drawer-footer">
+          <button className="btn-primary drawer-new-btn" onClick={() => { setNewProjectOpen(true); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Project
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
       <main className="dash-main">
-        {/* Greeting */}
-        <div className="dash-greeting animate-in">
-          <h1>
-            {isNewUser ? "Welcome" : "Welcome back"}, {preferredName}
+        {/* Feed Header */}
+        <div className="feed-header animate-in">
+          <h1 className="feed-title">
+            {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView}
           </h1>
-          <p>Your digital logbook dashboard</p>
+          {searchQuery && (
+            <p className="feed-subtitle">
+              {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+            </p>
+          )}
         </div>
 
-        {/* Stats */}
-        <div className="stats-grid">
-          <div className="glass glass-hover stat-card animate-in animate-in-delay-1">
-            <div className="stat-icon purple">
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <p className="stat-label">Total Entries</p>
-            <p className="stat-value">{statsLoading ? "—" : totalEntries}</p>
-          </div>
-
-          <div className="glass glass-hover stat-card animate-in animate-in-delay-2">
-            <div className="stat-icon green">
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="stat-label">This Week</p>
-            <p className="stat-value">{statsLoading ? "—" : weekEntries}</p>
-          </div>
-
-          <div className="glass glass-hover stat-card animate-in animate-in-delay-3">
-            <div className="stat-icon amber">
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </div>
-            <p className="stat-label">Projects</p>
-            <p className="stat-value">{statsLoading ? "—" : projectCount}</p>
-          </div>
+        {/* Search bar inline for mobile */}
+        <div className="feed-search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            type="text"
+            placeholder="Filter entries..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="feed-search-input"
+          />
         </div>
 
-        {/* Quick Actions */}
-        <div className="glass section-card animate-in animate-in-delay-3">
-          <h2 className="section-title">Quick Actions</h2>
-          <div className="actions-row">
-            <button className="btn-primary" onClick={() => navigate("/projects")}>
-              <span className="flex items-center gap-2">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                New Entry
-              </span>
-            </button>
-            <button className="btn-secondary" onClick={() => navigate("/projects")}>
-              <span className="flex items-center gap-2">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                Your Projects
-              </span>
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={async () => {
-                if (!email) return;
-                try {
-                  const res = await getAllEntries(email);
-                  const entries = res?.data || [];
-                  const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `logbook-entries-${new Date().toISOString().slice(0, 10)}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } catch (err) {
-                  console.error("Export failed:", err);
-                }
-              }}
-            >
-              <span className="flex items-center gap-2">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export Data
-              </span>
-            </button>
+        {/* Loading */}
+        {loading && (
+          <div className="feed-loading">
+            <div className="animate-spin" style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--accent)" }} />
+            <p>Loading entries...</p>
           </div>
-        </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredEntries.length === 0 && (
+          <div className="empty-state animate-in">
+            <div className="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+              </svg>
+            </div>
+            <h2 className="empty-title">
+              {searchQuery ? "No matching entries" : "No entries yet"}
+            </h2>
+            <p className="empty-desc">
+              {searchQuery
+                ? `No entries match "${searchQuery}". Try a different search term.`
+                : "Start logging your work. Create your first entry to get started."}
+            </p>
+            {!searchQuery && (
+              <button className="btn-primary empty-cta" onClick={() => setNewEntryOpen(true)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create your first entry
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Entries Feed */}
+        {!loading && filteredEntries.length > 0 && (
+          <div className="entries-feed">
+            {filteredEntries.map((entry, i) => (
+              <div key={`${entry.project_name}-${i}`} className="entry-card glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
+                <div className="entry-card-header">
+                  <span className="entry-project-tag">{entry.project_name as string}</span>
+                  <span className="entry-date">{getEntryDate(entry)}</span>
+                </div>
+                <p className="entry-snippet">{getEntrySnippet(entry)}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
+
+      {/* FAB */}
+      <div className="fab-container">
+        {fabOpen && (
+          <div className="fab-menu">
+            <button className="fab-menu-item" onClick={() => { setNewEntryOpen(true); setFabOpen(false); }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              New Entry
+            </button>
+            <button className="fab-menu-item" onClick={() => { setNewProjectOpen(true); setFabOpen(false); }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+              New Project
+            </button>
+          </div>
+        )}
+        <button className={`fab ${fabOpen ? "fab-open" : ""}`} onClick={() => setFabOpen(!fabOpen)} aria-label="Quick actions">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* New Project Modal */}
+      {newProjectOpen && (
+        <div className="modal-overlay" onClick={() => setNewProjectOpen(false)}>
+          <div className="modal-card glass" onClick={(e) => e.stopPropagation()}>
+            <h2 className="modal-title">New Project</h2>
+            <input
+              type="text"
+              placeholder="Project name"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              className="field-input"
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setNewProjectOpen(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleCreateProject} disabled={creatingProject || !newProjectName.trim()}>
+                {creatingProject ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Entry Modal */}
+      {newEntryOpen && (
+        <div className="modal-overlay" onClick={() => setNewEntryOpen(false)}>
+          <div className="modal-card glass" onClick={(e) => e.stopPropagation()}>
+            <h2 className="modal-title">New Entry</h2>
+            <select
+              className="field-input"
+              value={newEntryProject}
+              onChange={(e) => setNewEntryProject(e.target.value)}
+            >
+              <option value="">Select a project...</option>
+              {projects.filter((p) => !p.archived).map((p) => (
+                <option key={p.project_name as string} value={p.project_name as string}>{p.project_name as string}</option>
+              ))}
+            </select>
+            <textarea
+              placeholder="What did you work on?"
+              value={newEntryContent}
+              onChange={(e) => setNewEntryContent(e.target.value)}
+              className="field-input"
+              rows={4}
+              autoFocus
+              style={{ resize: "vertical", minHeight: "80px" }}
+            />
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setNewEntryOpen(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleCreateEntry} disabled={creatingEntry || !newEntryContent.trim() || !newEntryProject}>
+                {creatingEntry ? "Saving..." : "Save Entry"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Panel */}
       <SettingsPanel
