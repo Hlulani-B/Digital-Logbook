@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 type Provider = "google" | "github";
 
 const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
+const DISABLE_CAPTCHA = import.meta.env.VITE_DISABLE_CAPTCHA === "true";
 
 export function SignIn() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export function SignIn() {
   };
 
   const handleSignIn = async (provider: Provider) => {
-    if (!captchaVerified) return;
+    if (!DISABLE_CAPTCHA && !captchaVerified) return;
     setOauthLoading(provider);
     setError(null);
     setSuccess(null);
@@ -77,7 +78,7 @@ export function SignIn() {
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!captchaVerified) return;
+    if (!DISABLE_CAPTCHA && !captchaVerified) return;
 
     if (mode === "signup" && password !== confirmPassword) {
       setError("Passwords do not match");
@@ -89,10 +90,10 @@ export function SignIn() {
     setSuccess(null);
     try {
       if (mode === "signin") {
-        await signInWithEmail(email, password, captchaTokenRef.current || undefined);
+        await signInWithEmail(email, password, DISABLE_CAPTCHA ? undefined : captchaTokenRef.current || undefined);
         await routeAfterAuth(email);
       } else {
-        await signUpWithEmail(email, password, captchaTokenRef.current || undefined);
+        await signUpWithEmail(email, password, DISABLE_CAPTCHA ? undefined : captchaTokenRef.current || undefined);
         setSuccess(
           "Account created! Please check your email to confirm your account before signing in."
         );
@@ -280,7 +281,7 @@ export function SignIn() {
           <div className="auth-buttons">
             <button
               onClick={() => handleSignIn("google")}
-              disabled={isLoading || !captchaVerified}
+              disabled={isLoading || (!DISABLE_CAPTCHA && !captchaVerified)}
               className="oauth-btn"
               data-provider="google"
               aria-label="Continue with Google"
@@ -296,7 +297,7 @@ export function SignIn() {
 
             <button
               onClick={() => handleSignIn("github")}
-              disabled={isLoading || !captchaVerified}
+              disabled={isLoading || (!DISABLE_CAPTCHA && !captchaVerified)}
               className="oauth-btn"
               data-provider="github"
               aria-label="Continue with GitHub"

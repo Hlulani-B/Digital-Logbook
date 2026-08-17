@@ -38,7 +38,9 @@ export function Dashboard() {
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectError, setNewProjectError] = useState<string | null>(null);
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -53,12 +55,20 @@ export function Dashboard() {
     if (!email) return;
     setLoading(true);
     try {
-      const [projectsRes, entriesRes] = await Promise.all([
+      const [projectsRes, entriesRes] = await Promise.allSettled([
         getProjectsByEmail(email),
         getAllEntries(email),
       ]);
-      setProjects(projectsRes?.projects || []);
-      setEntries(entriesRes?.data || []);
+      if (projectsRes.status === "fulfilled") {
+        setProjects(projectsRes.value?.projects || []);
+      } else {
+        console.error("Failed to load projects:", projectsRes.reason);
+      }
+      if (entriesRes.status === "fulfilled") {
+        setEntries(entriesRes.value?.data || []);
+      } else {
+        console.error("Failed to load entries:", entriesRes.reason);
+      }
     } catch (err) {
       console.error("Failed to load data:", err);
     } finally {
@@ -171,13 +181,17 @@ export function Dashboard() {
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
     setCreatingProject(true);
+    setNewProjectError(null);
     try {
-      await addProject(email, newProjectName.trim());
+      await addProject(email, newProjectName.trim(), newProjectDescription.trim() || undefined);
       setNewProjectOpen(false);
       setNewProjectName("");
+      setNewProjectDescription("");
       await loadData();
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create project";
       console.error("Failed to create project:", err);
+      setNewProjectError(message);
     } finally {
       setCreatingProject(false);
     }
@@ -461,8 +475,21 @@ export function Dashboard() {
               className="field-input"
               autoFocus
             />
+            <textarea
+              placeholder="Description (optional)"
+              value={newProjectDescription}
+              onChange={(e) => setNewProjectDescription(e.target.value)}
+              className="field-input"
+              rows={3}
+              style={{ resize: "vertical", minHeight: "60px" }}
+            />
+            {newProjectError && (
+              <div className="auth-error" style={{ marginBottom: "0.75rem" }}>
+                {newProjectError}
+              </div>
+            )}
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setNewProjectOpen(false)}>Cancel</button>
+              <button className="btn-secondary" onClick={() => { setNewProjectOpen(false); setNewProjectDescription(""); setNewProjectError(null); }}>Cancel</button>
               <button className="btn-primary" onClick={handleCreateProject} disabled={creatingProject || !newProjectName.trim()}>
                 {creatingProject ? "Creating..." : "Create"}
               </button>

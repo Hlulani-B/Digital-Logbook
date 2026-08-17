@@ -1,11 +1,14 @@
-const AUTH_URL = import.meta.env.VITE_AUTH_SERVICE_URL;
-const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_SERVICE_URL;
-const PROJECT_URL = import.meta.env.VITE_PROJECT_SERVICE_URL;
+export const AUTH_URL = import.meta.env.VITE_AUTH_SERVICE_URL;
+export const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_SERVICE_URL;
+export const PROJECT_URL =
+  import.meta.env.VITE_PROJECT_SERVICE_URL || "https://project-service-96ml.onrender.com";
+export const PROFILE_URL =
+  import.meta.env.VITE_PROFILE_SERVICE_URL || "https://profile-service-0zk7.onrender.com";
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = (await import("./supabase")).supabase
-    ? localStorage.getItem("sb-access-token") || ""
-    : "";
+export async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const { supabase } = await import("./supabase");
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || "";
 
   const res = await fetch(url, {
     ...options,

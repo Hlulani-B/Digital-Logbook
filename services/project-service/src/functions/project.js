@@ -1,14 +1,18 @@
 import { supabase } from '../supabase.js';
 
 export class Project {
-  async addProject(user_email, project_name) {
+  async addProject(user_email, project_name, description) {
     try {
       const { error } = await supabase
         .from('projects')
-        .insert({ user_email, project_name })
+        .insert({ user_email, project_name, description })
         .select();
 
       if (error) {
+        // 23505 = unique_violation (e.g. duplicate project name for this user)
+        if (error.code === '23505') {
+          return { success: false, message: 'A project with this name already exists for your account.' };
+        }
         throw error;
       }
 
@@ -70,7 +74,7 @@ export class Project {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('project_name, created_at, archived')
+        .select('project_name, description, created_at, archived')
         .eq('user_email', user_email)
         .order('created_at', { ascending: false });
 

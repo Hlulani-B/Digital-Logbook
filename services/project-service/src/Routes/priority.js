@@ -25,10 +25,16 @@ router.post('/priority', async (req, res) => {
     const { function: func, values = {} } = req.body || {};
     if (!func) return res.status(400).json({ error: 'Function not provided' });
 
+    // Use the verified email from the JWT, not the user_email supplied by the client.
+    const user_email = req.userEmail;
+    if (!user_email) {
+      return res.status(401).json({ error: 'Unauthorized: verified email not available' });
+    }
+
     switch (func) {
       case "set": {
-        const { user_email, priorityValue, project_name, entry_object } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
+        const { priorityValue, project_name, entry_object } = values;
+        if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await priority.setPriority(user_email, priorityValue, project_name, entry_object);
         return res.json(result);
       }

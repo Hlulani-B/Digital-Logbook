@@ -30,6 +30,26 @@ describe('Project', () => {
       expect(supabase.from).toHaveBeenCalledWith('projects');
     });
 
+    it('should add a project with a description', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: [{ user_email: 'a@b.com', project_name: 'My Project', description: 'A test project' }] } }).from(tableName)
+      );
+
+      const result = await project.addProject('a@b.com', 'My Project', 'A test project');
+
+      expect(result).toEqual({ success: true, message: 'Project added successfully' });
+    });
+
+    it('should return a clear error when the project name is a duplicate', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { code: '23505', message: 'duplicate key value violates unique constraint' } } }).from(tableName)
+      );
+
+      const result = await project.addProject('a@b.com', 'My Project');
+
+      expect(result).toEqual({ success: false, message: 'A project with this name already exists for your account.' });
+    });
+
     it('should return failure when Supabase returns an error', async () => {
       supabase.from.mockImplementation((tableName) =>
         createMockSupabaseClient({ [tableName]: { error: { message: 'duplicate key value' } } }).from(tableName)
