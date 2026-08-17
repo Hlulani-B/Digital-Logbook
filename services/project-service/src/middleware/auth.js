@@ -35,7 +35,11 @@ export async function requireAuth(req, res, next) {
   // Ensure a matching row exists in our public.users table. Some auth flows
   // (OAuth, restored sessions, sign-in before the create-profile page ran)
   // never inserted the row, but project FKs depend on it.
-  if (req.userEmail) {
+  //
+  // We only do this when a service-role key is available; otherwise we rely
+  // on the database trigger defined in supabase/migrations/002_* to provision
+  // public.users rows automatically when auth.users is written to.
+  if (req.userEmail && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const { error: upsertError } = await supabase
         .from('users')
