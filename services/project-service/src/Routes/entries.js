@@ -14,7 +14,7 @@ try {
 /**
  * input:
  *     function
- *  values("add","update","delete","get","getAll","sort")
+ *  values("add","update","delete","get","getAll","sortUnarchived","sortArchived")
  */
 router.post('/entry', async (req, res) => {
   try {
@@ -56,10 +56,16 @@ router.post('/entry', async (req, res) => {
         const result = await entries.getAllEntries(user_email);
         return res.json(result);
       }
-      case "sort": {
+      case "sortUnarchived": {
         const { user_email, project_name, sort_type } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await entries.sortEntries(user_email, project_name, sort_type);
+        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const result = await entries.sortUnarchivedEntries(user_email, project_name || null, sort_type);
+        return res.json(result);
+      }
+      case "sortArchived": {
+        const { user_email, project_name, sort_type } = values;
+        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const result = await entries.sortArchivedEntries(user_email, project_name || null, sort_type);
         return res.json(result);
       }
       default:

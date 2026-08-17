@@ -33,6 +33,9 @@ export function Dashboard() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Sort state
+  const [sortBy, setSortBy] = useState<"date" | "priority">("date");
+
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -100,13 +103,19 @@ export function Dashboard() {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       filtered = filtered.filter((e) => new Date(e.created_at as string) >= weekAgo);
+      // Only unarchived in recent
+      filtered = filtered.filter((e) => !e.archived);
     } else if (activeView === "archives") {
-      // Show entries from archived projects only
-      const archivedNames = projects.filter((p) => p.archived).map((p) => p.project_name as string);
-      filtered = filtered.filter((e) => archivedNames.includes(e.project_name as string));
+      // Show only archived entries
+      filtered = filtered.filter((e) => e.archived);
     } else if (activeView !== "all" && activeView !== "drafts") {
       // Filter by project name
       filtered = filtered.filter((e) => e.project_name === activeView);
+      // Only unarchived when viewing a specific project
+      filtered = filtered.filter((e) => !e.archived);
+    } else {
+      // Default: only show unarchived
+      filtered = filtered.filter((e) => !e.archived);
     }
 
     // Filter by search query
@@ -123,11 +132,21 @@ export function Dashboard() {
       });
     }
 
-    // Sort by created_at descending
-    filtered.sort((a, b) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime());
+    // Sort
+    if (sortBy === "priority") {
+      const priorityOrder = ['Urgent and important', 'Urgent but not important', 'Not urgent, not important'];
+      filtered.sort((a, b) => {
+        const aIdx = priorityOrder.indexOf(a.priority as string);
+        const bIdx = priorityOrder.indexOf(b.priority as string);
+        return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+      });
+    } else {
+      // Sort by created_at descending
+      filtered.sort((a, b) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime());
+    }
 
     return filtered;
-  }, [entries, activeView, searchQuery]);
+  }, [entries, activeView, searchQuery, sortBy]);
 
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
@@ -486,22 +505,41 @@ export function Dashboard() {
         {/* Entries Feed */}
         {!loading && filteredEntries.length > 0 && (
           <div className="entries-feed">
+            {/* Sort controls */}
+            <div className="feed-sort-controls">
+              <button className={`sort-btn ${sortBy === "date" ? "active" : ""}`} onClick={() => setSortBy("date")}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Date
+              </button>
+              <button className={`sort-btn ${sortBy === "priority" ? "active" : ""}`} onClick={() => setSortBy("priority")}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                Priority
+              </button>
+            </div>
+
             {filteredEntries.map((entry, i) => (
-              <div key={`${entry.project_name}-${i}`} className="entry-card glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
-                <div className="entry-card-header">
-                  <span className="entry-project-tag">{entry.project_name as string}</span>
-                  <div className="entry-card-actions">
-                    <span className="entry-date">{getEntryDate(entry)}</span>
+              <div key={`${entry.project_name}-${i}`} className="entry-block glass animate-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.5)}s` }}>
+                <div className="entry-block-top">
+                  <span className="entry-block-project">{entry.project_name as string}</span>
+                  <span className="entry-block-date">{getEntryDate(entry)}</span>
+                </div>
+                <div className="entry-block-content">
+                  {getEntrySnippet(entry)}
+                </div>
+                <div className="entry-block-footer">
+                  {entry.archived ? (
+                    <span className="entry-block-archived-tag">Archived</span>
+                  ) : (
                     <button
-                      className="entry-archive-btn"
+                      className="entry-block-action"
                       onClick={() => handleArchiveEntry(entry.project_name as string, entry.entries)}
                       title="Archive entry"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+                      Archive
                     </button>
-                  </div>
+                  )}
                 </div>
-                <p className="entry-snippet">{getEntrySnippet(entry)}</p>
               </div>
             ))}
           </div>

@@ -45,11 +45,20 @@ export async function deleteEntry(user_email, project_name, entry) {
   return res.json();
 }
 
-export async function sortEntries(user_email, project_name, sort_type) {
+export async function sortUnarchivedEntries(user_email, project_name, sort_type) {
   const res = await fetch(url + '/service/entry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ function: 'sort', values: { user_email, project_name, sort_type } })
+    body: JSON.stringify({ function: 'sortUnarchived', values: { user_email, project_name, sort_type } })
+  });
+  return res.json();
+}
+
+export async function sortArchivedEntries(user_email, project_name, sort_type) {
+  const res = await fetch(url + '/service/entry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ function: 'sortArchived', values: { user_email, project_name, sort_type } })
   });
   return res.json();
 }
