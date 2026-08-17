@@ -1,7 +1,7 @@
 import { supabase } from '../supabase.js';
 
 export class Entries {
-  async addEntry(user_email, project_name, entry_object, due_date, priority, status) {
+  async addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration) {
     try {
       // Check if an identical entry already exists before adding
       let error, data;
@@ -25,6 +25,9 @@ export class Entries {
       if (due_date !== undefined) insertData.due_date = due_date;
       if (priority !== undefined) insertData.priority = priority;
       if (status !== undefined) insertData.status = status;
+      if (started_at !== undefined) insertData.started_at = started_at;
+      if (ended_at !== undefined) insertData.ended_at = ended_at;
+      if (duration !== undefined) insertData.duration = duration;
 
       ({ error } = await supabase
         .from('entries')
@@ -43,12 +46,15 @@ export class Entries {
     }
   }
 
-  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status) {
+  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration) {
     try {
       const updateData = { entries: new_entry };
       if (due_date !== undefined) updateData.due_date = due_date;
       if (priority !== undefined) updateData.priority = priority;
       if (status !== undefined) updateData.status = status;
+      if (started_at !== undefined) updateData.started_at = started_at;
+      if (ended_at !== undefined) updateData.ended_at = ended_at;
+      if (duration !== undefined) updateData.duration = duration;
 
       const { data, error } = await supabase
         .from('entries')
