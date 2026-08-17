@@ -444,8 +444,8 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Sections: Due Soon (left) + Up Next (right) — always visible */}
-        {!loading && (
+        {/* Sections: Due Soon (left) + Up Next (right) — only when NOT searching */}
+        {!loading && !searchQuery && (
           <div className="dashboard-sections">
             {/* Due Soon — top left */}
             <section className="dash-section dash-section-due">
@@ -495,47 +495,28 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Empty State — only when no filtered entries AND not showing sections with data */}
-        {!loading && filteredEntries.length === 0 && !searchQuery && (
-          <div className="empty-state animate-in">
-            <div className="empty-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="11" x2="12" y2="17" />
-                <line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-            </div>
-            <h2 className="empty-title">No entries yet</h2>
-            <p className="empty-desc">Start logging your work. Create your first entry to get started.</p>
-            <button className="btn-primary empty-cta" onClick={() => setNewEntryOpen(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Create your first entry
-            </button>
-          </div>
-        )}
-
-        {/* Sort controls — below sections */}
-        {!loading && filteredEntries.length > 0 && (
-          <div className="feed-sort-controls">
-            <button className={`sort-btn ${sortBy === "date" ? "active" : ""}`} onClick={() => setSortBy("date")}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Date
-            </button>
-            <button className={`sort-btn ${sortBy === "priority" ? "active" : ""}`} onClick={() => setSortBy("priority")}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-              Priority
-            </button>
-          </div>
-        )}
-
-        {/* Entries feed — sorted/searched/filtered entries below sections */}
-        {!loading && filteredEntries.length > 0 && (
-          <div className="entries-feed">
-            {filteredEntries.map((row, i) => (
-              <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
-            ))}
-          </div>
+        {/* Search Results — only when searching */}
+        {!loading && searchQuery && (
+          <>
+            {filteredEntries.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <h2 className="empty-title">No results found</h2>
+                <p className="empty-desc">No entries match "{searchQuery}". Try a different search term.</p>
+              </div>
+            ) : (
+              <div className="entries-feed">
+                {filteredEntries.map((row, i) => (
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 
