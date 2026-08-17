@@ -41,9 +41,6 @@ export function Dashboard() {
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
 
-  // Sort state
-  const [sortBy, setSortBy] = useState<"date" | "priority">("date");
-
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -144,22 +141,21 @@ export function Dashboard() {
     return () => { cancelled = true; };
   }, [searchQuery, activeView, email]);
 
-  // Sort using provided sort functions
+  // Sort using provided sort functions (default: date sort)
   useEffect(() => {
-    if (!email || searchResults !== null) return; // don't sort search results
+    if (!email || searchResults !== null) return;
     (async () => {
       const project = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts") ? activeView : null;
-      const sortType = sortBy === "date" ? 0 : 1;
       if (activeView === "archives") {
         const { sortArchivedEntries } = await import("@/functions/project/entries.js");
-        const result = await sortArchivedEntries(email, project, sortType);
+        const result = await sortArchivedEntries(email, project, 0);
         if (result?.data) setArchiveRows(result.data);
       } else {
-        const result = await sortUnarchivedEntries(email, project, sortType);
+        const result = await sortUnarchivedEntries(email, project, 0);
         if (result?.data) setEntries(result.data);
       }
     })();
-  }, [sortBy, activeView, email, searchResults]);
+  }, [activeView, email, searchResults]);
 
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";

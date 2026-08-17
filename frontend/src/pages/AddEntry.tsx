@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { addEntry } from "../functions/project/entries.js";
+import { getFields } from "../functions/project/fields.js";
 
 const PRIORITY_LABELS: Record<string, string> = {
   "3": "No priority",
@@ -8,9 +9,10 @@ const PRIORITY_LABELS: Record<string, string> = {
   "2": "Not urgent, not important",
 };
 
-interface FieldRow {
-  key: string;
-  value: string;
+interface FieldDef {
+  field_name: string;
+  data_type: string;
+  is_required: boolean;
 }
 
 interface AddEntryProps {
@@ -20,7 +22,14 @@ interface AddEntryProps {
   onCancel?: () => void;
 }
 
-function parseFieldValue(value: string): unknown {
+function parseFieldValue(value: string, dataType: string): unknown {
+  if (dataType === "number" || dataType === "integer" || dataType === "float") {
+    const num = Number(value);
+    return isNaN(num) ? value : num;
+  }
+  if (dataType === "boolean") {
+    return value === "true";
+  }
   try {
     return JSON.parse(value);
   } catch {
@@ -28,45 +37,74 @@ function parseFieldValue(value: string): unknown {
   }
 }
 
+function inputTypeForDataType(dataType: string): string {
+  switch (dataType) {
+    case "number":
+    case "integer":
+    case "float":
+      return "number";
+    case "date":
+      return "date";
+    case "boolean":
+      return "text";
+    default:
+      return "text";
+  }
+}
+
 export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEntryProps) {
-  const [fields, setFields] = useState<FieldRow[]>([{ key: "", value: "" }]);
+  const [fields, setFields] = useState<FieldDef[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [dueDate, setDueDate] = useState("");
   const [priorityValue, setPriorityValue] = useState("3");
   const [saving, setSaving] = useState(false);
+  const [loadingFields, setLoadingFields] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFieldKeyChange = (index: number, key: string) => {
-    setFields((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], key };
-      return next;
-    });
-  };
+  // Load predefined fields for this project
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingFields(true);
+      try {
+        const result = await getFields(user_email, project_name);
+        if (!cancelled) {
+          const defs: FieldDef[] = (result?.data || []).map((f: any) => ({
+            field_name: f.field_name,
+            data_type: f.data_type || "text",
+            is_required: !!f.is_required,
+          }));
+          setFields(defs);
+          // Initialize empty values for each field
+          const initial: Record<string, string> = {};
+          for (const f of defs) {
+            initial[f.field_name] = "";
+          }
+          setFieldValues(initial);
+        }
+      } catch (err) {
+        if (!cancelled) setError("Failed to load fields");
+      } finally {
+        if (!cancelled) setLoadingFields(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user_email, project_name]);
 
-  const handleFieldValueChange = (index: number, value: string) => {
-    setFields((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], value };
-      return next;
-    });
-  };
-
-  const handleAddFieldRow = () => {
-    setFields((prev) => [...prev, { key: "", value: "" }]);
-  };
-
-  const handleRemoveFieldRow = (index: number) => {
-    setFields((prev) => prev.filter((_, i) => i !== index));
+  const handleValueChange = (fieldName: string, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [fieldName]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user_email || !project_name || saving) return;
 
-    const cleanedFields = fields.filter((f) => f.key.trim() !== "");
-    if (cleanedFields.length === 0) {
-      setError("Add at least one field for this entry");
-      return;
+    // Validate required fields
+    for (const f of fields) {
+      if (f.is_required && !fieldValues[f.field_name]?.trim()) {
+        setError(`"${f.field_name}" is required`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -74,9 +112,14 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
 
     try {
       const entryObject: Record<string, unknown> = {};
-      for (const { key, value } of cleanedFields) {
-        entryObject[key.trim()] = parseFieldValue(value);
+      for (const f of fields) {
+        const val = fieldValues[f.field_name];
+        if (val !== undefined && val.trim() !== "") {
+          entryObject[f.field_name] = parseFieldValue(val, f.data_type);
+        }
       }
+      // Include priority in entry object
+      entryObject["priority"] = priorityValue;
 
       const result = await addEntry(
         user_email,
@@ -89,16 +132,24 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       if (result?.success === false) throw new Error(result.message || "Failed to add entry");
 
       onAdded?.(result);
-
-      setFields([{ key: "", value: "" }]);
-      setDueDate("");
-      setPriorityValue("3");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add entry");
     } finally {
       setSaving(false);
     }
   };
+
+  if (loadingFields) {
+    return (
+      <div className="add-entry">
+        <div className="add-entry__header">
+          <h2 className="add-entry__title">New Entry</h2>
+          <span className="add-entry__project">{project_name}</span>
+        </div>
+        <div className="add-entry__loading">Loading fields...</div>
+      </div>
+    );
+  }
 
   return (
     <form className="add-entry" onSubmit={handleSubmit}>
@@ -109,48 +160,33 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
 
       {error && <div className="add-entry__error">{error}</div>}
 
-      <div className="add-entry__fields">
-        <span className="add-entry__section-label">Fields</span>
-        {fields.map((field, index) => (
-          <div className="add-entry__field-row" key={index}>
-            <input
-              type="text"
-              className="add-entry__field-input add-entry__field-input--key"
-              placeholder="Field name (e.g. notes, topic_studied)"
-              value={field.key}
-              onChange={(e) => handleFieldKeyChange(index, e.target.value)}
-              disabled={saving}
-            />
-            <input
-              type="text"
-              className="add-entry__field-input add-entry__field-input--value"
-              placeholder="Value"
-              value={field.value}
-              onChange={(e) => handleFieldValueChange(index, e.target.value)}
-              disabled={saving}
-            />
-            {fields.length > 1 && (
-              <button
-                type="button"
-                className="add-entry__remove-field"
-                onClick={() => handleRemoveFieldRow(index)}
+      {fields.length > 0 && (
+        <div className="add-entry__fields">
+          <span className="add-entry__section-label">Fields</span>
+          {fields.map((field) => (
+            <div className="add-entry__field-row" key={field.field_name}>
+              <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
+                {field.field_name}
+                {field.is_required && <span className="add-entry__required">*</span>}
+              </label>
+              <input
+                id={`field-${field.field_name}`}
+                type={inputTypeForDataType(field.data_type)}
+                className="add-entry__field-input"
+                placeholder={`Enter ${field.field_name}`}
+                value={fieldValues[field.field_name] || ""}
+                onChange={(e) => handleValueChange(field.field_name, e.target.value)}
                 disabled={saving}
-                aria-label="Remove field"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ))}
-        <button
-          type="button"
-          className="add-entry__add-field"
-          onClick={handleAddFieldRow}
-          disabled={saving}
-        >
-          + Add field
-        </button>
-      </div>
+                required={field.is_required}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {fields.length === 0 && (
+        <p className="add-entry__no-fields">No fields defined for this project yet.</p>
+      )}
 
       <div className="add-entry__row">
         <div className="add-entry__group">
@@ -201,7 +237,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         <button
           type="submit"
           className="add-entry__btn add-entry__btn--submit"
-          disabled={saving}
+          disabled={saving || loadingFields}
         >
           {saving ? "Adding..." : "Add Entry"}
         </button>
