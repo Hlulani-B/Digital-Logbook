@@ -63,8 +63,6 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [dueDate, setDueDate] = useState("");
   const [startedAt, setStartedAt] = useState("");
-  const [endedAt, setEndedAt] = useState("");
-  const [duration, setDuration] = useState("");
   const [priorityValue, setPriorityValue] = useState("3");
   const [statusValue, setStatusValue] = useState("up_next");
   const [saving, setSaving] = useState(false);
@@ -139,8 +137,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         priorityLabel,
         statusValue,
         startedAt ? new Date(startedAt).toISOString() : null,
-        endedAt ? new Date(endedAt).toISOString() : null,
-        duration || null
+        null, // ended_at - set via End Task button
+        null  // duration - calculated in Supabase
       );
 
       if (result?.error) throw new Error(result.error);
@@ -231,38 +229,9 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             disabled={saving}
           />
         </div>
-
-        <div className="add-entry__group">
-          <label className="add-entry__label" htmlFor="ended-at">
-            Ended At
-          </label>
-          <input
-            id="ended-at"
-            type="datetime-local"
-            className="add-entry__input"
-            value={endedAt}
-            onChange={(e) => setEndedAt(e.target.value)}
-            disabled={saving}
-          />
-        </div>
       </div>
 
       <div className="add-entry__row">
-        <div className="add-entry__group">
-          <label className="add-entry__label" htmlFor="duration">
-            Duration
-          </label>
-          <input
-            id="duration"
-            type="text"
-            className="add-entry__input"
-            placeholder="e.g. 02:30:00"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
         <div className="add-entry__group">
           <label className="add-entry__label" htmlFor="priority">
             Priority

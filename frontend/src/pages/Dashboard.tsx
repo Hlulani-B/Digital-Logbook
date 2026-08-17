@@ -6,7 +6,7 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { getProjectsByEmail } from "@/functions/project/project.js";
 import { getAllEntries, sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
-import { dueSoon, upNext } from "@/functions/dashboard.js";
+import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
@@ -32,12 +32,20 @@ export function Dashboard() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // Sort state
+  const [sortBy, setSortBy] = useState<"priority" | "date">("date");
+
+  // View mode: "due-soon" shows only entries due within 3 days, "all-entries" shows everything
+  const [viewMode, setViewMode] = useState<"due-soon" | "all-entries">("due-soon");
+
+  // Stats panel
+  const [statsOpen, setStatsOpen] = useState(false);
+
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
-  const [upNextRows, setUpNextRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
 
@@ -58,16 +66,14 @@ export function Dashboard() {
     if (!email) return;
     setLoading(true);
     try {
-      const [projectsRes, entriesRes, dueSoonRes, upNextRes] = await Promise.all([
+      const [projectsRes, entriesRes, dueSoonRes] = await Promise.all([
         getProjectsByEmail(email),
         getAllEntries(email),
         dueSoon(email, null),
-        upNext(email, null),
       ]);
       setProjects(projectsRes?.projects || []);
       setEntries(entriesRes?.data || []);
       setDueSoonRows(dueSoonRes?.data || []);
-      setUpNextRows(upNextRes?.data || []);
     } catch (err) {
       console.error("Failed to load data:", err);
     } finally {
@@ -118,8 +124,20 @@ export function Dashboard() {
       filtered = filtered.filter((e) => e.project_name === activeView);
     }
 
+    // Apply "due soon" view filter: only entries with due_date within 3 days
+    if (viewMode === "due-soon") {
+      const now = new Date();
+      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter((e) => {
+        if (!e.due_date) return false;
+        const due = new Date(e.due_date as string);
+        if (isNaN(due.getTime())) return false;
+        return due >= now && due <= threeDaysFromNow;
+      });
+    }
+
     return filtered;
-  }, [entries, activeView, searchResults, archiveRows]);
+  }, [entries, activeView, searchResults, archiveRows, viewMode]);
 
   // Search using provided search functions
   useEffect(() => {
@@ -139,21 +157,22 @@ export function Dashboard() {
     return () => { cancelled = true; };
   }, [searchQuery, activeView, email]);
 
-  // Sort using provided sort functions (default: date sort)
+  // Sort using provided sort functions
   useEffect(() => {
     if (!email || searchResults !== null) return;
     (async () => {
       const project = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts") ? activeView : null;
+      const sortType = sortBy === "priority" ? 1 : 0;
       if (activeView === "archives") {
         const { sortArchivedEntries } = await import("@/functions/project/entries.js");
-        const result = await sortArchivedEntries(email, project, 0);
+        const result = await sortArchivedEntries(email, project, sortType);
         if (result?.data) setArchiveRows(result.data);
       } else {
-        const result = await sortUnarchivedEntries(email, project, 0);
+        const result = await sortUnarchivedEntries(email, project, sortType);
         if (result?.data) setEntries(result.data);
       }
     })();
-  }, [activeView, email, searchResults]);
+  }, [activeView, email, searchResults, sortBy]);
 
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
@@ -393,14 +412,51 @@ export function Dashboard() {
       <main className="dash-main">
         {/* Feed Header */}
         <div className="feed-header animate-in">
-          <h1 className="feed-title">
-            {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
-          </h1>
-          {searchQuery && (
-            <p className="feed-subtitle">
-              {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
-            </p>
-          )}
+          <div className="feed-header-row">
+            <div>
+              <h1 className="feed-title">
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
+              </h1>
+              {searchQuery && (
+                <p className="feed-subtitle">
+                  {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+                </p>
+              )}
+            </div>
+            <div className="feed-stats-box">
+              {statsOpen ? (
+                <div className="feed-stats-panel">
+                  <div className="feed-stats-panel-header">
+                    <span className="feed-stats-panel-title">Quick Stats</span>
+                    <button className="feed-stats-panel-close" onClick={() => setStatsOpen(false)} aria-label="Close stats">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="feed-stats-panel-body">
+                    <div className="feed-stat-item">
+                      <span className="feed-stat-value">{entries.length}</span>
+                      <span className="feed-stat-label">Total Entries</span>
+                    </div>
+                    <div className="feed-stat-item">
+                      <span className="feed-stat-value">{projects.length}</span>
+                      <span className="feed-stat-label">Projects</span>
+                    </div>
+                    <div className="feed-stat-item">
+                      <span className="feed-stat-value">{dueSoonRows.length}</span>
+                      <span className="feed-stat-label">Due Soon</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button className="feed-stats-btn" onClick={() => setStatsOpen(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                  View Stats
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Search bar inline for mobile */}
@@ -415,6 +471,41 @@ export function Dashboard() {
           />
         </div>
 
+        {/* View + Sort controls */}
+        <div className="feed-controls-row">
+          <div className="feed-view-toggle">
+            <button
+              className={`feed-view-btn ${viewMode === "due-soon" ? "active" : ""}`}
+              onClick={() => setViewMode("due-soon")}
+            >
+              Due Soon
+            </button>
+            <button
+              className={`feed-view-btn ${viewMode === "all-entries" ? "active" : ""}`}
+              onClick={() => setViewMode("all-entries")}
+            >
+              All Entries
+            </button>
+          </div>
+          <div className="feed-sort-group">
+            <span className="feed-sort-label">Sort:</span>
+            <button
+              className={`sort-btn ${sortBy === "date" ? "active" : ""}`}
+              onClick={() => setSortBy("date")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Date
+            </button>
+            <button
+              className={`sort-btn ${sortBy === "priority" ? "active" : ""}`}
+              onClick={() => setSortBy("priority")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Priority
+            </button>
+          </div>
+        </div>
+
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
@@ -423,44 +514,34 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Sections: Due Soon + Up Next — only when NOT searching */}
+        {/* Entries feed — always shown (filtered by viewMode + sort) */}
         {!loading && !searchQuery && (
-          <div className="dashboard-sections">
-            {/* Due Soon */}
-            <div className="dash-section">
-              <div className="dash-section-header">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <h2 className="dash-section-title">Due Soon</h2>
+          <div className="entries-feed">
+            {filteredEntries.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    {viewMode === "due-soon" ? (
+                      <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>
+                    ) : (
+                      <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>
+                    )}
+                  </svg>
+                </div>
+                <h2 className="empty-title">
+                  {viewMode === "due-soon" ? "Nothing due soon" : "No entries to show"}
+                </h2>
+                <p className="empty-desc">
+                  {viewMode === "due-soon"
+                    ? "No entries are due within the next 3 days. Switch to \"All Entries\" to see everything."
+                    : "No entries match the current filters. Try a different view or sort."}
+                </p>
               </div>
-              <hr className="dash-section-divider" />
-              <div className="dash-section-feed">
-                {dueSoonRows.length > 0 ? (
-                  dueSoonRows.map((row, i) => (
-                    <EntryBox key={`due-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
-                  ))
-                ) : (
-                  <p className="dash-section-empty">Nothing due soon</p>
-                )}
-              </div>
-            </div>
-
-            {/* Up Next */}
-            <div className="dash-section">
-              <div className="dash-section-header">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <h2 className="dash-section-title">Up Next</h2>
-              </div>
-              <hr className="dash-section-divider" />
-              <div className="dash-section-feed">
-                {upNextRows.length > 0 ? (
-                  upNextRows.map((row, i) => (
-                    <EntryBox key={`upnext-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
-                  ))
-                ) : (
-                  <p className="dash-section-empty">Nothing up next this week</p>
-                )}
-              </div>
-            </div>
+            ) : (
+              filteredEntries.map((row, i) => (
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+              ))
+            )}
           </div>
         )}
 

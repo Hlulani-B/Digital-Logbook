@@ -117,6 +117,28 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Live elapsed time for in-progress tasks
+  const [elapsed, setElapsed] = useState<string>("");
+  useEffect(() => {
+    if (!started_at || ended_at) {
+      setElapsed("");
+      return;
+    }
+    const start = new Date(started_at).getTime();
+    const tick = () => {
+      const diff = Date.now() - start;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setElapsed(
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+      );
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [started_at, ended_at]);
+
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
@@ -256,6 +278,36 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     }
   };
 
+  const handleStartTask = async () => {
+    if (!user_email || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      await updateEntry(user_email, project_name, id, entries, due_date, priority, status, now, null, null);
+      onUpdated?.({ ...entry, started_at: now });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start task");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEndTask = async () => {
+    if (!user_email || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      await updateEntry(user_email, project_name, id, entries, due_date, priority, status, started_at, now, null);
+      onUpdated?.({ ...entry, ended_at: now });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to end task");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (isEditing) {
     return (
       <div className="entry-box entry-box--editing">
@@ -320,29 +372,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
             type="datetime-local"
             value={draftStartedAt}
             onChange={(e) => setDraftStartedAt(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
-        <div className="entry-box__field--editing">
-          <label className="entry-box__field-key">Ended At</label>
-          <input
-            className="entry-box__field-input"
-            type="datetime-local"
-            value={draftEndedAt}
-            onChange={(e) => setDraftEndedAt(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
-        <div className="entry-box__field--editing">
-          <label className="entry-box__field-key">Duration</label>
-          <input
-            className="entry-box__field-input"
-            type="text"
-            placeholder="e.g. 02:30:00"
-            value={draftDuration}
-            onChange={(e) => setDraftDuration(e.target.value)}
             disabled={saving}
           />
         </div>
@@ -414,37 +443,64 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
       )}
 
       <div className="entry-box__meta">
-        {createdLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Created</span>
-            <span className="entry-box__meta-value">{createdLabel}</span>
-          </span>
-        )}
-        {dueLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Due</span>
-            <span className="entry-box__meta-value">{dueLabel}</span>
-          </span>
-        )}
-        {startedLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Started</span>
-            <span className="entry-box__meta-value">{startedLabel}</span>
-          </span>
-        )}
-        {endedLabel && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Ended</span>
-            <span className="entry-box__meta-value">{endedLabel}</span>
-          </span>
-        )}
-        {duration && (
-          <span className="entry-box__meta-item">
-            <span className="entry-box__meta-label">Duration</span>
-            <span className="entry-box__meta-value">{duration}</span>
-          </span>
-        )}
-        {archived && <span className="entry-box__archived-tag">Archived</span>}
+        <div className="entry-box__meta-left">
+          {createdLabel && (
+            <span className="entry-box__meta-item">
+              <span className="entry-box__meta-label">Created</span>
+              <span className="entry-box__meta-value">{createdLabel}</span>
+            </span>
+          )}
+          {dueLabel && (
+            <span className="entry-box__meta-item">
+              <span className="entry-box__meta-label">Due</span>
+              <span className="entry-box__meta-value">{dueLabel}</span>
+            </span>
+          )}
+          {startedLabel && (
+            <span className="entry-box__meta-item">
+              <span className="entry-box__meta-label">Started</span>
+              <span className="entry-box__meta-value">{startedLabel}</span>
+            </span>
+          )}
+          {endedLabel && (
+            <span className="entry-box__meta-item">
+              <span className="entry-box__meta-label">Ended</span>
+              <span className="entry-box__meta-value">{endedLabel}</span>
+            </span>
+          )}
+          {duration && (
+            <span className="entry-box__meta-item">
+              <span className="entry-box__meta-label">Duration</span>
+              <span className="entry-box__meta-value">{duration}</span>
+            </span>
+          )}
+        </div>
+        <div className="entry-box__meta-right">
+          {!started_at && !ended_at && (
+            <button
+              type="button"
+              className="entry-box__task-btn entry-box__task-btn--start"
+              onClick={handleStartTask}
+              disabled={saving || archived}
+            >
+              ▶ Start Task
+            </button>
+          )}
+          {started_at && !ended_at && (
+            <div className="entry-box__task-active">
+              {elapsed && <span className="entry-box__task-elapsed">{elapsed}</span>}
+              <button
+                type="button"
+                className="entry-box__task-btn entry-box__task-btn--end"
+                onClick={handleEndTask}
+                disabled={saving}
+              >
+                ■ End Task
+              </button>
+            </div>
+          )}
+          {archived && <span className="entry-box__archived-tag">Archived</span>}
+        </div>
       </div>
 
       {error && <div className="entry-box__error">{error}</div>}
