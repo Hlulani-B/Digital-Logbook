@@ -1,10 +1,8 @@
-import { request } from "../api";
-
-const PROJECT_SERVICE_URL = import.meta.env.VITE_PROJECT_SERVICE_URL || "https://digital-logbook-project-service.onrender.com";
+import { request, PROJECT_URL } from "../../lib/api";
 
 export async function addNaturalLanguageEntry(text) {
   try {
-    const response = await request(`${PROJECT_SERVICE_URL}/service/natural-language-entry`, {
+    const response = await request(`${PROJECT_URL}/service/natural-language-entry`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
