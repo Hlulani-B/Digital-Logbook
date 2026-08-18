@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { deleteProfile } from "@/functions/profile/profile.js";
 
 // Dev mode bypass - creates mock user for local testing
 const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === "true";
@@ -148,6 +149,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = async () => {
     if (DEV_MODE) { console.log("[DEV MODE] deleteAccount skipped"); return; }
+    const userEmail = state.user?.email;
+    
+    // Also delete profile from profile-service to clean up all user data
+    if (userEmail) {
+      try {
+        await deleteProfile(userEmail);
+      } catch (profileErr) {
+        console.warn("Profile service cleanup failed (continuing with account deletion):", profileErr);
+      }
+    }
+    
     // Call the delete_user RPC function defined in Supabase SQL
     const { error } = await supabase.rpc("delete_user");
     if (error) {

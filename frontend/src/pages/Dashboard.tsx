@@ -9,9 +9,10 @@ import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
-import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
+import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
+import { setPriority } from "@/functions/project/priority.js";
 import { dueSoon } from "@/functions/dashboard.js";
-import { searchAll, searchProject } from "@/functions/dashboard/search.js";
+import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
 
@@ -111,10 +112,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         console.error("Failed to load due soon:", dueSoonRes.reason);
       }
 
-      // Also fetch archived rows for archive view
+      // Also fetch archived rows for archive view using getArchives
       if (activeView === "archives") {
         try {
-          const archiveData = await sortArchivedEntries(email, project, sortType);
+          const archiveData = await getArchives(email, project);
           setArchiveRows(archiveData?.data || []);
         } catch (archiveErr) {
           console.error("Failed to load archives:", archiveErr);
@@ -205,11 +206,26 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
     let cancelled = false;
     (async () => {
-      const result = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives")
-        ? await searchProject(email, activeView, searchQuery.trim())
-        : await searchAll(email, searchQuery.trim());
+      // Run both entry search and project name search in parallel
+      const isProjectView = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives");
+      const entrySearch = isProjectView
+        ? searchProject(email, activeView, searchQuery.trim())
+        : searchAll(email, searchQuery.trim());
+      const projectSearch = searchProjects(email, searchQuery.trim());
+
+      const [entryResult, projectResult] = await Promise.all([entrySearch, projectSearch]);
+
       if (!cancelled) {
-        setSearchResults(result?.data || []);
+        // Merge results, deduplicating by entry id
+        const entryRows = entryResult?.data || [];
+        const projectRows = projectResult?.data || [];
+        const seen = new Set();
+        const merged = [...entryRows, ...projectRows].filter((row: Entry) => {
+          if (seen.has(row.id as string)) return false;
+          seen.add(row.id as string);
+          return true;
+        });
+        setSearchResults(merged);
       }
     })();
     return () => { cancelled = true; };
@@ -359,6 +375,32 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       await loadData();
     } catch (err) {
       console.error("Failed to unarchive project:", err);
+    }
+  };
+
+  const PRIORITY_LABELS: Record<string, string> = {
+    "0": "Urgent and important",
+    "1": "Urgent but not important",
+    "2": "Not urgent, not important",
+  };
+
+  const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
+    if (!email) return;
+    try {
+      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
+      const result = await setPriority(email, priorityValue, projectName, entryId);
+      if (result?.success === false) {
+        console.error("Failed to set priority:", result.message);
+        return;
+      }
+      // Update the entry in local state
+      setEntries((prev: Entry[]) =>
+        prev.map((e: Entry) =>
+          e.id === entryId ? { ...e, priority: priorityLabel } : e
+        )
+      );
+    } catch (err) {
+      console.error("Failed to set priority:", err);
     }
   };
 
@@ -660,7 +702,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
               </div>
             ) : (
               filteredEntries.map((row, i) => (
-                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
               ))
             )}
           </div>
@@ -683,7 +725,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
-                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
                 ))}
               </div>
             )}
@@ -881,6 +923,36 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         onDeleteAccount={handleDeleteAccount}
         onResetPassword={resetPassword}
         deleting={deleting}
+        deleteError={deleteError}
+      />
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={activeView}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
+        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
+      />
+    </div>
+  );
+}
+        deleteError={deleteError}
+      />
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={activeView}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
+        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
+      />
+    </div>
+  );
+}
         deleteError={deleteError}
       />
 
