@@ -2281,6 +2281,90 @@ img { max-width: 100%; }
 }
 .feed-search-input::placeholder { color: var(--text-muted); }
 
+/* Quick Entry Bar */
+.quick-entry-bar {
+  margin-bottom: 1.25rem;
+}
+.quick-entry-form {
+  width: 100%;
+}
+.quick-entry-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.quick-entry-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(139, 107, 79, 0.1);
+}
+.quick-entry-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.quick-entry-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: var(--text);
+  width: 100%;
+  font-family: var(--font-body);
+}
+.quick-entry-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.quick-entry-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.quick-entry-submit:hover:not(:disabled) {
+  background: var(--accent-hover, var(--accent));
+}
+.quick-entry-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.quick-entry-message {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+}
+.quick-entry-message.success {
+  background: rgba(76, 175, 80, 0.12);
+  color: #2e7d32;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+.quick-entry-message.error {
+  background: rgba(244, 67, 54, 0.12);
+  color: #c62828;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+[data-theme="dark"] .quick-entry-message.success {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+}
+[data-theme="dark"] .quick-entry-message.error {
+  background: rgba(244, 67, 54, 0.15);
+  color: #ef9a9a;
+}
+
 .feed-loading {
   display: flex;
   flex-direction: column;

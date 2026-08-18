@@ -5,6 +5,7 @@ import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
 import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
+import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
@@ -23,7 +24,11 @@ type ProjectFieldDraft = {
   is_required: boolean;
 };
 
-export function Dashboard() {
+type DashboardProps = {
+  defaultView?: string;
+};
+
+export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -34,7 +39,7 @@ export function Dashboard() {
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>("all");
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>(defaultView);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -438,16 +443,16 @@ export function Dashboard() {
 
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
-          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { setActiveView("all"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { navigate("/dashboard/all"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             All Entries
             <span className="drawer-badge">{entries.length}</span>
           </button>
-          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { setActiveView("recent"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { navigate("/dashboard/recent"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Recent
           </button>
-          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { setActiveView("drafts"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { navigate("/dashboard/drafts"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Drafts
           </button>
@@ -459,7 +464,7 @@ export function Dashboard() {
 
         <div className="drawer-section">
           <p className="drawer-section-title">Archive</p>
-          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { navigate("/dashboard/archives"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
             Archived Projects
             <span className="drawer-badge">{projects.filter((p) => p.archived).length}</span>
@@ -618,6 +623,9 @@ export function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Quick Entry Bar - Natural Language */}
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} />
 
         {/* Loading */}
         {loading && (
