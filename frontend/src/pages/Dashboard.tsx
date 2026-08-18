@@ -938,33 +938,3 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     </div>
   );
 }
-        deleteError={deleteError}
-      />
-
-      {/* Project Settings Panel */}
-      <ProjectSettingsPanel
-        open={projectSettingsOpen}
-        projectName={activeView}
-        userEmail={email}
-        onClose={() => setProjectSettingsOpen(false)}
-        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
-        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
-      />
-    </div>
-  );
-}
-        deleteError={deleteError}
-      />
-
-      {/* Project Settings Panel */}
-      <ProjectSettingsPanel
-        open={projectSettingsOpen}
-        projectName={activeView}
-        userEmail={email}
-        onClose={() => setProjectSettingsOpen(false)}
-        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
-        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
-      />
-    </div>
-  );
-}
