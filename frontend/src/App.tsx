@@ -11,6 +11,7 @@ import { AllEntriesPage } from "@/pages/AllEntries";
 import { RecentPage } from "@/pages/Recent";
 import { DraftsPage } from "@/pages/Drafts";
 import { ArchivesPage } from "@/pages/Archives";
+import { ActivityPage } from "@/pages/Activity";
 import { CreateProfile } from "@/pages/CreateProfile";
 import { AvatarPage } from "@/pages/Avatar";
 import { ProjectsPage } from "@/pages/Project";
@@ -125,6 +126,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <ArchivesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/activity"
+            element={
+              <ProtectedRoute>
+                <ActivityPage />
               </ProtectedRoute>
             }
           />
