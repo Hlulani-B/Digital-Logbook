@@ -7,6 +7,8 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  console.log('[AuthCallback] Component mounted, hash:', window.location.hash.substring(0, 50));
+
   useEffect(() => {
     const handleCallback = async () => {
       // Check for hash-based tokens (implicit flow from OAuth)
@@ -90,6 +92,9 @@ export function AuthCallback() {
       <div className="bg-mesh" />
       <div className="auth-container">
         <div className="glass auth-card animate-in" style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+            Debug: AuthCallback loaded
+          </p>
           {error ? (
             <>
               <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#f87171", marginBottom: "0.75rem" }}>
