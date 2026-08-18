@@ -62,6 +62,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -236,6 +237,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
   const preferredName = (() => {
+    // Priority: profile-service username > localStorage preferred name > full name
+    if (profileUsername?.trim()) return profileUsername.trim();
     if (!user?.id) return fullDisplayName;
     try {
       const raw = localStorage.getItem(`dl_settings_profile_${user.id}`);
@@ -249,17 +252,23 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const avatarUrl = user?.user_metadata?.avatar_url || profileAvatar;
   const provider = user?.app_metadata?.provider || "email";
 
-  // Load avatar from profile-service (fallback for users who set avatar before Supabase sync)
+  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
   useEffect(() => {
-    if (!email || user?.user_metadata?.avatar_url) return;
+    if (!email) return;
     let cancelled = false;
     (async () => {
       try {
         const result = await getProfile(email);
         const profileData = result?.data || result;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
-        if (!cancelled && avatar) {
-          setProfileAvatar(avatar);
+        const username = (profileData as Record<string, unknown>)?.username as string;
+        if (!cancelled) {
+          if (avatar && !user?.user_metadata?.avatar_url) {
+            setProfileAvatar(avatar);
+          }
+          if (username) {
+            setProfileUsername(username);
+          }
         }
       } catch {}
     })();
