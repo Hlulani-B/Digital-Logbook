@@ -157,6 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Could not delete account automatically. You have been signed out. Contact support if needed."
       );
     }
+    // Sign out after successful deletion
+    await supabase.auth.signOut();
   };
 
   return (
