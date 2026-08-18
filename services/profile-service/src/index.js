@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 5004;
 // Allowed origins for CORS
 const allowedOrigins = [
   'https://digital-logbook-bxgv.onrender.com',
+  'https://digital-logbook-hlulani.onrender.com',
   'http://localhost:5173', // for local development
   'http://localhost:3000'
 ];
