@@ -10,6 +10,7 @@ import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/
 import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
 import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject } from "@/functions/dashboard/search.js";
+import { calculateProjectStats, formatDuration } from "@/functions/dashboard/stats.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
 
@@ -33,7 +34,7 @@ export function Dashboard() {
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>("all");
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | "stats" | string>("all");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -420,7 +421,7 @@ export function Dashboard() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Drafts
           </button>
-          <button className="drawer-item" onClick={() => {}} style={{ opacity: 0.6, cursor: "default" }}>
+          <button className={`drawer-item ${activeView === "stats" ? "active" : ""}`} onClick={() => { setActiveView("stats"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             My Stats
           </button>
@@ -503,7 +504,7 @@ export function Dashboard() {
           <div className="feed-header-row">
             <div>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "stats" ? "My Stats" : activeView}
               </h1>
               {searchQuery && (
                 <p className="feed-subtitle">
@@ -511,7 +512,11 @@ export function Dashboard() {
                 </p>
               )}
             </div>
-            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
+            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} activeProject={
+              activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "stats"
+                ? activeView
+                : undefined
+            } />
           </div>
         </div>
 
@@ -570,8 +575,58 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Entries feed — always shown (filtered by viewMode + sort) */}
-        {!loading && !searchQuery && (
+        {/* Stats View — full page breakdown (AT1 + AT3) */}
+        {!loading && activeView === "stats" && (
+          <div className="stats-view animate-in">
+            <div className="stats-view-summary glass">
+              <h2 className="stats-view-title">Overview</h2>
+              <div className="stats-view-grid">
+                <div className="feed-stat-item">
+                  <span className="feed-stat-value">{entries.length}</span>
+                  <span className="feed-stat-label">Total Entries</span>
+                </div>
+                <div className="feed-stat-item">
+                  <span className="feed-stat-value">{projects.filter((p) => !p.archived).length}</span>
+                  <span className="feed-stat-label">Active Projects</span>
+                </div>
+                <div className="feed-stat-item">
+                  <span className="feed-stat-value">{dueSoonRows.length}</span>
+                  <span className="feed-stat-label">Due Soon</span>
+                </div>
+                <div className="feed-stat-item">
+                  <span className="feed-stat-value">{(() => { const t = calculateProjectStats(entries); const totalMs = t.reduce((s, p) => s + p.totalMs, 0); return formatDuration(totalMs); })()}</span>
+                  <span className="feed-stat-label">Total Time Tracked</span>
+                </div>
+              </div>
+            </div>
+
+            <h3 className="stats-view-section-title">Time per Project</h3>
+            <div className="stats-view-projects">
+              {calculateProjectStats(entries).map((ps) => (
+                <div key={ps.project_name} className="stats-view-project-card glass">
+                  <div className="stats-view-project-header">
+                    <span className="stats-view-project-name">{ps.project_name}</span>
+                    <span className="stats-view-project-time">{ps.display}</span>
+                  </div>
+                  <div className="stats-view-project-meta">
+                    {ps.entryCount} entr{ps.entryCount === 1 ? "y" : "ies"}
+                    {ps.inProgressCount > 0 && (
+                      <span className="stats-view-in-progress"> · {ps.inProgressCount} in progress</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {calculateProjectStats(entries).length === 0 && (
+                <div className="empty-state">
+                  <p className="empty-desc">No time-tracked entries yet. Start a timer on an entry to see stats here.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Entries feed — hidden when viewing stats */}
+        {!loading && !searchQuery && activeView !== "stats" && (
           <div className="entries-feed">
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -601,8 +656,8 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Search Results — only when searching */}
-        {!loading && searchQuery && (
+        {/* Search Results — only when searching (hidden in stats view) */}
+        {!loading && searchQuery && activeView !== "stats" && (
           <>
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
