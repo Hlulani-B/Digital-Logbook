@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 );
 
 -- 2. Delete-user RPC (account deletion from Settings panel)
---    Looks up the user's email from auth, cleans up app tables, then removes the auth account.
+--    Looks up the user's email from auth, cleans up ALL app tables, then removes the auth account.
 CREATE OR REPLACE FUNCTION delete_user()
 RETURNS void
 LANGUAGE plpgsql
@@ -29,8 +29,17 @@ BEGIN
     FROM auth.users u
    WHERE u.id = auth.uid();
 
+  -- Clean up entries table
+  DELETE FROM public.entries WHERE user_email = user_email;
+
+  -- Clean up fields table
+  DELETE FROM public.fields WHERE user_email = user_email;
+
+  -- Clean up projects table
+  DELETE FROM public.projects WHERE user_email = user_email;
+
   -- Clean up profile-service table
-  DELETE FROM public.users   WHERE email = user_email;
+  DELETE FROM public.users WHERE email = user_email;
 
   -- Finally remove the auth account itself
   DELETE FROM auth.users WHERE id = auth.uid();

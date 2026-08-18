@@ -8,10 +8,12 @@ import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
-import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
-import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
+import { sortUnarchivedEntries } from "@/functions/project/entries.js";
+import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
+import { setPriority } from "@/functions/project/priority.js";
+import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
-import { searchAll, searchProject } from "@/functions/dashboard/search.js";
+import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
 
@@ -59,6 +61,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -111,10 +115,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         console.error("Failed to load due soon:", dueSoonRes.reason);
       }
 
-      // Also fetch archived rows for archive view
+      // Also fetch archived rows for archive view using getArchives
       if (activeView === "archives") {
         try {
-          const archiveData = await sortArchivedEntries(email, project, sortType);
+          const archiveData = await getArchives(email, project);
           setArchiveRows(archiveData?.data || []);
         } catch (archiveErr) {
           console.error("Failed to load archives:", archiveErr);
@@ -205,11 +209,26 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
     let cancelled = false;
     (async () => {
-      const result = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives")
-        ? await searchProject(email, activeView, searchQuery.trim())
-        : await searchAll(email, searchQuery.trim());
+      // Run both entry search and project name search in parallel
+      const isProjectView = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives");
+      const entrySearch = isProjectView
+        ? searchProject(email, activeView, searchQuery.trim())
+        : searchAll(email, searchQuery.trim());
+      const projectSearch = searchProjects(email, searchQuery.trim());
+
+      const [entryResult, projectResult] = await Promise.all([entrySearch, projectSearch]);
+
       if (!cancelled) {
-        setSearchResults(result?.data || []);
+        // Merge results, deduplicating by entry id
+        const entryRows = entryResult?.data || [];
+        const projectRows = projectResult?.data || [];
+        const seen = new Set();
+        const merged = [...entryRows, ...projectRows].filter((row: Entry) => {
+          if (seen.has(row.id as string)) return false;
+          seen.add(row.id as string);
+          return true;
+        });
+        setSearchResults(merged);
       }
     })();
     return () => { cancelled = true; };
@@ -218,6 +237,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
   const preferredName = (() => {
+    // Priority: profile-service username > localStorage preferred name > full name
+    if (profileUsername?.trim()) return profileUsername.trim();
     if (!user?.id) return fullDisplayName;
     try {
       const raw = localStorage.getItem(`dl_settings_profile_${user.id}`);
@@ -228,8 +249,32 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     } catch {}
     return fullDisplayName;
   })();
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  // Profile-service avatar/username take priority over Google/OAuth profile data
+  const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || "email";
+
+  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  useEffect(() => {
+    if (!email) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getProfile(email);
+        const profileData = result?.data || result;
+        const avatar = (profileData as Record<string, unknown>)?.avatar as string;
+        const username = (profileData as Record<string, unknown>)?.username as string;
+        if (!cancelled) {
+          if (avatar) {
+            setProfileAvatar(avatar);
+          }
+          if (username) {
+            setProfileUsername(username);
+          }
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [email]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -359,6 +404,32 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       await loadData();
     } catch (err) {
       console.error("Failed to unarchive project:", err);
+    }
+  };
+
+  const PRIORITY_LABELS: Record<string, string> = {
+    "0": "Urgent and important",
+    "1": "Urgent but not important",
+    "2": "Not urgent, not important",
+  };
+
+  const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
+    if (!email) return;
+    try {
+      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
+      const result = await setPriority(email, priorityValue, projectName, entryId);
+      if (result?.success === false) {
+        console.error("Failed to set priority:", result.message);
+        return;
+      }
+      // Update the entry in local state
+      setEntries((prev: Entry[]) =>
+        prev.map((e: Entry) =>
+          e.id === entryId ? { ...e, priority: priorityLabel } : e
+        )
+      );
+    } catch (err) {
+      console.error("Failed to set priority:", err);
     }
   };
 
@@ -660,7 +731,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
               </div>
             ) : (
               filteredEntries.map((row, i) => (
-                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
               ))
             )}
           </div>
@@ -683,7 +754,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
-                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
                 ))}
               </div>
             )}

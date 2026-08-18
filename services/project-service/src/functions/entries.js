@@ -324,6 +324,10 @@ Return ONLY valid JSON, no markdown, no explanation, in this exact shape:
       // ai.js: takes a prompt string, returns text
       const aiResponse = await AI(prompt);
 
+      if (!aiResponse || aiResponse.trim() === '') {
+        return { success: false, message: 'All AI providers failed. Please check that API keys are configured and try again.' };
+      }
+
       let parsed;
       try {
         const cleaned = aiResponse.replace(/```json|```/g, '').trim();

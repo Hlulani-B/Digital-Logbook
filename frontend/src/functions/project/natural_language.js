@@ -7,6 +7,11 @@ export async function addNaturalLanguageEntry(text) {
       body: JSON.stringify({ text }),
     });
 
+    // Check if the backend actually succeeded
+    if (data?.success === false) {
+      return { success: false, message: data.message || "Failed to create entry" };
+    }
+
     return { success: true, data };
   } catch (error) {
     console.error("Error in addNaturalLanguageEntry:", error);
