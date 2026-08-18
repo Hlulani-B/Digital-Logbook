@@ -1,7 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
 import { addNaturalLanguageEntry } from "../functions/project/natural_language.js";
 
-export function QuickEntryBar({ onEntryCreated }) {
+interface QuickEntryBarProps {
+  onEntryCreated?: () => void;
+}
+
+export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -15,7 +19,7 @@ export function QuickEntryBar({ onEntryCreated }) {
     }
   }, [message]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim() || loading) return;
 
@@ -36,7 +40,7 @@ export function QuickEntryBar({ onEntryCreated }) {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
