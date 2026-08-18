@@ -133,7 +133,6 @@ export function ProjectSettingsPanel({
       setNewFieldName("");
       setNewFieldType("text");
       setNewFieldRequired(false);
-      // Reload fields
       const result = await getFields(userEmail, projectName);
       setFields(Array.isArray(result?.data) ? result.data : []);
     } catch (err) {
@@ -183,36 +182,38 @@ export function ProjectSettingsPanel({
 
         {/* Body */}
         <div className="panel-body">
+          {/* Error banner */}
           {error && (
-            <div style={{
+            <div className="field-hint" style={{
               padding: "0.5rem 0.75rem",
               borderRadius: "var(--radius-xs)",
               background: "var(--danger-glow)",
               border: "1px solid rgba(239,68,68,0.2)",
               color: "var(--danger-text, #b91c1c)",
               fontSize: "0.8125rem",
-              marginBottom: "0.75rem",
+              marginBottom: "1rem",
             }}>
               {error}
             </div>
           )}
 
-          {/* Project Name */}
+          {/* ── Project Name ── */}
           <div className="panel-section">
             <p className="panel-section-title">Project Name</p>
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="field-input"
-              placeholder="Enter new project name"
-              disabled={saving}
-            />
+            <div className="field-group">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="field-input"
+                placeholder="Enter new project name"
+                disabled={saving}
+              />
+            </div>
             <button
               className="btn-primary"
               onClick={handleSaveName}
               disabled={saving || !editName.trim() || editName.trim() === projectName}
-              style={{ marginTop: "0.5rem" }}
             >
               {saving ? "Saving..." : "Save Name"}
             </button>
@@ -220,11 +221,12 @@ export function ProjectSettingsPanel({
 
           <hr className="divider" />
 
-          {/* Fields */}
+          {/* ── Fields ── */}
           <div className="panel-section">
             <p className="panel-section-title">Fields</p>
+
             {fieldError && (
-              <div style={{
+              <div className="field-hint" style={{
                 padding: "0.5rem 0.75rem",
                 borderRadius: "var(--radius-xs)",
                 background: "var(--danger-glow)",
@@ -242,10 +244,13 @@ export function ProjectSettingsPanel({
             ) : (
               <>
                 {fields.length === 0 && (
-                  <p className="field-hint">No fields defined for this project.</p>
+                  <p className="field-hint" style={{ marginBottom: "1rem" }}>
+                    No fields defined for this project.
+                  </p>
                 )}
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+                {/* Existing fields list */}
+                <div className="project-fields-list" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
                   {fields.map((f) => (
                     <div
                       key={f.field_name}
@@ -255,7 +260,6 @@ export function ProjectSettingsPanel({
                         alignItems: "center",
                         gap: "0.5rem",
                         padding: "0.625rem 0.75rem",
-                        borderRadius: "var(--radius-sm)",
                       }}
                     >
                       {editingField === f.field_name ? (
@@ -278,7 +282,7 @@ export function ProjectSettingsPanel({
                             <option value="date">Date</option>
                             <option value="boolean">Boolean</option>
                           </select>
-                          <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
+                          <label className="field-hint" style={{ display: "flex", alignItems: "center", gap: "0.25rem", whiteSpace: "nowrap", marginBottom: 0 }}>
                             <input
                               type="checkbox"
                               checked={editFieldRequired}
@@ -286,24 +290,24 @@ export function ProjectSettingsPanel({
                             />
                             Req
                           </label>
-                          <button className="btn-primary" onClick={handleSaveField} style={{ padding: "0.35rem 0.6rem", fontSize: "0.8rem" }}>
+                          <button className="btn-primary" onClick={handleSaveField} style={{ padding: "0.4rem 0.65rem", fontSize: "0.8rem" }}>
                             Save
                           </button>
-                          <button className="btn-secondary" onClick={() => setEditingField(null)} style={{ padding: "0.35rem 0.6rem", fontSize: "0.8rem" }}>
+                          <button className="btn-secondary" onClick={() => setEditingField(null)} style={{ padding: "0.4rem 0.65rem", fontSize: "0.8rem" }}>
                             Cancel
                           </button>
                         </>
                       ) : (
                         <>
-                          <span style={{ flex: 1, fontWeight: 500, fontSize: "0.9rem" }}>{f.field_name}</span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "capitalize" }}>{f.data_type}</span>
+                          <span style={{ flex: 1, fontWeight: 500, fontSize: "0.9rem", color: "var(--text)" }}>{f.field_name}</span>
+                          <span className="field-badge">{f.data_type}</span>
                           {f.is_required && (
-                            <span style={{ fontSize: "0.7rem", color: "var(--accent-light)", fontWeight: 600 }}>REQ</span>
+                            <span className="field-badge field-badge--accent">req</span>
                           )}
                           <button
                             className="btn-secondary"
                             onClick={() => startEditField(f)}
-                            style={{ padding: "0.35rem 0.5rem", fontSize: "0.8rem" }}
+                            style={{ padding: "0.35rem 0.55rem", fontSize: "0.85rem" }}
                             title="Edit field"
                           >
                             ✎
@@ -315,14 +319,13 @@ export function ProjectSettingsPanel({
                 </div>
 
                 {/* Add new field */}
-                <div style={{
+                <div className="glass" style={{
                   display: "flex",
                   gap: "0.5rem",
                   alignItems: "center",
                   flexWrap: "wrap",
                   padding: "0.75rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px dashed var(--border)",
+                  borderStyle: "dashed",
                 }}>
                   <input
                     type="text"
@@ -343,7 +346,7 @@ export function ProjectSettingsPanel({
                     <option value="date">Date</option>
                     <option value="boolean">Boolean</option>
                   </select>
-                  <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
+                  <label className="field-hint" style={{ display: "flex", alignItems: "center", gap: "0.25rem", whiteSpace: "nowrap", marginBottom: 0 }}>
                     <input
                       type="checkbox"
                       checked={newFieldRequired}
@@ -355,7 +358,7 @@ export function ProjectSettingsPanel({
                     className="btn-primary"
                     onClick={handleAddField}
                     disabled={!newFieldName.trim()}
-                    style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+                    style={{ padding: "0.45rem 0.85rem", fontSize: "0.8rem" }}
                   >
                     + Add
                   </button>
@@ -366,18 +369,23 @@ export function ProjectSettingsPanel({
 
           <hr className="divider" />
 
-          {/* Danger Zone */}
+          {/* ── Danger Zone ── */}
           <div className="panel-section danger-zone">
             <p className="panel-section-title" style={{ color: "var(--danger-text)" }}>
               Danger Zone
             </p>
             {!confirmDelete ? (
-              <button
-                className="btn-danger"
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete Project
-              </button>
+              <>
+                <p className="danger-desc">
+                  Permanently delete this project and all its entries.
+                </p>
+                <button
+                  className="btn-danger"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Delete Project
+                </button>
+              </>
             ) : (
               <div className="confirm-box">
                 <p>Are you sure? This will delete all entries in this project. This action cannot be undone.</p>
@@ -399,6 +407,14 @@ export function ProjectSettingsPanel({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="panel-footer">
+          <span />
+          <button className="btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </>
