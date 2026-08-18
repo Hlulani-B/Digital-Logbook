@@ -63,7 +63,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
-  const [profileVersion, setProfileVersion] = useState(0);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -275,7 +274,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [email, profileVersion]);
+  }, [email]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -949,7 +948,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         email={user?.email || ""}
         avatarUrl={avatarUrl}
         provider={provider}
-        onClose={() => { setSettingsOpen(false); setProfileVersion(v => v + 1); }}
+        onClose={() => setSettingsOpen(false)}
         onDeleteAccount={handleDeleteAccount}
         onResetPassword={resetPassword}
         deleting={deleting}
