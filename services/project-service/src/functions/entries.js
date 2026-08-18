@@ -287,39 +287,21 @@ export class Natural_language {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
       // 3. Give AI everything, ask for project + filled field values + priority + due date
-      const prompt = `
-You are parsing a quick natural-language log entry into structured data.
+      const prompt = `Parse this log entry into JSON. Today is ${today}.
 
-Today's date is ${today}.
+Projects with fields:
+${JSON.stringify(projectsWithFields)}
 
-Here are the user's projects, each with its custom fields (field_name, data_type, is_required):
-${JSON.stringify(projectsWithFields, null, 2)}
+Entry: "${text}"
 
-User entry: "${text}"
+Rules:
+- Match to one project
+- Fill field values from the entry text
+- Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
+- Due date: YYYY-MM-DD or null
 
-Figure out which project this entry belongs to, then fill in values for that project's fields based on the entry text.
-
-Also check if the entry text implies a priority level:
-- 0 = Urgent and important
-- 1 = Urgent but not important
-- 2 = Not urgent, not important
-If no priority is implied or stated, set "priority" to null.
-
-Also check if the entry text implies a due date (e.g. "by Friday", "due tomorrow", "next week", an explicit date).
-Resolve relative dates using today's date above. Return it in YYYY-MM-DD format.
-If no due date is implied or stated, set "due_date" to null.
-
-Return ONLY valid JSON, no markdown, no explanation, in this exact shape:
-{
-  "project": "<matching project_name>",
-  "fields": {
-    "<field_name>": "<value>",
-    ...
-  },
-  "priority": <0, 1, 2, or null>,
-  "due_date": "<YYYY-MM-DD or null>"
-}
-`.trim();
+Respond with ONLY this JSON structure, nothing else:
+{"project":"name","fields":{"field":"value"},"priority":0,"due_date":"2024-01-01"}`;
 
       // ai.js: takes a prompt string, returns text
       const aiResponse = await AI(prompt);
@@ -330,10 +312,25 @@ Return ONLY valid JSON, no markdown, no explanation, in this exact shape:
 
       let parsed;
       try {
-        const cleaned = aiResponse.replace(/```json|```/g, '').trim();
+        // Clean up common AI response issues
+        let cleaned = aiResponse
+          .replace(/```json\s*/g, '')
+          .replace(/```\s*/g, '')
+          .replace(/^\s*{/, '{')
+          .replace(/}\s*$/, '}')
+          .replace(/,\s*}/g, '}') // Remove trailing commas
+          .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+          .trim();
+        
+        // Try to extract JSON if there's extra text
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleaned = jsonMatch[0];
+        }
+        
         parsed = JSON.parse(cleaned);
       } catch (err) {
-        return { success: false, message: 'AI returned invalid JSON: ' + aiResponse };
+        return { success: false, message: 'AI returned invalid JSON: ' + aiResponse.slice(0, 200) };
       }
 
       const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
