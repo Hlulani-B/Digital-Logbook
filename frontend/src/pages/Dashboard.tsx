@@ -11,6 +11,7 @@ import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
+import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
@@ -60,6 +61,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -244,8 +246,25 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     } catch {}
     return fullDisplayName;
   })();
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const avatarUrl = user?.user_metadata?.avatar_url || profileAvatar;
   const provider = user?.app_metadata?.provider || "email";
+
+  // Load avatar from profile-service (fallback for users who set avatar before Supabase sync)
+  useEffect(() => {
+    if (!email || user?.user_metadata?.avatar_url) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getProfile(email);
+        const profileData = result?.data || result;
+        const avatar = (profileData as Record<string, unknown>)?.avatar as string;
+        if (!cancelled && avatar) {
+          setProfileAvatar(avatar);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [email, user?.user_metadata?.avatar_url]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
