@@ -7,6 +7,10 @@ import { AuthCallback } from "@/pages/AuthCallback";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { UpdatePassword } from "@/pages/UpdatePassword";
 import { Dashboard } from "@/pages/Dashboard";
+import { AllEntriesPage } from "@/pages/AllEntries";
+import { RecentPage } from "@/pages/Recent";
+import { DraftsPage } from "@/pages/Drafts";
+import { ArchivesPage } from "@/pages/Archives";
 import { CreateProfile } from "@/pages/CreateProfile";
 import { AvatarPage } from "@/pages/Avatar";
 import { ProjectsPage } from "@/pages/Project";
@@ -89,6 +93,38 @@ export function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/all"
+            element={
+              <ProtectedRoute>
+                <AllEntriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/recent"
+            element={
+              <ProtectedRoute>
+                <RecentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/drafts"
+            element={
+              <ProtectedRoute>
+                <DraftsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/archives"
+            element={
+              <ProtectedRoute>
+                <ArchivesPage />
               </ProtectedRoute>
             }
           />

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
+import { isOverdue, getOverdueText } from "../functions/dashboard/overdue.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
 
@@ -426,6 +427,11 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
           <span className={`entry-box__tag ${STATUS_CLASS[status]}`}>
             {STATUS_LABELS[status]}
           </span>
+          {isOverdue(due_date ?? null, status) && (
+            <span className="entry-box__tag entry-box__tag--overdue">
+              {getOverdueText(due_date ?? null, status)}
+            </span>
+          )}
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>

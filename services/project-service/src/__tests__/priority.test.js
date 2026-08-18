@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js';
 import { createMockSupabaseClient } from '../__mocks__/supabaseMock.js';
 
 jest.mock('../supabase.js');
+jest.mock('../functions/ai.js', () => ({ AI: jest.fn() }));
 
 describe('Priority', () => {
   let priority;

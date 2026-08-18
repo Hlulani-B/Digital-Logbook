@@ -61,7 +61,7 @@ function inputTypeForDataType(dataType: string): string {
 export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEntryProps) {
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 16));
   const [priorityValue, setPriorityValue] = useState("3");
   const [statusValue, setStatusValue] = useState("up_next");
   const [saving, setSaving] = useState(false);

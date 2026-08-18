@@ -4,6 +4,8 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
+import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
+import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
@@ -22,7 +24,11 @@ type ProjectFieldDraft = {
   is_required: boolean;
 };
 
-export function Dashboard() {
+type DashboardProps = {
+  defaultView?: string;
+};
+
+export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -33,7 +39,7 @@ export function Dashboard() {
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>("all");
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>(defaultView);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,6 +74,11 @@ export function Dashboard() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState("");
+
+  // Project settings panel
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   const email = user?.email || "";
 
@@ -134,10 +145,22 @@ export function Dashboard() {
         setDrawerOpen(false);
         setFabOpen(false);
         setSearchOpen(false);
+        setProjectMenuOpen(false);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Close project menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setProjectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Filtered entries — uses provided sort/search/archive functions
@@ -267,6 +290,20 @@ export function Dashboard() {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
+    
+    // Validate fields before creating project
+    const nonEmptyFields = projectFields.filter((f) => f.field_name.trim());
+    if (nonEmptyFields.length > 0) {
+      // Check for duplicate field names (case-insensitive)
+      const fieldNames = nonEmptyFields.map((f) => f.field_name.trim().toLowerCase());
+      const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+      if (duplicates.length > 0) {
+        const uniqueDuplicates = [...new Set(duplicates)];
+        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(", ")}`);
+        return;
+      }
+    }
+    
     setCreatingProject(true);
     setNewProjectError(null);
 
@@ -275,16 +312,15 @@ export function Dashboard() {
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
       // Save any non-empty project fields (best-effort after project is created)
-      const validFields = projectFields.filter((f) => f.field_name.trim());
-      if (validFields.length > 0) {
+      if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
-          validFields.map((f) =>
+          nonEmptyFields.map((f) =>
             addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
           )
         );
         const failures = results
           .map((r, i) =>
-            r.status === "rejected" ? validFields[i].field_name : null
+            r.status === "rejected" ? nonEmptyFields[i].field_name : null
           )
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
@@ -407,16 +443,16 @@ export function Dashboard() {
 
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
-          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { setActiveView("all"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { navigate("/dashboard/all"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             All Entries
             <span className="drawer-badge">{entries.length}</span>
           </button>
-          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { setActiveView("recent"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { navigate("/dashboard/recent"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Recent
           </button>
-          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { setActiveView("drafts"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { navigate("/dashboard/drafts"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Drafts
           </button>
@@ -428,7 +464,7 @@ export function Dashboard() {
 
         <div className="drawer-section">
           <p className="drawer-section-title">Archive</p>
-          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { navigate("/dashboard/archives"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
             Archived Projects
             <span className="drawer-badge">{projects.filter((p) => p.archived).length}</span>
@@ -501,16 +537,42 @@ export function Dashboard() {
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
                 {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
               </h1>
-              {searchQuery && (
-                <p className="feed-subtitle">
-                  {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
-                </p>
+              {/* Project settings three-dots menu - only show for specific projects */}
+              {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && (
+                <div className="project-menu-wrap" ref={projectMenuRef} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className="entry-box__menu-btn"
+                    onClick={() => setProjectMenuOpen((v) => !v)}
+                    aria-label="Project settings"
+                    aria-expanded={projectMenuOpen}
+                    style={{ position: "static" }}
+                  >
+                    ⋯
+                  </button>
+                  {projectMenuOpen && (
+                    <div className="entry-box__menu" style={{ top: "100%", right: "auto", left: 0 }}>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { setProjectSettingsOpen(true); setProjectMenuOpen(false); }}
+                      >
+                        Project Settings
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
+            {searchQuery && (
+              <p className="feed-subtitle">
+                {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+              </p>
+            )}
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
@@ -561,6 +623,9 @@ export function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Quick Entry Bar - Natural Language */}
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} />
 
         {/* Loading */}
         {loading && (
@@ -817,6 +882,16 @@ export function Dashboard() {
         onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
+      />
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={activeView}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
+        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
       />
     </div>
   );
