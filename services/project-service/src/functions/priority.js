@@ -1,7 +1,7 @@
-import AI from './ai.js';
+import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Entries } from './entries.js';
-import { Fields } from './fields.js';
+import { Fields } from './field.js';
 
 const project = new Project();
 const entries = new Entries();
