@@ -8,7 +8,7 @@ import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
-import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
+import { sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
 import { dueSoon } from "@/functions/dashboard.js";
