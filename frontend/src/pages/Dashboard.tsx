@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
+import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
@@ -68,6 +69,11 @@ export function Dashboard() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState("");
+
+  // Project settings panel
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   const email = user?.email || "";
 
@@ -134,10 +140,22 @@ export function Dashboard() {
         setDrawerOpen(false);
         setFabOpen(false);
         setSearchOpen(false);
+        setProjectMenuOpen(false);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Close project menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setProjectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Filtered entries — uses provided sort/search/archive functions
@@ -514,16 +532,42 @@ export function Dashboard() {
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
                 {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
               </h1>
-              {searchQuery && (
-                <p className="feed-subtitle">
-                  {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
-                </p>
+              {/* Project settings three-dots menu - only show for specific projects */}
+              {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && (
+                <div className="project-menu-wrap" ref={projectMenuRef} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className="entry-box__menu-btn"
+                    onClick={() => setProjectMenuOpen((v) => !v)}
+                    aria-label="Project settings"
+                    aria-expanded={projectMenuOpen}
+                    style={{ position: "static" }}
+                  >
+                    ⋯
+                  </button>
+                  {projectMenuOpen && (
+                    <div className="entry-box__menu" style={{ top: "100%", right: "auto", left: 0 }}>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { setProjectSettingsOpen(true); setProjectMenuOpen(false); }}
+                      >
+                        Project Settings
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
+            {searchQuery && (
+              <p className="feed-subtitle">
+                {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+              </p>
+            )}
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
@@ -830,6 +874,16 @@ export function Dashboard() {
         onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
+      />
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={activeView}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
+        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
       />
     </div>
   );

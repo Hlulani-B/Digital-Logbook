@@ -2447,6 +2447,19 @@ img { max-width: 100%; }
 .priority-low { background: rgba(227, 233, 251, 0.5); color: #3a5fc4; }
 .priority-neutral { background: color-mix(in srgb, var(--border) 30%, transparent); color: var(--text-muted, #6b6a66); }
 
+/* Overdue badge - soft vintage red */
+.entry-box__tag--overdue {
+  background: rgba(183, 76, 64, 0.12);
+  color: #b74c40;
+  border: 1px solid rgba(183, 76, 64, 0.2);
+  font-weight: 600;
+}
+[data-theme="dark"] .entry-box__tag--overdue {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
 /* Editing mode */
 .entry-box--editing {
   border-color: var(--accent);

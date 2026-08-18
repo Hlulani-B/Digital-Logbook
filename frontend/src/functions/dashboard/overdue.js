@@ -1,40 +1,36 @@
 /**
  * Check if an entry is overdue
- * An entry is overdue if:
- * - It has a due_date that has passed
- * - Its status is NOT "done_and_dusted"
- * 
- * @param {object} entry - The entry object
- * @returns {boolean} - True if overdue, false otherwise
+ * - Entry is overdue if due_date has passed AND status is not "done_and_dusted"
+ * @param {string|null} dueDate - The due date string (ISO format)
+ * @param {string|null} status - The entry status
+ * @returns {boolean} - True if overdue
  */
-export function isOverdue(entry) {
-  if (!entry || !entry.due_date) return false;
-  
-  // Check if status is completed
-  const status = entry.status;
+export function isOverdue(dueDate, status) {
+  if (!dueDate) return false;
   if (status === "done_and_dusted") return false;
   
-  // Check if due date has passed
-  const dueDate = new Date(entry.due_date);
-  const now = new Date();
+  const due = new Date(dueDate);
+  if (isNaN(due.getTime())) return false;
   
-  return dueDate < now;
+  const now = new Date();
+  return due < now;
 }
 
 /**
  * Get formatted overdue text
- * @param {object} entry - The entry object
- * @returns {string|null} - Formatted overdue text or null if not overdue
+ * @param {string|null} dueDate - The due date string
+ * @param {string|null} status - The entry status
+ * @returns {string|null} - Formatted overdue text or null
  */
-export function getOverdueText(entry) {
-  if (!isOverdue(entry)) return null;
+export function getOverdueText(dueDate, status) {
+  if (!isOverdue(dueDate, status)) return null;
   
-  const dueDate = new Date(entry.due_date);
+  const due = new Date(dueDate);
   const now = new Date();
-  const diffMs = now - dueDate;
+  const diffMs = now - due;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   
   if (diffDays === 0) return "Overdue today";
-  if (diffDays === 1) return "1 day overdue";
-  return `${diffDays} days overdue`;
+  if (diffDays === 1) return "Overdue by 1 day";
+  return `Overdue by ${diffDays} days`;
 }
