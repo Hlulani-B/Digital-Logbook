@@ -1,4 +1,4 @@
-import {supabase} from "./supabase.js";
+import { supabase } from "../supabase.js";
 import OpenAI from "openai";
 import { InferenceClient } from "@huggingface/inference";
 import { GoogleGenerativeAI } from "@google/generative-ai";
