@@ -676,7 +676,7 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
 /* Mobile: stack or hide video */
 @media (max-width: 768px) {
   html {
-    font-size: 125%; /* 20px base on mobile for accessibility */
+    font-size: 106.25%; /* 17px base on mobile */
   }
   .split-auth {
     flex-direction: column;
@@ -704,7 +704,7 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
     font-size: 1.35rem;
   }
   .split-form-wrapper .auth-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     margin-bottom: 0.75rem;
   }
   .split-form-wrapper form {
@@ -714,16 +714,16 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
     margin-bottom: 0.25rem;
   }
   .split-form-wrapper .field-label {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
   .split-form-wrapper .field-input {
     padding: 0.5rem 0.7rem;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   .split-form-wrapper .auth-submit {
     padding: 0.55rem 1rem;
     margin-top: 0.15rem;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   .split-form-wrapper .captcha-wrapper {
     margin-top: 0.35rem;
@@ -732,10 +732,10 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
     margin: 0.6rem 0;
   }
   .split-form-wrapper .auth-mode-toggle {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
   .split-form-wrapper .auth-trouble-link {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
   .split-video-caption {
     bottom: 0.75rem;
