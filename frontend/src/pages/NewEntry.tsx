@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
+import { isOverdue, getOverdueText } from "@/functions/dashboard/overdue.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
 
@@ -173,6 +174,10 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
   const endedLabel = formatDate(ended_at);
 
   const priorityClass = priority ? (PRIORITY_CLASS[priority] || "priority-neutral") : "";
+  
+  // Check if entry is overdue
+  const overdue = isOverdue(entry);
+  const overdueText = getOverdueText(entry);
 
   const handleFieldChange = (key: string, newValue: string) => {
     setDraftFields((prev) => ({ ...prev, [key]: newValue }));
@@ -426,6 +431,18 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
           <span className={`entry-box__tag ${STATUS_CLASS[status]}`}>
             {STATUS_LABELS[status]}
           </span>
+          {overdue && overdueText && (
+            <span
+              className="entry-box__tag"
+              style={{
+                background: "rgba(180, 80, 80, 0.15)",
+                color: "#a0522d",
+                border: "1px solid rgba(180, 80, 80, 0.3)",
+              }}
+            >
+              {overdueText}
+            </span>
+          )}
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>

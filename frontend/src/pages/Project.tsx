@@ -5,6 +5,7 @@ import {
   deleteProject,
   getProjectsByEmail,
 } from "../functions/project/project.js";
+import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 
 type ProjectRecord = { project_name: string; [key: string]: unknown };
 
@@ -32,6 +33,11 @@ export function ProjectsPage() {
 
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Settings panel state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsProject, setSettingsProject] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
     if (!email) return;
@@ -298,34 +304,108 @@ export function ProjectsPage() {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ display: "flex", gap: "0.4rem" }}>
+                      <div style={{ position: "relative" }}>
                         <button
                           type="button"
-                          onClick={() => startEdit(name)}
-                          aria-label={`Rename ${name}`}
-                          title="Rename"
-                          className="btn-secondary"
-                          style={{ padding: "0.4rem 0.6rem" }}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(name)}
-                          aria-label={`Delete ${name}`}
-                          title="Delete"
+                          onClick={() => setMenuOpen(menuOpen === name ? null : name)}
+                          aria-label={`Project menu for ${name}`}
+                          title="Project settings"
                           style={{
                             background: "transparent",
-                            border: "1px solid rgba(220,38,38,0.35)",
-                            color: "#dc2626",
+                            border: "1px solid var(--border)",
                             borderRadius: "0.5rem",
                             padding: "0.4rem 0.6rem",
-                            fontSize: "0.85rem",
+                            fontSize: "1rem",
                             cursor: "pointer",
+                            color: "var(--text-dim)",
                           }}
                         >
-                          🗑
+                          ⋮
                         </button>
+                        {menuOpen === name && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              right: 0,
+                              top: "100%",
+                              marginTop: "0.25rem",
+                              background: "var(--surface)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "0.5rem",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              minWidth: "160px",
+                              zIndex: 10,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettingsProject(name);
+                                setSettingsOpen(true);
+                                setMenuOpen(null);
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "0.6rem 1rem",
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                                color: "var(--text)",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              ⚙️ Settings
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                startEdit(name);
+                                setMenuOpen(null);
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "0.6rem 1rem",
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                                color: "var(--text)",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              ✎ Rename
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmDelete(name);
+                                setMenuOpen(null);
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "0.6rem 1rem",
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                                color: "#dc2626",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              🗑 Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -334,6 +414,24 @@ export function ProjectsPage() {
             );
           })}
         </div>
+      )}
+
+      {settingsProject && (
+        <ProjectSettingsPanel
+          open={settingsOpen}
+          projectName={settingsProject}
+          userEmail={email}
+          onClose={() => {
+            setSettingsOpen(false);
+            setSettingsProject(null);
+          }}
+          onProjectUpdated={() => {
+            loadProjects();
+          }}
+          onProjectDeleted={() => {
+            loadProjects();
+          }}
+        />
       )}
     </div>
   );
