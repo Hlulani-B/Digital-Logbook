@@ -1,7 +1,36 @@
-import OpenAI from "openai";
-import { InferenceClient } from "@huggingface/inference";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import Cerebras from "@cerebras/cerebras_cloud_sdk";
+// Lazy-load all AI SDKs to prevent import-time crashes when packages aren't installed
+let _OpenAI = null;
+let _InferenceClient = null;
+let _GoogleGenerativeAI = null;
+let _Cerebras = null;
+
+async function loadOpenAI() {
+  if (_OpenAI) return _OpenAI;
+  const mod = await import("openai");
+  _OpenAI = mod.default;
+  return _OpenAI;
+}
+
+async function loadInferenceClient() {
+  if (_InferenceClient) return _InferenceClient;
+  const mod = await import("@huggingface/inference");
+  _InferenceClient = mod.InferenceClient;
+  return _InferenceClient;
+}
+
+async function loadGoogleGenerativeAI() {
+  if (_GoogleGenerativeAI) return _GoogleGenerativeAI;
+  const mod = await import("@google/generative-ai");
+  _GoogleGenerativeAI = mod.GoogleGenerativeAI;
+  return _GoogleGenerativeAI;
+}
+
+async function loadCerebras() {
+  if (_Cerebras) return _Cerebras;
+  const mod = await import("@cerebras/cerebras_cloud_sdk");
+  _Cerebras = mod.default;
+  return _Cerebras;
+}
 
 // Lazy-load neon to prevent import-time crashes
 let sql = null;
@@ -55,26 +84,31 @@ const GROQ_MODELS = [
 
 // ---------------- Lazy SDK Instantiators ----------------
 
-function getOpenRouterClient() {
+async function getOpenRouterClient() {
+  const OpenAI = await loadOpenAI();
   return new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: process.env.OPENROUTER_API_KEY || "",
   });
 }
 
-function getHFClient() {
+async function getHFClient() {
+  const InferenceClient = await loadInferenceClient();
   return new InferenceClient(process.env.HF_API_KEY || "");
 }
 
-function getCerebrasClient() {
+async function getCerebrasClient() {
+  const Cerebras = await loadCerebras();
   return new Cerebras({ apiKey: process.env.CEREBRAS_API_KEY || "" });
 }
 
-function getGeminiClient() {
+async function getGeminiClient() {
+  const GoogleGenerativeAI = await loadGoogleGenerativeAI();
   return new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 }
 
-function getGroqClient() {
+async function getGroqClient() {
+  const OpenAI = await loadOpenAI();
   return new OpenAI({
     baseURL: "https://api.groq.com/openai/v1",
     apiKey: process.env.GROQ_API_KEY || "",
@@ -106,7 +140,7 @@ function isRateLimited(err) {
 // ---------------- Provider Callers ----------------
 
 async function callOpenRouterModel(model, question) {
-  const client = getOpenRouterClient();
+  const client = await getOpenRouterClient();
   const response = await client.chat.completions.create({
     model: model,
     response_format: { type: "json_object" },
@@ -120,7 +154,7 @@ async function callOpenRouterModel(model, question) {
 }
 
 async function callHFModel(model, question) {
-  const client = getHFClient();
+  const client = await getHFClient();
   const response = await client.chatCompletion({
     model: model,
     messages: [
@@ -134,7 +168,7 @@ async function callHFModel(model, question) {
 }
 
 async function callCerebrasModel(model, question) {
-  const client = getCerebrasClient();
+  const client = await getCerebrasClient();
   const response = await client.chat.completions.create({
     model,
     messages: [
@@ -148,7 +182,7 @@ async function callCerebrasModel(model, question) {
 }
 
 async function callGeminiModel(model, question) {
-  const genAI = getGeminiClient();
+  const genAI = await getGeminiClient();
   const geminiModel = genAI.getGenerativeModel({
     model,
     generationConfig: {
@@ -163,7 +197,7 @@ async function callGeminiModel(model, question) {
 }
 
 async function callGroqModel(model, question) {
-  const client = getGroqClient();
+  const client = await getGroqClient();
   const response = await client.chat.completions.create({
     model: model,
     response_format: { type: "json_object" },
