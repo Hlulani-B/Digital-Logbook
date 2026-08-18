@@ -249,7 +249,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     } catch {}
     return fullDisplayName;
   })();
-  const avatarUrl = user?.user_metadata?.avatar_url || profileAvatar;
+  // Profile-service avatar/username take priority over Google/OAuth profile data
+  const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || "email";
 
   // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
@@ -263,7 +264,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
         const username = (profileData as Record<string, unknown>)?.username as string;
         if (!cancelled) {
-          if (avatar && !user?.user_metadata?.avatar_url) {
+          if (avatar) {
             setProfileAvatar(avatar);
           }
           if (username) {
@@ -273,7 +274,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [email, user?.user_metadata?.avatar_url]);
+  }, [email]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
