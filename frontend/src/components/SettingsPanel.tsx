@@ -271,7 +271,10 @@ export function SettingsPanel({
     applyFont(prefs.fontFamily);
     applyCorners(prefs.cornerStyle);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 800);
   };
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -347,7 +350,10 @@ export function SettingsPanel({
       if (usernameResult?.error) throw new Error(usernameResult.error);
 
       setProfileSuccess(true);
-      setTimeout(() => setProfileSuccess(false), 2000);
+      setTimeout(() => {
+        setProfileSuccess(false);
+        onClose();
+      }, 800);
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : "Could not save changes");
     } finally {
