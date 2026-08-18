@@ -1,12 +1,14 @@
 import express from 'express';
-import { Entries } from '../functions/entries.js';
+import { Entries, Natural_language } from '../functions/entries.js';
 
 const router = express.Router();
 
 // Instantiate class safely
 let entries;
+let nlEntry;
 try {
   entries = new Entries();
+  nlEntry = new Natural_language();
 } catch (err) {
   console.error('Failed to instantiate Entries handler:', err);
 }
@@ -82,6 +84,35 @@ router.post('/entry', async (req, res) => {
       error: 'Internal Server Error', 
       message: error.message 
     });
+  }
+});
+
+/**
+ * Natural language entry endpoint.
+ * POST /service/natural-language-entry
+ * Body: { "text": "Fixed login bug for WebApp, urgent, due tomorrow" }
+ */
+router.post('/natural-language-entry', async (req, res) => {
+  try {
+    if (!nlEntry) {
+      return res.status(500).json({ success: false, error: 'Natural language handler uninitialized' });
+    }
+
+    const user_email = req.userEmail;
+    if (!user_email) {
+      return res.status(401).json({ error: 'Unauthorized: verified email not available' });
+    }
+
+    const { text } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ success: false, error: 'Text is required' });
+    }
+
+    const result = await nlEntry.entry(user_email, text);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error in /natural-language-entry:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

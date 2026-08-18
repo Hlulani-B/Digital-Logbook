@@ -9,7 +9,6 @@ import entryRoutes from './Routes/entries.js';
 import priorityRoutes from './Routes/priority.js';
 import fieldRoutes from './Routes/field.js';
 import archiveRoutes from './Routes/archive.js';
-import naturalLanguageRoutes from './Routes/natural_language.js';
 
 const app = express();
 const PORT = process.env.PORT || 5003;
@@ -56,7 +55,6 @@ app.use('/service', requireAuth, entryRoutes);
 app.use('/service', requireAuth, priorityRoutes);
 app.use('/service', requireAuth, fieldRoutes);
 app.use('/service', requireAuth, archiveRoutes);
-app.use('/service', requireAuth, naturalLanguageRoutes);
 
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
