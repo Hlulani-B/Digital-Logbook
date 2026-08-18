@@ -267,6 +267,20 @@ export function Dashboard() {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
+    
+    // Validate fields before creating project
+    const nonEmptyFields = projectFields.filter((f) => f.field_name.trim());
+    if (nonEmptyFields.length > 0) {
+      // Check for duplicate field names (case-insensitive)
+      const fieldNames = nonEmptyFields.map((f) => f.field_name.trim().toLowerCase());
+      const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+      if (duplicates.length > 0) {
+        const uniqueDuplicates = [...new Set(duplicates)];
+        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(", ")}`);
+        return;
+      }
+    }
+    
     setCreatingProject(true);
     setNewProjectError(null);
 
@@ -275,16 +289,15 @@ export function Dashboard() {
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
       // Save any non-empty project fields (best-effort after project is created)
-      const validFields = projectFields.filter((f) => f.field_name.trim());
-      if (validFields.length > 0) {
+      if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
-          validFields.map((f) =>
+          nonEmptyFields.map((f) =>
             addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
           )
         );
         const failures = results
           .map((r, i) =>
-            r.status === "rejected" ? validFields[i].field_name : null
+            r.status === "rejected" ? nonEmptyFields[i].field_name : null
           )
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
