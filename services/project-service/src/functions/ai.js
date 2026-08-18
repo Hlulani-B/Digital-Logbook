@@ -1,50 +1,8 @@
-// Lazy-load all AI SDKs to prevent import-time crashes when packages aren't installed
-let _OpenAI = null;
-let _InferenceClient = null;
-let _GoogleGenerativeAI = null;
-let _Cerebras = null;
-
-async function loadOpenAI() {
-  if (_OpenAI) return _OpenAI;
-  const mod = await import("openai");
-  _OpenAI = mod.default;
-  return _OpenAI;
-}
-
-async function loadInferenceClient() {
-  if (_InferenceClient) return _InferenceClient;
-  const mod = await import("@huggingface/inference");
-  _InferenceClient = mod.InferenceClient;
-  return _InferenceClient;
-}
-
-async function loadGoogleGenerativeAI() {
-  if (_GoogleGenerativeAI) return _GoogleGenerativeAI;
-  const mod = await import("@google/generative-ai");
-  _GoogleGenerativeAI = mod.GoogleGenerativeAI;
-  return _GoogleGenerativeAI;
-}
-
-async function loadCerebras() {
-  if (_Cerebras) return _Cerebras;
-  const mod = await import("@cerebras/cerebras_cloud_sdk");
-  _Cerebras = mod.default;
-  return _Cerebras;
-}
-
-// Lazy-load neon to prevent import-time crashes
-let sql = null;
-async function getSql() {
-  if (sql) return sql;
-  try {
-    const { neon } = await import("@neondatabase/serverless");
-    sql = neon(process.env.DATABASE_URL);
-    return sql;
-  } catch (err) {
-    console.warn("Neon SQL not available:", err.message);
-    return null;
-  }
-}
+import supabase from "./supabase.js";
+import OpenAI from "openai";
+import { InferenceClient } from "@huggingface/inference";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import Cerebras from "@cerebras/cerebras_cloud_sdk";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -84,31 +42,26 @@ const GROQ_MODELS = [
 
 // ---------------- Lazy SDK Instantiators ----------------
 
-async function getOpenRouterClient() {
-  const OpenAI = await loadOpenAI();
+function getOpenRouterClient() {
   return new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: process.env.OPENROUTER_API_KEY || "",
   });
 }
 
-async function getHFClient() {
-  const InferenceClient = await loadInferenceClient();
+function getHFClient() {
   return new InferenceClient(process.env.HF_API_KEY || "");
 }
 
-async function getCerebrasClient() {
-  const Cerebras = await loadCerebras();
+function getCerebrasClient() {
   return new Cerebras({ apiKey: process.env.CEREBRAS_API_KEY || "" });
 }
 
-async function getGeminiClient() {
-  const GoogleGenerativeAI = await loadGoogleGenerativeAI();
+function getGeminiClient() {
   return new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 }
 
-async function getGroqClient() {
-  const OpenAI = await loadOpenAI();
+function getGroqClient() {
   return new OpenAI({
     baseURL: "https://api.groq.com/openai/v1",
     apiKey: process.env.GROQ_API_KEY || "",
@@ -140,7 +93,7 @@ function isRateLimited(err) {
 // ---------------- Provider Callers ----------------
 
 async function callOpenRouterModel(model, question) {
-  const client = await getOpenRouterClient();
+  const client = getOpenRouterClient();
   const response = await client.chat.completions.create({
     model: model,
     response_format: { type: "json_object" },
@@ -154,7 +107,7 @@ async function callOpenRouterModel(model, question) {
 }
 
 async function callHFModel(model, question) {
-  const client = await getHFClient();
+  const client = getHFClient();
   const response = await client.chatCompletion({
     model: model,
     messages: [
@@ -168,7 +121,7 @@ async function callHFModel(model, question) {
 }
 
 async function callCerebrasModel(model, question) {
-  const client = await getCerebrasClient();
+  const client = getCerebrasClient();
   const response = await client.chat.completions.create({
     model,
     messages: [
@@ -182,7 +135,7 @@ async function callCerebrasModel(model, question) {
 }
 
 async function callGeminiModel(model, question) {
-  const genAI = await getGeminiClient();
+  const genAI = getGeminiClient();
   const geminiModel = genAI.getGenerativeModel({
     model,
     generationConfig: {
@@ -197,7 +150,7 @@ async function callGeminiModel(model, question) {
 }
 
 async function callGroqModel(model, question) {
-  const client = await getGroqClient();
+  const client = getGroqClient();
   const response = await client.chat.completions.create({
     model: model,
     response_format: { type: "json_object" },
@@ -217,15 +170,14 @@ const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 async function isOnCooldown(providerName) {
   try {
-    const sql = await getSql();
-    if (!sql) return false;
-    const rows = await sql`
-      SELECT cooldown_until FROM ai_provider_cooldowns
-      WHERE provider = ${providerName}
-      LIMIT 1
-    `;
-    if (rows.length === 0) return false;
-    return new Date(rows[0].cooldown_until).getTime() > Date.now();
+    const { data, error } = await supabase
+      .from("ai_provider_cooldowns")
+      .select("cooldown_until")
+      .eq("provider", providerName)
+      .maybeSingle();
+
+    if (error || !data) return false;
+    return new Date(data.cooldown_until).getTime() > Date.now();
   } catch (err) {
     console.warn(`Cooldown check failed for ${providerName}: ${err.message || err}`);
     return false;
@@ -234,14 +186,10 @@ async function isOnCooldown(providerName) {
 
 async function setCooldown(providerName) {
   try {
-    const sql = await getSql();
-    if (!sql) return;
     const cooldownUntil = new Date(Date.now() + COOLDOWN_MS).toISOString();
-    await sql`
-      INSERT INTO ai_provider_cooldowns (provider, cooldown_until)
-      VALUES (${providerName}, ${cooldownUntil})
-      ON CONFLICT (provider) DO UPDATE SET cooldown_until = ${cooldownUntil}
-    `;
+    await supabase
+      .from("ai_provider_cooldowns")
+      .upsert({ provider: providerName, cooldown_until: cooldownUntil }, { onConflict: "provider" });
   } catch (err) {
     console.warn(`Failed to set cooldown for ${providerName}: ${err.message || err}`);
   }
