@@ -1,8 +1,9 @@
 /**
  * test-entries.js — Verify entries for baloyihlulani91@gmail.com
  *
- * Uses @supabase/supabase-js to obtain a JWT, then calls the
- * project-service /service/entry endpoint via curl (child_process).
+ * Uses curl (via child_process) with the Supabase service-role key
+ * to query the entries table directly, then calls the project-service
+ * API endpoint to compare.
  *
  * Run:  npx nodemon test-entries.js
  *
@@ -10,7 +11,6 @@
  */
 
 import { execFile } from 'child_process';
-import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -22,67 +22,41 @@ const API_BASE = 'http://localhost:5003';
 // ────────────────────────────────────────────────────────
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('\n❌  Missing SUPABASE_URL or SUPABASE_KEY in .env');
+if (!SUPABASE_URL || !SERVICE_KEY) {
+  console.error('\n❌  Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
   process.exit(1);
 }
 
-// ── Step 1: Get a JWT via Supabase service-role client ──
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false },
-});
-
-async function getToken() {
-  // Try 1: service-role admin generateLink
-  try {
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email: USER_EMAIL,
-    });
-    if (!error && data?.properties?.action_link) {
-      const url = new URL(data.properties.action_link);
-      const token = url.hash?.split('access_token=')[1]?.split('&')[0];
-      if (token) return token;
-    }
-  } catch {}
-
-  // Try 2: Supabase token endpoint (anonymous sign-up to get an anon session)
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
-      body: JSON.stringify({ email: USER_EMAIL, password: process.env.TEST_USER_PASSWORD || '' }),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.access_token) return json.access_token;
-    }
-  } catch {}
-
-  return null;
-}
-
-// ── Step 2: Call API via curl ───────────────────────────
-function curlEntryEndpoint(token) {
+// ── curl helper ─────────────────────────────────────────
+function curl(url, headers = [], body = null) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      function: 'getAll',
-      values: {},
-    });
-
     const args = [
-      '-s',                          // silent
-      '-w', '\n%{http_code}',        // append HTTP status on last line
-      '-X', 'POST',
-      `${API_BASE}/service/entry`,
-      '-H', 'Content-Type: application/json',
-      '-H', `Authorization: Bearer ${token}`,
-      '-d', body,
+      '-s',
+      '-w', '\n%{http_code}',
+      '-X', 'GET',
+      ...url.split(' ').length > 1 ? [] : [],
     ];
 
-    execFile('curl', args, { timeout: 15000 }, (err, stdout) => {
+    // Build args properly
+    const finalArgs = ['-s', '-w', '\n%{http_code}'];
+
+    if (body) {
+      finalArgs.push('-X', 'POST');
+    }
+
+    finalArgs.push(url);
+
+    for (const h of headers) {
+      finalArgs.push('-H', h);
+    }
+
+    if (body) {
+      finalArgs.push('-d', body);
+    }
+
+    execFile('curl', finalArgs, { timeout: 15000 }, (err, stdout) => {
       if (err) return reject(err);
       const lines = stdout.trim().split('\n');
       const httpCode = lines.pop();
@@ -92,25 +66,44 @@ function curlEntryEndpoint(token) {
   });
 }
 
-// ── Step 3: Direct DB fallback (service-role key) ──────
-async function queryDirectly() {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('user_email', USER_EMAIL)
-    .order('created_at', { ascending: false });
+// ── Step 1: Query Supabase REST API directly ────────────
+async function querySupabaseDirect() {
+  const url = `${SUPABASE_URL}/rest/v1/entries?user_email=eq.${encodeURIComponent(USER_EMAIL)}&order=created_at.desc`;
+  const res = await curl(url, [
+    `apikey: ${SERVICE_KEY}`,
+    `Authorization: Bearer ${SERVICE_KEY}`,
+  ]);
 
-  if (error) throw error;
-  return { success: true, data };
+  if (res.httpCode !== 200) {
+    throw new Error(`Supabase REST returned ${res.httpCode}: ${res.body.slice(0, 300)}`);
+  }
+  return JSON.parse(res.body);
 }
 
-// ── Step 4: Analyse & print ────────────────────────────
-function analyse(entries) {
+// ── Step 2: Call project-service API via curl ───────────
+async function queryAPI() {
+  const body = JSON.stringify({ function: 'getAll', values: {} });
+  const res = await curl(`${API_BASE}/service/entry`, [
+    'Content-Type: application/json',
+    `Authorization: Bearer ${SERVICE_KEY}`,
+  ], body);
+
+  if (res.httpCode === 200) {
+    const json = JSON.parse(res.body);
+    if (json.success && Array.isArray(json.data)) return json.data;
+    throw new Error(json.message || json.error || JSON.stringify(json));
+  }
+  // Service-role JWT isn't a user JWT — API will reject with 401
+  return null;
+}
+
+// ── Step 3: Analyse & print ────────────────────────────
+function analyse(entries, source) {
   console.log('\n' + '═'.repeat(60));
   console.log(`  ENTRIES REPORT FOR ${USER_EMAIL}`);
   console.log('═'.repeat(60));
 
-  // Total count
+  console.log(`\n📡  Data source: ${source}`);
   console.log(`\n📊  Total entries returned: ${entries.length}`);
 
   if (entries.length === EXPECTED_COUNT) {
@@ -123,7 +116,7 @@ function analyse(entries) {
     );
   }
 
-  // Breakdown by project (table_name = project_name)
+  // Breakdown by project
   const grouped = {};
   for (const e of entries) {
     const name = e.project_name || '(unknown)';
@@ -162,43 +155,26 @@ async function main() {
   let entries = null;
   let source = '';
 
-  // Try API via curl first
-  const token = await getToken();
-
-  if (token) {
-    try {
-      console.log('🔑  Got JWT, calling API via curl ...');
-      const res = await curlEntryEndpoint(token);
-
-      if (res.httpCode === 200) {
-        const json = JSON.parse(res.body);
-        if (json.success && Array.isArray(json.data)) {
-          entries = json.data;
-          source = 'curl → API endpoint';
-        } else {
-          console.error('❌  API returned error:', json.message || json.error || JSON.stringify(json));
-        }
-      } else if (res.httpCode === 401) {
-        console.error('❌  401 Unauthorized — JWT was rejected by the API');
-      } else {
-        console.error(`❌  API returned HTTP ${res.httpCode}: ${res.body.slice(0, 200)}`);
-      }
-    } catch (err) {
-      console.error('❌  curl call failed:', err.message);
+  // Try 1: project-service API via curl
+  try {
+    console.log('🔑  Calling project-service API via curl ...');
+    const data = await queryAPI();
+    if (data) {
+      entries = data;
+      source = 'curl → project-service API (JWT auth)';
     }
-  } else {
-    console.log('⚠️   Could not obtain JWT (key may not be service-role)');
+  } catch (err) {
+    console.log(`⚠️   API call failed: ${err.message}`);
   }
 
-  // Fallback: query DB directly
+  // Try 2: Supabase REST API via curl (service-role bypasses RLS)
   if (!entries) {
-    console.log('🔄  Falling back to direct Supabase query ...');
     try {
-      const result = await queryDirectly();
-      entries = result.data;
-      source = 'direct Supabase query (bypassed API)';
+      console.log('🔄  Falling back to Supabase REST API via curl (service-role) ...');
+      entries = await querySupabaseDirect();
+      source = 'curl → Supabase REST API (service-role key)';
     } catch (err) {
-      console.error('\n❌  Direct query also failed:', err.message);
+      console.error(`\n❌  Supabase REST also failed: ${err.message}`);
       process.exit(1);
     }
   }
@@ -208,8 +184,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`📡  Data source: ${source}`);
-  analyse(entries);
+  analyse(entries, source);
 }
 
 main();
