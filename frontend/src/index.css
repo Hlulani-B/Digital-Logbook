@@ -126,37 +126,6 @@
   background-clip: text;
 }
 
-[data-theme="dark"] .btn-primary {
-  background: var(--accent);
-  box-shadow: 0 2px 8px var(--accent-glow);
-  color: #000000;
-}
-
-[data-theme="dark"] .btn-primary:hover {
-  background: #ffffff;
-  box-shadow: 0 4px 14px var(--accent-glow);
-  color: #000000;
-}
-
-[data-theme="dark"] .btn-save {
-  background: var(--accent);
-  color: #000000;
-}
-
-[data-theme="dark"] .btn-save:hover {
-  background: #ffffff;
-  color: #000000;
-}
-
-[data-theme="dark"] .btn-secondary {
-  color: var(--text-dim);
-}
-
-[data-theme="dark"] .btn-secondary:hover {
-  color: var(--text);
-  border-color: var(--border-hover);
-}
-
 [data-theme="dark"] .stat-icon.purple,
 [data-theme="dark"] .stat-icon.green,
 [data-theme="dark"] .stat-icon.amber {
@@ -707,29 +676,99 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
 @media (max-width: 768px) {
   .split-auth {
     flex-direction: column;
+    height: 100dvh;
+    min-height: 100dvh;
   }
   .split-left {
     flex: none;
-    height: 35vh;
-    min-height: 200px;
+    height: 22vh;
+    min-height: 120px;
+    max-height: 180px;
   }
   .split-right {
     flex: 1;
-    height: auto;
-    padding: 1.5rem 1.25rem;
+    height: 0;
+    min-height: 0;
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .split-form-wrapper {
+    max-width: 360px;
+  }
+  .split-form-wrapper .auth-title {
+    font-size: 1.35rem;
+  }
+  .split-form-wrapper .auth-subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+  .split-form-wrapper form {
+    gap: 0.35rem !important;
+  }
+  .split-form-wrapper .field-group {
+    margin-bottom: 0.25rem;
+  }
+  .split-form-wrapper .field-label {
+    font-size: 0.75rem;
+  }
+  .split-form-wrapper .field-input {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.85rem;
+  }
+  .split-form-wrapper .auth-submit {
+    padding: 0.5rem 1rem;
+    margin-top: 0.15rem;
+  }
+  .split-form-wrapper .captcha-wrapper {
+    margin-top: 0.35rem;
+  }
+  .split-form-wrapper .auth-divider {
+    margin: 0.6rem 0;
+  }
+  .split-form-wrapper .auth-mode-toggle {
+    font-size: 0.8rem;
+  }
+  .split-form-wrapper .auth-trouble-link {
+    font-size: 0.8rem;
   }
   .split-video-caption {
-    bottom: 1.5rem;
-    left: 1.5rem;
-    right: 1.5rem;
+    bottom: 0.75rem;
+    left: 1rem;
+    right: 1rem;
   }
   .split-video-caption h2 {
-    font-size: 1.5rem;
+    font-size: 1.15rem;
+    margin-bottom: 0.2rem;
+  }
+  .split-video-caption p {
+    font-size: 0.8rem;
   }
   .split-caption-img {
-    width: 40px;
-    height: 40px;
-    margin-bottom: 0.75rem;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 0.4rem;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .split-left {
+    height: 15vh;
+    min-height: 90px;
+    max-height: 130px;
+  }
+  .split-right {
+    padding: 0.75rem 1rem;
+  }
+  .split-form-wrapper .auth-title {
+    font-size: 1.2rem;
+  }
+  .split-video-caption h2 {
+    font-size: 1rem;
+  }
+  .split-video-caption p {
+    display: none;
   }
 }
 
@@ -1192,6 +1231,19 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+/* Dark theme button overrides - must be after base styles */
+[data-theme="dark"] .btn-primary {
+  background: var(--accent);
+  box-shadow: 0 2px 8px var(--accent-glow);
+  color: #000000;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 14px var(--accent-glow);
+  color: #000000;
 }
 
 .auth-submit {
@@ -1903,6 +1955,27 @@ select.field-input {
 .btn-save:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Dark theme btn-save override */
+[data-theme="dark"] .btn-save {
+  background: var(--accent);
+  color: #000000;
+}
+
+[data-theme="dark"] .btn-save:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Dark theme btn-secondary override */
+[data-theme="dark"] .btn-secondary {
+  color: var(--text-dim);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
 }
 
 /* ========== UTILITIES ========== */
