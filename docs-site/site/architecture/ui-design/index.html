@@ -1,0 +1,2051 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the COMS3011A Digital Logbook project">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>UI Design - Digital Logbook Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ui-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Digital Logbook Docs" class="md-header__button md-logo" aria-label="Digital Logbook Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Digital Logbook Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              UI Design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    codacaine/Digital-Logbook
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/log/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development Log
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/meetings/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Meeting Log
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/user-stories/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sprint 1 User Stories
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/decisions/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Open Questions & Decisions
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Digital Logbook Docs" class="md-nav__button md-logo" aria-label="Digital Logbook Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Digital Logbook Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    codacaine/Digital-Logbook
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cicd-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI/CD & Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/meetings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Meeting Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/user-stories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprint 1 User Stories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Open Questions & Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#design-philosophy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Philosophy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#color-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Color System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Color System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#theme-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Theme Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-themes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Themes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dark-theme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dark Theme
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typography
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Typography">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#font-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Font Stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#base-sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Base Sizes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layout-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layout Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#split-screen-sign-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Split-Screen Sign-In
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dashboard-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quick-entry-bar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Entry Bar
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component Library
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Component Library">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Buttons
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Buttons">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#primary-button" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary Button
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save-button" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save Button
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dark-theme-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dark Theme Overrides
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#entry-box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry Box
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drawer-menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drawer Menu
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings Panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toast-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toast Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#responsive-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Responsive Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Responsive Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breakpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breakpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mobile-adaptations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mobile Adaptations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#touch-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Touch Targets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visual-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visual Hierarchy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visual Hierarchy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#priority-colors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Priority Colors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status Indicators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#corner-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Corner Styles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iconography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Iconography
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Iconography">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#icon-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Icon Library
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Icons
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#animation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Animation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Animation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#transitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loading-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading States
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessibility_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Accessibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#color-contrast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Color Contrast
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keyboard-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard Navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#screen-readers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen Readers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-enhancements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Enhancements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Future Enhancements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sprint-2-candidates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sprint 2 Candidates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ui-walkthrough-a-screenshots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI Walkthrough â€” Screenshots
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UI Walkthrough â€” Screenshots">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-authentication-a-sign-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Authentication â€” Sign In
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-onboarding-a-profile-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Onboarding â€” Profile Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-onboarding-a-avatar-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Onboarding â€” Avatar Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-main-dashboard-a-all-entries-empty-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Main Dashboard â€” All Entries (Empty State)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-navigation-sidebar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Navigation Sidebar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-floating-action-menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Floating Action Menu
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-new-project-a-empty-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. New Project â€” Empty Form
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-new-project-a-defining-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. New Project â€” Defining Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-new-project-a-workout-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. New Project â€” Workout Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-new-project-a-meal-plan-example-multiple-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. New Project â€” Meal Plan Example (Multiple Fields)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-new-entry-a-project-picker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. New Entry â€” Project Picker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-new-entry-a-empty-form-dynamic-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. New Entry â€” Empty Form (Dynamic Fields)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-new-entry-a-filled-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. New Entry â€” Filled Form
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-entry-card-a-detail-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Entry Card â€” Detail View
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-quick-add-a-natural-language-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Quick Add â€” Natural Language Entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-dashboard-with-populated-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Dashboard with Populated Entries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-account-menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Account Menu
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-settings-a-preferences-theme-soft-tan-font-crimson-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. Settings â€” Preferences (Theme: Soft Tan, Font: Crimson Text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#19-settings-a-font-variation-plus-jakarta-sans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19. Settings â€” Font Variation (Plus Jakarta Sans)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#20-settings-a-font-variation-playfair-display" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        20. Settings â€” Font Variation (Playfair Display)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#21-dashboard-a-empty-state-tan-theme-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        21. Dashboard â€” Empty State (Tan Theme Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-dashboard-a-empty-state-lavender-theme-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        22. Dashboard â€” Empty State (Lavender Theme Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-dashboard-a-dark-theme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        23. Dashboard â€” Dark Theme
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-settings-a-theme-variation-pale-lilac-full-width-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        24. Settings â€” Theme Variation (Pale Lilac, full-width layout)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-dashboard-a-empty-state-blush-theme-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        25. Dashboard â€” Empty State (Blush Theme Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-dashboard-a-empty-state-cream-theme-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        26. Dashboard â€” Empty State (Cream Theme Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-dashboard-a-empty-state-peach-theme-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        27. Dashboard â€” Empty State (Peach Theme Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-dashboard-a-empty-state-pink-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        28. Dashboard â€” Empty State (Pink Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-dashboard-a-empty-state-light-blue-cool-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        29. Dashboard â€” Empty State (Light Blue / Cool Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#30-dashboard-a-empty-state-purple-mauve-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        30. Dashboard â€” Empty State (Purple / Mauve Variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#31-settings-a-corner-style-variation-sharpvintage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        31. Settings â€” Corner Style Variation (Sharp/Vintage)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summary-of-design-system-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary of Design System Capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="ui-design">UI Design<a class="headerlink" href="#ui-design" title="Permanent link">&para;</a></h1>
+<h2 id="design-philosophy">Design Philosophy<a class="headerlink" href="#design-philosophy" title="Permanent link">&para;</a></h2>
+<p>The Digital Logbook follows a <strong>vintage notebook aesthetic</strong> with modern usability patterns. The design emphasizes:
+- Warm, earth-tone color palettes
+- Readable typography with accessibility focus
+- Intuitive navigation via drawer menu
+- Quick entry capture as the primary action</p>
+<h2 id="color-system">Color System<a class="headerlink" href="#color-system" title="Permanent link">&para;</a></h2>
+<h3 id="theme-structure">Theme Structure<a class="headerlink" href="#theme-structure" title="Permanent link">&para;</a></h3>
+<p>The app uses CSS custom properties for theming, defined in <code>index.css</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--bg</span><span class="p">:</span><span class="w"> </span><span class="mh">#faf6ec</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--text</span><span class="p">:</span><span class="w"> </span><span class="mh">#3b2f1e</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--accent</span><span class="p">:</span><span class="w"> </span><span class="mh">#8b7355</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--border</span><span class="p">:</span><span class="w"> </span><span class="mh">#d4c5a9</span><span class="p">;</span>
+<span class="w">  </span><span class="c">/* ... */</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="available-themes">Available Themes<a class="headerlink" href="#available-themes" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Light (Default)</strong> - Warm ivory background with brown text</li>
+<li><strong>Dark</strong> - Pure black/white/grey for low-light environments</li>
+<li><strong>Pastel Vintage</strong> - Softer pastel palettes (ivory, blush, powder blue, pale lilac, sage mist, soft tan)</li>
+<li><strong>Brown Vintage</strong> - Rich earth tones (espresso, navy ink, deep plum, forest, terracotta, walnut)</li>
+</ol>
+<h3 id="dark-theme">Dark Theme<a class="headerlink" href="#dark-theme" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">&quot;dark&quot;</span><span class="o">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--bg</span><span class="p">:</span><span class="w"> </span><span class="mh">#000000</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--text</span><span class="p">:</span><span class="w"> </span><span class="mh">#ffffff</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--accent</span><span class="p">:</span><span class="w"> </span><span class="mh">#e0e0e0</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--border</span><span class="p">:</span><span class="w"> </span><span class="mh">#333333</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Note</strong>: White buttons in dark theme use black text for visibility.</p>
+<h2 id="typography">Typography<a class="headerlink" href="#typography" title="Permanent link">&para;</a></h2>
+<h3 id="font-stack">Font Stack<a class="headerlink" href="#font-stack" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Primary</strong>: Lora (serif) - Default font for readability</li>
+<li><strong>Alternatives</strong>: Playfair Display, Crimson Text, EB Garamond</li>
+<li><strong>UI</strong>: Plus Jakarta Sans (sans-serif) for interface elements</li>
+</ul>
+<h3 id="base-sizes">Base Sizes<a class="headerlink" href="#base-sizes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Desktop</strong>: 18px base (112.5%)</li>
+<li><strong>Mobile</strong>: 17px base (106.25%)</li>
+<li><strong>Line height</strong>: 1.65 for body text</li>
+</ul>
+<h3 id="accessibility">Accessibility<a class="headerlink" href="#accessibility" title="Permanent link">&para;</a></h3>
+<p>Font sizes are increased from browser defaults for better readability:
+<div class="highlight"><pre><span></span><code><span class="nt">html</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">112.5</span><span class="kt">%</span><span class="p">;</span><span class="w"> </span><span class="c">/* 18px base */</span>
+<span class="p">}</span>
+
+<span class="p">@</span><span class="k">media</span><span class="w"> </span><span class="o">(</span><span class="nt">max-width</span><span class="o">:</span><span class="w"> </span><span class="nt">768px</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">html</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">106.25</span><span class="kt">%</span><span class="p">;</span><span class="w"> </span><span class="c">/* 17px base on mobile */</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<h2 id="layout-patterns">Layout Patterns<a class="headerlink" href="#layout-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="split-screen-sign-in">Split-Screen Sign-In<a class="headerlink" href="#split-screen-sign-in" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                 â”‚                 â”‚
+â”‚   Video Panel   â”‚   Form Panel    â”‚
+â”‚   (22vh height) â”‚   (scrollable)  â”‚
+â”‚                 â”‚                 â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+</code></pre></div>
+<p><strong>Mobile</strong>: Video panel reduces to 22vh, form panel becomes scrollable.</p>
+<h3 id="dashboard-layout">Dashboard Layout<a class="headerlink" href="#dashboard-layout" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Header (Stats, Search, Settings)   â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚          â”‚                          â”‚
+â”‚  Drawer  â”‚    Main Content          â”‚
+â”‚  Menu    â”‚    - Due Soon            â”‚
+â”‚          â”‚    - Up Next             â”‚
+â”‚          â”‚    - Activity Feed       â”‚
+â”‚          â”‚                          â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+</code></pre></div>
+<h3 id="quick-entry-bar">Quick Entry Bar<a class="headerlink" href="#quick-entry-bar" title="Permanent link">&para;</a></h3>
+<p>Fixed at top of dashboard for rapid log entry:
+<div class="highlight"><pre><span></span><code>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ âœï¸ Quick add: &quot;Fixed login bug...&quot; âž¤ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+</code></pre></div></p>
+<h2 id="component-library">Component Library<a class="headerlink" href="#component-library" title="Permanent link">&para;</a></h2>
+<h3 id="buttons">Buttons<a class="headerlink" href="#buttons" title="Permanent link">&para;</a></h3>
+<h4 id="primary-button">Primary Button<a class="headerlink" href="#primary-button" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="p">.</span><span class="nc">btn-primary</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="mh">#3b2f1e</span><span class="p">;</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#faf6ec</span><span class="p">;</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--radius-xs</span><span class="p">);</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.55</span><span class="kt">rem</span><span class="w"> </span><span class="mf">1.35</span><span class="kt">rem</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="save-button">Save Button<a class="headerlink" href="#save-button" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="p">.</span><span class="nc">btn-save</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="kc">white</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="dark-theme-overrides">Dark Theme Overrides<a class="headerlink" href="#dark-theme-overrides" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">&quot;dark&quot;</span><span class="o">]</span><span class="w"> </span><span class="p">.</span><span class="nc">btn-primary</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#000000</span><span class="p">;</span><span class="w"> </span><span class="c">/* Black text on light background */</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="entry-box">Entry Box<a class="headerlink" href="#entry-box" title="Permanent link">&para;</a></h3>
+<p>Notion-style card with:
+- Bold project title
+- Colored priority/status tags
+- Table layout for fields
+- Three-dots menu for actions</p>
+<div class="highlight"><pre><span></span><code>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Project Name              â‹¯    â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Description: Fixed login bug   â”‚
+â”‚ Status: completed              â”‚
+â”‚ Hours: 2                       â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Priority: Urgent    Due: Aug 20â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+</code></pre></div>
+<h3 id="drawer-menu">Drawer Menu<a class="headerlink" href="#drawer-menu" title="Permanent link">&para;</a></h3>
+<p>Slide-out navigation with:
+- View filters (All, Recent, Drafts, Activity)
+- Project list with entry counts
+- Archive section (placeholder)</p>
+<h3 id="settings-panel">Settings Panel<a class="headerlink" href="#settings-panel" title="Permanent link">&para;</a></h3>
+<p>Slide-out panel with tabs:
+- <strong>Profile</strong>: Username, avatar
+- <strong>Preferences</strong>: Theme, font, corner style
+- <strong>Account</strong>: Password reset, delete account</p>
+<h3 id="toast-notifications">Toast Notifications<a class="headerlink" href="#toast-notifications" title="Permanent link">&para;</a></h3>
+<p>Pretty toast for AI comments:
+<div class="highlight"><pre><span></span><code><span class="p">.</span><span class="nc">quick-entry-toast</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nb">linear-gradient</span><span class="p">(</span><span class="mi">135</span><span class="kt">deg</span><span class="p">,</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">139</span><span class="p">,</span><span class="mi">115</span><span class="p">,</span><span class="mi">85</span><span class="p">,</span><span class="mf">0.08</span><span class="p">),</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">166</span><span class="p">,</span><span class="mi">139</span><span class="p">,</span><span class="mi">107</span><span class="p">,</span><span class="mf">0.12</span><span class="p">));</span>
+<span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">139</span><span class="p">,</span><span class="mi">115</span><span class="p">,</span><span class="mi">85</span><span class="p">,</span><span class="mf">0.18</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--radius-sm</span><span class="p">);</span>
+<span class="w">  </span><span class="k">animation</span><span class="p">:</span><span class="w"> </span><span class="n">toast-slide-in</span><span class="w"> </span><span class="mf">0.35</span><span class="kt">s</span><span class="w"> </span><span class="kc">ease-out</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<h2 id="responsive-design">Responsive Design<a class="headerlink" href="#responsive-design" title="Permanent link">&para;</a></h2>
+<h3 id="breakpoints">Breakpoints<a class="headerlink" href="#breakpoints" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Mobile</strong>: â‰¤768px</li>
+<li><strong>Tablet</strong>: 769px - 1024px</li>
+<li><strong>Desktop</strong>: &gt;1024px</li>
+</ul>
+<h3 id="mobile-adaptations">Mobile Adaptations<a class="headerlink" href="#mobile-adaptations" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Sign-in</strong>: Video panel shrinks, form scrolls</li>
+<li><strong>Dashboard</strong>: Drawer becomes overlay, FAB moves to bottom-right</li>
+<li><strong>Entry boxes</strong>: Stack vertically, reduce padding</li>
+<li><strong>Fonts</strong>: Slightly smaller base size for space efficiency</li>
+</ol>
+<h3 id="touch-targets">Touch Targets<a class="headerlink" href="#touch-targets" title="Permanent link">&para;</a></h3>
+<p>All interactive elements meet minimum 44x44px touch target size.</p>
+<h2 id="visual-hierarchy">Visual Hierarchy<a class="headerlink" href="#visual-hierarchy" title="Permanent link">&para;</a></h2>
+<h3 id="priority-colors">Priority Colors<a class="headerlink" href="#priority-colors" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Urgent &amp; Important</strong> (0): Red tag</li>
+<li><strong>Urgent</strong> (1): Orange tag</li>
+<li><strong>Not Urgent</strong> (2): Yellow tag</li>
+<li><strong>None</strong>: Grey tag</li>
+</ul>
+<h3 id="status-indicators">Status Indicators<a class="headerlink" href="#status-indicators" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Active</strong>: Green dot</li>
+<li><strong>Archived</strong>: Grey dot, reduced opacity</li>
+<li><strong>Due Soon</strong>: Orange highlight</li>
+<li><strong>Overdue</strong>: Red highlight</li>
+</ul>
+<h2 id="corner-styles">Corner Styles<a class="headerlink" href="#corner-styles" title="Permanent link">&para;</a></h2>
+<p>Users can choose corner rounding:
+- <strong>Rounded</strong>: <code>border-radius: 12px</code>
+- <strong>Soft</strong>: <code>border-radius: 6px</code>
+- <strong>Sharp</strong>: <code>border-radius: 0</code></p>
+<p>Applied globally via CSS custom property:
+<div class="highlight"><pre><span></span><code><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--radius-sm</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--radius-xs</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="kt">px</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<h2 id="iconography">Iconography<a class="headerlink" href="#iconography" title="Permanent link">&para;</a></h2>
+<h3 id="icon-library">Icon Library<a class="headerlink" href="#icon-library" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Feather Icons</strong> via React Icons</li>
+<li>Consistent 16x16px size in UI</li>
+<li>Stroke-based for scalability</li>
+</ul>
+<h3 id="common-icons">Common Icons<a class="headerlink" href="#common-icons" title="Permanent link">&para;</a></h3>
+<ul>
+<li>âœï¸ Edit/Entry</li>
+<li>ðŸ“ Project</li>
+<li>âš™ï¸ Settings</li>
+<li>ðŸ” Search</li>
+<li>âž• Add/Create</li>
+<li>â‹¯ More options</li>
+</ul>
+<h2 id="animation">Animation<a class="headerlink" href="#animation" title="Permanent link">&para;</a></h2>
+<h3 id="transitions">Transitions<a class="headerlink" href="#transitions" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Panel slides</strong>: 0.3s ease-in-out</li>
+<li><strong>Button hovers</strong>: 0.2s ease</li>
+<li><strong>Toast notifications</strong>: 0.35s slide-in</li>
+</ul>
+<h3 id="loading-states">Loading States<a class="headerlink" href="#loading-states" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Spinner for async operations</li>
+<li>Skeleton screens (planned)</li>
+<li>Disabled buttons during submission</li>
+</ul>
+<h2 id="accessibility_1">Accessibility<a class="headerlink" href="#accessibility_1" title="Permanent link">&para;</a></h2>
+<h3 id="color-contrast">Color Contrast<a class="headerlink" href="#color-contrast" title="Permanent link">&para;</a></h3>
+<p>All text meets WCAG AA standards:
+- Normal text: 4.5:1 contrast ratio
+- Large text: 3:1 contrast ratio</p>
+<h3 id="keyboard-navigation">Keyboard Navigation<a class="headerlink" href="#keyboard-navigation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>All interactive elements focusable</li>
+<li>Visible focus indicators</li>
+<li>Logical tab order</li>
+</ul>
+<h3 id="screen-readers">Screen Readers<a class="headerlink" href="#screen-readers" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Semantic HTML (nav, main, section, article)</li>
+<li>ARIA labels on icon buttons</li>
+<li>Alt text on images</li>
+</ul>
+<h2 id="future-enhancements">Future Enhancements<a class="headerlink" href="#future-enhancements" title="Permanent link">&para;</a></h2>
+<h3 id="sprint-2-candidates">Sprint 2 Candidates<a class="headerlink" href="#sprint-2-candidates" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Dark mode auto-detection (prefers-color-scheme)</li>
+<li>High contrast theme option</li>
+<li>Reduced motion preferences</li>
+<li>Custom color picker for themes</li>
+<li>Drag-and-drop entry reordering</li>
+<li>Collapsible drawer sections</li>
+</ul>
+<hr />
+<h2 id="ui-walkthrough-a-screenshots">UI Walkthrough â€” Screenshots<a class="headerlink" href="#ui-walkthrough-a-screenshots" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>Screenshot files should be placed in <code>../../../UI images/</code> in the repo, keeping their original filenames so the links resolve.</p>
+</blockquote>
+<h3 id="1-authentication-a-sign-in">1. Authentication â€” Sign In<a class="headerlink" href="#1-authentication-a-sign-in" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>The sign-in screen uses a split layout: a full-bleed lifestyle image (typewriter/journal theme) on the left reinforcing the "logbook" concept, and a clean form on the right with email/password fields, a "Sign In" button, links to create an account or reset password, and OAuth options (Google, GitHub).</p>
+<p><strong>Design decision:</strong> the imagery anchors the product's identity (writing, tracking progress) before the user even logs in.</p>
+<h3 id="2-onboarding-a-profile-setup">2. Onboarding â€” Profile Setup<a class="headerlink" href="#2-onboarding-a-profile-setup" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124024_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>After first sign-in, the user is asked to confirm their email, enter their full name, and choose a username (lowercase letters, numbers, underscores only, validated inline). A "Continue" button progresses to the next onboarding step.</p>
+<p><strong>Design decision:</strong> minimal required fields to reduce onboarding friction.</p>
+<h3 id="3-onboarding-a-avatar-selection">3. Onboarding â€” Avatar Selection<a class="headerlink" href="#3-onboarding-a-avatar-selection" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124058_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>A grid of pre-made avatar icons lets the user pick a profile picture without needing to upload an image. Covers a range of styles/skin tones.</p>
+<p><strong>Design decision:</strong> avoids the complexity (and moderation risk) of custom image uploads while still letting users personalize their identity.</p>
+<h3 id="4-main-dashboard-a-all-entries-empty-state">4. Main Dashboard â€” All Entries (Empty State)<a class="headerlink" href="#4-main-dashboard-a-all-entries-empty-state" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>The core screen of the app. Top navigation bar has a menu toggle, app logo/name, search, and user account dropdown. Below that:
+- <strong>Filter entries</strong> search bar
+- <strong>Due Soon / All Entries</strong> toggle tabs
+- <strong>Sort</strong> controls (Date / Priority)
+- <strong>Quick add</strong> bar with natural-language placeholder text (e.g. <em>"Fixed login bug for ProjectX, urgent, due tomorrow"</em>)
+- Empty state illustration with a clock icon and "Nothing due soon" messaging when there's nothing due in the next 3 days
+- Floating <strong>+</strong> action button (bottom left) for creating new entries/projects</p>
+<p><strong>Design decision:</strong> the "Due Soon" default view keeps the user focused on what's urgent rather than a flooded list.</p>
+<h3 id="5-navigation-sidebar">5. Navigation Sidebar<a class="headerlink" href="#5-navigation-sidebar" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Slide-out panel triggered by the menu icon. Organized into:
+- <strong>Views:</strong> All Entries, Recent, Drafts, My Stats (each with entry counts)
+- <strong>Archive:</strong> Archived Projects
+- <strong>Projects:</strong> user-created projects (e.g. Software Design Project, Meal Plan, Workout), each with entry counts
+- <strong>New Project</strong> button pinned at the bottom</p>
+<p><strong>Design decision:</strong> projects act as customizable categories/templates, separating structural navigation (Views/Archive) from user content (Projects).</p>
+<h3 id="6-floating-action-menu">6. Floating Action Menu<a class="headerlink" href="#6-floating-action-menu" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124439_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Tapping the <strong>+</strong> button expands into two options: <strong>New Entry</strong> and <strong>New Project</strong>, keeping primary creation actions one tap away from anywhere in the app.</p>
+<h3 id="7-new-project-a-empty-form">7. New Project â€” Empty Form<a class="headerlink" href="#7-new-project-a-empty-form" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Form for creating a project with:
+- Project name field
+- Optional description textarea
+- <strong>Project Fields</strong> section â€” starts empty with a message ("No fields defined...") and an <strong>Add Another Project Field</strong> button</p>
+<p><strong>Design decision:</strong> projects are schema-driven â€” the user defines what data each entry under that project will capture (a "Meal Plan" project has different fields than a "Workout" project).</p>
+<h3 id="8-new-project-a-defining-fields">8. New Project â€” Defining Fields<a class="headerlink" href="#8-new-project-a-defining-fields" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124612_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Each field row lets the user set: field name, field type (dropdown, e.g. "Text"), whether it's <strong>Required</strong> (checkbox), and a remove (Ã—) button. Example shown: a "Software Design Project" with a custom field.</p>
+<h3 id="9-new-project-a-workout-example">9. New Project â€” Workout Example<a class="headerlink" href="#9-new-project-a-workout-example" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124637_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Shows a populated example: project name "Workout", description "I want to write what I want to focus on at the gym," and a single required "Target" text field.</p>
+<h3 id="10-new-project-a-meal-plan-example-multiple-fields">10. New Project â€” Meal Plan Example (Multiple Fields)<a class="headerlink" href="#10-new-project-a-meal-plan-example-multiple-fields" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124655_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Shows a project with four fields already defined: Lunch, Breakfast, Supper, Snack â€” all Text type, demonstrating the dynamic multi-field capability.</p>
+<h3 id="11-new-entry-a-project-picker">11. New Entry â€” Project Picker<a class="headerlink" href="#11-new-entry-a-project-picker" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12522_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>When creating a new entry, the user first selects which project it belongs to from a list (Software Design Project, Meal Plan, Workout), each shown with a folder icon.</p>
+<h3 id="12-new-entry-a-empty-form-dynamic-fields">12. New Entry â€” Empty Form (Dynamic Fields)<a class="headerlink" href="#12-new-entry-a-empty-form-dynamic-fields" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Once a project is selected, the entry form dynamically renders the fields defined for that project (Lunch, Breakfast, Supper, Snack for "Meal Plan"), plus common fields:
+- <strong>Due Date</strong> (date/time picker)
+- <strong>Priority</strong> dropdown (e.g. "No priority")
+- <strong>Status</strong> dropdown (e.g. "Up Next")</p>
+<p><strong>Design decision:</strong> the entry form is generated entirely from the project's field schema â€” no hardcoded entry types.</p>
+<h3 id="13-new-entry-a-filled-form">13. New Entry â€” Filled Form<a class="headerlink" href="#13-new-entry-a-filled-form" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_125329_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Same form populated with real values (Lunch: "Dunked Wings", Breakfast: "Dunked Wings", Supper: "Zinger Wings", Snack: "Strawberry and Banana"), due date set, priority set to "Not urgent, not important," status "Up Next," with <strong>Cancel</strong> / <strong>Add Entry</strong> actions.</p>
+<h3 id="14-entry-card-a-detail-view">14. Entry Card â€” Detail View<a class="headerlink" href="#14-entry-card-a-detail-view" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Once created, an entry renders as a card showing: priority dropdown, status badge ("Up Next"), title, all field values in a label/value list, a <strong>Created</strong> date, <strong>Due</strong> date, and a <strong>Start Task</strong> button (with a play icon) to begin time tracking. A "..." menu offers further actions.</p>
+<h3 id="15-quick-add-a-natural-language-entry">15. Quick Add â€” Natural Language Entry<a class="headerlink" href="#15-quick-add-a-natural-language-entry" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_125651_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Typing directly into the quick-add bar (e.g. "I need to work on my abs day tomorrow morning") and submitting creates an entry without opening the full form â€” parsed into the relevant project/fields.</p>
+<h3 id="16-dashboard-with-populated-entries">16. Dashboard with Populated Entries<a class="headerlink" href="#16-dashboard-with-populated-entries" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Shows the "Due Soon" view with an actual entry card ("Workout" with Target: "abs day tomorrow morning", created/due dates, Start Task button) â€” demonstrating the empty-state-to-populated transition.</p>
+<h3 id="17-account-menu">17. Account Menu<a class="headerlink" href="#17-account-menu" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12353_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Dropdown from the top-right user badge showing: display name, email, <strong>Manage Profile</strong>, <strong>Settings</strong>, and <strong>Sign Out</strong> (styled distinctly in a warning tone).</p>
+<h3 id="18-settings-a-preferences-theme-soft-tan-font-crimson-text">18. Settings â€” Preferences (Theme: Soft Tan, Font: Crimson Text)<a class="headerlink" href="#18-settings-a-preferences-theme-soft-tan-font-crimson-text" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Settings modal with <strong>Profile / Preferences / Account</strong> tabs. Preferences tab covers:
+- <strong>Time Format</strong> (e.g. 24-hour)
+- <strong>Theme</strong> dropdown (e.g. Soft Tan)
+- <strong>Font</strong> dropdown (e.g. Crimson Text)
+- <strong>Corner Style</strong> dropdown (e.g. Rounded (Default))
+- A <strong>Behavior</strong> section below (collapsed/scrolled past in this view)
+- <strong>Cancel</strong> / <strong>Save Changes</strong> actions</p>
+<h3 id="19-settings-a-font-variation-plus-jakarta-sans">19. Settings â€” Font Variation (Plus Jakarta Sans)<a class="headerlink" href="#19-settings-a-font-variation-plus-jakarta-sans" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Same Preferences panel with Font changed to "Plus Jakarta Sans," demonstrating live typography switching across the whole app.</p>
+<h3 id="20-settings-a-font-variation-playfair-display">20. Settings â€” Font Variation (Playfair Display)<a class="headerlink" href="#20-settings-a-font-variation-playfair-display" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Same panel with Font set to "Playfair Display," on a tan-background dashboard behind it, showing the theme + font combination together.</p>
+<h3 id="21-dashboard-a-empty-state-tan-theme-variant">21. Dashboard â€” Empty State (Tan Theme Variant)<a class="headerlink" href="#21-dashboard-a-empty-state-tan-theme-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123423_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>The "All Entries / Nothing due soon" screen shown in a warm tan background theme, confirming the theming system covers the entire app shell consistently.</p>
+<h3 id="22-dashboard-a-empty-state-lavender-theme-variant">22. Dashboard â€” Empty State (Lavender Theme Variant)<a class="headerlink" href="#22-dashboard-a-empty-state-lavender-theme-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Same empty-state screen in a light lavender background theme.</p>
+<h3 id="23-dashboard-a-dark-theme">23. Dashboard â€” Dark Theme<a class="headerlink" href="#23-dashboard-a-dark-theme" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123527_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>The "All Entries" dashboard rendered in a dark theme â€” dark background, light text â€” confirming full dark-mode support across the interface, not just isolated components.</p>
+<h3 id="24-settings-a-theme-variation-pale-lilac-full-width-layout">24. Settings â€” Theme Variation (Pale Lilac, full-width layout)<a class="headerlink" href="#24-settings-a-theme-variation-pale-lilac-full-width-layout" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123545_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Preferences panel (full-width layout) with additional <strong>Week Starts On</strong> field (e.g. Monday), Theme set to "Pale Lilac," Font "Lora (Default)."</p>
+<h3 id="25-dashboard-a-empty-state-blush-theme-variant">25. Dashboard â€” Empty State (Blush Theme Variant)<a class="headerlink" href="#25-dashboard-a-empty-state-blush-theme-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Empty-state dashboard shown in a blush/pink background theme.</p>
+<h3 id="26-dashboard-a-empty-state-cream-theme-variant">26. Dashboard â€” Empty State (Cream Theme Variant)<a class="headerlink" href="#26-dashboard-a-empty-state-cream-theme-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Empty-state dashboard shown in a cream background theme.</p>
+<h3 id="27-dashboard-a-empty-state-peach-theme-variant">27. Dashboard â€” Empty State (Peach Theme Variant)<a class="headerlink" href="#27-dashboard-a-empty-state-peach-theme-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12395_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Empty-state dashboard shown in a soft peach background theme.</p>
+<h3 id="28-dashboard-a-empty-state-pink-variant">28. Dashboard â€” Empty State (Pink Variant)<a class="headerlink" href="#28-dashboard-a-empty-state-pink-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Empty-state dashboard in a pink-toned background â€” a distinct shade from the blush variant above, suggesting the theme picker offers several pink/warm tones rather than just one.</p>
+<h3 id="29-dashboard-a-empty-state-light-blue-cool-variant">29. Dashboard â€” Empty State (Light Blue / Cool Variant)<a class="headerlink" href="#29-dashboard-a-empty-state-light-blue-cool-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Empty-state dashboard in a cool light-blue background tone, distinct from the lavender/purple variants â€” rounds out the cool end of the theme palette alongside the warm tan/peach/blush tones.</p>
+<h3 id="30-dashboard-a-empty-state-purple-mauve-variant">30. Dashboard â€” Empty State (Purple / Mauve Variant)<a class="headerlink" href="#30-dashboard-a-empty-state-purple-mauve-variant" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Empty-state dashboard in a deeper purple/mauve tone, distinct from the lighter Pale Lilac setting shown in item 24 â€” indicates the theme system has multiple purple-family options, not just one.</p>
+<h3 id="31-settings-a-corner-style-variation-sharpvintage">31. Settings â€” Corner Style Variation (Sharp/Vintage)<a class="headerlink" href="#31-settings-a-corner-style-variation-sharpvintage" title="Permanent link">&para;</a></h3>
+<p><code>../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p>Preferences panel with <strong>Corner Style</strong> changed to "Sharp (Vintage)," showing input fields and buttons render with squared corners instead of rounded â€” confirming the Corner Style setting applies globally to UI elements.</p>
+<h3 id="summary-of-design-system-capabilities">Summary of Design System Capabilities<a class="headerlink" href="#summary-of-design-system-capabilities" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Layout:</strong> consistent top nav (menu, logo, search, account) + content area + floating action button across all screens</li>
+<li><strong>Theming:</strong> multiple background themes (Soft Tan, Pale Lilac, Dark, Blush, Cream, Peach, Lavender, etc.), all applied consistently across dashboard, cards, and modals</li>
+<li><strong>Typography:</strong> multiple font choices (Crimson Text, Plus Jakarta Sans, Playfair Display, Lora), user-selectable</li>
+<li><strong>Shape system:</strong> Rounded (default) vs Sharp (Vintage) corner styles, applied app-wide</li>
+<li><strong>Dynamic forms:</strong> both Projects and Entries are schema-driven â€” fields are user-defined per project and rendered dynamically on entry creation</li>
+<li><strong>Time tracking:</strong> entries support a "Start Task" action tied to time-tracking functionality</li>
+<li><strong>Natural language input:</strong> quick-add bar for fast entry creation without the full form</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.top", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

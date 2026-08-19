@@ -29,6 +29,11 @@ nav:
       - Overview: architecture/overview.md
       - Database Schema: architecture/database.md
       - CI/CD & Deployment: architecture/cicd-deployment.md
+      - API Contracts: architecture/api-contracts.md
+      - System Design: architecture/system-design.md
+      - Tech Stack: architecture/teck-stack.md
+      - UI Design: architecture/ui-design.md
+  - Roadmap: roadmap.md
   - Development Log: development/log.md
   - Meeting Log: development/meetings.md
   - Sprint 1 User Stories: development/user-stories.md
