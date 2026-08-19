@@ -7,20 +7,20 @@ theme:
   name: material
   palette:
     - scheme: default
-      primary: deep purple
-      accent: amber
+      primary: pink
+      accent: rose
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: pink
+      accent: rose
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   font:
-    text: Inter
-    code: JetBrains Mono
+    text: Poppins
+    code: Fira Code
   features:
     - navigation.tabs
     - navigation.tabs.sticky

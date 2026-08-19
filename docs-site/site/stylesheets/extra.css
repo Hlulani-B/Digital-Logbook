@@ -1,0 +1,117 @@
+/* Custom styles for Digital Logbook Docs */
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better code blocks */
+.md-typeset code {
+  border-radius: 6px;
+  padding: 0.2em 0.4em;
+}
+
+.md-typeset pre code {
+  padding: 1em;
+}
+
+/* Enhanced admonitions */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Better tables */
+.md-typeset table:not([class]) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+  font-weight: 600;
+}
+
+/* Improved navigation */
+.md-tabs {
+  background-color: var(--md-primary-fg-color);
+}
+
+.md-tabs__link--active {
+  font-weight: 600;
+}
+
+/* Better search */
+.md-search__input {
+  border-radius: 8px;
+}
+
+/* Enhanced header links */
+.md-header__topic {
+  font-weight: 600;
+}
+
+/* Better footer */
+.md-footer {
+  background-color: var(--md-primary-fg-color);
+}
+
+/* Image styling */
+.md-typeset img {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin: 1em 0;
+}
+
+/* Dark mode adjustments */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #1a1a2e;
+  --md-default-fg-color: #e0e0e0;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+}
+
+/* Better blockquotes */
+.md-typeset blockquote {
+  border-left: 4px solid var(--md-primary-fg-color);
+  padding-left: 1em;
+  margin-left: 0;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 0 8px 8px 0;
+}
+
+[data-md-color-scheme="slate"] .md-typeset blockquote {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Enhanced list styling */
+.md-typeset ul,
+.md-typeset ol {
+  margin-left: 0.5em;
+}
+
+.md-typeset li {
+  margin-bottom: 0.3em;
+}
+
+/* Better horizontal rules */
+.md-typeset hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--md-primary-fg-color), transparent);
+  margin: 2em 0;
+}
+
+/* Animated back-to-top button */
+.md-top {
+  transition: all 0.3s ease;
+}
+
+.md-top:hover {
+  transform: translateY(-4px);
+}
