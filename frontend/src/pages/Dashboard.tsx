@@ -10,7 +10,8 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
+// TODO: Archive feature - import when implemented
+// import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
@@ -61,7 +62,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
-  const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
+  // TODO: Archive feature - state when implemented
+  // const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
@@ -116,15 +118,15 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         console.error("Failed to load due soon:", dueSoonRes.reason);
       }
 
-      // Also fetch archived rows for archive view using getArchives
-      if (activeView === "archives") {
-        try {
-          const archiveData = await getArchives(email, project);
-          setArchiveRows(archiveData?.data || []);
-        } catch (archiveErr) {
-          console.error("Failed to load archives:", archiveErr);
-        }
-      }
+      // TODO: Archive feature - fetch archived rows when implemented
+      // if (activeView === "archives") {
+      //   try {
+      //     const archiveData = await getArchives(email, project);
+      //     setArchiveRows(archiveData?.data || []);
+      //   } catch (archiveErr) {
+      //     console.error("Failed to load archives:", archiveErr);
+      //   }
+      // }
     } catch (err) {
       console.error("[Dashboard] loadData exception:", err);
     } finally {
@@ -173,8 +175,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     // If search results are available, use them
     if (searchResults !== null) return searchResults;
 
-    // If archive view, use archiveRows
-    if (activeView === "archives") return archiveRows;
+    // TODO: Archive feature - return archiveRows when implemented
+    // if (activeView === "archives") return archiveRows;
 
     // Otherwise use all entries (unarchived)
     let filtered = [...entries];
@@ -388,25 +390,26 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
   };
 
-  const handleArchiveProject = async (projectName: string) => {
-    if (!email) return;
-    try {
-      await archiveProject(email, projectName);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to archive project:", err);
-    }
-  };
+  // TODO: Archive feature - functions when implemented
+  // const handleArchiveProject = async (projectName: string) => {
+  //   if (!email) return;
+  //   try {
+  //     await archiveProject(email, projectName);
+  //     await loadData();
+  //   } catch (err) {
+  //     console.error("Failed to archive project:", err);
+  //   }
+  // };
 
-  const handleUnarchiveProject = async (projectName: string) => {
-    if (!email) return;
-    try {
-      await unarchiveProject(email, projectName);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to unarchive project:", err);
-    }
-  };
+  // const handleUnarchiveProject = async (projectName: string) => {
+  //   if (!email) return;
+  //   try {
+  //     await unarchiveProject(email, projectName);
+  //     await loadData();
+  //   } catch (err) {
+  //     console.error("Failed to unarchive project:", err);
+  //   }
+  // };
 
   const PRIORITY_LABELS: Record<string, string> = {
     "0": "Urgent and important",
@@ -538,36 +541,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </button>
         </div>
 
-        <div className="drawer-section">
-          <p className="drawer-section-title">Archive</p>
-          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { navigate("/dashboard/archives"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            Archived Projects
-            <span className="drawer-badge">{projects.filter((p) => p.archived).length}</span>
-          </button>
-          {projects.filter((p) => p.archived).map((project) => {
-            const name = project.project_name as string;
-            const count = entries.filter((e) => e.project_name === name).length;
-            return (
-              <button
-                key={name}
-                className={`drawer-item drawer-item-archived ${activeView === name ? "active" : ""}`}
-                onClick={() => { setActiveView(name); setDrawerOpen(false); }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-                {name}
-                <span className="drawer-badge">{count}</span>
-                <span
-                  className="drawer-item-action"
-                  onClick={(e) => { e.stopPropagation(); handleUnarchiveProject(name); }}
-                  title="Unarchive project"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {/* TODO: Archive feature - add archive section when implemented */}
 
         <div className="drawer-section drawer-projects">
           <p className="drawer-section-title">Projects</p>
@@ -584,13 +558,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                   {name}
                   <span className="drawer-badge">{count}</span>
-                  <span
-                    className="drawer-item-action"
-                    onClick={(e) => { e.stopPropagation(); handleArchiveProject(name); }}
-                    title="Archive project"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
-                  </span>
+                  {/* TODO: Archive feature - add archive button when implemented */}
                 </button>
               );
             })}
@@ -615,7 +583,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "activity" ? "Activity Log" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
               {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
