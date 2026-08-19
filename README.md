@@ -7,9 +7,9 @@ https://hlulani-b.github.io/Digital-Logbook/
 
 | Service | Lines | Statements | Functions | Branches |
 | :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](https://img.shields.io/badge/lines-33.96%25-e05d44) | ![Statements](https://img.shields.io/badge/statements-32.36%25-e05d44) | ![Functions](https://img.shields.io/badge/functions-36.92%25-e05d44) | ![Branches](https://img.shields.io/badge/branches-27.22%25-e05d44) |
-| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-36.80%25-e05d44) | ![Statements](https://img.shields.io/badge/statements-36.66%25-e05d44) | ![Functions](https://img.shields.io/badge/functions-53.84%25-yellow) | ![Branches](https://img.shields.io/badge/branches-28.30%25-e05d44) |
-| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-39.56%25-e05d44) | ![Statements](https://img.shields.io/badge/statements-37.50%25-e05d44) | ![Functions](https://img.shields.io/badge/functions-54.54%25-yellow) | ![Branches](https://img.shields.io/badge/branches-17.02%25-e05d44) |
+| **Project Service** | ![Lines](https://img.shields.io/badge/lines-71.13%25-yellow) | ![Statements](https://img.shields.io/badge/statements-67.53%25-yellow) | ![Functions](https://img.shields.io/badge/functions-65.38%25-yellow) | ![Branches](https://img.shields.io/badge/branches-59.25%25-yellow) |
+| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-85.71%25-brightgreen) | ![Statements](https://img.shields.io/badge/statements-82.50%25-brightgreen) | ![Functions](https://img.shields.io/badge/functions-100%25-brightgreen) | ![Branches](https://img.shields.io/badge/branches-71.42%25-brightgreen) |
+| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-brightgreen) | ![Statements](https://img.shields.io/badge/statements-100%25-brightgreen) | ![Functions](https://img.shields.io/badge/functions-100%25-brightgreen) | ![Branches](https://img.shields.io/badge/branches-100%25-brightgreen) |
 
 
 ##  Deployed Live Services

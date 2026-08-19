@@ -235,4 +235,89 @@ describe('Entries', () => {
       expect(result).toEqual({ success: false, message: 'order failed' });
     });
   });
+
+  // ─── sortArchivedEntries ─────────────────────────────────────
+  describe('sortArchivedEntries', () => {
+    it('should sort archived entries by due_date (sort_type=0)', async () => {
+      const mockData = [
+        { id: 1, due_date: '2024-03-01', archived: true },
+        { id: 2, due_date: '2024-01-01', archived: true },
+      ];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 0);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(2);
+      expect(supabase.from).toHaveBeenCalledWith('entries');
+    });
+
+    it('should sort archived entries by priority (sort_type=1)', async () => {
+      const mockData = [
+        { id: 1, priority: 'Not urgent, not important' },
+        { id: 2, priority: 'Urgent and important' },
+        { id: 3, priority: 'Urgent but not important' },
+      ];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 1);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual([
+        { id: 2, priority: 'Urgent and important' },
+        { id: 3, priority: 'Urgent but not important' },
+        { id: 1, priority: 'Not urgent, not important' },
+      ]);
+    });
+
+    it('should return data as-is for unknown sort_type', async () => {
+      const mockData = [{ id: 1, due_date: '2024-01-01' }];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 99);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockData);
+    });
+
+    it('should return failure on error', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { message: 'query failed' } } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 0);
+
+      expect(result).toEqual({ success: false, message: 'query failed' });
+    });
+  });
+
+  // ─── updateEntry edge cases ──────────────────────────────────
+  describe('updateEntry edge cases', () => {
+    it('should return "No changes" when no fields are provided', async () => {
+      const result = await entries.updateEntry('entry-1', 'a@b.com', 'P1');
+
+      expect(result).toEqual({ success: true, message: 'No changes to update' });
+    });
+  });
+
+  // ─── sortUnarchivedEntries default case ──────────────────────
+  describe('sortUnarchivedEntries default case', () => {
+    it('should return data as-is for unknown sort_type', async () => {
+      const mockData = [{ id: 1, due_date: '2024-01-01' }];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortUnarchivedEntries('a@b.com', 'P1', 99);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockData);
+    });
+  });
 });

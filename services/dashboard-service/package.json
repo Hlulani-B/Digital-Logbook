@@ -31,9 +31,9 @@
       "^.+\\.js$": "babel-jest"
     },
     "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/**/*.test.js",
-      "!src/**/__tests__/**"
+      "src/functions/**/*.js",
+      "!src/**/__tests__/**",
+      "!src/**/__mocks__/**"
     ]
   }
 }

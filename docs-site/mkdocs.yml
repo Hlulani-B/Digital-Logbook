@@ -19,7 +19,7 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   font:
-    text: Poppins
+    text: Lora
     code: Fira Code
   features:
     - navigation.tabs
