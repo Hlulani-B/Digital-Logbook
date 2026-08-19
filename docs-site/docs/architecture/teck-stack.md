@@ -222,6 +222,16 @@
 - No dependency on external services for the primary repository
 - Gitea Actions provides CI/CD without needing a separate CI server
 
+### GitHub (Mirror Only)
+**What**: GitHub repository used exclusively as a read-only mirror for deployment.
+
+**Why**:
+- Render's free tier deploys directly from the repository — it needs a public Git URL to clone from
+- GitHub was initially added as a second remote so Render could deploy, but it is NOT used for development
+- GitHub has since been removed as a local remote — all pushes go to Gitea only
+- Render is configured to mirror from Gitea directly, eliminating the need for a dual-push workflow
+- This avoids the risk of GitHub and Gitea falling out of sync (which caused stale builds when GitHub lagged behind)
+
 ### Git Branching Strategy
 **What**: `main` (production) + `hlulani` (development) + feature branches.
 

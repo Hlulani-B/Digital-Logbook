@@ -273,6 +273,8 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
         const projectName = (details.project_name as string) || (details.old_project_name as string);
         const priorityLabel = details.priority != null ? PRIORITY_LABELS[String(details.priority)] : null;
         const isRename = activity.action_type === "PROJECT_RENAMED";
+        const oldName = String(details.old_project_name ?? "");
+        const newName = String(details.new_project_name ?? "");
 
         return (
           <div key={activity.id || i} className="activity-item animate-in" style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}>
@@ -287,11 +289,11 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
                     <span className="activity-entity-name">"{entityName}"</span>
                   </>
                 )}
-                {isRename && details.old_project_name && details.new_project_name && (
+                {isRename && oldName && newName && (
                   <>
                     {" "}
                     <span className="activity-detail">
-                      from "{truncateName(String(details.old_project_name))}" to "{truncateName(String(details.new_project_name))}"
+                      from "{truncateName(oldName)}" to "{truncateName(newName)}"
                     </span>
                   </>
                 )}
