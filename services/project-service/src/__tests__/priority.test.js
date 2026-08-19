@@ -25,7 +25,7 @@ describe('Priority', () => {
 
     const result = await priority.setPriority('a@b.com', 0, 'P1', 'entry-object');
 
-    expect(result).toEqual({ success: true, message: 'Priority set successfully' });
+    expect(result).toEqual({ success: true, message: 'Priority set to Urgent and important' });
     // The update call is made on the chain; inspect the mocked supabase.from invocation indirectly
     expect(supabase.from).toHaveBeenCalledWith('entries');
   });
@@ -37,7 +37,7 @@ describe('Priority', () => {
 
     const result = await priority.setPriority('a@b.com', '1', 'P1', 'entry-object');
 
-    expect(result).toEqual({ success: true, message: 'Priority set successfully' });
+    expect(result).toEqual({ success: true, message: 'Priority set to Urgent but not important' });
   });
 
   it('should set priority to "Not urgent, not important" for value 2', async () => {
@@ -47,7 +47,7 @@ describe('Priority', () => {
 
     const result = await priority.setPriority('a@b.com', 2, 'P1', 'entry-object');
 
-    expect(result).toEqual({ success: true, message: 'Priority set successfully' });
+    expect(result).toEqual({ success: true, message: 'Priority set to Not urgent, not important' });
   });
 
   it('should remove priority for value 3', async () => {
@@ -57,7 +57,7 @@ describe('Priority', () => {
 
     const result = await priority.setPriority('a@b.com', 3, 'P1', 'entry-object');
 
-    expect(result).toEqual({ success: true, message: 'Priority set successfully' });
+    expect(result).toEqual({ success: true, message: 'Priority set to none' });
   });
 
   it('should return failure for invalid priority value', async () => {

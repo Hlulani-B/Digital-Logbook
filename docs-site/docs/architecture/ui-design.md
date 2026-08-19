@@ -480,13 +480,13 @@ Empty-state dashboard shown in a soft peach background theme.
 
 ### 28. Dashboard — Empty State (Pink Variant)
 
-![Dashboard - Pink Theme](../assets/ui-images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg)
+![Dashboard - Pink Theme](../assets/ui-images/Screenshot_19-8-2026_123931_digital-logbook-bxgv.onrender.com.jpeg)
 
 Empty-state dashboard in a pink-toned background — a distinct shade from the blush variant above, suggesting the theme picker offers several pink/warm tones rather than just one.
 
 ### 29. Dashboard — Empty State (Light Blue / Cool Variant)
 
-![Dashboard - Light Blue Theme](../assets/ui-images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg)
+![Dashboard - Light Blue Theme](../assets/ui-images/Screenshot_19-8-2026_123945_digital-logbook-bxgv.onrender.com.jpeg)
 
 Empty-state dashboard in a cool light-blue background tone, distinct from the lavender/purple variants — rounds out the cool end of the theme palette alongside the warm tan/peach/blush tones.
 

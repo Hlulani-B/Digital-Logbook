@@ -29,7 +29,7 @@ describe('Archives', () => {
 
     expect(result).toEqual({ success: true, message: 'Project archived successfully' });
     expect(supabase.from).toHaveBeenCalledWith('projects');
-    expect(chain.update).toHaveBeenCalledWith({ is_archived: true });
+    expect(chain.update).toHaveBeenCalledWith({ archived: true });
   });
 
   it('should return failure when archiving a project fails', async () => {
@@ -54,7 +54,7 @@ describe('Archives', () => {
 
     expect(result).toEqual({ success: true, message: 'Project unarchived successfully' });
     expect(supabase.from).toHaveBeenCalledWith('projects');
-    expect(chain.update).toHaveBeenCalledWith({ is_archived: false });
+    expect(chain.update).toHaveBeenCalledWith({ archived: false });
   });
 
   it('should return failure when unarchiving a project fails', async () => {

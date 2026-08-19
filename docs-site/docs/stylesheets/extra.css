@@ -136,12 +136,72 @@ body {
   --md-default-fg-color: #f0e6ef;
 }
 
+[data-md-color-scheme="slate"] body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #2d1b3d 100%);
+}
+
+[data-md-color-scheme="slate"] .md-header {
+  background: linear-gradient(135deg, #8b0050 0%, #4a0028 100%);
+}
+
+[data-md-color-scheme="slate"] .md-footer {
+  background: linear-gradient(135deg, #8b0050 0%, #4a0028 100%);
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  background: linear-gradient(135deg, #8b0050 0%, #4a0028 100%);
+}
+
+[data-md-color-scheme="slate"] .md-search__input {
+  background-color: rgba(30, 30, 50, 0.95);
+  color: #f0e6ef !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__input::placeholder {
+  color: #aaa !important;
+}
+
 [data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
   background: linear-gradient(135deg, #c71585 0%, #8b008b 100%);
 }
 
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) {
+  border-color: rgba(199, 21, 133, 0.2);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:nth-child(even) {
+  background-color: rgba(199, 21, 133, 0.08);
+}
+
 [data-md-color-scheme="slate"] .md-typeset img {
   box-shadow: 0 8px 24px rgba(199, 21, 133, 0.3);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition,
+[data-md-color-scheme="slate"] .md-typeset details {
+  border-color: rgba(199, 21, 133, 0.3);
+  box-shadow: 0 4px 16px rgba(199, 21, 133, 0.12);
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background-color: rgba(199, 21, 133, 0.15);
+}
+
+[data-md-color-scheme="slate"] .md-typeset blockquote {
+  background: linear-gradient(90deg, rgba(199, 21, 133, 0.15) 0%, transparent 100%);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: #ff69b4;
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+  color: #ffb6c1;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h2,
+[data-md-color-scheme="slate"] .md-typeset h3 {
+  color: #ff69b4;
 }
 
 /* Better blockquotes with soft styling */
@@ -152,10 +212,6 @@ body {
   background: linear-gradient(90deg, rgba(255, 182, 193, 0.15) 0%, transparent 100%);
   border-radius: 0 12px 12px 0;
   font-style: italic;
-}
-
-[data-md-color-scheme="slate"] .md-typeset blockquote {
-  background: linear-gradient(90deg, rgba(199, 21, 133, 0.15) 0%, transparent 100%);
 }
 
 /* Enhanced list styling */
