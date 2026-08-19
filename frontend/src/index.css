@@ -3408,3 +3408,27 @@ img { max-width: 100%; }
   .drawer { width: 260px; }
   .fab-container { bottom: 1rem; left: 1rem; }
 }
+
+/* ========== DARK THEME — ALL WHITE/LIGHT BUTTONS FIX ========== */
+[data-theme="dark"] .quick-entry-submit {
+  background: var(--accent);
+  color: #000000;
+}
+[data-theme="dark"] .quick-entry-submit:hover:not(:disabled) {
+  background: #ffffff;
+  color: #000000;
+}
+[data-theme="dark"] .auth-submit {
+  background: var(--accent);
+  color: #000000;
+}
+[data-theme="dark"] .auth-submit:hover {
+  background: #ffffff;
+  color: #000000;
+}
+[data-theme="dark"] .panel-close {
+  color: var(--text-dim);
+}
+[data-theme="dark"] .panel-close:hover {
+  color: var(--text);
+}
