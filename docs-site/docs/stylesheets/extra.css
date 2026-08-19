@@ -79,10 +79,27 @@ body {
   border-radius: 12px;
   background-color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 2px 8px rgba(255, 105, 180, 0.1);
+  color: #333 !important;
+}
+
+.md-search__input::placeholder {
+  color: #666 !important;
+  opacity: 1 !important;
 }
 
 .md-search__input:focus {
   box-shadow: 0 4px 16px rgba(255, 105, 180, 0.2);
+  color: #333 !important;
+}
+
+/* Make search icon visible */
+.md-search__icon {
+  color: #ff1493 !important;
+  opacity: 1 !important;
+}
+
+.md-search .md-search__icon svg {
+  fill: #ff1493 !important;
 }
 
 /* Enhanced header */
