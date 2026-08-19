@@ -269,11 +269,8 @@ export class Natural_language {
       }
 
       const projectList = (projectsResult.projects || []).filter(p => !p.archived);
-      if (projectList.length === 0) {
-        return { success: false, message: 'No projects found. Create a project first.' };
-      }
 
-      // 2. Get fields for every project
+      // 2. Get fields for every existing project
       const projectsWithFields = [];
       for (const p of projectList) {
         const fieldsResult = await fields.getFields(email, p.project_name);
@@ -286,25 +283,26 @@ export class Natural_language {
 
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-      // 3. Give AI everything, ask for project + filled field values + priority + due date + comment
+      // 3. Give AI everything, ask it to match or propose a new project
       const prompt = `Parse this log entry into JSON. Today is ${today}.
 
-Projects with fields:
+Existing projects with fields:
 ${JSON.stringify(projectsWithFields)}
 
 Entry: "${text}"
 
 Rules:
-- Match to one project
-- Fill field values from the entry text
+- Try to match this entry to one of the existing projects above.
+- Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit.
+- If matched=1: set "project" to the matching project_name, and "fields" to an object of field_name:value pairs filled from the entry text using that project's existing fields.
+- If matched=0: invent a short sensible new project name in "project", and return "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense for this kind of entry. Also return "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - Due date: YYYY-MM-DD or null
-- Write a short, soft, human comment back to the user about this entry. One sentence, warm and low-key, not robotic praise. Base it on what they logged (e.g. acknowledging effort, noting a pattern like working late, or just a friendly nod). Do not repeat the entry text verbatim.
+- Write a short, soft, human comment back to the user about this entry. One sentence, warm and low-key, not robotic praise. Base it on what they logged. Do not repeat the entry text verbatim.
 
 Respond with ONLY this JSON structure, nothing else:
-{"project":"name","fields":{"field":"value"},"priority":0,"due_date":"2024-01-01","comment":"Nice progress on the design work — those late sessions are really adding up."}`;
+{"matched":1,"project":"name","fields":{"field":"value"},"new_fields":[],"priority":0,"due_date":"2024-01-01","comment":"Nice progress on the design work — those late sessions are really adding up."}`;
 
-      // ai.js: takes a prompt string, returns text
       const aiResponse = await AI(prompt);
 
       if (!aiResponse || aiResponse.trim() === '') {
@@ -319,32 +317,78 @@ Respond with ONLY this JSON structure, nothing else:
         return { success: false, message: 'AI returned invalid JSON: ' + aiResponse };
       }
 
-      const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
-      if (!matchedProject) {
-        return { success: false, message: 'AI could not match a valid project.', suggestion: parsed };
-      }
-
       const priorityLabel = parsed.priority !== null && parsed.priority !== undefined
         ? PRIORITY_LABELS[parsed.priority]
         : null;
 
-      // 4. Add the entry using AI's field values as the entries object
+      // ── Case: matched an existing project ──
+      if (parsed.matched === 1) {
+        const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
+        if (!matchedProject) {
+          return { success: false, message: 'AI claimed a match but the project was not found.', suggestion: parsed };
+        }
+
+        const addResult = await entries.addEntry(
+          email,
+          parsed.project,
+          parsed.fields,
+          parsed.due_date || null,
+          priorityLabel,
+        );
+
+        return {
+          success: addResult.success,
+          message: addResult.message,
+          project: parsed.project,
+          fields: parsed.fields,
+          priority: priorityLabel,
+          due_date: parsed.due_date || null,
+          comment: parsed.comment || null,
+          created_new_project: false,
+        };
+      }
+
+      // ── Case: no match, create a new project + its fields, then add the entry ──
+      const newProjectName = parsed.project;
+      if (!newProjectName) {
+        return { success: false, message: 'AI could not determine a project for this entry.', suggestion: parsed };
+      }
+
+      const createProjectResult = await project.addProject(email, newProjectName, null);
+      if (!createProjectResult.success) {
+        return { success: false, message: 'Failed to create new project: ' + createProjectResult.message };
+      }
+
+      const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
+      for (const f of newFields) {
+        if (!f.field_name) continue;
+        await fields.addField(
+          email,
+          newProjectName,
+          f.field_name,
+          f.data_type || 'text',
+          !!f.is_required,
+        );
+      }
+
       const addResult = await entries.addEntry(
         email,
-        parsed.project,
+        newProjectName,
         parsed.fields,
-        parsed.due_date || null,  // due_date
-        priorityLabel,            // priority
+        parsed.due_date || null,
+        priorityLabel,
       );
 
       return {
         success: addResult.success,
         message: addResult.message,
-        project: parsed.project,
+        project: newProjectName,
         fields: parsed.fields,
         priority: priorityLabel,
         due_date: parsed.due_date || null,
         comment: parsed.comment || null,
+        created_new_project: true,
+        new_fields: newFields,
       };
     } catch (error) {
       console.log('[Natural_language.entry] FAILED:', error.message);
