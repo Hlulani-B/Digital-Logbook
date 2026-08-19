@@ -29,7 +29,7 @@ describe('Archives', () => {
 
     expect(result).toEqual({ success: true, message: 'Project archived successfully' });
     expect(supabase.from).toHaveBeenCalledWith('projects');
-    expect(chain.update).toHaveBeenCalledWith({ is_archived: true });
+    expect(chain.update).toHaveBeenCalledWith({ archived: true });
   });
 
   it('should return failure when archiving a project fails', async () => {
@@ -54,7 +54,7 @@ describe('Archives', () => {
 
     expect(result).toEqual({ success: true, message: 'Project unarchived successfully' });
     expect(supabase.from).toHaveBeenCalledWith('projects');
-    expect(chain.update).toHaveBeenCalledWith({ is_archived: false });
+    expect(chain.update).toHaveBeenCalledWith({ archived: false });
   });
 
   it('should return failure when unarchiving a project fails', async () => {
@@ -125,5 +125,80 @@ describe('Archives', () => {
     const result = await archives.archive_project('a@b.com', 'My Project');
 
     expect(result).toEqual({ success: false, message: 'Connection lost' });
+  });
+
+  // ─── getArchives ──────────────────────────────────────────────
+  describe('getArchives', () => {
+    it('should return archived entries for a project', async () => {
+      const mockEntries = [
+        { entries: { title: 'Archived task' }, archived: true },
+      ];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockEntries } }).from(tableName)
+      );
+
+      const result = await archives.getArchives('a@b.com', 'My Project');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+      expect(supabase.from).toHaveBeenCalledWith('entries');
+    });
+
+    it('should return all archived entries when no project specified', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: [] } }).from(tableName)
+      );
+
+      const result = await archives.getArchives('a@b.com');
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should return failure on error', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { message: 'query failed' } } }).from(tableName)
+      );
+
+      const result = await archives.getArchives('a@b.com', 'P1');
+
+      expect(result).toEqual({ success: false, message: 'query failed' });
+    });
+  });
+
+  // ─── getUnarchived ────────────────────────────────────────────
+  describe('getUnarchived', () => {
+    it('should return unarchived entries for a project', async () => {
+      const mockEntries = [
+        { entries: { title: 'Active task' }, archived: false },
+      ];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockEntries } }).from(tableName)
+      );
+
+      const result = await archives.getUnarchived('a@b.com', 'My Project');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should return all unarchived entries when no project specified', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: [] } }).from(tableName)
+      );
+
+      const result = await archives.getUnarchived('a@b.com');
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should return failure on error', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { message: 'query failed' } } }).from(tableName)
+      );
+
+      const result = await archives.getUnarchived('a@b.com', 'P1');
+
+      expect(result).toEqual({ success: false, message: 'query failed' });
+    });
   });
 });

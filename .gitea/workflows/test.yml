@@ -1,4 +1,4 @@
-name: Test
+name: Test Coverage
 
 on:
   push:
@@ -7,8 +7,15 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  coverage:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - dashboard-service
+          - profile-service
+          - project-service
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,47 +25,28 @@ jobs:
         with:
           node-version: '20'
 
-      # Frontend tests with coverage
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
+      - name: Install dependencies
+        working-directory: services/${{ matrix.service }}
+        run: npm ci
 
-      - name: Run frontend tests with coverage
-        run: cd frontend && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary --passWithNoTests
+      - name: Run tests with coverage
+        working-directory: services/${{ matrix.service }}
+        run: npm run test:coverage
 
-      # Project Service tests with coverage (main test suite)
-      - name: Install project-service dependencies
-        run: cd services/project-service && npm ci
-
-      - name: Run project-service tests with coverage
-        run: cd services/project-service && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary
-
-      # Dashboard Service tests
-      - name: Install dashboard-service dependencies
-        run: cd services/dashboard-service && npm ci
-
-      - name: Run dashboard-service tests with coverage
-        run: cd services/dashboard-service && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary --passWithNoTests
-
-      # Profile Service tests
-      - name: Install profile-service dependencies
-        run: cd services/profile-service && npm ci
-
-      - name: Run profile-service tests with coverage
-        run: cd services/profile-service && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary --passWithNoTests
-
-      # Generate combined coverage badge
       - name: Generate coverage badge
-        run: |
-          mkdir -p badges
-          # Use project-service coverage as the primary metric
-          if [ -f services/project-service/coverage/coverage-summary.json ]; then
-            npx coverage-badges-cli --source services/project-service/coverage/coverage-summary.json --output badges/coverage-total.svg
-          fi
+        working-directory: services/${{ matrix.service }}
+        run: npx coverage-badges-cli --output ./badges
 
-      - name: Commit badge
-        run: |
-          git config user.name "gitea-actions"
-          git config user.email "actions@gitea"
-          git add badges/
-          git diff --staged --quiet || git commit -m "chore: update coverage badge [skip ci]"
-          git push
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage/
+
+      - name: Upload badge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge-${{ matrix.service }}
+          path: services/${{ matrix.service }}/badges/

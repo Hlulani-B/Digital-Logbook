@@ -105,27 +105,65 @@ describe('Natural_language', () => {
       let projectInserted = false;
       let fieldsInserted = [];
       let entryInserted = false;
+      let projectsCallCount = 0;
 
       supabase.from.mockImplementation((tableName) => {
         if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-            insertData: (data) => { projectInserted = true; return [{ id: 99, ...data }]; },
-          }).from(tableName);
+          projectsCallCount++;
+          const isInsert = projectsCallCount > 1;
+          const chain = {
+            insert: jest.fn(function (data) { if (isInsert) { projectInserted = true; } return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (isInsert) {
+              resolve({ data: [{ id: 99 }], error: null });
+            } else {
+              resolve({ data: mockProjects, error: null });
+            }
+          });
+          return chain;
         }
         if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: mockFields },
-            insertData: (data) => { fieldsInserted.push(data); return [{ id: 100 + fieldsInserted.length, ...data }]; },
-          }).from(tableName);
+          const chain = {
+            insert: jest.fn(function (data) { chain._wasInserted = true; fieldsInserted.push(data); return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (chain._wasInserted) {
+              resolve({ data: [{ id: 100 + fieldsInserted.length }], error: null });
+            } else {
+              resolve({ data: mockFields, error: null });
+            }
+          });
+          return chain;
         }
         if (tableName === 'entries') {
-          return createMockSupabaseClient({
-            entries: { data: [{ id: 200 }] },
-            insertData: (data) => { entryInserted = true; return [{ id: 200, ...data }]; },
-          }).from(tableName);
+          const chain = {
+            insert: jest.fn(function () { entryInserted = true; return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => resolve({ data: [{ id: 200 }], error: null }));
+          return chain;
         }
-        return createMockSupabaseClient({}).from(tableName);
+        const chain = { insert: jest.fn(), select: jest.fn(), update: jest.fn(), delete: jest.fn(), eq: jest.fn(), or: jest.fn(), order: jest.fn() };
+        chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
+        return chain;
       });
 
       AI.mockResolvedValue(JSON.stringify({
@@ -370,23 +408,39 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
+      let projectsCallCount = 0;
+
       supabase.from.mockImplementation((tableName) => {
         if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects, error: { message: 'Project already exists' } },
-          }).from(tableName);
+          projectsCallCount++;
+          const isInsert = projectsCallCount > 1;
+          const chain = {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (isInsert) {
+              resolve({ data: null, error: { message: 'Project already exists' } });
+            } else {
+              resolve({ data: mockProjects, error: null });
+            }
+          });
+          return chain;
         }
         if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
+          return createMockSupabaseClient({ fields: { data: [] } }).from(tableName);
         }
         return createMockSupabaseClient({}).from(tableName);
       });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 0,
-        project: 'WebApp', // Already exists
+        project: 'NewProject',
         fields: { description: 'test' },
         new_fields: [],
         priority: null,
@@ -403,26 +457,64 @@ describe('Natural_language', () => {
       const mockProjects = [];
 
       let fieldsInserted = [];
-
+      let projectsCallCount = 0;
       supabase.from.mockImplementation((tableName) => {
         if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-            insertData: (data) => [{ id: 99, ...data }],
-          }).from(tableName);
+          projectsCallCount++;
+          const isInsert = projectsCallCount > 1;
+          const chain = {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (isInsert) {
+              resolve({ data: [{ id: 99 }], error: null });
+            } else {
+              resolve({ data: mockProjects, error: null });
+            }
+          });
+          return chain;
         }
         if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-            insertData: (data) => { fieldsInserted.push(data); return [{ id: 100 + fieldsInserted.length, ...data }]; },
-          }).from(tableName);
+          const chain = {
+            insert: jest.fn(function (data) { chain._wasInserted = true; fieldsInserted.push(data); return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (chain._wasInserted) {
+              resolve({ data: [{ id: 100 + fieldsInserted.length }], error: null });
+            } else {
+              resolve({ data: [], error: null });
+            }
+          });
+          return chain;
         }
         if (tableName === 'entries') {
-          return createMockSupabaseClient({
-            entries: { data: [{ id: 200 }] },
-          }).from(tableName);
+          const chain = {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => resolve({ data: [{ id: 200 }], error: null }));
+          return chain;
         }
-        return createMockSupabaseClient({}).from(tableName);
+        const chain = { insert: jest.fn(), select: jest.fn(), update: jest.fn(), delete: jest.fn(), eq: jest.fn(), or: jest.fn(), order: jest.fn() };
+        chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
+        return chain;
       });
 
       AI.mockResolvedValue(JSON.stringify({

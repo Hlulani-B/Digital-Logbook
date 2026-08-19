@@ -20,10 +20,8 @@ export function createMockChain({ error = null, data = [] } = {}) {
   };
 
   // Make the chain itself awaitable (thenable) so `await` resolves to { data, error }.
-  chain.then = jest.fn((resolve, reject) => {
-    if (error && reject) {
-      return reject(error);
-    }
+  // Real Supabase always resolves – errors come back in the resolved value, not as rejections.
+  chain.then = jest.fn((resolve) => {
     return resolve({ data, error });
   });
 
