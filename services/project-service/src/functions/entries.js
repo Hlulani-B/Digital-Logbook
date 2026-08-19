@@ -294,14 +294,14 @@ Entry: "${text}"
 Rules:
 - Try to match this entry to one of the existing projects above.
 - Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit.
-- If matched=1: set "project" to the matching project_name, and "fields" to an object of field_name:value pairs filled from the entry text using that project's existing fields.
-- If matched=0: invent a short sensible new project name in "project", and return "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense for this kind of entry. Also return "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
+- If matched=1: set "project" to the EXACT matching project_name from the list above, and "fields" to an object of field_name:value pairs filled from the entry text using ONLY that project's existing fields.
+- If matched=0: You MUST create a new project. Set "project" to a short sensible new project name. Set "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense. Set "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - Due date: YYYY-MM-DD or null
-- Write a short, soft, human comment back to the user about this entry. One sentence, warm and low-key, not robotic praise. Base it on what they logged. Do not repeat the entry text verbatim.
+- Write a short, soft, human comment back to the user. If matched=1, say something like "Added to [project name] — [warm comment]". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]". One sentence, warm and low-key.
 
 Respond with ONLY this JSON structure, nothing else:
-{"matched":1,"project":"name","fields":{"field":"value"},"new_fields":[],"priority":0,"due_date":"2024-01-01","comment":"Nice progress on the design work — those late sessions are really adding up."}`;
+{"matched":1,"project":"name","fields":{"field":"value"},"new_fields":[],"priority":0,"due_date":"2024-01-01","comment":"Added to ProjectX — nice progress on the design work."}`;
 
       const aiResponse = await AI(prompt);
 
