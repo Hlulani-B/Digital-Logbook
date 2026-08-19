@@ -6,6 +6,7 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
 import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
@@ -531,6 +532,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             My Stats
           </button>
+          <button className={`drawer-item ${activeView === "activity" ? "active" : ""}`} onClick={() => { navigate("/dashboard/activity"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Activity Log
+          </button>
         </div>
 
         <div className="drawer-section">
@@ -610,10 +615,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
-              {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && (
+              {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
                 <div className="project-menu-wrap" ref={projectMenuRef} style={{ position: "relative" }}>
                   <button
                     type="button"
@@ -649,6 +654,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         </div>
 
         {/* Search bar inline for mobile */}
+        {activeView === "activity" ? (
+          <ActivityFeed />
+        ) : (
+        <>
         <div className="feed-search-bar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
@@ -759,6 +768,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
               </div>
             )}
           </>
+        )}
+        </>
         )}
       </main>
 

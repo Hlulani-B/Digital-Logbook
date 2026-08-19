@@ -15,6 +15,21 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMPTZ  DEFAULT now()
 );
 
+-- 1b. Activity log table
+--    Tracks user actions (like a Facebook feed) for the activity log feature.
+CREATE TABLE IF NOT EXISTS public.activity_log (
+  id           BIGSERIAL PRIMARY KEY,
+  user_email   VARCHAR(255) NOT NULL,
+  action_type  VARCHAR(50)  NOT NULL,
+  entity_type  VARCHAR(50),
+  entity_name  VARCHAR(255),
+  details      JSONB,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_user_email
+  ON public.activity_log (user_email, created_at DESC);
+
 -- 2. Delete-user RPC (account deletion from Settings panel)
 --    Looks up the user's email from auth, cleans up ALL app tables, then removes the auth account.
 CREATE OR REPLACE FUNCTION delete_user()
@@ -28,6 +43,9 @@ BEGIN
   SELECT u.email INTO user_email
     FROM auth.users u
    WHERE u.id = auth.uid();
+
+  -- Clean up activity log
+  DELETE FROM public.activity_log WHERE user_email = user_email;
 
   -- Clean up entries table
   DELETE FROM public.entries WHERE user_email = user_email;
