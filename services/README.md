@@ -3,6 +3,14 @@
 
 A microservices-based digital logbook app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
 
+## Test Coverage
+
+| Service | Lines | Statements | Functions | Branches |
+| :--- | :---: | :---: | :---: | :---: |
+| **Project Service** | ![Lines](https://img.shields.io/badge/lines-33.96%25-e05d44) | ![Statements](https://img.shields.io/badge/statements-32.36%25-e05d44) | ![Functions](https://img.shields.io/badge/functions-36.92%25-e05d44) | ![Branches](https://img.shields.io/badge/branches-27.22%25-e05d44) |
+| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-36.80%25-e05d44) | ![Statements](https://img.shields.io/badge/statements-36.66%25-e05d44) | ![Functions](https://img.shields.io/badge/functions-53.84%25-yellow) | ![Branches](https://img.shields.io/badge/branches-28.30%25-e05d44) |
+| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-39.56%25-e05d44) | ![Statements](https://img.shields.io/badge/statements-37.50%25-e05d44) | ![Functions](https://img.shields.io/badge/functions-54.54%25-yellow) | ![Branches](https://img.shields.io/badge/branches-17.02%25-e05d44) |
+
 ## Architecture
 
 This is a monorepo containing independent backend services and a React frontend. Each service runs as its own process on its own port.
