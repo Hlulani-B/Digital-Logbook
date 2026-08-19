@@ -69,6 +69,7 @@ nav:
       - UI Design: architecture/ui-design.md
   - Roadmap: roadmap.md
   - Development Log: development/log.md
+  - Methodology & Git Workflow: development/methodology.md
   - Meeting Log: development/meetings.md
   - Sprint 1 User Stories: development/user-stories.md
   - Open Questions & Decisions: development/decisions.md
