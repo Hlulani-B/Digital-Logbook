@@ -22,7 +22,7 @@ export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(""), 5000);
+      const timer = setTimeout(() => setToast(""), 8000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
