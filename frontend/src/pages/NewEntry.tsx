@@ -279,7 +279,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
         ? await unarchiveEntry(user_email, project_name, id)
         : await archiveEntry(user_email, project_name, id);
 
-      if (result?.error) throw new Error(result.error);
       if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
 
       onArchiveToggled?.(id, !archived);

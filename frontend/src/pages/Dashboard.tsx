@@ -202,7 +202,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
 
     return filtered;
-  }, [entries, activeView, searchResults, archiveRows, viewMode]);
+  }, [entries, activeView, searchResults, viewMode]);
 
   // Search using provided search functions
   useEffect(() => {
