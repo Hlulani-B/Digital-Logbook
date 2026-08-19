@@ -278,11 +278,11 @@ All text meets WCAG AA standards:
 
 ## UI Walkthrough â€” Screenshots
 
-> Screenshot files should be placed in `../../../UI images/` in the repo, keeping their original filenames so the links resolve.
+> Screenshot files should be placed in `../assets/ui-images/` in the repo, keeping their original filenames so the links resolve.
 
 ### 1. Authentication â€” Sign In
 
-`../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg`
 
 The sign-in screen uses a split layout: a full-bleed lifestyle image (typewriter/journal theme) on the left reinforcing the "logbook" concept, and a clean form on the right with email/password fields, a "Sign In" button, links to create an account or reset password, and OAuth options (Google, GitHub).
 
@@ -290,7 +290,7 @@ The sign-in screen uses a split layout: a full-bleed lifestyle image (typewriter
 
 ### 2. Onboarding â€” Profile Setup
 
-`../../../UI images/Screenshot_19-8-2026_124024_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124024_digital-logbook-bxgv.onrender.com.jpeg`
 
 After first sign-in, the user is asked to confirm their email, enter their full name, and choose a username (lowercase letters, numbers, underscores only, validated inline). A "Continue" button progresses to the next onboarding step.
 
@@ -298,7 +298,7 @@ After first sign-in, the user is asked to confirm their email, enter their full 
 
 ### 3. Onboarding â€” Avatar Selection
 
-`../../../UI images/Screenshot_19-8-2026_124058_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124058_digital-logbook-bxgv.onrender.com.jpeg`
 
 A grid of pre-made avatar icons lets the user pick a profile picture without needing to upload an image. Covers a range of styles/skin tones.
 
@@ -306,7 +306,7 @@ A grid of pre-made avatar icons lets the user pick a profile picture without nee
 
 ### 4. Main Dashboard â€” All Entries (Empty State)
 
-`../../../UI images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg`
 
 The core screen of the app. Top navigation bar has a menu toggle, app logo/name, search, and user account dropdown. Below that:
 - **Filter entries** search bar
@@ -320,7 +320,7 @@ The core screen of the app. Top navigation bar has a menu toggle, app logo/name,
 
 ### 5. Navigation Sidebar
 
-`../../../UI images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg`
 
 Slide-out panel triggered by the menu icon. Organized into:
 - **Views:** All Entries, Recent, Drafts, My Stats (each with entry counts)
@@ -332,13 +332,13 @@ Slide-out panel triggered by the menu icon. Organized into:
 
 ### 6. Floating Action Menu
 
-`../../../UI images/Screenshot_19-8-2026_124439_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124439_digital-logbook-bxgv.onrender.com.jpeg`
 
 Tapping the **+** button expands into two options: **New Entry** and **New Project**, keeping primary creation actions one tap away from anywhere in the app.
 
 ### 7. New Project â€” Empty Form
 
-`../../../UI images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg`
 
 Form for creating a project with:
 - Project name field
@@ -349,31 +349,31 @@ Form for creating a project with:
 
 ### 8. New Project â€” Defining Fields
 
-`../../../UI images/Screenshot_19-8-2026_124612_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124612_digital-logbook-bxgv.onrender.com.jpeg`
 
 Each field row lets the user set: field name, field type (dropdown, e.g. "Text"), whether it's **Required** (checkbox), and a remove (Ã—) button. Example shown: a "Software Design Project" with a custom field.
 
 ### 9. New Project â€” Workout Example
 
-`../../../UI images/Screenshot_19-8-2026_124637_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124637_digital-logbook-bxgv.onrender.com.jpeg`
 
 Shows a populated example: project name "Workout", description "I want to write what I want to focus on at the gym," and a single required "Target" text field.
 
 ### 10. New Project â€” Meal Plan Example (Multiple Fields)
 
-`../../../UI images/Screenshot_19-8-2026_124655_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124655_digital-logbook-bxgv.onrender.com.jpeg`
 
 Shows a project with four fields already defined: Lunch, Breakfast, Supper, Snack â€” all Text type, demonstrating the dynamic multi-field capability.
 
 ### 11. New Entry â€” Project Picker
 
-`../../../UI images/Screenshot_19-8-2026_12522_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12522_digital-logbook-bxgv.onrender.com.jpeg`
 
 When creating a new entry, the user first selects which project it belongs to from a list (Software Design Project, Meal Plan, Workout), each shown with a folder icon.
 
 ### 12. New Entry â€” Empty Form (Dynamic Fields)
 
-`../../../UI images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg`
 
 Once a project is selected, the entry form dynamically renders the fields defined for that project (Lunch, Breakfast, Supper, Snack for "Meal Plan"), plus common fields:
 - **Due Date** (date/time picker)
@@ -384,37 +384,37 @@ Once a project is selected, the entry form dynamically renders the fields define
 
 ### 13. New Entry â€” Filled Form
 
-`../../../UI images/Screenshot_19-8-2026_125329_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_125329_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same form populated with real values (Lunch: "Dunked Wings", Breakfast: "Dunked Wings", Supper: "Zinger Wings", Snack: "Strawberry and Banana"), due date set, priority set to "Not urgent, not important," status "Up Next," with **Cancel** / **Add Entry** actions.
 
 ### 14. Entry Card â€” Detail View
 
-`../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg`
 
 Once created, an entry renders as a card showing: priority dropdown, status badge ("Up Next"), title, all field values in a label/value list, a **Created** date, **Due** date, and a **Start Task** button (with a play icon) to begin time tracking. A "..." menu offers further actions.
 
 ### 15. Quick Add â€” Natural Language Entry
 
-`../../../UI images/Screenshot_19-8-2026_125651_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_125651_digital-logbook-bxgv.onrender.com.jpeg`
 
 Typing directly into the quick-add bar (e.g. "I need to work on my abs day tomorrow morning") and submitting creates an entry without opening the full form â€” parsed into the relevant project/fields.
 
 ### 16. Dashboard with Populated Entries
 
-`../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg`
 
 Shows the "Due Soon" view with an actual entry card ("Workout" with Target: "abs day tomorrow morning", created/due dates, Start Task button) â€” demonstrating the empty-state-to-populated transition.
 
 ### 17. Account Menu
 
-`../../../UI images/Screenshot_19-8-2026_12353_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12353_digital-logbook-bxgv.onrender.com.jpeg`
 
 Dropdown from the top-right user badge showing: display name, email, **Manage Profile**, **Settings**, and **Sign Out** (styled distinctly in a warning tone).
 
 ### 18. Settings â€” Preferences (Theme: Soft Tan, Font: Crimson Text)
 
-`../../../UI images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg`
 
 Settings modal with **Profile / Preferences / Account** tabs. Preferences tab covers:
 - **Time Format** (e.g. 24-hour)
@@ -426,79 +426,79 @@ Settings modal with **Profile / Preferences / Account** tabs. Preferences tab co
 
 ### 19. Settings â€” Font Variation (Plus Jakarta Sans)
 
-`../../../UI images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same Preferences panel with Font changed to "Plus Jakarta Sans," demonstrating live typography switching across the whole app.
 
 ### 20. Settings â€” Font Variation (Playfair Display)
 
-`../../../UI images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same panel with Font set to "Playfair Display," on a tan-background dashboard behind it, showing the theme + font combination together.
 
 ### 21. Dashboard â€” Empty State (Tan Theme Variant)
 
-`../../../UI images/Screenshot_19-8-2026_123423_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123423_digital-logbook-bxgv.onrender.com.jpeg`
 
 The "All Entries / Nothing due soon" screen shown in a warm tan background theme, confirming the theming system covers the entire app shell consistently.
 
 ### 22. Dashboard â€” Empty State (Lavender Theme Variant)
 
-`../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same empty-state screen in a light lavender background theme.
 
 ### 23. Dashboard â€” Dark Theme
 
-`../../../UI images/Screenshot_19-8-2026_123527_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123527_digital-logbook-bxgv.onrender.com.jpeg`
 
 The "All Entries" dashboard rendered in a dark theme â€” dark background, light text â€” confirming full dark-mode support across the interface, not just isolated components.
 
 ### 24. Settings â€” Theme Variation (Pale Lilac, full-width layout)
 
-`../../../UI images/Screenshot_19-8-2026_123545_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123545_digital-logbook-bxgv.onrender.com.jpeg`
 
 Preferences panel (full-width layout) with additional **Week Starts On** field (e.g. Monday), Theme set to "Pale Lilac," Font "Lora (Default)."
 
 ### 25. Dashboard â€” Empty State (Blush Theme Variant)
 
-`../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard shown in a blush/pink background theme.
 
 ### 26. Dashboard â€” Empty State (Cream Theme Variant)
 
-`../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard shown in a cream background theme.
 
 ### 27. Dashboard â€” Empty State (Peach Theme Variant)
 
-`../../../UI images/Screenshot_19-8-2026_12395_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12395_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard shown in a soft peach background theme.
 
 ### 28. Dashboard â€” Empty State (Pink Variant)
 
-`../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard in a pink-toned background â€” a distinct shade from the blush variant above, suggesting the theme picker offers several pink/warm tones rather than just one.
 
 ### 29. Dashboard â€” Empty State (Light Blue / Cool Variant)
 
-`../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard in a cool light-blue background tone, distinct from the lavender/purple variants â€” rounds out the cool end of the theme palette alongside the warm tan/peach/blush tones.
 
 ### 30. Dashboard â€” Empty State (Purple / Mauve Variant)
 
-`../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard in a deeper purple/mauve tone, distinct from the lighter Pale Lilac setting shown in item 24 â€” indicates the theme system has multiple purple-family options, not just one.
 
 ### 31. Settings â€” Corner Style Variation (Sharp/Vintage)
 
-`../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg`
+`../assets/ui-images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg`
 
 Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing input fields and buttons render with squared corners instead of rounded â€” confirming the Corner Style setting applies globally to UI elements.
 
@@ -511,5 +511,6 @@ Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing in
 - **Dynamic forms:** both Projects and Entries are schema-driven â€” fields are user-defined per project and rendered dynamically on entry creation
 - **Time tracking:** entries support a "Start Task" action tied to time-tracking functionality
 - **Natural language input:** quick-add bar for fast entry creation without the full form
+
 
 
