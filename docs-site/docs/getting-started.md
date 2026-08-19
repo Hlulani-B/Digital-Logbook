@@ -63,15 +63,15 @@ Repeat for `dashboard-service` and `project-service` (each has its own
 `package.json` and default port — see
 [Architecture Overview](architecture/overview.md)).
 
-## 5. Environment variables
+## 5. Work Tracker (Trello)
 
-Each service needs a local `.env` file (not committed) containing at least:
+Sprint planning, task allocation, and progress tracking are managed through Trello.
 
-```
-PORT=5001
-SUPABASE_URL=<ask a teammate or check the team's shared secrets note>
-SUPABASE_KEY=<ask a teammate or check the team's shared secrets note>
-```
+**Sprint 1 Board:**
+
+- https://trello.com/b/bu363Eql/digital-logbook-sprint-1
+
+Contributors should check the board before starting work, move tasks as they progress, and ensure completed work is reflected on the board for Sprint 1 evidence and tracking.
 
 ## Branches
 
