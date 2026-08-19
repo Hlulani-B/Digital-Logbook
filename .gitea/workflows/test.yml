@@ -1,0 +1,64 @@
+name: Test
+
+on:
+  push:
+    branches: [main, hlulani]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Frontend tests with coverage
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Run frontend tests with coverage
+        run: cd frontend && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary --passWithNoTests
+
+      # Project Service tests with coverage (main test suite)
+      - name: Install project-service dependencies
+        run: cd services/project-service && npm ci
+
+      - name: Run project-service tests with coverage
+        run: cd services/project-service && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary
+
+      # Dashboard Service tests
+      - name: Install dashboard-service dependencies
+        run: cd services/dashboard-service && npm ci
+
+      - name: Run dashboard-service tests with coverage
+        run: cd services/dashboard-service && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary --passWithNoTests
+
+      # Profile Service tests
+      - name: Install profile-service dependencies
+        run: cd services/profile-service && npm ci
+
+      - name: Run profile-service tests with coverage
+        run: cd services/profile-service && npm test -- --coverage --coverageReporters=text-summary --coverageReporters=json-summary --passWithNoTests
+
+      # Generate combined coverage badge
+      - name: Generate coverage badge
+        run: |
+          mkdir -p badges
+          # Use project-service coverage as the primary metric
+          if [ -f services/project-service/coverage/coverage-summary.json ]; then
+            npx coverage-badges-cli --source services/project-service/coverage/coverage-summary.json --output badges/coverage-total.svg
+          fi
+
+      - name: Commit badge
+        run: |
+          git config user.name "gitea-actions"
+          git config user.email "actions@gitea"
+          git add badges/
+          git diff --staged --quiet || git commit -m "chore: update coverage badge [skip ci]"
+          git push
