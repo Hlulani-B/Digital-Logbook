@@ -291,7 +291,7 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
                   <>
                     {" "}
                     <span className="activity-detail">
-                      from "{truncateName(details.old_project_name as string)}" to "{truncateName(details.new_project_name as string)}"
+                      from "{truncateName(String(details.old_project_name))}" to "{truncateName(String(details.new_project_name))}"
                     </span>
                   </>
                 )}
