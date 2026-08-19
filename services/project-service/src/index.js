@@ -1,8 +1,7 @@
-import './config.js';
+﻿import './config.js';
 
 import express from 'express';
 import cors from 'cors';
-
 import { requireAuth } from './middleware/auth.js';
 import projectRoutes from './Routes/project.js';
 import entryRoutes from './Routes/entries.js';
@@ -10,10 +9,9 @@ import priorityRoutes from './Routes/priority.js';
 import fieldRoutes from './Routes/field.js';
 import archiveRoutes from './Routes/archive.js';
 import activityRoutes from './Routes/activity.js';
-
+import aiRoutes from './Routes/ai.js';
 const app = express();
 const PORT = process.env.PORT || 5003;
-
 // Allowed origins for CORS
 const allowedOrigins = [
   'https://digital-logbook-bxgv.onrender.com',
@@ -21,7 +19,6 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000'
 ];
-
 // CORS configuration with dynamic origin checking
 const corsOptions = {
   origin: (origin, callback) => {
@@ -37,19 +34,14 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
-
 // Apply CORS options globally
 app.use(cors(corsOptions));
-
 // Safe preflight wildcard handler for Express 5 (regex instead of '*')
 app.options(/(.*)/, cors(corsOptions));
-
 app.use(express.json());
-
 app.get('/', (req, res) => {
   res.json({ service: 'project-service', status: 'healthy' });
 });
-
 // All /service routes require a valid Supabase JWT.
 // The verified user's email is attached to req.userEmail by requireAuth.
 app.use('/service', requireAuth, projectRoutes);
@@ -58,7 +50,7 @@ app.use('/service', requireAuth, priorityRoutes);
 app.use('/service', requireAuth, fieldRoutes);
 app.use('/service', requireAuth, archiveRoutes);
 app.use('/service', requireAuth, activityRoutes);
-
+app.use('/service', requireAuth, aiRoutes);
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
@@ -68,8 +60,5 @@ app.use((err, req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
   res.status(500).json({ error: 'Internal server error', message: err.message });
-});
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Project Service running on port ${PORT}`);
-});

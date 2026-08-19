@@ -1,4 +1,4 @@
-# UI Design
+﻿# UI Design
 
 ## Design Philosophy
 
@@ -71,36 +71,36 @@ html {
 
 ### Split-Screen Sign-In
 ```
-┌─────────────────┬─────────────────┐
-│                 │                 │
-│   Video Panel   │   Form Panel    │
-│   (22vh height) │   (scrollable)  │
-│                 │                 │
-└─────────────────┴─────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                 â”‚                 â”‚
+â”‚   Video Panel   â”‚   Form Panel    â”‚
+â”‚   (22vh height) â”‚   (scrollable)  â”‚
+â”‚                 â”‚                 â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 **Mobile**: Video panel reduces to 22vh, form panel becomes scrollable.
 
 ### Dashboard Layout
 ```
-┌─────────────────────────────────────┐
-│  Header (Stats, Search, Settings)   │
-├──────────┬──────────────────────────┤
-│          │                          │
-│  Drawer  │    Main Content          │
-│  Menu    │    - Due Soon            │
-│          │    - Up Next             │
-│          │    - Activity Feed       │
-│          │                          │
-└──────────┴──────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Header (Stats, Search, Settings)   â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚          â”‚                          â”‚
+â”‚  Drawer  â”‚    Main Content          â”‚
+â”‚  Menu    â”‚    - Due Soon            â”‚
+â”‚          â”‚    - Up Next             â”‚
+â”‚          â”‚    - Activity Feed       â”‚
+â”‚          â”‚                          â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Quick Entry Bar
 Fixed at top of dashboard for rapid log entry:
 ```
-┌─────────────────────────────────────┐
-│ ✏️ Quick add: "Fixed login bug..." ➤ │
-└─────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ âœï¸ Quick add: "Fixed login bug..." âž¤ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ## Component Library
@@ -141,15 +141,15 @@ Notion-style card with:
 - Three-dots menu for actions
 
 ```
-┌─────────────────────────────────┐
-│ Project Name              ⋯    │
-├─────────────────────────────────┤
-│ Description: Fixed login bug   │
-│ Status: completed              │
-│ Hours: 2                       │
-├─────────────────────────────────┤
-│ Priority: Urgent    Due: Aug 20│
-└─────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Project Name              â‹¯    â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Description: Fixed login bug   â”‚
+â”‚ Status: completed              â”‚
+â”‚ Hours: 2                       â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Priority: Urgent    Due: Aug 20â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Drawer Menu
@@ -178,7 +178,7 @@ Pretty toast for AI comments:
 ## Responsive Design
 
 ### Breakpoints
-- **Mobile**: ≤768px
+- **Mobile**: â‰¤768px
 - **Tablet**: 769px - 1024px
 - **Desktop**: >1024px
 
@@ -228,12 +228,12 @@ Applied globally via CSS custom property:
 - Stroke-based for scalability
 
 ### Common Icons
-- ✏️ Edit/Entry
-- 📁 Project
-- ⚙️ Settings
-- 🔍 Search
-- ➕ Add/Create
-- ⋯ More options
+- âœï¸ Edit/Entry
+- ðŸ“ Project
+- âš™ï¸ Settings
+- ðŸ” Search
+- âž• Add/Create
+- â‹¯ More options
 
 ## Animation
 
@@ -276,37 +276,37 @@ All text meets WCAG AA standards:
 
 ---
 
-## UI Walkthrough — Screenshots
+## UI Walkthrough â€” Screenshots
 
-> Screenshot files should be placed in `docs/assets/screenshots/` in the repo, keeping their original filenames so the links resolve.
+> Screenshot files should be placed in `../../../UI images/` in the repo, keeping their original filenames so the links resolve.
 
-### 1. Authentication — Sign In
+### 1. Authentication â€” Sign In
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124011_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg`
 
 The sign-in screen uses a split layout: a full-bleed lifestyle image (typewriter/journal theme) on the left reinforcing the "logbook" concept, and a clean form on the right with email/password fields, a "Sign In" button, links to create an account or reset password, and OAuth options (Google, GitHub).
 
 **Design decision:** the imagery anchors the product's identity (writing, tracking progress) before the user even logs in.
 
-### 2. Onboarding — Profile Setup
+### 2. Onboarding â€” Profile Setup
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124024_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124024_digital-logbook-bxgv.onrender.com.jpeg`
 
 After first sign-in, the user is asked to confirm their email, enter their full name, and choose a username (lowercase letters, numbers, underscores only, validated inline). A "Continue" button progresses to the next onboarding step.
 
 **Design decision:** minimal required fields to reduce onboarding friction.
 
-### 3. Onboarding — Avatar Selection
+### 3. Onboarding â€” Avatar Selection
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124058_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124058_digital-logbook-bxgv.onrender.com.jpeg`
 
 A grid of pre-made avatar icons lets the user pick a profile picture without needing to upload an image. Covers a range of styles/skin tones.
 
 **Design decision:** avoids the complexity (and moderation risk) of custom image uploads while still letting users personalize their identity.
 
-### 4. Main Dashboard — All Entries (Empty State)
+### 4. Main Dashboard â€” All Entries (Empty State)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124214_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg`
 
 The core screen of the app. Top navigation bar has a menu toggle, app logo/name, search, and user account dropdown. Below that:
 - **Filter entries** search bar
@@ -320,7 +320,7 @@ The core screen of the app. Top navigation bar has a menu toggle, app logo/name,
 
 ### 5. Navigation Sidebar
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124325_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg`
 
 Slide-out panel triggered by the menu icon. Organized into:
 - **Views:** All Entries, Recent, Drafts, My Stats (each with entry counts)
@@ -332,89 +332,89 @@ Slide-out panel triggered by the menu icon. Organized into:
 
 ### 6. Floating Action Menu
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124439_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124439_digital-logbook-bxgv.onrender.com.jpeg`
 
 Tapping the **+** button expands into two options: **New Entry** and **New Project**, keeping primary creation actions one tap away from anywhere in the app.
 
-### 7. New Project — Empty Form
+### 7. New Project â€” Empty Form
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124531_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg`
 
 Form for creating a project with:
 - Project name field
 - Optional description textarea
-- **Project Fields** section — starts empty with a message ("No fields defined...") and an **Add Another Project Field** button
+- **Project Fields** section â€” starts empty with a message ("No fields defined...") and an **Add Another Project Field** button
 
-**Design decision:** projects are schema-driven — the user defines what data each entry under that project will capture (a "Meal Plan" project has different fields than a "Workout" project).
+**Design decision:** projects are schema-driven â€” the user defines what data each entry under that project will capture (a "Meal Plan" project has different fields than a "Workout" project).
 
-### 8. New Project — Defining Fields
+### 8. New Project â€” Defining Fields
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124612_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124612_digital-logbook-bxgv.onrender.com.jpeg`
 
-Each field row lets the user set: field name, field type (dropdown, e.g. "Text"), whether it's **Required** (checkbox), and a remove (×) button. Example shown: a "Software Design Project" with a custom field.
+Each field row lets the user set: field name, field type (dropdown, e.g. "Text"), whether it's **Required** (checkbox), and a remove (Ã—) button. Example shown: a "Software Design Project" with a custom field.
 
-### 9. New Project — Workout Example
+### 9. New Project â€” Workout Example
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124637_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124637_digital-logbook-bxgv.onrender.com.jpeg`
 
 Shows a populated example: project name "Workout", description "I want to write what I want to focus on at the gym," and a single required "Target" text field.
 
-### 10. New Project — Meal Plan Example (Multiple Fields)
+### 10. New Project â€” Meal Plan Example (Multiple Fields)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124655_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124655_digital-logbook-bxgv.onrender.com.jpeg`
 
-Shows a project with four fields already defined: Lunch, Breakfast, Supper, Snack — all Text type, demonstrating the dynamic multi-field capability.
+Shows a project with four fields already defined: Lunch, Breakfast, Supper, Snack â€” all Text type, demonstrating the dynamic multi-field capability.
 
-### 11. New Entry — Project Picker
+### 11. New Entry â€” Project Picker
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12522_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12522_digital-logbook-bxgv.onrender.com.jpeg`
 
 When creating a new entry, the user first selects which project it belongs to from a list (Software Design Project, Meal Plan, Workout), each shown with a folder icon.
 
-### 12. New Entry — Empty Form (Dynamic Fields)
+### 12. New Entry â€” Empty Form (Dynamic Fields)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_125226_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg`
 
 Once a project is selected, the entry form dynamically renders the fields defined for that project (Lunch, Breakfast, Supper, Snack for "Meal Plan"), plus common fields:
 - **Due Date** (date/time picker)
 - **Priority** dropdown (e.g. "No priority")
 - **Status** dropdown (e.g. "Up Next")
 
-**Design decision:** the entry form is generated entirely from the project's field schema — no hardcoded entry types.
+**Design decision:** the entry form is generated entirely from the project's field schema â€” no hardcoded entry types.
 
-### 13. New Entry — Filled Form
+### 13. New Entry â€” Filled Form
 
-`docs/assets/screenshots/Screenshot_19-8-2026_125329_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_125329_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same form populated with real values (Lunch: "Dunked Wings", Breakfast: "Dunked Wings", Supper: "Zinger Wings", Snack: "Strawberry and Banana"), due date set, priority set to "Not urgent, not important," status "Up Next," with **Cancel** / **Add Entry** actions.
 
-### 14. Entry Card — Detail View
+### 14. Entry Card â€” Detail View
 
-`docs/assets/screenshots/Screenshot_19-8-2026_125412_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg`
 
 Once created, an entry renders as a card showing: priority dropdown, status badge ("Up Next"), title, all field values in a label/value list, a **Created** date, **Due** date, and a **Start Task** button (with a play icon) to begin time tracking. A "..." menu offers further actions.
 
-### 15. Quick Add — Natural Language Entry
+### 15. Quick Add â€” Natural Language Entry
 
-`docs/assets/screenshots/Screenshot_19-8-2026_125651_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_125651_digital-logbook-bxgv.onrender.com.jpeg`
 
-Typing directly into the quick-add bar (e.g. "I need to work on my abs day tomorrow morning") and submitting creates an entry without opening the full form — parsed into the relevant project/fields.
+Typing directly into the quick-add bar (e.g. "I need to work on my abs day tomorrow morning") and submitting creates an entry without opening the full form â€” parsed into the relevant project/fields.
 
 ### 16. Dashboard with Populated Entries
 
-`docs/assets/screenshots/Screenshot_19-8-2026_124011_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg`
 
-Shows the "Due Soon" view with an actual entry card ("Workout" with Target: "abs day tomorrow morning", created/due dates, Start Task button) — demonstrating the empty-state-to-populated transition.
+Shows the "Due Soon" view with an actual entry card ("Workout" with Target: "abs day tomorrow morning", created/due dates, Start Task button) â€” demonstrating the empty-state-to-populated transition.
 
 ### 17. Account Menu
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12353_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12353_digital-logbook-bxgv.onrender.com.jpeg`
 
 Dropdown from the top-right user badge showing: display name, email, **Manage Profile**, **Settings**, and **Sign Out** (styled distinctly in a warning tone).
 
-### 18. Settings — Preferences (Theme: Soft Tan, Font: Crimson Text)
+### 18. Settings â€” Preferences (Theme: Soft Tan, Font: Crimson Text)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123958_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg`
 
 Settings modal with **Profile / Preferences / Account** tabs. Preferences tab covers:
 - **Time Format** (e.g. 24-hour)
@@ -424,83 +424,83 @@ Settings modal with **Profile / Preferences / Account** tabs. Preferences tab co
 - A **Behavior** section below (collapsed/scrolled past in this view)
 - **Cancel** / **Save Changes** actions
 
-### 19. Settings — Font Variation (Plus Jakarta Sans)
+### 19. Settings â€” Font Variation (Plus Jakarta Sans)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123315_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same Preferences panel with Font changed to "Plus Jakarta Sans," demonstrating live typography switching across the whole app.
 
-### 20. Settings — Font Variation (Playfair Display)
+### 20. Settings â€” Font Variation (Playfair Display)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123344_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same panel with Font set to "Playfair Display," on a tan-background dashboard behind it, showing the theme + font combination together.
 
-### 21. Dashboard — Empty State (Tan Theme Variant)
+### 21. Dashboard â€” Empty State (Tan Theme Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123423_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123423_digital-logbook-bxgv.onrender.com.jpeg`
 
 The "All Entries / Nothing due soon" screen shown in a warm tan background theme, confirming the theming system covers the entire app shell consistently.
 
-### 22. Dashboard — Empty State (Lavender Theme Variant)
+### 22. Dashboard â€” Empty State (Lavender Theme Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123443_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg`
 
 Same empty-state screen in a light lavender background theme.
 
-### 23. Dashboard — Dark Theme
+### 23. Dashboard â€” Dark Theme
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123527_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123527_digital-logbook-bxgv.onrender.com.jpeg`
 
-The "All Entries" dashboard rendered in a dark theme — dark background, light text — confirming full dark-mode support across the interface, not just isolated components.
+The "All Entries" dashboard rendered in a dark theme â€” dark background, light text â€” confirming full dark-mode support across the interface, not just isolated components.
 
-### 24. Settings — Theme Variation (Pale Lilac, full-width layout)
+### 24. Settings â€” Theme Variation (Pale Lilac, full-width layout)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123545_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123545_digital-logbook-bxgv.onrender.com.jpeg`
 
 Preferences panel (full-width layout) with additional **Week Starts On** field (e.g. Monday), Theme set to "Pale Lilac," Font "Lora (Default)."
 
-### 25. Dashboard — Empty State (Blush Theme Variant)
+### 25. Dashboard â€” Empty State (Blush Theme Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12366_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard shown in a blush/pink background theme.
 
-### 26. Dashboard — Empty State (Cream Theme Variant)
+### 26. Dashboard â€” Empty State (Cream Theme Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12377_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard shown in a cream background theme.
 
-### 27. Dashboard — Empty State (Peach Theme Variant)
+### 27. Dashboard â€” Empty State (Peach Theme Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12395_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12395_digital-logbook-bxgv.onrender.com.jpeg`
 
 Empty-state dashboard shown in a soft peach background theme.
 
-### 28. Dashboard — Empty State (Pink Variant)
+### 28. Dashboard â€” Empty State (Pink Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12366_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg`
 
-Empty-state dashboard in a pink-toned background — a distinct shade from the blush variant above, suggesting the theme picker offers several pink/warm tones rather than just one.
+Empty-state dashboard in a pink-toned background â€” a distinct shade from the blush variant above, suggesting the theme picker offers several pink/warm tones rather than just one.
 
-### 29. Dashboard — Empty State (Light Blue / Cool Variant)
+### 29. Dashboard â€” Empty State (Light Blue / Cool Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_12377_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg`
 
-Empty-state dashboard in a cool light-blue background tone, distinct from the lavender/purple variants — rounds out the cool end of the theme palette alongside the warm tan/peach/blush tones.
+Empty-state dashboard in a cool light-blue background tone, distinct from the lavender/purple variants â€” rounds out the cool end of the theme palette alongside the warm tan/peach/blush tones.
 
-### 30. Dashboard — Empty State (Purple / Mauve Variant)
+### 30. Dashboard â€” Empty State (Purple / Mauve Variant)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_123443_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg`
 
-Empty-state dashboard in a deeper purple/mauve tone, distinct from the lighter Pale Lilac setting shown in item 24 — indicates the theme system has multiple purple-family options, not just one.
+Empty-state dashboard in a deeper purple/mauve tone, distinct from the lighter Pale Lilac setting shown in item 24 â€” indicates the theme system has multiple purple-family options, not just one.
 
-### 31. Settings — Corner Style Variation (Sharp/Vintage)
+### 31. Settings â€” Corner Style Variation (Sharp/Vintage)
 
-`docs/assets/screenshots/Screenshot_19-8-2026_125412_digital-logbook-bxgv_onrender_com.jpeg`
+`../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg`
 
-Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing input fields and buttons render with squared corners instead of rounded — confirming the Corner Style setting applies globally to UI elements.
+Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing input fields and buttons render with squared corners instead of rounded â€” confirming the Corner Style setting applies globally to UI elements.
 
 ### Summary of Design System Capabilities
 
@@ -508,6 +508,8 @@ Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing in
 - **Theming:** multiple background themes (Soft Tan, Pale Lilac, Dark, Blush, Cream, Peach, Lavender, etc.), all applied consistently across dashboard, cards, and modals
 - **Typography:** multiple font choices (Crimson Text, Plus Jakarta Sans, Playfair Display, Lora), user-selectable
 - **Shape system:** Rounded (default) vs Sharp (Vintage) corner styles, applied app-wide
-- **Dynamic forms:** both Projects and Entries are schema-driven — fields are user-defined per project and rendered dynamically on entry creation
+- **Dynamic forms:** both Projects and Entries are schema-driven â€” fields are user-defined per project and rendered dynamically on entry creation
 - **Time tracking:** entries support a "Start Task" action tied to time-tracking functionality
 - **Natural language input:** quick-add bar for fast entry creation without the full form
+
+
