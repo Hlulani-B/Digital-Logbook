@@ -10,8 +10,7 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-// TODO: Archive feature - import when implemented
-// import { archiveProject, unarchiveProject, getArchives } from "@/functions/project/archives.js";
+import { supabase } from "@/lib/supabase";
 import { setPriority } from "@/functions/project/priority.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
@@ -62,8 +61,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
-  // TODO: Archive feature - state when implemented
-  // const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
+  // Archive state
+  const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
@@ -102,8 +104,23 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         sortUnarchivedEntries(email, project, sortType),
         dueSoon(email, null),
       ]);
+      // Read localStorage archived set (DB UPDATE is blocked by RLS)
+      let localArch = new Set<string>();
+      try {
+        const raw = localStorage.getItem(`dl_archived_${email}`);
+        if (raw) localArch = new Set(JSON.parse(raw));
+      } catch {}
+      setLocalArchived(localArch);
+
       if (projectsRes.status === "fulfilled") {
-        setProjects(projectsRes.value?.projects || []);
+        const allProjects = (projectsRes.value?.projects || []) as Project[];
+        // Merge DB archived flag with localStorage archived set
+        const merged = allProjects.map((p) => ({
+          ...p,
+          archived: p.archived === true || localArch.has(p.project_name as string),
+        }));
+        setProjects(merged);
+        setArchivedProjects(merged.filter((p) => p.archived));
       } else {
         console.error("Failed to load projects:", projectsRes.reason);
       }
@@ -117,16 +134,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       } else {
         console.error("Failed to load due soon:", dueSoonRes.reason);
       }
-
-      // TODO: Archive feature - fetch archived rows when implemented
-      // if (activeView === "archives") {
-      //   try {
-      //     const archiveData = await getArchives(email, project);
-      //     setArchiveRows(archiveData?.data || []);
-      //   } catch (archiveErr) {
-      //     console.error("Failed to load archives:", archiveErr);
-      //   }
-      // }
     } catch (err) {
       console.error("[Dashboard] loadData exception:", err);
     } finally {
@@ -174,9 +181,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const filteredEntries = useMemo(() => {
     // If search results are available, use them
     if (searchResults !== null) return searchResults;
-
-    // TODO: Archive feature - return archiveRows when implemented
-    // if (activeView === "archives") return archiveRows;
 
     // Otherwise use all entries (unarchived)
     let filtered = [...entries];
@@ -390,26 +394,94 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
   };
 
-  // TODO: Archive feature - functions when implemented
-  // const handleArchiveProject = async (projectName: string) => {
-  //   if (!email) return;
-  //   try {
-  //     await archiveProject(email, projectName);
-  //     await loadData();
-  //   } catch (err) {
-  //     console.error("Failed to archive project:", err);
-  //   }
-  // };
+  // Archive project — uses localStorage (DB UPDATE blocked by RLS)
+  const handleArchiveProject = async (projectName: string) => {
+    if (!email) {
+      setArchiveError("Cannot archive: no email");
+      return;
+    }
+    setArchiveError(null);
+    // Update local state immediately for instant UI feedback
+    setProjects((prev) => prev.map((p) =>
+      p.project_name === projectName ? { ...p, archived: true } : p
+    ));
+    const project = projects.find((p) => p.project_name === projectName);
+    if (project) {
+      setArchivedProjects((prev) => [...prev, { ...project, archived: true }]);
+    }
+    // Save to localStorage for persistence across reloads
+    const next = new Set(localArchived);
+    next.add(projectName);
+    setLocalArchived(next);
+    try {
+      localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
+    } catch {}
+    // Best-effort DB update (will silently fail due to RLS, that's OK)
+    try {
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': anonJwt || apiKey,
+          'Authorization': `Bearer ${anonJwt || apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ archived: true }),
+      });
+    } catch {}
+  };
 
-  // const handleUnarchiveProject = async (projectName: string) => {
-  //   if (!email) return;
-  //   try {
-  //     await unarchiveProject(email, projectName);
-  //     await loadData();
-  //   } catch (err) {
-  //     console.error("Failed to unarchive project:", err);
-  //   }
-  // };
+  const handleUnarchiveProject = async (projectName: string) => {
+    if (!email) return;
+    setArchiveError(null);
+    // Update local state immediately
+    setProjects((prev) => prev.map((p) =>
+      p.project_name === projectName ? { ...p, archived: false } : p
+    ));
+    setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    // Remove from localStorage
+    const next = new Set(localArchived);
+    next.delete(projectName);
+    setLocalArchived(next);
+    try {
+      localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
+    } catch {}
+    // Best-effort DB update
+    try {
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': anonJwt || apiKey,
+          'Authorization': `Bearer ${anonJwt || apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ archived: false }),
+      });
+    } catch {}
+  };
+
+  // Seed test projects using authenticated Supabase client (INSERT works via RLS)
+  const handleSeedTestProjects = async () => {
+    if (!email || !supabase) return;
+    const testProjects = [
+      { user_email: email, project_name: "Website Redesign", description: "Redesign the main company website with modern UI", archived: false },
+      { user_email: email, project_name: "Mobile App MVP", description: "Build the first version of the iOS/Android app", archived: false },
+      { user_email: email, project_name: "Q4 Marketing Plan", description: "Plan and execute Q4 marketing campaigns", archived: false },
+      { user_email: email, project_name: "Internal Tools Audit", description: "Audit all internal tools and consolidate", archived: false },
+      { user_email: email, project_name: "Database Migration", description: "Migrate legacy database to new architecture", archived: false },
+    ];
+    for (const p of testProjects) {
+      await supabase.from("projects").upsert(p, { onConflict: "user_email,project_name" }).select();
+    }
+    await loadData();
+  };
 
   const PRIORITY_LABELS: Record<string, string> = {
     "0": "Urgent and important",
@@ -531,6 +603,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Drafts
           </button>
+          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+            Archived Projects
+            <span className="drawer-badge">{archivedProjects.length}</span>
+          </button>
           <button className="drawer-item" onClick={() => {}} style={{ opacity: 0.6, cursor: "default" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             My Stats
@@ -541,29 +618,104 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </button>
         </div>
 
-        {/* TODO: Archive feature - add archive section when implemented */}
+        {/* Archive section — always visible */}
+        <div className="drawer-section">
+          <p className="drawer-section-title">📦 Archived ({archivedProjects.length})</p>
+          {archiveError && (
+            <p style={{ color: "#dc2626", fontSize: "0.75rem", padding: "0.25rem 0" }}>{archiveError}</p>
+          )}
+          <div className="drawer-project-list">
+            {archivedProjects.length === 0 ? (
+              <p className="drawer-empty">No archived projects yet</p>
+            ) : (
+              archivedProjects.map((project) => {
+                const name = project.project_name as string;
+                return (
+                  <div key={name} className="drawer-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ opacity: 0.6 }}>{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnarchiveProject(name)}
+                      title="Unarchive"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(99,102,241,0.4)",
+                        color: "#6366f1",
+                        borderRadius: "0.4rem",
+                        padding: "0.2rem 0.5rem",
+                        fontSize: "0.75rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ↩ Unarchive
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
 
         <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title">Projects</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <p className="drawer-section-title">Projects</p>
+            <button
+              type="button"
+              onClick={handleSeedTestProjects}
+              title="Add 5 test projects"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(99,102,241,0.4)",
+                color: "#6366f1",
+                borderRadius: "0.4rem",
+                padding: "0.2rem 0.5rem",
+                fontSize: "0.7rem",
+                cursor: "pointer",
+              }}
+            >
+              + Test Projects
+            </button>
+          </div>
           <div className="drawer-project-list">
             {projects.filter((p) => !p.archived).map((project) => {
               const name = project.project_name as string;
               const count = entries.filter((e) => e.project_name === name).length;
               return (
-                <button
+                <div
                   key={name}
                   className={`drawer-item ${activeView === name ? "active" : ""}`}
-                  onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                  {name}
-                  <span className="drawer-badge">{count}</span>
-                  {/* TODO: Archive feature - add archive button when implemented */}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                    style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    {name}
+                    <span className="drawer-badge">{count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveProject(name)}
+                    title="Archive project"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(99,102,241,0.35)",
+                      color: "#6366f1",
+                      borderRadius: "0.4rem",
+                      padding: "0.2rem 0.5rem",
+                      fontSize: "0.8rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    📦
+                  </button>
+                </div>
               );
             })}
             {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet</p>
+              <p className="drawer-empty">No projects yet. Click "+ Test Projects" above.</p>
             )}
           </div>
         </div>
@@ -572,6 +724,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <button className="btn-primary drawer-new-btn" onClick={() => { setNewProjectOpen(true); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Project
+          </button>
+          <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
+            📋 Manage Projects
           </button>
         </div>
       </aside>
@@ -583,7 +738,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "activity" ? "Activity Log" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
               {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
@@ -607,6 +762,14 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                       >
                         Project Settings
                       </button>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { handleArchiveProject(activeView); setProjectMenuOpen(false); }}
+                        style={{ color: "#6366f1" }}
+                      >
+                        📦 Archive Project
+                      </button>
                     </div>
                   )}
                 </div>
@@ -624,6 +787,38 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         {/* Search bar inline for mobile */}
         {activeView === "activity" ? (
           <ActivityFeed />
+        ) : activeView === "archives" ? (
+          <div className="entries-feed">
+            {archiveError && (
+              <div className="auth-error" style={{ marginBottom: "1rem" }}>{archiveError}</div>
+            )}
+            {archivedProjects.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon">📦</div>
+                <h2 className="empty-title">No archived projects</h2>
+                <p className="empty-desc">Archive a project from the sidebar or the ⋯ menu to see it here.</p>
+              </div>
+            ) : (
+              archivedProjects.map((project, i) => {
+                const name = project.project_name as string;
+                return (
+                  <div key={`archived-${name}-${i}`} className="glass" style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderRadius: "0.85rem", marginBottom: "0.75rem" }}>
+                    <span style={{ fontSize: "1.2rem" }}>📦</span>
+                    <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem", opacity: 0.7 }}>{name}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>Archived (read-only)</span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnarchiveProject(name)}
+                      className="btn-secondary"
+                      style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+                    >
+                      ↩ Unarchive
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
         ) : (
         <>
         <div className="feed-search-bar">

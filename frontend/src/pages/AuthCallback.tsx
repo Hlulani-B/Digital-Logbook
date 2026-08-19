@@ -8,6 +8,11 @@ export function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!supabase) {
+      setError("Supabase is not configured. Cannot complete authentication.");
+      return;
+    }
+
     const handleCallback = async () => {
       // Check for hash-based tokens (implicit flow from OAuth)
       const hash = window.location.hash;

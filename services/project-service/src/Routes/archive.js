@@ -15,7 +15,7 @@ try {
 /**
  * input:
  *     function
- *  values("archive_project","unarchive_project","archive_entry","unarchive_entry","getArchives","getUnarchived")
+ *  values("archive_project","unarchive_project","archive_entry","unarchive_entry","getArchives","getUnarchived","getArchivedProjects","getUnarchivedProjects")
  */
 router.post('/archive', async (req, res) => {
   try {
@@ -77,6 +77,18 @@ router.post('/archive', async (req, res) => {
       case 'getUnarchived': {
         const { project_name } = values;
         const result = await archives.getUnarchived(user_email, project_name || null);
+        return res.json(result);
+      }
+      case 'getArchivedProjects': {
+        const { user_email } = values;
+        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const result = await archives.getArchivedProjects(user_email);
+        return res.json(result);
+      }
+      case 'getUnarchivedProjects': {
+        const { user_email } = values;
+        if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
+        const result = await archives.getUnarchivedProjects(user_email);
         return res.json(result);
       }
       default:

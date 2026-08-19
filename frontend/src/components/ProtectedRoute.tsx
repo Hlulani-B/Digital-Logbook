@@ -13,11 +13,15 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   // to guard against race conditions (e.g. OAuth callback navigates
   // before onAuthStateChange has propagated into React state).
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && supabase) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         setFallbackChecked(true);
         setFallbackHasSession(!!session);
       });
+    } else if (!loading && !user && !supabase) {
+      // No supabase client — skip fallback check
+      setFallbackChecked(true);
+      setFallbackHasSession(false);
     }
   }, [loading, user]);
 
