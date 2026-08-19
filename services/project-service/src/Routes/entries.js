@@ -1,5 +1,6 @@
 import express from 'express';
 import { Entries, Natural_language } from '../functions/entries.js';
+import { logActivity } from '../functions/activityLog.js';
 
 const router = express.Router();
 
@@ -40,18 +41,30 @@ router.post('/entry', async (req, res) => {
         const { project_name, entry_object, due_date, priority, status, started_at, ended_at, duration } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration);
+        if (result.success) {
+          const entrySummary = typeof entry_object === 'string' ? entry_object.slice(0, 100) : JSON.stringify(entry_object).slice(0, 100);
+          await logActivity(user_email, 'ENTRY_ADDED', 'entry', entrySummary, { project_name, due_date, priority });
+        }
         return res.json(result);
       }
       case "update": {
         const { project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration } = values;
         if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration);
+        if (result.success) {
+          const entrySummary = new_entry ? (typeof new_entry === 'string' ? new_entry.slice(0, 100) : JSON.stringify(new_entry).slice(0, 100)) : project_name;
+          await logActivity(user_email, 'ENTRY_UPDATED', 'entry', entrySummary, { project_name, entry_id });
+        }
         return res.json(result);
       }
       case "delete": {
         const { project_name, entry } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.deleteEntry(user_email, project_name, entry);
+        if (result.success) {
+          const entrySummary = typeof entry === 'string' ? entry.slice(0, 100) : 'entry';
+          await logActivity(user_email, 'ENTRY_DELETED', 'entry', entrySummary, { project_name });
+        }
         return res.json(result);
       }
       case "get": {
@@ -109,6 +122,9 @@ router.post('/natural-language-entry', async (req, res) => {
     }
 
     const result = await nlEntry.entry(user_email, text);
+    if (result.success) {
+      await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), { project_name: result.project, source: 'natural-language', priority: result.priority, due_date: result.due_date });
+    }
     return res.json(result);
   } catch (error) {
     console.error('Error in /natural-language-entry:', error);
