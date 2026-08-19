@@ -9,6 +9,7 @@ export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [toast, setToast] = useState("");
   const [messageType, setMessageType] = useState(""); // "success" | "error"
   const inputRef = useRef(null);
 
@@ -19,20 +20,32 @@ export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
     }
   }, [message]);
 
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim() || loading) return;
 
     setLoading(true);
     setMessage("");
+    setToast("");
 
     const result = await addNaturalLanguageEntry(text.trim());
     setLoading(false);
 
     if (result.success) {
       setText("");
-      setMessage("Entry created successfully!");
+      setMessage("Entry created!");
       setMessageType("success");
+      const comment = result.data?.comment || result.data?.data?.comment;
+      if (comment) {
+        setToast(comment);
+      }
       if (onEntryCreated) onEntryCreated();
     } else {
       setMessage(result.message || "Failed to create entry");
@@ -84,6 +97,14 @@ export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
       {message && (
         <div className={`quick-entry-message ${messageType}`}>
           {message}
+        </div>
+      )}
+      {toast && (
+        <div className="quick-entry-toast">
+          <svg className="toast-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          <span>{toast}</span>
         </div>
       )}
     </div>
