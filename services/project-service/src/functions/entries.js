@@ -317,12 +317,16 @@ Respond with ONLY this JSON structure, nothing else:
         return { success: false, message: 'AI returned invalid JSON: ' + aiResponse };
       }
 
+      console.log('[Natural_language] AI response parsed:', JSON.stringify(parsed, null, 2));
+      console.log('[Natural_language] matched =', parsed.matched, '(type:', typeof parsed.matched + ')');
+
       const priorityLabel = parsed.priority !== null && parsed.priority !== undefined
         ? PRIORITY_LABELS[parsed.priority]
         : null;
 
       // ── Case: matched an existing project ──
       if (parsed.matched === 1) {
+        console.log('[Natural_language] Taking matched=1 branch');
         const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
         if (!matchedProject) {
           return { success: false, message: 'AI claimed a match but the project was not found.', suggestion: parsed };
@@ -349,26 +353,31 @@ Respond with ONLY this JSON structure, nothing else:
       }
 
       // ── Case: no match, create a new project + its fields, then add the entry ──
+      console.log('[Natural_language] Taking matched=0 (create new project) branch');
       const newProjectName = parsed.project;
       if (!newProjectName) {
         return { success: false, message: 'AI could not determine a project for this entry.', suggestion: parsed };
       }
 
+      console.log('[Natural_language] Creating new project:', newProjectName);
       const createProjectResult = await project.addProject(email, newProjectName, null);
+      console.log('[Natural_language] Create project result:', createProjectResult);
       if (!createProjectResult.success) {
         return { success: false, message: 'Failed to create new project: ' + createProjectResult.message };
       }
 
       const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
+      console.log('[Natural_language] Creating', newFields.length, 'fields:', newFields);
       for (const f of newFields) {
         if (!f.field_name) continue;
-        await fields.addField(
+        const addFieldResult = await fields.addField(
           email,
           newProjectName,
           f.field_name,
           f.data_type || 'text',
           !!f.is_required,
         );
+        console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
       }
 
       const addResult = await entries.addEntry(
