@@ -60,5 +60,8 @@ app.use((err, req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
   res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Project Service running on port ${PORT}`);
+});

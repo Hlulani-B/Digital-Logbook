@@ -2965,22 +2965,22 @@
 <hr />
 <h2 id="ui-walkthrough-a-screenshots">UI Walkthrough â€” Screenshots<a class="headerlink" href="#ui-walkthrough-a-screenshots" title="Permanent link">&para;</a></h2>
 <blockquote>
-<p>Screenshot files should be placed in <code>../../../UI images/</code> in the repo, keeping their original filenames so the links resolve.</p>
+<p>Screenshot files should be placed in <code>../assets/ui-images/</code> in the repo, keeping their original filenames so the links resolve.</p>
 </blockquote>
 <h3 id="1-authentication-a-sign-in">1. Authentication â€” Sign In<a class="headerlink" href="#1-authentication-a-sign-in" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>The sign-in screen uses a split layout: a full-bleed lifestyle image (typewriter/journal theme) on the left reinforcing the "logbook" concept, and a clean form on the right with email/password fields, a "Sign In" button, links to create an account or reset password, and OAuth options (Google, GitHub).</p>
 <p><strong>Design decision:</strong> the imagery anchors the product's identity (writing, tracking progress) before the user even logs in.</p>
 <h3 id="2-onboarding-a-profile-setup">2. Onboarding â€” Profile Setup<a class="headerlink" href="#2-onboarding-a-profile-setup" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124024_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124024_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>After first sign-in, the user is asked to confirm their email, enter their full name, and choose a username (lowercase letters, numbers, underscores only, validated inline). A "Continue" button progresses to the next onboarding step.</p>
 <p><strong>Design decision:</strong> minimal required fields to reduce onboarding friction.</p>
 <h3 id="3-onboarding-a-avatar-selection">3. Onboarding â€” Avatar Selection<a class="headerlink" href="#3-onboarding-a-avatar-selection" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124058_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124058_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>A grid of pre-made avatar icons lets the user pick a profile picture without needing to upload an image. Covers a range of styles/skin tones.</p>
 <p><strong>Design decision:</strong> avoids the complexity (and moderation risk) of custom image uploads while still letting users personalize their identity.</p>
 <h3 id="4-main-dashboard-a-all-entries-empty-state">4. Main Dashboard â€” All Entries (Empty State)<a class="headerlink" href="#4-main-dashboard-a-all-entries-empty-state" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>The core screen of the app. Top navigation bar has a menu toggle, app logo/name, search, and user account dropdown. Below that:
 - <strong>Filter entries</strong> search bar
 - <strong>Due Soon / All Entries</strong> toggle tabs
@@ -2990,7 +2990,7 @@
 - Floating <strong>+</strong> action button (bottom left) for creating new entries/projects</p>
 <p><strong>Design decision:</strong> the "Due Soon" default view keeps the user focused on what's urgent rather than a flooded list.</p>
 <h3 id="5-navigation-sidebar">5. Navigation Sidebar<a class="headerlink" href="#5-navigation-sidebar" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Slide-out panel triggered by the menu icon. Organized into:
 - <strong>Views:</strong> All Entries, Recent, Drafts, My Stats (each with entry counts)
 - <strong>Archive:</strong> Archived Projects
@@ -2998,51 +2998,51 @@
 - <strong>New Project</strong> button pinned at the bottom</p>
 <p><strong>Design decision:</strong> projects act as customizable categories/templates, separating structural navigation (Views/Archive) from user content (Projects).</p>
 <h3 id="6-floating-action-menu">6. Floating Action Menu<a class="headerlink" href="#6-floating-action-menu" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124439_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124439_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Tapping the <strong>+</strong> button expands into two options: <strong>New Entry</strong> and <strong>New Project</strong>, keeping primary creation actions one tap away from anywhere in the app.</p>
 <h3 id="7-new-project-a-empty-form">7. New Project â€” Empty Form<a class="headerlink" href="#7-new-project-a-empty-form" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Form for creating a project with:
 - Project name field
 - Optional description textarea
 - <strong>Project Fields</strong> section â€” starts empty with a message ("No fields defined...") and an <strong>Add Another Project Field</strong> button</p>
 <p><strong>Design decision:</strong> projects are schema-driven â€” the user defines what data each entry under that project will capture (a "Meal Plan" project has different fields than a "Workout" project).</p>
 <h3 id="8-new-project-a-defining-fields">8. New Project â€” Defining Fields<a class="headerlink" href="#8-new-project-a-defining-fields" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124612_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124612_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Each field row lets the user set: field name, field type (dropdown, e.g. "Text"), whether it's <strong>Required</strong> (checkbox), and a remove (Ã—) button. Example shown: a "Software Design Project" with a custom field.</p>
 <h3 id="9-new-project-a-workout-example">9. New Project â€” Workout Example<a class="headerlink" href="#9-new-project-a-workout-example" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124637_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124637_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Shows a populated example: project name "Workout", description "I want to write what I want to focus on at the gym," and a single required "Target" text field.</p>
 <h3 id="10-new-project-a-meal-plan-example-multiple-fields">10. New Project â€” Meal Plan Example (Multiple Fields)<a class="headerlink" href="#10-new-project-a-meal-plan-example-multiple-fields" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124655_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124655_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Shows a project with four fields already defined: Lunch, Breakfast, Supper, Snack â€” all Text type, demonstrating the dynamic multi-field capability.</p>
 <h3 id="11-new-entry-a-project-picker">11. New Entry â€” Project Picker<a class="headerlink" href="#11-new-entry-a-project-picker" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12522_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12522_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>When creating a new entry, the user first selects which project it belongs to from a list (Software Design Project, Meal Plan, Workout), each shown with a folder icon.</p>
 <h3 id="12-new-entry-a-empty-form-dynamic-fields">12. New Entry â€” Empty Form (Dynamic Fields)<a class="headerlink" href="#12-new-entry-a-empty-form-dynamic-fields" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Once a project is selected, the entry form dynamically renders the fields defined for that project (Lunch, Breakfast, Supper, Snack for "Meal Plan"), plus common fields:
 - <strong>Due Date</strong> (date/time picker)
 - <strong>Priority</strong> dropdown (e.g. "No priority")
 - <strong>Status</strong> dropdown (e.g. "Up Next")</p>
 <p><strong>Design decision:</strong> the entry form is generated entirely from the project's field schema â€” no hardcoded entry types.</p>
 <h3 id="13-new-entry-a-filled-form">13. New Entry â€” Filled Form<a class="headerlink" href="#13-new-entry-a-filled-form" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_125329_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_125329_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Same form populated with real values (Lunch: "Dunked Wings", Breakfast: "Dunked Wings", Supper: "Zinger Wings", Snack: "Strawberry and Banana"), due date set, priority set to "Not urgent, not important," status "Up Next," with <strong>Cancel</strong> / <strong>Add Entry</strong> actions.</p>
 <h3 id="14-entry-card-a-detail-view">14. Entry Card â€” Detail View<a class="headerlink" href="#14-entry-card-a-detail-view" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Once created, an entry renders as a card showing: priority dropdown, status badge ("Up Next"), title, all field values in a label/value list, a <strong>Created</strong> date, <strong>Due</strong> date, and a <strong>Start Task</strong> button (with a play icon) to begin time tracking. A "..." menu offers further actions.</p>
 <h3 id="15-quick-add-a-natural-language-entry">15. Quick Add â€” Natural Language Entry<a class="headerlink" href="#15-quick-add-a-natural-language-entry" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_125651_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_125651_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Typing directly into the quick-add bar (e.g. "I need to work on my abs day tomorrow morning") and submitting creates an entry without opening the full form â€” parsed into the relevant project/fields.</p>
 <h3 id="16-dashboard-with-populated-entries">16. Dashboard with Populated Entries<a class="headerlink" href="#16-dashboard-with-populated-entries" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_124011_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Shows the "Due Soon" view with an actual entry card ("Workout" with Target: "abs day tomorrow morning", created/due dates, Start Task button) â€” demonstrating the empty-state-to-populated transition.</p>
 <h3 id="17-account-menu">17. Account Menu<a class="headerlink" href="#17-account-menu" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12353_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12353_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Dropdown from the top-right user badge showing: display name, email, <strong>Manage Profile</strong>, <strong>Settings</strong>, and <strong>Sign Out</strong> (styled distinctly in a warning tone).</p>
 <h3 id="18-settings-a-preferences-theme-soft-tan-font-crimson-text">18. Settings â€” Preferences (Theme: Soft Tan, Font: Crimson Text)<a class="headerlink" href="#18-settings-a-preferences-theme-soft-tan-font-crimson-text" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Settings modal with <strong>Profile / Preferences / Account</strong> tabs. Preferences tab covers:
 - <strong>Time Format</strong> (e.g. 24-hour)
 - <strong>Theme</strong> dropdown (e.g. Soft Tan)
@@ -3051,43 +3051,43 @@
 - A <strong>Behavior</strong> section below (collapsed/scrolled past in this view)
 - <strong>Cancel</strong> / <strong>Save Changes</strong> actions</p>
 <h3 id="19-settings-a-font-variation-plus-jakarta-sans">19. Settings â€” Font Variation (Plus Jakarta Sans)<a class="headerlink" href="#19-settings-a-font-variation-plus-jakarta-sans" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Same Preferences panel with Font changed to "Plus Jakarta Sans," demonstrating live typography switching across the whole app.</p>
 <h3 id="20-settings-a-font-variation-playfair-display">20. Settings â€” Font Variation (Playfair Display)<a class="headerlink" href="#20-settings-a-font-variation-playfair-display" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Same panel with Font set to "Playfair Display," on a tan-background dashboard behind it, showing the theme + font combination together.</p>
 <h3 id="21-dashboard-a-empty-state-tan-theme-variant">21. Dashboard â€” Empty State (Tan Theme Variant)<a class="headerlink" href="#21-dashboard-a-empty-state-tan-theme-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123423_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123423_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>The "All Entries / Nothing due soon" screen shown in a warm tan background theme, confirming the theming system covers the entire app shell consistently.</p>
 <h3 id="22-dashboard-a-empty-state-lavender-theme-variant">22. Dashboard â€” Empty State (Lavender Theme Variant)<a class="headerlink" href="#22-dashboard-a-empty-state-lavender-theme-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Same empty-state screen in a light lavender background theme.</p>
 <h3 id="23-dashboard-a-dark-theme">23. Dashboard â€” Dark Theme<a class="headerlink" href="#23-dashboard-a-dark-theme" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123527_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123527_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>The "All Entries" dashboard rendered in a dark theme â€” dark background, light text â€” confirming full dark-mode support across the interface, not just isolated components.</p>
 <h3 id="24-settings-a-theme-variation-pale-lilac-full-width-layout">24. Settings â€” Theme Variation (Pale Lilac, full-width layout)<a class="headerlink" href="#24-settings-a-theme-variation-pale-lilac-full-width-layout" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123545_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123545_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Preferences panel (full-width layout) with additional <strong>Week Starts On</strong> field (e.g. Monday), Theme set to "Pale Lilac," Font "Lora (Default)."</p>
 <h3 id="25-dashboard-a-empty-state-blush-theme-variant">25. Dashboard â€” Empty State (Blush Theme Variant)<a class="headerlink" href="#25-dashboard-a-empty-state-blush-theme-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Empty-state dashboard shown in a blush/pink background theme.</p>
 <h3 id="26-dashboard-a-empty-state-cream-theme-variant">26. Dashboard â€” Empty State (Cream Theme Variant)<a class="headerlink" href="#26-dashboard-a-empty-state-cream-theme-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Empty-state dashboard shown in a cream background theme.</p>
 <h3 id="27-dashboard-a-empty-state-peach-theme-variant">27. Dashboard â€” Empty State (Peach Theme Variant)<a class="headerlink" href="#27-dashboard-a-empty-state-peach-theme-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12395_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12395_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Empty-state dashboard shown in a soft peach background theme.</p>
 <h3 id="28-dashboard-a-empty-state-pink-variant">28. Dashboard â€” Empty State (Pink Variant)<a class="headerlink" href="#28-dashboard-a-empty-state-pink-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12366_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Empty-state dashboard in a pink-toned background â€” a distinct shade from the blush variant above, suggesting the theme picker offers several pink/warm tones rather than just one.</p>
 <h3 id="29-dashboard-a-empty-state-light-blue-cool-variant">29. Dashboard â€” Empty State (Light Blue / Cool Variant)<a class="headerlink" href="#29-dashboard-a-empty-state-light-blue-cool-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_12377_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Empty-state dashboard in a cool light-blue background tone, distinct from the lavender/purple variants â€” rounds out the cool end of the theme palette alongside the warm tan/peach/blush tones.</p>
 <h3 id="30-dashboard-a-empty-state-purple-mauve-variant">30. Dashboard â€” Empty State (Purple / Mauve Variant)<a class="headerlink" href="#30-dashboard-a-empty-state-purple-mauve-variant" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_123443_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Empty-state dashboard in a deeper purple/mauve tone, distinct from the lighter Pale Lilac setting shown in item 24 â€” indicates the theme system has multiple purple-family options, not just one.</p>
 <h3 id="31-settings-a-corner-style-variation-sharpvintage">31. Settings â€” Corner Style Variation (Sharp/Vintage)<a class="headerlink" href="#31-settings-a-corner-style-variation-sharpvintage" title="Permanent link">&para;</a></h3>
-<p><code>../../../UI images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg</code></p>
+<p><code>../assets/ui-images/Screenshot_19-8-2026_125412_digital-logbook-bxgv.onrender.com.jpeg</code></p>
 <p>Preferences panel with <strong>Corner Style</strong> changed to "Sharp (Vintage)," showing input fields and buttons render with squared corners instead of rounded â€” confirming the Corner Style setting applies globally to UI elements.</p>
 <h3 id="summary-of-design-system-capabilities">Summary of Design System Capabilities<a class="headerlink" href="#summary-of-design-system-capabilities" title="Permanent link">&para;</a></h3>
 <ul>
