@@ -1,19 +1,13 @@
-import { useState, useRef, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
-
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
 
 export function ResetPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
-  const [captchaVerified, setCaptchaVerified] = useState(false);
-  const captchaTokenRef = useRef<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
   const { resetPassword } = useAuth();
   const { isDark } = useTheme();
 
@@ -23,14 +17,10 @@ export function ResetPassword() {
     setError(null);
 
     try {
-      await resetPassword(email, captchaTokenRef.current || undefined);
+      await resetPassword(email);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
-      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
-      turnstileRef.current?.reset();
-      setCaptchaVerified(false);
-      captchaTokenRef.current = null;
     } finally {
       setLoading(false);
     }
@@ -94,36 +84,12 @@ export function ResetPassword() {
 
               <button
                 type="submit"
-                disabled={loading || !captchaVerified}
+                disabled={loading}
                 className="btn-primary"
                 style={{ padding: "0.75rem", fontSize: "0.875rem" }}
               >
                 {loading ? "Sending..." : "Send Reset Link"}
               </button>
-
-              {/* CAPTCHA */}
-              <div className="captcha-wrapper">
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={SITE_KEY}
-                  onSuccess={(token) => {
-                    setCaptchaVerified(true);
-                    captchaTokenRef.current = token;
-                  }}
-                  onError={() => {
-                    setCaptchaVerified(false);
-                    captchaTokenRef.current = null;
-                  }}
-                  onExpire={() => {
-                    setCaptchaVerified(false);
-                    captchaTokenRef.current = null;
-                  }}
-                  options={{
-                    theme: isDark ? "dark" : "light",
-                    size: "flexible",
-                  }}
-                />
-              </div>
 
               <Link
                 to="/signin"

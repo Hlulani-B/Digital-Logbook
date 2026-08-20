@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
@@ -42,7 +41,7 @@ interface SettingsPanelProps {
   provider: string;
   onClose: () => void;
   onDeleteAccount: () => void;
-  onResetPassword: (email: string, captchaToken?: string) => Promise<void>;
+  onResetPassword: (email: string) => Promise<void>;
   deleting: boolean;
   deleteError: string | null;
 }
@@ -86,28 +85,21 @@ function ResetPasswordInline({
   onResetPassword,
 }: {
   email: string;
-  onResetPassword: (email: string, captchaToken?: string) => Promise<void>;
+  onResetPassword: (email: string) => Promise<void>;
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [captchaVerified, setCaptchaVerified] = useState(false);
-  const captchaTokenRef = useRef<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
   const { isDark } = useTheme();
 
   const handleSend = async () => {
     setSending(true);
     setError(null);
     try {
-      await onResetPassword(email, captchaTokenRef.current || undefined);
+      await onResetPassword(email);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
-      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
-      turnstileRef.current?.reset();
-      setCaptchaVerified(false);
-      captchaTokenRef.current = null;
     } finally {
       setSending(false);
     }
@@ -155,34 +147,11 @@ function ResetPasswordInline({
       )}
       <button
         onClick={handleSend}
-        disabled={sending || !email || !captchaVerified}
+        disabled={sending || !email}
         className="btn-secondary"
       >
         {sending ? "Sending..." : "Send Reset Link"}
       </button>
-
-      <div className="captcha-wrapper" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
-        <Turnstile
-          ref={turnstileRef}
-          siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
-          onSuccess={(token) => {
-            setCaptchaVerified(true);
-            captchaTokenRef.current = token;
-          }}
-          onError={() => {
-            setCaptchaVerified(false);
-            captchaTokenRef.current = null;
-          }}
-          onExpire={() => {
-            setCaptchaVerified(false);
-            captchaTokenRef.current = null;
-          }}
-          options={{
-            theme: isDark ? "dark" : "light",
-            size: "flexible",
-          }}
-        />
-      </div>
     </>
   );
 }
@@ -284,7 +253,6 @@ export function SettingsPanel({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
-  const [debugResponse, setDebugResponse] = useState<string>("");
 
   // Fetch profile from service when panel opens
   useEffect(() => {
@@ -295,9 +263,7 @@ export function SettingsPanel({
       try {
         const result = await getProfile(email);
         if (cancelled) return;
-        
-        setDebugResponse(JSON.stringify(result, null, 2));
-        
+
         // If profile doesn't exist, create it first
         if (result?.success === false || result?.error) {
           const addResult = await addEmail(email);
@@ -305,7 +271,6 @@ export function SettingsPanel({
             // Fetch again after creating
             const freshResult = await getProfile(email);
             if (!cancelled) {
-              setDebugResponse("After create: " + JSON.stringify(freshResult, null, 2));
               const profileData = freshResult?.data || freshResult;
               setServerProfile(profileData);
               setName((profileData as Record<string, unknown>)?.name as string || "");
@@ -450,22 +415,29 @@ export function SettingsPanel({
                   <p className="field-hint">Loading profile...</p>
                 ) : (
                   <>
-                    {debugResponse && (
-                      <pre style={{
-                        fontSize: "0.7rem",
-                        padding: "0.5rem",
+                    {!profileError && serverProfile && (
+                      <div className="profile-summary" style={{
+                        padding: "0.75rem 1rem",
                         borderRadius: "var(--radius-xs)",
-                        background: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6",
-                        border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`,
-                        color: isDark ? "#a0a0a0" : "#6b7280",
-                        marginBottom: "0.75rem",
-                        overflow: "auto",
-                        maxHeight: "120px",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-all",
+                        background: isDark ? "rgba(255,255,255,0.05)" : "#f8f6f2",
+                        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "var(--border)"}`,
+                        marginBottom: "1rem",
                       }}>
-                        {debugResponse}
-                      </pre>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Username</span>
+                            <span style={{ fontWeight: 500, fontSize: "0.875rem" }}>{username || "—"}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Name</span>
+                            <span style={{ fontWeight: 500, fontSize: "0.875rem" }}>{name || "—"}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Email</span>
+                            <span style={{ fontWeight: 500, fontSize: "0.875rem" }}>{email}</span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                     <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                     <div className="field-group">
