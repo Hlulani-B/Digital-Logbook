@@ -8,11 +8,12 @@
 --    Used by profile-service for checkUser, getProfile, username/email/name/avatar updates.
 --    Frontend inserts only { email } on signup; username/name/avatar filled later.
 CREATE TABLE IF NOT EXISTS public.users (
-  email      VARCHAR(255) PRIMARY KEY,
-  username   VARCHAR(50)  UNIQUE,
-  name       VARCHAR(100),
-  avatar     TEXT,
-  created_at TIMESTAMPTZ  DEFAULT now()
+  email                   VARCHAR(255) PRIMARY KEY,
+  username                VARCHAR(50)  UNIQUE,
+  name                    VARCHAR(100),
+  avatar                  TEXT,
+  created_at              TIMESTAMPTZ  DEFAULT now(),
+  deletion_scheduled_at   TIMESTAMPTZ
 );
 
 -- 1b. Activity log table
@@ -30,8 +31,9 @@ CREATE TABLE IF NOT EXISTS public.activity_log (
 CREATE INDEX IF NOT EXISTS idx_activity_log_user_email
   ON public.activity_log (user_email, created_at DESC);
 
--- 2. Delete-user RPC (account deletion from Settings panel)
---    Looks up the user's email from auth, cleans up ALL app tables, then removes the auth account.
+-- 2. Schedule-account-deletion RPC (Settings panel)
+--    Marks the account for deletion in 30 days instead of removing data immediately.
+--    The user can still sign in during the grace period and restore the account.
 CREATE OR REPLACE FUNCTION delete_user()
 RETURNS void
 LANGUAGE plpgsql
@@ -44,23 +46,68 @@ BEGIN
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  -- Clean up activity log
-  DELETE FROM public.activity_log WHERE user_email = user_email;
+  IF user_email IS NULL THEN
+    RAISE EXCEPTION 'Authenticated user not found';
+  END IF;
 
-  -- Clean up entries table
-  DELETE FROM public.entries WHERE user_email = user_email;
+  INSERT INTO public.users (email, deletion_scheduled_at)
+  VALUES (user_email, now())
+  ON CONFLICT (email)
+  DO UPDATE SET deletion_scheduled_at = now();
+END;
+$$;
 
-  -- Clean up fields table
-  DELETE FROM public.fields WHERE user_email = user_email;
+-- 2b. Restore-account RPC
+--     Cancels a scheduled deletion before the 30-day grace period ends.
+CREATE OR REPLACE FUNCTION restore_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  user_email TEXT;
+BEGIN
+  SELECT u.email INTO user_email
+    FROM auth.users u
+   WHERE u.id = auth.uid();
 
-  -- Clean up projects table
-  DELETE FROM public.projects WHERE user_email = user_email;
+  IF user_email IS NULL THEN
+    RAISE EXCEPTION 'Authenticated user not found';
+  END IF;
 
-  -- Clean up profile-service table
-  DELETE FROM public.users WHERE email = user_email;
+  UPDATE public.users
+     SET deletion_scheduled_at = NULL
+   WHERE email = user_email;
+END;
+$$;
 
-  -- Finally remove the auth account itself
-  DELETE FROM auth.users WHERE id = auth.uid();
+-- 2c. Purge deleted accounts RPC
+--     Permanently removes accounts (and all app data) whose grace period has expired.
+--     Intended to be run by a nightly cron job.
+CREATE OR REPLACE FUNCTION purge_deleted_users()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  rec RECORD;
+BEGIN
+  FOR rec IN
+    SELECT email
+      FROM public.users
+     WHERE deletion_scheduled_at IS NOT NULL
+       AND deletion_scheduled_at < now() - INTERVAL '30 days'
+  LOOP
+    -- Clean up app tables
+    DELETE FROM public.activity_log WHERE user_email = rec.email;
+    DELETE FROM public.entries      WHERE user_email = rec.email;
+    DELETE FROM public.fields       WHERE user_email = rec.email;
+    DELETE FROM public.projects     WHERE user_email = rec.email;
+    DELETE FROM public.users        WHERE email = rec.email;
+
+    -- Remove the auth account
+    DELETE FROM auth.users WHERE email = rec.email;
+  END LOOP;
 END;
 $$;
 
@@ -73,7 +120,13 @@ WHERE email IS NOT NULL
   AND email NOT IN (SELECT email FROM public.users)
 ON CONFLICT (email) DO NOTHING;
 
--- 4. Project statistics RPC
+-- 4. Nightly cron to purge accounts past the 30-day grace period
+--    Requires the pg_cron extension to be enabled in Supabase.
+--    Unschedule first to avoid duplicate jobs when re-running this script.
+SELECT cron.unschedule('purge-deleted-users') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-deleted-users');
+SELECT cron.schedule('purge-deleted-users', '0 0 * * *', 'SELECT public.purge_deleted_users();');
+
+-- 5. Project statistics RPC
 --    Aggregates duration per project for a given user.
 --    Uses the stored `duration` column (ended_at − started_at) for completed entries,
 --    and now() − started_at for in-progress entries.

@@ -32,10 +32,12 @@ type DashboardProps = {
 };
 
 export function Dashboard({ defaultView = "all" }: DashboardProps) {
-  const { user, signOut, deleteAccount, resetPassword } = useAuth();
+  const { user, signOut, deleteAccount, restoreAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
   const navigate = useNavigate();
@@ -302,6 +304,18 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
       setDeleting(false);
+    }
+  };
+
+  const handleRestoreAccount = async () => {
+    setRestoring(true);
+    setRestoreError(null);
+    try {
+      await restoreAccount();
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Failed to restore account");
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -1123,9 +1137,12 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         provider={provider}
         onClose={() => setSettingsOpen(false)}
         onDeleteAccount={handleDeleteAccount}
+        onRestoreAccount={handleRestoreAccount}
         onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
+        restoring={restoring}
+        restoreError={restoreError}
       />
 
       {/* Project Settings Panel */}
