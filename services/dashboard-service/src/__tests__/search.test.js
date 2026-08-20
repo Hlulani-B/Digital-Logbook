@@ -200,17 +200,22 @@ describe('Search', () => {
           return createMockSupabaseClient({ projects: { data: mockProjects } }).from(tableName);
         }
         if (tableName === 'entries') {
+          const resolveForProject = (projectName) => {
+            if (projectName === 'Alpha Project') return { data: alphaEntries, error: null };
+            if (projectName === 'Beta Project') return { data: betaEntries, error: null };
+            return { data: [], error: null };
+          };
           const chain = {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn()
-              .mockImplementation((key, value) => {
-                if (value === 'Alpha Project') {
-                  return { then: jest.fn((resolve) => resolve({ data: alphaEntries, error: null })) };
-                }
-                if (value === 'Beta Project') {
-                  return { then: jest.fn((resolve) => resolve({ data: betaEntries, error: null })) };
-                }
-                return { then: jest.fn((resolve) => resolve({ data: [], error: null })) };
+              .mockImplementation(() => {
+                const secondEq = {
+                  eq: jest.fn().mockImplementation((key, value) => ({
+                    then: jest.fn((resolve) => resolve(resolveForProject(value))),
+                  })),
+                  then: jest.fn((resolve) => resolve({ data: [], error: null })),
+                };
+                return secondEq;
               }),
             then: jest.fn((resolve) => resolve({ data: [], error: null })),
           };

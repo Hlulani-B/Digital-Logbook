@@ -126,4 +126,38 @@ export class Archives {
       return { success: false, message: error.message };
     }
   }
+
+  async getArchivedProjects(user_email) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('project_name, created_at, archived')
+        .eq('user_email', user_email)
+        .eq('archived', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getUnarchivedProjects(user_email) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('project_name, created_at, archived')
+        .eq('user_email', user_email)
+        .or('archived.eq.false,archived.is.null')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
 }

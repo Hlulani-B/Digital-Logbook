@@ -8,11 +8,50 @@ export function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!supabase) {
+      setError("Supabase is not configured. Cannot complete authentication.");
+      return;
+    }
+
     const handleCallback = async () => {
+      // Check for hash-based tokens (implicit flow from OAuth)
+      const hash = window.location.hash;
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
 
+      if (hash && hash.includes("access_token")) {
+        // Parse hash fragment tokens
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (!sessionError && data.session) {
+            const email = data.session.user.email;
+            if (email) localStorage.setItem("email", email);
+            // Clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            try {
+              const result = await checkUser(email);
+              navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
+            } catch (err) {
+              console.error("checkUser failed, defaulting to create-profile:", err);
+              navigate("/create-profile", { replace: true });
+            }
+            return;
+          }
+          setError(sessionError?.message || "Failed to set session");
+          return;
+        }
+      }
+
       if (code) {
+        // PKCE flow
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (!error && data.session) {
           const email = data.session.user.email;
@@ -27,22 +66,25 @@ export function AuthCallback() {
           return;
         }
         setError(error?.message || "Failed to complete sign in");
-      } else {
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          const email = data.session.user.email;
-          if (email) localStorage.setItem("email", email);
-          try {
-            const result = await checkUser(email);
-            navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
-          } catch (err) {
-            console.error("checkUser failed, defaulting to create-profile:", err);
-            navigate("/create-profile", { replace: true });
-          }
-          return;
-        }
-        setError("No authorization code found in the URL.");
+        return;
       }
+
+      // Fallback: check existing session
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        const email = data.session.user.email;
+        if (email) localStorage.setItem("email", email);
+        try {
+          const result = await checkUser(email);
+          navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
+        } catch (err) {
+          console.error("checkUser failed, defaulting to create-profile:", err);
+          navigate("/create-profile", { replace: true });
+        }
+        return;
+      }
+
+      setError("No authorization data found in the URL.");
     };
 
     handleCallback();

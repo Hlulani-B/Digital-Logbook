@@ -15,8 +15,23 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMPTZ  DEFAULT now()
 );
 
+-- 1b. Activity log table
+--    Tracks user actions (like a Facebook feed) for the activity log feature.
+CREATE TABLE IF NOT EXISTS public.activity_log (
+  id           BIGSERIAL PRIMARY KEY,
+  user_email   VARCHAR(255) NOT NULL,
+  action_type  VARCHAR(50)  NOT NULL,
+  entity_type  VARCHAR(50),
+  entity_name  VARCHAR(255),
+  details      JSONB,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_user_email
+  ON public.activity_log (user_email, created_at DESC);
+
 -- 2. Delete-user RPC (account deletion from Settings panel)
---    Looks up the user's email from auth, cleans up app tables, then removes the auth account.
+--    Looks up the user's email from auth, cleans up ALL app tables, then removes the auth account.
 CREATE OR REPLACE FUNCTION delete_user()
 RETURNS void
 LANGUAGE plpgsql
@@ -29,8 +44,20 @@ BEGIN
     FROM auth.users u
    WHERE u.id = auth.uid();
 
+  -- Clean up activity log
+  DELETE FROM public.activity_log WHERE user_email = user_email;
+
+  -- Clean up entries table
+  DELETE FROM public.entries WHERE user_email = user_email;
+
+  -- Clean up fields table
+  DELETE FROM public.fields WHERE user_email = user_email;
+
+  -- Clean up projects table
+  DELETE FROM public.projects WHERE user_email = user_email;
+
   -- Clean up profile-service table
-  DELETE FROM public.users   WHERE email = user_email;
+  DELETE FROM public.users WHERE email = user_email;
 
   -- Finally remove the auth account itself
   DELETE FROM auth.users WHERE id = auth.uid();
@@ -45,3 +72,40 @@ FROM auth.users
 WHERE email IS NOT NULL
   AND email NOT IN (SELECT email FROM public.users)
 ON CONFLICT (email) DO NOTHING;
+
+-- 4. Project statistics RPC
+--    Aggregates duration per project for a given user.
+--    Uses the stored `duration` column (ended_at − started_at) for completed entries,
+--    and now() − started_at for in-progress entries.
+--    Returns project_name, entry count, total duration, and in-progress count.
+CREATE OR REPLACE FUNCTION get_project_stats(p_user_email TEXT)
+RETURNS TABLE (
+  project_name   TEXT,
+  entry_count    BIGINT,
+  total_duration INTERVAL,
+  in_progress    BIGINT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    e.project_name::TEXT,
+    COUNT(*)::BIGINT AS entry_count,
+    COALESCE(SUM(
+      CASE
+        WHEN e.ended_at IS NOT NULL THEN e.duration
+        WHEN e.started_at IS NOT NULL THEN now() - e.started_at
+        ELSE INTERVAL '0'
+      END
+    ), INTERVAL '0')::INTERVAL AS total_duration,
+    COUNT(*) FILTER (WHERE e.started_at IS NOT NULL
+                       AND e.ended_at IS NULL)::BIGINT AS in_progress
+  FROM entries e
+  WHERE e.user_email = p_user_email
+    AND e.archived = false
+  GROUP BY e.project_name
+  ORDER BY total_duration DESC;
+END;
+$$;

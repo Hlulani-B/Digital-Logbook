@@ -7,6 +7,18 @@ import {
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { deleteProfile } from "@/functions/profile/profile.js";
+
+// Dev mode bypass - creates mock user for local testing
+const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === "true";
+const DEV_USER: User = {
+  id: "dev-test-user-id",
+  email: "dev@test.com",
+  user_metadata: { full_name: "Dev User", name: "Dev User" },
+  app_metadata: { provider: "dev" },
+  aud: "authenticated",
+  created_at: new Date().toISOString(),
+};
 
 interface AuthState {
   user: User | null;
@@ -35,6 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    // Dev mode bypass - skip Supabase auth
+    if (DEV_MODE) {
+      console.log("[DEV MODE] Using mock user - auth bypassed");
+      setState({
+        user: DEV_USER,
+        session: null,
+        loading: false,
+      });
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setState({
@@ -59,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    if (DEV_MODE) { console.log("[DEV MODE] signInWithGoogle skipped"); return; }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -69,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGitHub = async () => {
+    if (DEV_MODE) { console.log("[DEV MODE] signInWithGitHub skipped"); return; }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
@@ -79,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithEmail = async (email: string, password: string) => {
+    if (DEV_MODE) { console.log("[DEV MODE] signInWithEmail skipped"); return; }
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -87,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string) => {
+    if (DEV_MODE) { console.log("[DEV MODE] signUpWithEmail skipped"); return; }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -98,11 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (DEV_MODE) { console.log("[DEV MODE] signOut skipped"); return; }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   const resetPassword = async (email: string) => {
+    if (DEV_MODE) { console.log("[DEV MODE] resetPassword skipped"); return; }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/update-password`,
     });
@@ -110,11 +139,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePassword = async (newPassword: string) => {
+    if (DEV_MODE) { console.log("[DEV MODE] updatePassword skipped"); return; }
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
   };
 
   const deleteAccount = async () => {
+    if (DEV_MODE) { console.log("[DEV MODE] deleteAccount skipped"); return; }
+    const userEmail = state.user?.email;
+    
+    // Also delete profile from profile-service to clean up all user data
+    if (userEmail) {
+      try {
+        await deleteProfile(userEmail);
+      } catch (profileErr) {
+        console.warn("Profile service cleanup failed (continuing with account deletion):", profileErr);
+      }
+    }
+    
     // Call the delete_user RPC function defined in Supabase SQL
     const { error } = await supabase.rpc("delete_user");
     if (error) {
@@ -124,6 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Could not delete account automatically. You have been signed out. Contact support if needed."
       );
     }
+    // Sign out after successful deletion
+    await supabase.auth.signOut();
   };
 
   return (

@@ -2,7 +2,7 @@ name: Continuous Integration (CI) Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, hlulani ]
   pull_request:
     branches: [ main ]
 

@@ -5,7 +5,7 @@
 1. Install Python 3.9+ if you don't have it.
 2. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt     
    ```
 
 ## Preview locally (live reload)

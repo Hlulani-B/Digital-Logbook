@@ -61,7 +61,7 @@ function inputTypeForDataType(dataType: string): string {
 export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEntryProps) {
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 16));
   const [priorityValue, setPriorityValue] = useState("3");
   const [statusValue, setStatusValue] = useState("up_next");
   const [saving, setSaving] = useState(false);
@@ -82,10 +82,10 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             is_required: !!f.is_required,
           }));
           setFields(defs);
-          // Initialize empty values for each field
+          // Initialize empty values for each field (booleans default to "false")
           const initial: Record<string, string> = {};
           for (const f of defs) {
-            initial[f.field_name] = "";
+            initial[f.field_name] = f.data_type === "boolean" ? "false" : "";
           }
           setFieldValues(initial);
         }
@@ -108,7 +108,13 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
 
     // Validate required fields
     for (const f of fields) {
-      if (f.is_required && !fieldValues[f.field_name]?.trim()) {
+      if (!f.is_required) continue;
+      if (f.data_type === "boolean") {
+        if (fieldValues[f.field_name] !== "true") {
+          setError(`"${f.field_name}" is required`);
+          return;
+        }
+      } else if (!fieldValues[f.field_name]?.trim()) {
         setError(`"${f.field_name}" is required`);
         return;
       }
@@ -185,16 +191,27 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                 {field.field_name.replace(/_/g, " ")}
                 {field.is_required && <span className="add-entry__required">*</span>}
               </label>
-              <input
-                id={`field-${field.field_name}`}
-                type={inputTypeForDataType(field.data_type)}
-                className="add-entry__field-input"
-                placeholder={`Enter ${field.field_name.replace(/_/g, " ")}`}
-                value={fieldValues[field.field_name] || ""}
-                onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                disabled={saving}
-                required={field.is_required}
-              />
+              {field.data_type === "boolean" ? (
+                <input
+                  id={`field-${field.field_name}`}
+                  type="checkbox"
+                  className="add-entry__field-input"
+                  checked={fieldValues[field.field_name] === "true"}
+                  onChange={(e) => handleValueChange(field.field_name, e.target.checked ? "true" : "false")}
+                  disabled={saving}
+                />
+              ) : (
+                <input
+                  id={`field-${field.field_name}`}
+                  type={inputTypeForDataType(field.data_type)}
+                  className="add-entry__field-input"
+                  placeholder={`Enter ${field.field_name.replace(/_/g, " ")}`}
+                  value={fieldValues[field.field_name] || ""}
+                  onChange={(e) => handleValueChange(field.field_name, e.target.value)}
+                  disabled={saving}
+                  required={field.is_required}
+                />
+              )}
             </div>
           ))}
         </div>

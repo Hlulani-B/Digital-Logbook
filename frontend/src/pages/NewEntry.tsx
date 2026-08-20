@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
+import { isOverdue, getOverdueText } from "../functions/dashboard/overdue.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
 
@@ -92,9 +93,10 @@ interface EntryBoxProps {
   entry: EntryRow;
   onUpdated?: (updatedEntry: EntryRow) => void;
   onArchiveToggled?: (entryId: string, archived: boolean) => void;
+  onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
 }
 
-export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) {
+export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged }: EntryBoxProps) {
   const {
     id,
     user_email,
@@ -277,7 +279,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         ? await unarchiveEntry(user_email, project_name, id)
         : await archiveEntry(user_email, project_name, id);
 
-      if (result?.error) throw new Error(result.error);
       if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
 
       onArchiveToggled?.(id, !archived);
@@ -420,12 +421,29 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
       <div className="entry-box__header">
         <div className="entry-box__tags">
-          {priority && (
-            <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
+          {onPriorityChanged ? (
+            <select
+              className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
+              value={priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : "3"}
+              onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="0">Urgent & important</option>
+              <option value="1">Urgent, not important</option>
+              <option value="2">Not urgent</option>
+              <option value="3">No priority</option>
+            </select>
+          ) : (
+            priority && <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
           )}
           <span className={`entry-box__tag ${STATUS_CLASS[status]}`}>
             {STATUS_LABELS[status]}
           </span>
+          {isOverdue(due_date ?? null, status) && (
+            <span className="entry-box__tag entry-box__tag--overdue">
+              {getOverdueText(due_date ?? null, status)}
+            </span>
+          )}
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>
