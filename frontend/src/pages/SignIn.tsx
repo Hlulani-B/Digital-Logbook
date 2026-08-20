@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { checkUser } from "../functions/profile/login.js";
 import { useNavigate } from "react-router-dom";
-import { ParticleField } from "@/components/ParticleField";
+import { AuroraRibbons } from "@/components/AuroraRibbons";
 
 type Provider = "google" | "github";
 
@@ -84,9 +84,9 @@ export function SignIn() {
 
   return (
     <div className="split-auth">
-      {/* Left panel — interactive particle field */}
+      {/* Left panel — flowing aurora ribbons */}
       <div className="split-left">
-        <ParticleField />
+        <AuroraRibbons />
         <div className="split-video-overlay" />
         <div className="split-video-caption">
           <img src="/notebook.jpeg" alt="Digital Logbook" className="split-caption-img" />
