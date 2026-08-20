@@ -423,26 +423,37 @@ export function SettingsPanel({
                   <>
                     {!profileError && serverProfile && (
                       <div className="profile-summary" style={{
-                        padding: "0.75rem 1rem",
-                        borderRadius: "var(--radius-xs)",
+                        padding: "1.25rem",
+                        borderRadius: "var(--radius-sm)",
                         background: isDark ? "rgba(255,255,255,0.05)" : "#f8f6f2",
                         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "var(--border)"}`,
-                        marginBottom: "1rem",
+                        marginBottom: "1.25rem",
+                        textAlign: "center",
                       }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Username</span>
-                            <span style={{ fontWeight: 500, fontSize: "0.875rem" }}>{username || "—"}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Name</span>
-                            <span style={{ fontWeight: 500, fontSize: "0.875rem" }}>{name || "—"}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Email</span>
-                            <span style={{ fontWeight: 500, fontSize: "0.875rem" }}>{email}</span>
-                          </div>
-                        </div>
+                        {(avatarUrl || (serverProfile?.avatar as string)) && (
+                          <img
+                            src={(serverProfile?.avatar as string) || avatarUrl}
+                            alt=""
+                            style={{
+                              width: 72,
+                              height: 72,
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              margin: "0 auto 0.75rem",
+                              border: `2px solid ${isDark ? "rgba(255,255,255,0.12)" : "#e5e7eb"}`,
+                              background: isDark ? "rgba(255,255,255,0.08)" : "#fff",
+                            }}
+                          />
+                        )}
+                        <p style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "var(--text)" }}>
+                          {name || "—"}
+                        </p>
+                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                          @{username || "—"}
+                        </p>
+                        <p style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", color: "var(--text-dim)" }}>
+                          {email}
+                        </p>
                       </div>
                     )}
                     <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
