@@ -20,4 +20,14 @@ if (supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)) {
   );
 }
 
+/** Returns the Supabase client or throws if it was not configured. */
+export function getSupabase(): SupabaseClient {
+  if (!supabase) {
+    throw new Error(
+      "Supabase client is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
+    );
+  }
+  return supabase;
+}
+
 export { supabase };

@@ -86,7 +86,7 @@ export function ProjectsPage() {
           : Array.isArray(result?.projects)
             ? result.projects
             : []
-        ).filter((p) => !p.archived);
+        ).filter((p: ProjectRecord) => !p.archived);
       }
       setProjects(list);
 
@@ -712,7 +712,7 @@ export function ProjectsPage() {
                   <div style={{ display: "grid", gap: "0.5rem" }}>
                     {archivedEntries.map((entry, i) => (
                       <div
-                        key={entry.id || i}
+                        key={String(entry.id || i)}
                         className="glass"
                         style={{
                           padding: "0.75rem 1rem",
@@ -722,7 +722,7 @@ export function ProjectsPage() {
                         <p style={{ margin: 0, fontSize: "0.9rem" }}>
                           {String(entry.entries || "Untitled entry")}
                         </p>
-                        {entry.due_date && (
+                        {!!entry.due_date && (
                           <p style={{ margin: "0.25rem 0 0", fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
                             Due: {new Date(entry.due_date as string).toLocaleDateString()}
                           </p>

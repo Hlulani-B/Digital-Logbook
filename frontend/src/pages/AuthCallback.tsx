@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { checkUser } from "../functions/profile/login.js";
 
 export function AuthCallback() {
@@ -8,7 +8,10 @@ export function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!supabase) {
+    let client;
+    try {
+      client = getSupabase();
+    } catch {
       setError("Supabase is not configured. Cannot complete authentication.");
       return;
     }
@@ -26,7 +29,7 @@ export function AuthCallback() {
         const refreshToken = hashParams.get("refresh_token");
 
         if (accessToken && refreshToken) {
-          const { data, error: sessionError } = await supabase.auth.setSession({
+          const { data, error: sessionError } = await client.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
@@ -52,7 +55,7 @@ export function AuthCallback() {
 
       if (code) {
         // PKCE flow
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await client.auth.exchangeCodeForSession(code);
         if (!error && data.session) {
           const email = data.session.user.email;
           if (email) localStorage.setItem("email", email);
@@ -70,7 +73,7 @@ export function AuthCallback() {
       }
 
       // Fallback: check existing session
-      const { data } = await supabase.auth.getSession();
+      const { data } = await client.auth.getSession();
       if (data.session) {
         const email = data.session.user.email;
         if (email) localStorage.setItem("email", email);

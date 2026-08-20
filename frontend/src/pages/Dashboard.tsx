@@ -63,7 +63,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   // Archive state
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
-  const [showArchived, setShowArchived] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);

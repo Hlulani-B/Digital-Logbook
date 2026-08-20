@@ -6,8 +6,8 @@ export const PROFILE_URL =
   import.meta.env.VITE_PROFILE_SERVICE_URL || "https://profile-service-0zk7.onrender.com";
 
 export async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const { supabase } = await import("./supabase");
-  const { data: { session } } = await supabase.auth.getSession();
+  const { getSupabase } = await import("./supabase");
+  const { data: { session } } = await getSupabase().auth.getSession();
   const token = session?.access_token || "";
 
   const res = await fetch(url, {
