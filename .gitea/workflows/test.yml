@@ -1,0 +1,52 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [main, hlulani]
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - dashboard-service
+          - profile-service
+          - project-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: services/${{ matrix.service }}
+        run: npm ci
+
+      - name: Run tests with coverage
+        working-directory: services/${{ matrix.service }}
+        run: npm run test:coverage
+
+      - name: Generate coverage badge
+        working-directory: services/${{ matrix.service }}
+        run: npx coverage-badges-cli --output ./badges
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage/
+
+      - name: Upload badge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge-${{ matrix.service }}
+          path: services/${{ matrix.service }}/badges/

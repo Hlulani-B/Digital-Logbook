@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { updateAvatar } from "../functions/profile/profile.js";
 import { useTheme } from "@/hooks/useTheme";
+import { supabase } from "@/lib/supabase";
 
 interface AvatarPickerProps {
   currentAvatar?: string | null;
@@ -44,8 +45,15 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
     setError(null);
     setSuccess(false);
     try {
+      // Save to profile-service
       const result = await updateAvatar(email, avatarUrl);
       if (result?.error) throw new Error(result.error);
+
+      // Also update Supabase user metadata so navbar shows the avatar
+      await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      });
+
       setSuccess(true);
       onAvatarChange?.(avatarUrl);
       setTimeout(() => setSuccess(false), 2000);

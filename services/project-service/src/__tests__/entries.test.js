@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js';
 import { createMockSupabaseClient } from '../__mocks__/supabaseMock.js';
 
 jest.mock('../supabase.js');
+jest.mock('../functions/ai.js', () => ({ AI: jest.fn() }));
 
 describe('Entries', () => {
   let entries;
@@ -33,22 +34,25 @@ describe('Entries', () => {
 
       const result = await entries.addEntry('a@b.com', 'P1', 'new-entry', '2026-08-20T00:00:00Z');
 
-      expect(result).toEqual({ success: true, message: 'Entry added successfully' });
+      expect(result).toEqual({
+        success: true,
+        message: 'Entry added successfully',
+        data: [{ entries: 'other-entry', user_email: 'a@b.com', project_name: 'P1' }],
+      });
       expect(supabase.from).toHaveBeenCalledWith('entries');
     });
 
-    it('should detect an existing duplicate entry', async () => {
+    it('should add entry and return inserted data', async () => {
+      const insertedData = { entries: 'new-entry', user_email: 'a@b.com', project_name: 'P1' };
       supabase.from.mockImplementation((tableName) =>
         createMockSupabaseClient({
-          entries: {
-            data: [{ entries: 'duplicate-entry', user_email: 'a@b.com', project_name: 'P1' }],
-          },
+          entries: { data: [insertedData] },
         }).from(tableName)
       );
 
-      const result = await entries.addEntry('a@b.com', 'P1', 'duplicate-entry', null);
+      const result = await entries.addEntry('a@b.com', 'P1', 'new-entry', null);
 
-      expect(result).toEqual({ success: true, message: 'Entry already exists' });
+      expect(result).toEqual({ success: true, message: 'Entry added successfully', data: [insertedData] });
     });
 
     it('should return failure when Supabase returns an error', async () => {
@@ -85,7 +89,7 @@ describe('Entries', () => {
 
       const result = await entries.updateEntry('a@b.com', 'P1', 'missing-entry', 'new-entry');
 
-      expect(result).toEqual({ success: false, message: 'Entry not found. Something went wrong' });
+      expect(result).toEqual({ success: false, message: 'Entry not found. Check that the entry exists and belongs to this user/project.' });
     });
 
     it('should return failure when Supabase returns an error', async () => {
@@ -197,7 +201,7 @@ describe('Entries', () => {
 
       expect(result).toEqual({
         success: true,
-        message: 'Entries sorted successfully',
+        message: 'Unarchived entries sorted successfully',
         data: [{ due_date: '2026-08-10' }, { due_date: '2026-08-01' }],
       });
     });
@@ -229,6 +233,91 @@ describe('Entries', () => {
       const result = await entries.sortEntries('a@b.com', 'P1', 0);
 
       expect(result).toEqual({ success: false, message: 'order failed' });
+    });
+  });
+
+  // ─── sortArchivedEntries ─────────────────────────────────────
+  describe('sortArchivedEntries', () => {
+    it('should sort archived entries by due_date (sort_type=0)', async () => {
+      const mockData = [
+        { id: 1, due_date: '2024-03-01', archived: true },
+        { id: 2, due_date: '2024-01-01', archived: true },
+      ];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 0);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(2);
+      expect(supabase.from).toHaveBeenCalledWith('entries');
+    });
+
+    it('should sort archived entries by priority (sort_type=1)', async () => {
+      const mockData = [
+        { id: 1, priority: 'Not urgent, not important' },
+        { id: 2, priority: 'Urgent and important' },
+        { id: 3, priority: 'Urgent but not important' },
+      ];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 1);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual([
+        { id: 2, priority: 'Urgent and important' },
+        { id: 3, priority: 'Urgent but not important' },
+        { id: 1, priority: 'Not urgent, not important' },
+      ]);
+    });
+
+    it('should return data as-is for unknown sort_type', async () => {
+      const mockData = [{ id: 1, due_date: '2024-01-01' }];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 99);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockData);
+    });
+
+    it('should return failure on error', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { message: 'query failed' } } }).from(tableName)
+      );
+
+      const result = await entries.sortArchivedEntries('a@b.com', 'P1', 0);
+
+      expect(result).toEqual({ success: false, message: 'query failed' });
+    });
+  });
+
+  // ─── updateEntry edge cases ──────────────────────────────────
+  describe('updateEntry edge cases', () => {
+    it('should return "No changes" when no fields are provided', async () => {
+      const result = await entries.updateEntry('entry-1', 'a@b.com', 'P1');
+
+      expect(result).toEqual({ success: true, message: 'No changes to update' });
+    });
+  });
+
+  // ─── sortUnarchivedEntries default case ──────────────────────
+  describe('sortUnarchivedEntries default case', () => {
+    it('should return data as-is for unknown sort_type', async () => {
+      const mockData = [{ id: 1, due_date: '2024-01-01' }];
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: mockData } }).from(tableName)
+      );
+
+      const result = await entries.sortUnarchivedEntries('a@b.com', 'P1', 99);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockData);
     });
   });
 });

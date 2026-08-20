@@ -212,7 +212,7 @@ export function SignIn() {
 
             <button
               type="submit"
-              disabled={emailLoading || !captchaVerified}
+              disabled={emailLoading || (!DISABLE_CAPTCHA && !captchaVerified)}
               className="btn-primary auth-submit"
             >
               {emailLoading

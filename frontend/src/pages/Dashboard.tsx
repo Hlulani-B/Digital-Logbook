@@ -4,13 +4,17 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
+import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
+import { QuickEntryBar } from "@/components/QuickEntryBar";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
-import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
-import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
+import { sortUnarchivedEntries } from "@/functions/project/entries.js";
+import { supabase } from "@/lib/supabase";
+import { setPriority } from "@/functions/project/priority.js";
+import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
-import { searchAll, searchProject } from "@/functions/dashboard/search.js";
-import { calculateProjectStats, formatDuration } from "@/functions/dashboard/stats.js";
+import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
 
@@ -23,7 +27,11 @@ type ProjectFieldDraft = {
   is_required: boolean;
 };
 
-export function Dashboard() {
+type DashboardProps = {
+  defaultView?: string;
+};
+
+export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -34,7 +42,7 @@ export function Dashboard() {
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | "stats" | string>("all");
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>(defaultView);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +61,13 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
-  const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
+  // Archive state
+  const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -70,6 +84,11 @@ export function Dashboard() {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState("");
 
+  // Project settings panel
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
+
   const email = user?.email || "";
 
   // Load data — always fetch sorted to reflect current sortBy
@@ -85,8 +104,23 @@ export function Dashboard() {
         sortUnarchivedEntries(email, project, sortType),
         dueSoon(email, null),
       ]);
+      // Read localStorage archived set (DB UPDATE is blocked by RLS)
+      let localArch = new Set<string>();
+      try {
+        const raw = localStorage.getItem(`dl_archived_${email}`);
+        if (raw) localArch = new Set(JSON.parse(raw));
+      } catch {}
+      setLocalArchived(localArch);
+
       if (projectsRes.status === "fulfilled") {
-        setProjects(projectsRes.value?.projects || []);
+        const allProjects = (projectsRes.value?.projects || []) as Project[];
+        // Merge DB archived flag with localStorage archived set
+        const merged = allProjects.map((p) => ({
+          ...p,
+          archived: p.archived === true || localArch.has(p.project_name as string),
+        }));
+        setProjects(merged);
+        setArchivedProjects(merged.filter((p) => p.archived));
       } else {
         console.error("Failed to load projects:", projectsRes.reason);
       }
@@ -99,16 +133,6 @@ export function Dashboard() {
         setDueSoonRows(dueSoonRes.value?.data || []);
       } else {
         console.error("Failed to load due soon:", dueSoonRes.reason);
-      }
-
-      // Also fetch archived rows for archive view
-      if (activeView === "archives") {
-        try {
-          const archiveData = await sortArchivedEntries(email, project, sortType);
-          setArchiveRows(archiveData?.data || []);
-        } catch (archiveErr) {
-          console.error("Failed to load archives:", archiveErr);
-        }
       }
     } catch (err) {
       console.error("[Dashboard] loadData exception:", err);
@@ -135,19 +159,28 @@ export function Dashboard() {
         setDrawerOpen(false);
         setFabOpen(false);
         setSearchOpen(false);
+        setProjectMenuOpen(false);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Close project menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setProjectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // Filtered entries — uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // If search results are available, use them
     if (searchResults !== null) return searchResults;
-
-    // If archive view, use archiveRows
-    if (activeView === "archives") return archiveRows;
 
     // Otherwise use all entries (unarchived)
     let filtered = [...entries];
@@ -173,7 +206,7 @@ export function Dashboard() {
     }
 
     return filtered;
-  }, [entries, activeView, searchResults, archiveRows, viewMode]);
+  }, [entries, activeView, searchResults, viewMode]);
 
   // Search using provided search functions
   useEffect(() => {
@@ -183,11 +216,26 @@ export function Dashboard() {
     }
     let cancelled = false;
     (async () => {
-      const result = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives")
-        ? await searchProject(email, activeView, searchQuery.trim())
-        : await searchAll(email, searchQuery.trim());
+      // Run both entry search and project name search in parallel
+      const isProjectView = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives");
+      const entrySearch = isProjectView
+        ? searchProject(email, activeView, searchQuery.trim())
+        : searchAll(email, searchQuery.trim());
+      const projectSearch = searchProjects(email, searchQuery.trim());
+
+      const [entryResult, projectResult] = await Promise.all([entrySearch, projectSearch]);
+
       if (!cancelled) {
-        setSearchResults(result?.data || []);
+        // Merge results, deduplicating by entry id
+        const entryRows = entryResult?.data || [];
+        const projectRows = projectResult?.data || [];
+        const seen = new Set();
+        const merged = [...entryRows, ...projectRows].filter((row: Entry) => {
+          if (seen.has(row.id as string)) return false;
+          seen.add(row.id as string);
+          return true;
+        });
+        setSearchResults(merged);
       }
     })();
     return () => { cancelled = true; };
@@ -196,6 +244,8 @@ export function Dashboard() {
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
   const preferredName = (() => {
+    // Priority: profile-service username > localStorage preferred name > full name
+    if (profileUsername?.trim()) return profileUsername.trim();
     if (!user?.id) return fullDisplayName;
     try {
       const raw = localStorage.getItem(`dl_settings_profile_${user.id}`);
@@ -206,8 +256,32 @@ export function Dashboard() {
     } catch {}
     return fullDisplayName;
   })();
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  // Profile-service avatar/username take priority over Google/OAuth profile data
+  const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || "email";
+
+  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  useEffect(() => {
+    if (!email) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getProfile(email);
+        const profileData = result?.data || result;
+        const avatar = (profileData as Record<string, unknown>)?.avatar as string;
+        const username = (profileData as Record<string, unknown>)?.username as string;
+        if (!cancelled) {
+          if (avatar) {
+            setProfileAvatar(avatar);
+          }
+          if (username) {
+            setProfileUsername(username);
+          }
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [email]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -268,6 +342,20 @@ export function Dashboard() {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
+    
+    // Validate fields before creating project
+    const nonEmptyFields = projectFields.filter((f) => f.field_name.trim());
+    if (nonEmptyFields.length > 0) {
+      // Check for duplicate field names (case-insensitive)
+      const fieldNames = nonEmptyFields.map((f) => f.field_name.trim().toLowerCase());
+      const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+      if (duplicates.length > 0) {
+        const uniqueDuplicates = [...new Set(duplicates)];
+        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(", ")}`);
+        return;
+      }
+    }
+    
     setCreatingProject(true);
     setNewProjectError(null);
 
@@ -276,16 +364,15 @@ export function Dashboard() {
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
       // Save any non-empty project fields (best-effort after project is created)
-      const validFields = projectFields.filter((f) => f.field_name.trim());
-      if (validFields.length > 0) {
+      if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
-          validFields.map((f) =>
+          nonEmptyFields.map((f) =>
             addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
           )
         );
         const failures = results
           .map((r, i) =>
-            r.status === "rejected" ? validFields[i].field_name : null
+            r.status === "rejected" ? nonEmptyFields[i].field_name : null
           )
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
@@ -307,23 +394,118 @@ export function Dashboard() {
     }
   };
 
+  // Archive project — uses localStorage (DB UPDATE blocked by RLS)
   const handleArchiveProject = async (projectName: string) => {
-    if (!email) return;
-    try {
-      await archiveProject(email, projectName);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to archive project:", err);
+    if (!email) {
+      setArchiveError("Cannot archive: no email");
+      return;
     }
+    setArchiveError(null);
+    // Update local state immediately for instant UI feedback
+    setProjects((prev) => prev.map((p) =>
+      p.project_name === projectName ? { ...p, archived: true } : p
+    ));
+    const project = projects.find((p) => p.project_name === projectName);
+    if (project) {
+      setArchivedProjects((prev) => [...prev, { ...project, archived: true }]);
+    }
+    // Save to localStorage for persistence across reloads
+    const next = new Set(localArchived);
+    next.add(projectName);
+    setLocalArchived(next);
+    try {
+      localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
+    } catch {}
+    // Best-effort DB update (will silently fail due to RLS, that's OK)
+    try {
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': anonJwt || apiKey,
+          'Authorization': `Bearer ${anonJwt || apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ archived: true }),
+      });
+    } catch {}
   };
 
   const handleUnarchiveProject = async (projectName: string) => {
     if (!email) return;
+    setArchiveError(null);
+    // Update local state immediately
+    setProjects((prev) => prev.map((p) =>
+      p.project_name === projectName ? { ...p, archived: false } : p
+    ));
+    setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    // Remove from localStorage
+    const next = new Set(localArchived);
+    next.delete(projectName);
+    setLocalArchived(next);
     try {
-      await unarchiveProject(email, projectName);
-      await loadData();
+      localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
+    } catch {}
+    // Best-effort DB update
+    try {
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': anonJwt || apiKey,
+          'Authorization': `Bearer ${anonJwt || apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ archived: false }),
+      });
+    } catch {}
+  };
+
+  // Seed test projects using authenticated Supabase client (INSERT works via RLS)
+  const handleSeedTestProjects = async () => {
+    if (!email || !supabase) return;
+    const testProjects = [
+      { user_email: email, project_name: "Website Redesign", description: "Redesign the main company website with modern UI", archived: false },
+      { user_email: email, project_name: "Mobile App MVP", description: "Build the first version of the iOS/Android app", archived: false },
+      { user_email: email, project_name: "Q4 Marketing Plan", description: "Plan and execute Q4 marketing campaigns", archived: false },
+      { user_email: email, project_name: "Internal Tools Audit", description: "Audit all internal tools and consolidate", archived: false },
+      { user_email: email, project_name: "Database Migration", description: "Migrate legacy database to new architecture", archived: false },
+    ];
+    for (const p of testProjects) {
+      await supabase.from("projects").upsert(p, { onConflict: "user_email,project_name" }).select();
+    }
+    await loadData();
+  };
+
+  const PRIORITY_LABELS: Record<string, string> = {
+    "0": "Urgent and important",
+    "1": "Urgent but not important",
+    "2": "Not urgent, not important",
+  };
+
+  const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
+    if (!email) return;
+    try {
+      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
+      const result = await setPriority(email, priorityValue, projectName, entryId);
+      if (result?.success === false) {
+        console.error("Failed to set priority:", result.message);
+        return;
+      }
+      // Update the entry in local state
+      setEntries((prev: Entry[]) =>
+        prev.map((e: Entry) =>
+          e.id === entryId ? { ...e, priority: priorityLabel } : e
+        )
+      );
     } catch (err) {
-      console.error("Failed to unarchive project:", err);
+      console.error("Failed to set priority:", err);
     }
   };
 
@@ -408,83 +590,132 @@ export function Dashboard() {
 
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
-          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { setActiveView("all"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { navigate("/dashboard/all"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             All Entries
             <span className="drawer-badge">{entries.length}</span>
           </button>
-          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { setActiveView("recent"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { navigate("/dashboard/recent"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Recent
           </button>
-          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { setActiveView("drafts"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { navigate("/dashboard/drafts"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Drafts
           </button>
-          <button className={`drawer-item ${activeView === "stats" ? "active" : ""}`} onClick={() => { setActiveView("stats"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+            Archived Projects
+            <span className="drawer-badge">{archivedProjects.length}</span>
+          </button>
+          <button className="drawer-item" onClick={() => {}} style={{ opacity: 0.6, cursor: "default" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             My Stats
           </button>
+          <button className={`drawer-item ${activeView === "activity" ? "active" : ""}`} onClick={() => { navigate("/dashboard/activity"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Activity Log
+          </button>
         </div>
 
+        {/* Archive section — always visible */}
         <div className="drawer-section">
-          <p className="drawer-section-title">Archive</p>
-          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            Archived Projects
-            <span className="drawer-badge">{projects.filter((p) => p.archived).length}</span>
-          </button>
-          {projects.filter((p) => p.archived).map((project) => {
-            const name = project.project_name as string;
-            const count = entries.filter((e) => e.project_name === name).length;
-            return (
-              <button
-                key={name}
-                className={`drawer-item drawer-item-archived ${activeView === name ? "active" : ""}`}
-                onClick={() => { setActiveView(name); setDrawerOpen(false); }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-                {name}
-                <span className="drawer-badge">{count}</span>
-                <span
-                  className="drawer-item-action"
-                  onClick={(e) => { e.stopPropagation(); handleUnarchiveProject(name); }}
-                  title="Unarchive project"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                </span>
-              </button>
-            );
-          })}
+          <p className="drawer-section-title">📦 Archived ({archivedProjects.length})</p>
+          {archiveError && (
+            <p style={{ color: "#dc2626", fontSize: "0.75rem", padding: "0.25rem 0" }}>{archiveError}</p>
+          )}
+          <div className="drawer-project-list">
+            {archivedProjects.length === 0 ? (
+              <p className="drawer-empty">No archived projects yet</p>
+            ) : (
+              archivedProjects.map((project) => {
+                const name = project.project_name as string;
+                return (
+                  <div key={name} className="drawer-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ opacity: 0.6 }}>{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnarchiveProject(name)}
+                      title="Unarchive"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(99,102,241,0.4)",
+                        color: "#6366f1",
+                        borderRadius: "0.4rem",
+                        padding: "0.2rem 0.5rem",
+                        fontSize: "0.75rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ↩ Unarchive
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
 
         <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title">Projects</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <p className="drawer-section-title">Projects</p>
+            <button
+              type="button"
+              onClick={handleSeedTestProjects}
+              title="Add 5 test projects"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(99,102,241,0.4)",
+                color: "#6366f1",
+                borderRadius: "0.4rem",
+                padding: "0.2rem 0.5rem",
+                fontSize: "0.7rem",
+                cursor: "pointer",
+              }}
+            >
+              + Test Projects
+            </button>
+          </div>
           <div className="drawer-project-list">
             {projects.filter((p) => !p.archived).map((project) => {
               const name = project.project_name as string;
               const count = entries.filter((e) => e.project_name === name).length;
               return (
-                <button
+                <div
                   key={name}
                   className={`drawer-item ${activeView === name ? "active" : ""}`}
-                  onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                  {name}
-                  <span className="drawer-badge">{count}</span>
-                  <span
-                    className="drawer-item-action"
-                    onClick={(e) => { e.stopPropagation(); handleArchiveProject(name); }}
-                    title="Archive project"
+                  <button
+                    type="button"
+                    onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                    style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
-                  </span>
-                </button>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    {name}
+                    <span className="drawer-badge">{count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveProject(name)}
+                    title="Archive project"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(99,102,241,0.35)",
+                      color: "#6366f1",
+                      borderRadius: "0.4rem",
+                      padding: "0.2rem 0.5rem",
+                      fontSize: "0.8rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    📦
+                  </button>
+                </div>
               );
             })}
             {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet</p>
+              <p className="drawer-empty">No projects yet. Click "+ Test Projects" above.</p>
             )}
           </div>
         </div>
@@ -494,6 +725,9 @@ export function Dashboard() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Project
           </button>
+          <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
+            📋 Manage Projects
+          </button>
         </div>
       </aside>
 
@@ -502,25 +736,91 @@ export function Dashboard() {
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "stats" ? "My Stats" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
-              {searchQuery && (
-                <p className="feed-subtitle">
-                  {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
-                </p>
+              {/* Project settings three-dots menu - only show for specific projects */}
+              {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
+                <div className="project-menu-wrap" ref={projectMenuRef} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className="entry-box__menu-btn"
+                    onClick={() => setProjectMenuOpen((v) => !v)}
+                    aria-label="Project settings"
+                    aria-expanded={projectMenuOpen}
+                    style={{ position: "static" }}
+                  >
+                    ⋯
+                  </button>
+                  {projectMenuOpen && (
+                    <div className="entry-box__menu" style={{ top: "100%", right: "auto", left: 0 }}>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { setProjectSettingsOpen(true); setProjectMenuOpen(false); }}
+                      >
+                        Project Settings
+                      </button>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { handleArchiveProject(activeView); setProjectMenuOpen(false); }}
+                        style={{ color: "#6366f1" }}
+                      >
+                        📦 Archive Project
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} activeProject={
-              activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "stats"
-                ? activeView
-                : undefined
-            } />
+            {searchQuery && (
+              <p className="feed-subtitle">
+                {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+              </p>
+            )}
+            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
 
         {/* Search bar inline for mobile */}
+        {activeView === "activity" ? (
+          <ActivityFeed />
+        ) : activeView === "archives" ? (
+          <div className="entries-feed">
+            {archiveError && (
+              <div className="auth-error" style={{ marginBottom: "1rem" }}>{archiveError}</div>
+            )}
+            {archivedProjects.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon">📦</div>
+                <h2 className="empty-title">No archived projects</h2>
+                <p className="empty-desc">Archive a project from the sidebar or the ⋯ menu to see it here.</p>
+              </div>
+            ) : (
+              archivedProjects.map((project, i) => {
+                const name = project.project_name as string;
+                return (
+                  <div key={`archived-${name}-${i}`} className="glass" style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderRadius: "0.85rem", marginBottom: "0.75rem" }}>
+                    <span style={{ fontSize: "1.2rem" }}>📦</span>
+                    <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem", opacity: 0.7 }}>{name}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>Archived (read-only)</span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnarchiveProject(name)}
+                      className="btn-secondary"
+                      style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+                    >
+                      ↩ Unarchive
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+        <>
         <div className="feed-search-bar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
@@ -567,6 +867,9 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* Quick Entry Bar - Natural Language */}
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} />
+
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
@@ -575,58 +878,8 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Stats View — full page breakdown (AT1 + AT3) */}
-        {!loading && activeView === "stats" && (
-          <div className="stats-view animate-in">
-            <div className="stats-view-summary glass">
-              <h2 className="stats-view-title">Overview</h2>
-              <div className="stats-view-grid">
-                <div className="feed-stat-item">
-                  <span className="feed-stat-value">{entries.length}</span>
-                  <span className="feed-stat-label">Total Entries</span>
-                </div>
-                <div className="feed-stat-item">
-                  <span className="feed-stat-value">{projects.filter((p) => !p.archived).length}</span>
-                  <span className="feed-stat-label">Active Projects</span>
-                </div>
-                <div className="feed-stat-item">
-                  <span className="feed-stat-value">{dueSoonRows.length}</span>
-                  <span className="feed-stat-label">Due Soon</span>
-                </div>
-                <div className="feed-stat-item">
-                  <span className="feed-stat-value">{(() => { const t = calculateProjectStats(entries); const totalMs = t.reduce((s, p) => s + p.totalMs, 0); return formatDuration(totalMs); })()}</span>
-                  <span className="feed-stat-label">Total Time Tracked</span>
-                </div>
-              </div>
-            </div>
-
-            <h3 className="stats-view-section-title">Time per Project</h3>
-            <div className="stats-view-projects">
-              {calculateProjectStats(entries).map((ps) => (
-                <div key={ps.project_name} className="stats-view-project-card glass">
-                  <div className="stats-view-project-header">
-                    <span className="stats-view-project-name">{ps.project_name}</span>
-                    <span className="stats-view-project-time">{ps.display}</span>
-                  </div>
-                  <div className="stats-view-project-meta">
-                    {ps.entryCount} entr{ps.entryCount === 1 ? "y" : "ies"}
-                    {ps.inProgressCount > 0 && (
-                      <span className="stats-view-in-progress"> · {ps.inProgressCount} in progress</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {calculateProjectStats(entries).length === 0 && (
-                <div className="empty-state">
-                  <p className="empty-desc">No time-tracked entries yet. Start a timer on an entry to see stats here.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Entries feed — hidden when viewing stats */}
-        {!loading && !searchQuery && activeView !== "stats" && (
+        {/* Entries feed — always shown (filtered by viewMode + sort) */}
+        {!loading && !searchQuery && (
           <div className="entries-feed">
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -650,14 +903,14 @@ export function Dashboard() {
               </div>
             ) : (
               filteredEntries.map((row, i) => (
-                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
               ))
             )}
           </div>
         )}
 
-        {/* Search Results — only when searching (hidden in stats view) */}
-        {!loading && searchQuery && activeView !== "stats" && (
+        {/* Search Results — only when searching */}
+        {!loading && searchQuery && (
           <>
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -673,11 +926,13 @@ export function Dashboard() {
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
-                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
                 ))}
               </div>
             )}
           </>
+        )}
+        </>
         )}
       </main>
 
@@ -872,6 +1127,16 @@ export function Dashboard() {
         onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
+      />
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={activeView}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
+        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
       />
     </div>
   );
