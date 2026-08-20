@@ -1,4 +1,20 @@
 /**
+ * Parse a duration/interval string into milliseconds.
+ * Handles "HH:MM:SS", "MM:SS" formats, or returns 0 for unparseable values.
+ */
+function durationToMs(duration) {
+  if (!duration) return 0;
+  const parts = String(duration).split(':').map(Number);
+  if (parts.length === 3 && parts.every(p => !isNaN(p))) {
+    return (parts[0] * 3600000) + (parts[1] * 60000) + (parts[2] * 1000);
+  }
+  if (parts.length === 2 && parts.every(p => !isNaN(p))) {
+    return (parts[0] * 60000) + (parts[1] * 1000);
+  }
+  return 0;
+}
+
+/**
  * Format milliseconds into a human-readable string like "2h 30m" or "45m".
  */
 export function formatDuration(ms) {
@@ -10,26 +26,29 @@ export function formatDuration(ms) {
 
 /**
  * Calculate the elapsed time in ms for a single entry.
- * Completed entries: ended_at − created_at.
- * In-progress entries (no ended_at): now − created_at.
- * Returns 0 if created_at is missing or invalid.
+ * - Completed entries (has ended_at): uses the stored `duration` column (ended_at − started_at).
+ * - In-progress entries (started_at set, no ended_at): calculates live started_at → now.
+ * - Returns 0 if neither is available.
  */
 function entryDurationMs(entry, now) {
-  const createdAt = new Date(entry.created_at).getTime();
-  if (isNaN(createdAt)) return 0;
-
-  if (entry.ended_at) {
-    const endedAt = new Date(entry.ended_at).getTime();
-    return isNaN(endedAt) ? 0 : endedAt - createdAt;
+  // Completed: use stored duration column directly
+  if (entry.duration && entry.ended_at) {
+    return durationToMs(entry.duration);
   }
-  // In-progress: no ended_at yet
-  return now - createdAt;
+  // In-progress: calculate live duration from started_at
+  if (entry.started_at && !entry.ended_at) {
+    const start = new Date(entry.started_at).getTime();
+    if (!isNaN(start)) {
+      return now - start;
+    }
+  }
+  return 0;
 }
 
 /**
  * Calculate total time tracked from entries
- * - Completed entries (has ended_at): ended_at − created_at
- * - In-progress entries (no ended_at): now − created_at
+ * - Completed entries (has ended_at): uses stored duration column
+ * - In-progress entries (no ended_at): calculates live started_at → now
  * - Returns total time and count of in-progress tasks
  */
 export function calculateTotalTimeTracked(entries) {
@@ -38,10 +57,10 @@ export function calculateTotalTimeTracked(entries) {
   let inProgressCount = 0;
 
   entries.forEach((entry) => {
-    if (!entry.ended_at && entry.created_at) {
+    if (entry.started_at && !entry.ended_at) {
       totalMs += entryDurationMs(entry, now);
       inProgressCount++;
-    } else if (entry.ended_at) {
+    } else if (entry.duration && entry.ended_at) {
       totalMs += entryDurationMs(entry, now);
     }
   });
@@ -69,10 +88,10 @@ export function calculateProjectStats(entries) {
     const stat = map.get(name);
     stat.entryCount++;
 
-    if (!entry.ended_at && entry.created_at) {
+    if (entry.started_at && !entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
       stat.inProgressCount++;
-    } else if (entry.ended_at) {
+    } else if (entry.duration && entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
     }
   });

@@ -75,7 +75,8 @@ ON CONFLICT (email) DO NOTHING;
 
 -- 4. Project statistics RPC
 --    Aggregates duration per project for a given user.
---    Duration = ended_at − created_at (completed) or now() − created_at (in progress).
+--    Uses the stored `duration` column (ended_at − started_at) for completed entries,
+--    and now() − started_at for in-progress entries.
 --    Returns project_name, entry count, total duration, and in-progress count.
 CREATE OR REPLACE FUNCTION get_project_stats(p_user_email TEXT)
 RETURNS TABLE (
@@ -94,11 +95,13 @@ BEGIN
     COUNT(*)::BIGINT AS entry_count,
     COALESCE(SUM(
       CASE
-        WHEN e.ended_at IS NOT NULL THEN e.ended_at - e.created_at
-        ELSE now() - e.created_at
+        WHEN e.ended_at IS NOT NULL THEN e.duration
+        WHEN e.started_at IS NOT NULL THEN now() - e.started_at
+        ELSE INTERVAL '0'
       END
     ), INTERVAL '0')::INTERVAL AS total_duration,
-    COUNT(*) FILTER (WHERE e.ended_at IS NULL)::BIGINT AS in_progress
+    COUNT(*) FILTER (WHERE e.started_at IS NOT NULL
+                       AND e.ended_at IS NULL)::BIGINT AS in_progress
   FROM entries e
   WHERE e.user_email = p_user_email
     AND e.archived = false
