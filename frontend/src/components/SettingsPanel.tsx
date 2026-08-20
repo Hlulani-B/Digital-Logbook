@@ -761,10 +761,6 @@ export function SettingsPanel({
                       {provider}
                     </span>
                   </div>
-                  <div className="setting-item">
-                    <span className="setting-label">User ID</span>
-                    <span className="setting-value mono">{userId}</span>
-                  </div>
                 </div>
               </div>
 
