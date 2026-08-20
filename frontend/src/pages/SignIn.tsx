@@ -1,9 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useState, useRef, useCallback, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { checkUser } from "../functions/profile/login.js";
 import { useNavigate } from "react-router-dom";
-import { AuroraRibbons } from "@/components/AuroraRibbons";
 
 type Provider = "google" | "github";
 
@@ -18,6 +17,21 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
+
+  // Video background: alternate between two videos for seamless loop
+  const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
+  const video1Ref = useRef<HTMLVideoElement>(null);
+  const video2Ref = useRef<HTMLVideoElement>(null);
+
+  const handleVideo1End = useCallback(() => {
+    setActiveVideo(2);
+    video2Ref.current?.play();
+  }, []);
+
+  const handleVideo2End = useCallback(() => {
+    setActiveVideo(1);
+    video1Ref.current?.play();
+  }, []);
 
   const routeAfterAuth = async (userEmail: string) => {
     localStorage.setItem("email", userEmail);
@@ -84,9 +98,29 @@ export function SignIn() {
 
   return (
     <div className="split-auth">
-      {/* Left panel — flowing aurora ribbons */}
+      {/* Left panel — video showcase */}
       <div className="split-left">
-        <AuroraRibbons />
+        <div className="split-video-container">
+          <video
+            ref={video1Ref}
+            src="/video1.mp4"
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleVideo1End}
+            className="split-video"
+            style={{ opacity: activeVideo === 1 ? 1 : 0 }}
+          />
+          <video
+            ref={video2Ref}
+            src="/video2.mp4"
+            muted
+            playsInline
+            onEnded={handleVideo2End}
+            className="split-video"
+            style={{ opacity: activeVideo === 2 ? 1 : 0 }}
+          />
+        </div>
         <div className="split-video-overlay" />
         <div className="split-video-caption">
           <img src="/notebook.jpeg" alt="Digital Logbook" className="split-caption-img" />
