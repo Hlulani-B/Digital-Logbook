@@ -715,64 +715,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </button>
         </div>
 
-        {/* Archive section — always visible */}
-        <div className="drawer-section">
-          <p className="drawer-section-title">📦 Archived ({archivedProjects.length})</p>
-          {archiveError && (
-            <p style={{ color: "#dc2626", fontSize: "0.75rem", padding: "0.25rem 0" }}>{archiveError}</p>
-          )}
-          <div className="drawer-project-list">
-            {archivedProjects.length === 0 ? (
-              <p className="drawer-empty">No archived projects yet</p>
-            ) : (
-              archivedProjects.map((project) => {
-                const name = project.project_name as string;
-                return (
-                  <div key={name} className="drawer-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ opacity: 0.6 }}>{name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleUnarchiveProject(name)}
-                      title="Unarchive"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid rgba(99,102,241,0.4)",
-                        color: "#6366f1",
-                        borderRadius: "0.4rem",
-                        padding: "0.2rem 0.5rem",
-                        fontSize: "0.75rem",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ↩ Unarchive
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
         <div className="drawer-section drawer-projects">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <p className="drawer-section-title">Projects</p>
-            <button
-              type="button"
-              onClick={handleSeedTestProjects}
-              title="Add 5 test projects"
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(99,102,241,0.4)",
-                color: "#6366f1",
-                borderRadius: "0.4rem",
-                padding: "0.2rem 0.5rem",
-                fontSize: "0.7rem",
-                cursor: "pointer",
-              }}
-            >
-              + Test Projects
-            </button>
-          </div>
+          <p className="drawer-section-title">Projects</p>
           <div className="drawer-project-list">
             {projects.filter((p) => !p.archived).map((project) => {
               const name = project.project_name as string;
@@ -802,17 +746,17 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                       color: "#6366f1",
                       borderRadius: "0.4rem",
                       padding: "0.2rem 0.5rem",
-                      fontSize: "0.8rem",
+                      fontSize: "0.7rem",
                       cursor: "pointer",
                     }}
                   >
-                    📦
+                    Archive
                   </button>
                 </div>
               );
             })}
             {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet. Click "+ Test Projects" above.</p>
+              <p className="drawer-empty">No projects yet. Create one below.</p>
             )}
           </div>
         </div>
@@ -823,7 +767,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             New Project
           </button>
           <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
-            📋 Manage Projects
+            Manage Projects
           </button>
         </div>
       </aside>
