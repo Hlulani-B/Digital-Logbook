@@ -4281,20 +4281,37 @@ img { max-width: 100%; }
   outline-color: var(--accent);
 }
 
-/* ========== AI GREETING ========== */
-.ai-greeting {
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--accent-glow), rgba(139, 115, 85, 0.05));
-  border: 1px solid rgba(139, 115, 85, 0.1);
-  font-size: 0.9rem;
+/* ========== AI GREETING TOAST ========== */
+.ai-toast {
+  position: relative;
+  padding: 0.65rem 1.1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 99px;
+  background: linear-gradient(135deg, rgba(139, 115, 85, 0.08), rgba(166, 139, 107, 0.12));
+  border: 1px solid rgba(139, 115, 85, 0.12);
+  font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
+  display: inline-block;
+  max-width: 100%;
+  animation: toast-fade-in 0.4s ease, toast-fade-out 0.5s ease 5.5s forwards;
 }
-.ai-greeting p {
+.ai-toast p {
   margin: 0;
   line-height: 1.4;
+}
+@keyframes toast-fade-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+[data-theme="dark"] .ai-toast {
+  background: linear-gradient(135deg, rgba(224,224,224,0.06), rgba(200,200,200,0.1));
+  border-color: rgba(224,224,224,0.1);
+  color: var(--text-dim);
 }
 
 /* ========== ACTIVITY SUMMARY ========== */

@@ -22,6 +22,16 @@ import VoiceFeature from "@/pages/VoiceFeature";
 import { askAI } from "@/functions/ai.js";
 import { getToneInstruction } from "@/functions/tone";
 
+/** Parse AI response — handles JSON {"message":"..."} or plain text */
+function parseAIResponse(response: string): string {
+  try {
+    const parsed = JSON.parse(response);
+    return parsed.message || response;
+  } catch {
+    return response;
+  }
+}
+
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
 
@@ -81,7 +91,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [voiceOpen, setVoiceOpen] = useState(false);
 
   // AI-generated messages
-  const [aiGreeting, setAiGreeting] = useState("Loading your dashboard...");
+  const [aiGreeting, setAiGreeting] = useState("");
+  const [showGreetingToast, setShowGreetingToast] = useState(false);
   const [aiEmptyMessage, setAiEmptyMessage] = useState("No entries to show right now.");
   const [aiPlaceholder, setAiPlaceholder] = useState("What are you working on?");
 
@@ -158,7 +169,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     loadData();
   }, [loadData]);
 
-  // AI-generated greeting based on time and data
+  // AI-generated greeting — shown as a toast
   useEffect(() => {
     if (!loading && projects.length > 0) {
       const hour = new Date().getHours();
@@ -172,13 +183,24 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           `Generate a friendly ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Keep it under 15 words. ${tone}`
         );
         if (result.success && result.response) {
-          setAiGreeting(result.response);
+          const msg = parseAIResponse(result.response);
+          setAiGreeting(msg);
+          setShowGreetingToast(true);
         }
       })();
     } else if (!loading) {
       setAiGreeting("Welcome! Let's get you started.");
+      setShowGreetingToast(true);
     }
   }, [loading, projects, entries, dueSoonRows]);
+
+  // Auto-dismiss greeting toast after 6 seconds
+  useEffect(() => {
+    if (showGreetingToast) {
+      const t = setTimeout(() => setShowGreetingToast(false), 6000);
+      return () => clearTimeout(t);
+    }
+  }, [showGreetingToast]);
 
   // Rotating AI placeholder for quick entry
   useEffect(() => {
@@ -264,7 +286,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           `Generate a short, motivating message for when there are no entries to show. Keep it under 12 words. ${tone}`
         );
         if (result.success && result.response) {
-          setAiEmptyMessage(result.response);
+          setAiEmptyMessage(parseAIResponse(result.response));
         }
       })();
     }
@@ -799,10 +821,12 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
-        {/* AI Greeting */}
-        <div className="ai-greeting animate-in">
-          <p>{aiGreeting}</p>
-        </div>
+        {/* AI Greeting Toast */}
+        {showGreetingToast && aiGreeting && (
+          <div className="ai-toast animate-in">
+            <p>{aiGreeting}</p>
+          </div>
+        )}
 
         {/* Feed Header */}
         <div className="feed-header animate-in">

@@ -5,6 +5,16 @@ import { askAI } from "@/functions/ai.js";
 import { createTranscriber, quickAdd } from "@/functions/voicefeature.js";
 import { getToneInstruction } from "@/functions/tone";
 
+/** Parse AI response — handles JSON {"message":"..."} or plain text */
+function parseAIResponse(response) {
+  try {
+    const parsed = JSON.parse(response);
+    return parsed.message || response;
+  } catch {
+    return response;
+  }
+}
+
 /**
  * VoiceFeature — full-screen voice recorder modal.
  * Auto-starts recording + live speech recognition on mount.
@@ -18,7 +28,6 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   const [aiPrompt, setAiPrompt] = useState("Say a log entry or describe a new project...");
   const [transcript, setTranscript] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [elapsed, setElapsed] = useState(0);
   const [aiConfirmation, setAiConfirmation] = useState("");
   const timerRef = useRef(null);
   const transcriberRef = useRef(null);
@@ -72,21 +81,12 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
         `Generate a short, friendly one-line instruction telling the user to speak a log entry or describe a new project. Keep it under 20 words. ${tone}`
       );
       if (result.success && result.response) {
-        setAiPrompt(result.response);
+        setAiPrompt(parseAIResponse(result.response));
       }
     })();
   }, []);
 
-  // Elapsed timer while recording
-  useEffect(() => {
-    if (status === "recording") {
-      setElapsed(0);
-      timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
-    } else {
-      clearInterval(timerRef.current);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [status]);
+  // Elapsed timer — removed, using circle animation only
 
   const handleStop = () => {
     // Stop speech recognition
@@ -139,7 +139,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
         `Generate a brief, friendly confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Keep it under 10 words. ${tone}`
       );
       if (confirmResult.success && confirmResult.response) {
-        setAiConfirmation(confirmResult.response);
+        setAiConfirmation(parseAIResponse(confirmResult.response));
       }
       setStatus("done");
       if (onEntryCreated) onEntryCreated();
@@ -151,7 +151,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
         `Generate a friendly, brief error message telling the user their entry couldn't be saved and to try again. Keep it under 12 words. ${tone}`
       );
       if (errorResult.success && errorResult.response) {
-        setErrorMsg(errorResult.response);
+        setErrorMsg(parseAIResponse(errorResult.response));
       } else {
         setErrorMsg(result.message || "Failed to create entry. Please try again.");
       }
@@ -231,9 +231,6 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
               <FiMic size={40} />
             </div>
           )}
-
-          {/* Timer */}
-          <div className="voice-timer">{formatTime(elapsed)}</div>
         </div>
 
         {/* Status text */}
