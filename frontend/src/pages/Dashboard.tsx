@@ -17,6 +17,7 @@ import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
+import VoiceFeature from "@/pages/VoiceFeature";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -72,6 +73,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
+
+  // Voice recorder
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -881,7 +885,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         </div>
 
         {/* Quick Entry Bar - Natural Language */}
-        <QuickEntryBar onEntryCreated={() => { loadData(); }} />
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} onVoiceOpen={() => setVoiceOpen(true)} />
 
         {/* Loading */}
         {loading && (
@@ -1124,6 +1128,14 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Voice Feature Modal */}
+      {voiceOpen && (
+        <VoiceFeature
+          onClose={() => setVoiceOpen(false)}
+          onEntryCreated={() => { setVoiceOpen(false); loadData(); }}
+        />
       )}
 
       {/* Settings Panel */}

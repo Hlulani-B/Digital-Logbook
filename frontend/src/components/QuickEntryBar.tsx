@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { FiMic } from "react-icons/fi";
 import { addNaturalLanguageEntry } from "../functions/project/natural_language.js";
 
 interface QuickEntryBarProps {
   onEntryCreated?: () => void;
+  onVoiceOpen?: () => void;
 }
 
-export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
+export function QuickEntryBar({ onEntryCreated, onVoiceOpen }: QuickEntryBarProps) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -22,7 +24,7 @@ export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(""), 8000);
+      const timer = setTimeout(() => setToast(""), 15000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
@@ -77,6 +79,18 @@ export function QuickEntryBar({ onEntryCreated }: QuickEntryBarProps) {
             onKeyDown={handleKeyDown}
             disabled={loading}
           />
+          {/* Voice button */}
+          {onVoiceOpen && (
+            <button
+              type="button"
+              className="quick-entry-voice"
+              onClick={onVoiceOpen}
+              aria-label="Voice entry"
+              title="Record a voice entry"
+            >
+              <FiMic size={16} />
+            </button>
+          )}
           <button
             type="submit"
             className="quick-entry-submit"
