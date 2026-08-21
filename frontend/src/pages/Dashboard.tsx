@@ -572,22 +572,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     } catch {}
   };
 
-  // Seed test projects using authenticated Supabase client (INSERT works via RLS)
-  const handleSeedTestProjects = async () => {
-    if (!email || !supabase) return;
-    const testProjects = [
-      { user_email: email, project_name: "Website Redesign", description: "Redesign the main company website with modern UI", archived: false },
-      { user_email: email, project_name: "Mobile App MVP", description: "Build the first version of the iOS/Android app", archived: false },
-      { user_email: email, project_name: "Q4 Marketing Plan", description: "Plan and execute Q4 marketing campaigns", archived: false },
-      { user_email: email, project_name: "Internal Tools Audit", description: "Audit all internal tools and consolidate", archived: false },
-      { user_email: email, project_name: "Database Migration", description: "Migrate legacy database to new architecture", archived: false },
-    ];
-    for (const p of testProjects) {
-      await supabase.from("projects").upsert(p, { onConflict: "user_email,project_name" }).select();
-    }
-    await loadData();
-  };
-
   const PRIORITY_LABELS: Record<string, string> = {
     "0": "Urgent and important",
     "1": "Urgent but not important",
