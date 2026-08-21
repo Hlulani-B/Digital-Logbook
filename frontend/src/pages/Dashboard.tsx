@@ -7,6 +7,7 @@ import { Stats } from "@/components/Stats";
 import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { ActivitySummary } from "@/components/ActivitySummary";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
@@ -177,20 +178,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
   }, [loading, projects, entries, dueSoonRows]);
 
-  // AI-generated empty state message
-  useEffect(() => {
-    if (!loading && filteredEntries.length === 0) {
-      (async () => {
-        const result = await askAI(
-          "Generate a short, encouraging message for when there are no entries to show. Keep it under 12 words. Be motivational."
-        );
-        if (result.success && result.response) {
-          setAiEmptyMessage(result.response);
-        }
-      })();
-    }
-  }, [loading, filteredEntries.length]);
-
   // Rotating AI placeholder for quick entry
   useEffect(() => {
     const placeholders = [
@@ -265,6 +252,20 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
     return filtered;
   }, [entries, activeView, searchResults, viewMode]);
+
+  // AI-generated empty state message
+  useEffect(() => {
+    if (!loading && filteredEntries.length === 0) {
+      (async () => {
+        const result = await askAI(
+          "Generate a short, encouraging message for when there are no entries to show. Keep it under 12 words. Be motivational."
+        );
+        if (result.success && result.response) {
+          setAiEmptyMessage(result.response);
+        }
+      })();
+    }
+  }, [loading, filteredEntries.length]);
 
   // Search using provided search functions
   useEffect(() => {
@@ -853,7 +854,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
         {/* Search bar inline for mobile */}
         {activeView === "activity" ? (
-          <ActivityFeed />
+          <>
+            <ActivitySummary />
+            <ActivityFeed />
+          </>
         ) : activeView === "archives" ? (
           <div className="entries-feed">
             {archiveError && (

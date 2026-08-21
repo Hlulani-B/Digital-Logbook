@@ -4296,3 +4296,19 @@ img { max-width: 100%; }
   margin: 0;
   line-height: 1.4;
 }
+
+/* ========== ACTIVITY SUMMARY ========== */
+.activity-summary {
+  margin-bottom: 0.75rem;
+}
+.activity-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
