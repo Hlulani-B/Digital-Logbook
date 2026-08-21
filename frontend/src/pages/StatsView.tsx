@@ -9,7 +9,6 @@ import {
   calculateProjectStats,
   formatDuration,
 } from "@/functions/dashboard/stats.js";
-import { calculateStreaks, streakLabel } from "@/functions/dashboard/streaks.js";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -177,7 +176,6 @@ export function StatsView() {
 
   const totalTimeTracked = useMemo(() => calculateTotalTimeTracked(entries), [entries]);
   const projectStats = useMemo(() => calculateProjectStats(entries), [entries]);
-  const streaks = useMemo(() => calculateStreaks(entries), [entries]);
   const totalMs = useMemo(
     () => projectStats.reduce((sum, ps) => sum + ps.totalMs, 0),
     [projectStats]
@@ -279,20 +277,6 @@ export function StatsView() {
               label="Time Tracked"
               sub={inProgressCount > 0 ? `${inProgressCount} in progress` : undefined}
               gradient="linear-gradient(135deg, #ec4899, #f472b6)"
-            />
-            <StatCard
-              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8"/><path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5"/></svg>}
-              value={streaks.currentStreak}
-              label="Current Streak"
-              sub={streakLabel(streaks.currentStreak)}
-              gradient="linear-gradient(135deg, #f97316, #fb923c)"
-            />
-            <StatCard
-              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8"/><path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5"/></svg>}
-              value={streaks.longestStreak}
-              label="Longest Streak"
-              sub={`${streaks.totalDays} active days total`}
-              gradient="linear-gradient(135deg, #8b5cf6, #a78bfa)"
             />
           </div>
 

@@ -16,6 +16,7 @@ import { CreateProfile } from "@/pages/CreateProfile";
 import { AvatarPage } from "@/pages/Avatar";
 import { ProjectsPage } from "@/pages/Project";
 import { StatsView } from "@/pages/StatsView";
+import { StreakView } from "@/pages/StreakView";
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -167,6 +168,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <StatsView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/streaks"
+            element={
+              <ProtectedRoute>
+                <StreakView />
               </ProtectedRoute>
             }
           />

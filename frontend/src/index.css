@@ -4240,3 +4240,43 @@ img { max-width: 100%; }
   color: var(--text);
   border-color: var(--border);
 }
+
+/* ========== STREAK HEATMAP ========== */
+.streak-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-x: auto;
+}
+.streak-heatmap-grid {
+  display: flex;
+  gap: 3px;
+}
+.streak-heatmap-week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.streak-heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  transition: transform 0.1s ease;
+  cursor: default;
+}
+.streak-heatmap-cell:hover {
+  transform: scale(1.4);
+  outline: 2px solid var(--accent);
+}
+.streak-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  justify-content: flex-end;
+}
+
+[data-theme="dark"] .streak-heatmap-cell {
+  outline-color: var(--accent);
+}
