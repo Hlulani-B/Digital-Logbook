@@ -8,8 +8,6 @@ import { ResetPassword } from "@/pages/ResetPassword";
 import { UpdatePassword } from "@/pages/UpdatePassword";
 import { Dashboard } from "@/pages/Dashboard";
 import { AllEntriesPage } from "@/pages/AllEntries";
-import { RecentPage } from "@/pages/Recent";
-import { DraftsPage } from "@/pages/Drafts";
 import { ArchivesPage } from "@/pages/Archives";
 import { ActivityPage } from "@/pages/Activity";
 import { CreateProfile } from "@/pages/CreateProfile";
@@ -104,22 +102,6 @@ export function App() {
             element={
               <ProtectedRoute>
                 <AllEntriesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/recent"
-            element={
-              <ProtectedRoute>
-                <RecentPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/drafts"
-            element={
-              <ProtectedRoute>
-                <DraftsPage />
               </ProtectedRoute>
             }
           />
