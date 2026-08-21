@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
+import { getTone, setTone, getToneInstruction, TONE_OPTIONS, type Tone } from "@/functions/tone";
 import {
   getProfile,
   updateName,
@@ -25,6 +26,7 @@ interface Preferences {
   theme: string;
   fontFamily: string;
   cornerStyle: string;
+  tone: string;
   autoSave: boolean;
   compactMode: boolean;
   notifications: boolean;
@@ -199,6 +201,7 @@ export function SettingsPanel({
     theme: currentTheme,
     fontFamily: "lora",
     cornerStyle: "rounded",
+    tone: getTone(),
     autoSave: true,
     compactMode: false,
     notifications: true,
@@ -652,6 +655,37 @@ export function SettingsPanel({
                   </select>
                   <p className="field-hint">
                     Control how rounded the corners are across the logbook.
+                  </p>
+                </div>
+              </div>
+
+              <div className="panel-section">
+                <p className="panel-section-title">Notebook Personality</p>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="tone">
+                    How should your notebook talk to you?
+                  </label>
+                  <select
+                    id="tone"
+                    className="field-input"
+                    value={prefs.tone}
+                    onChange={(e) => {
+                      const newTone = e.target.value as Tone;
+                      setPrefs((p) => ({ ...p, tone: newTone }));
+                      setTone(newTone);
+                    }}
+                  >
+                    {TONE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.emoji} {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="field-hint">
+                    {prefs.tone === "soft" && "Warm, gentle, and encouraging. Like a caring friend."}
+                    {prefs.tone === "tough" && "Direct and no-nonsense. Pushes you to be better."}
+                    {prefs.tone === "cynical" && "Witty and slightly sarcastic. Roasts you but has your back."}
                   </p>
                 </div>
               </div>

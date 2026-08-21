@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getActivities } from "@/functions/activity.js";
 import { askAI } from "@/functions/ai.js";
+import { getToneInstruction } from "@/functions/tone";
 
 type Activity = {
   id: number;
@@ -51,7 +52,8 @@ export function ActivitySummary() {
           .map(([action, count]) => `${action}: ${count}`)
           .join(", ");
 
-        const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent items: ${recentEntities.join(", ")}. Be warm and encouraging.`;
+        const tone = getToneInstruction();
+        const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent items: ${recentEntities.join(", ")}. ${tone}`;
 
         const aiResult = await askAI(prompt);
         if (!cancelled) {

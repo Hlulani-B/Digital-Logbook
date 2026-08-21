@@ -60,7 +60,7 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
       setSuccess(true);
       onUpdated?.(avatarUrl);
       setTimeout(() => setSuccess(false), 2000);
-      navigate("/dashboard");
+      navigate("/tone-setup");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update avatar");
     } finally {

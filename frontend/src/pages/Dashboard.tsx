@@ -20,6 +20,7 @@ import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
 import VoiceFeature from "@/pages/VoiceFeature";
 import { askAI } from "@/functions/ai.js";
+import { getToneInstruction } from "@/functions/tone";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -166,8 +167,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       const dueCount = dueSoonRows.length;
       
       (async () => {
+        const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a friendly ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Keep it under 15 words. Be warm and encouraging.`
+          `Generate a friendly ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Keep it under 15 words. ${tone}`
         );
         if (result.success && result.response) {
           setAiGreeting(result.response);
@@ -257,8 +259,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   useEffect(() => {
     if (!loading && filteredEntries.length === 0) {
       (async () => {
+        const tone = getToneInstruction();
         const result = await askAI(
-          "Generate a short, encouraging message for when there are no entries to show. Keep it under 12 words. Be motivational."
+          `Generate a short, motivating message for when there are no entries to show. Keep it under 12 words. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(result.response);

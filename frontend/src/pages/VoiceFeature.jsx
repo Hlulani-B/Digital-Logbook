@@ -3,6 +3,7 @@ import { useReactMediaRecorder } from "react-media-recorder";
 import { FiMic, FiStopCircle, FiRefreshCw, FiSkipBack, FiSend, FiX } from "react-icons/fi";
 import { askAI } from "@/functions/ai.js";
 import { createTranscriber, quickAdd } from "@/functions/voicefeature.js";
+import { getToneInstruction } from "@/functions/tone";
 
 /**
  * VoiceFeature — full-screen voice recorder modal.
@@ -66,8 +67,9 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   // Ask AI for a spoken prompt on mount
   useEffect(() => {
     (async () => {
+      const tone = getToneInstruction();
       const result = await askAI(
-        "Generate a short, friendly one-line instruction telling the user to speak a log entry or describe a new project. Keep it under 20 words."
+        `Generate a short, friendly one-line instruction telling the user to speak a log entry or describe a new project. Keep it under 20 words. ${tone}`
       );
       if (result.success && result.response) {
         setAiPrompt(result.response);
@@ -132,8 +134,9 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     const result = await quickAdd(transcript.trim());
     if (result.success) {
       // Generate AI confirmation
+      const tone = getToneInstruction();
       const confirmResult = await askAI(
-        `Generate a brief, friendly confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Keep it under 10 words.`
+        `Generate a brief, friendly confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Keep it under 10 words. ${tone}`
       );
       if (confirmResult.success && confirmResult.response) {
         setAiConfirmation(confirmResult.response);
@@ -143,8 +146,9 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       setTimeout(onClose, 2000);
     } else {
       // Generate AI error message
+      const tone = getToneInstruction();
       const errorResult = await askAI(
-        "Generate a friendly, brief error message telling the user their entry couldn't be saved and to try again. Keep it under 12 words."
+        `Generate a friendly, brief error message telling the user their entry couldn't be saved and to try again. Keep it under 12 words. ${tone}`
       );
       if (errorResult.success && errorResult.response) {
         setErrorMsg(errorResult.response);

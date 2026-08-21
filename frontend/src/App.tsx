@@ -12,6 +12,7 @@ import { ArchivesPage } from "@/pages/Archives";
 import { ActivityPage } from "@/pages/Activity";
 import { CreateProfile } from "@/pages/CreateProfile";
 import { AvatarPage } from "@/pages/Avatar";
+import { ToneSetup } from "@/pages/ToneSetup";
 import { ProjectsPage } from "@/pages/Project";
 import { StatsView } from "@/pages/StatsView";
 import { StreakView } from "@/pages/StreakView";
@@ -134,6 +135,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <AvatarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tone-setup"
+            element={
+              <ProtectedRoute>
+                <ToneSetup />
               </ProtectedRoute>
             }
           />
