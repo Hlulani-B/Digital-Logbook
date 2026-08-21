@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
-import { getTone, setTone, getToneInstruction, TONE_OPTIONS, type Tone } from "@/functions/tone";
+import { getTone, setTone, TONE_OPTIONS, type Tone } from "@/functions/tone";
 import {
   getProfile,
   updateName,
