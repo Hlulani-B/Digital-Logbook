@@ -67,6 +67,7 @@ nav:
       - System Design: architecture/system-design.md
       - Tech Stack: architecture/teck-stack.md
       - UI Design: architecture/ui-design.md
+      - Voice Recording: architecture/voice-feature.md
   - Roadmap: roadmap.md
   - Development Log: development/log.md
   - Methodology & Git Workflow: development/methodology.md
