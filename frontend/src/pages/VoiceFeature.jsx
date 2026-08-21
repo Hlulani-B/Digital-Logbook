@@ -5,11 +5,22 @@ import { askAI } from "@/functions/ai.js";
 import { createTranscriber, quickAdd } from "@/functions/voicefeature.js";
 import { getToneInstruction } from "@/functions/tone";
 
-/** Parse AI response — handles JSON {"message":"..."} or plain text */
+/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response) {
   try {
     const parsed = JSON.parse(response);
-    return parsed.message || response;
+    if (typeof parsed === "string") return parsed;
+    // Extract first string value from object (handles message, instruction, response, text, etc.)
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
+        if (typeof parsed[key] === "string") return parsed[key];
+      }
+      // Fallback: return first string value found
+      for (const val of Object.values(parsed)) {
+        if (typeof val === "string") return val;
+      }
+    }
+    return response;
   } catch {
     return response;
   }

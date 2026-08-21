@@ -22,11 +22,20 @@ import VoiceFeature from "@/pages/VoiceFeature";
 import { askAI } from "@/functions/ai.js";
 import { getToneInstruction } from "@/functions/tone";
 
-/** Parse AI response — handles JSON {"message":"..."} or plain text */
+/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
-    return parsed.message || response;
+    if (typeof parsed === "string") return parsed;
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
+        if (typeof parsed[key] === "string") return parsed[key];
+      }
+      for (const val of Object.values(parsed)) {
+        if (typeof val === "string") return val;
+      }
+    }
+    return response;
   } catch {
     return response;
   }
