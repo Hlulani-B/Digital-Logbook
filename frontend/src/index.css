@@ -2515,10 +2515,24 @@ img { max-width: 100%; }
 
 /* ========== ENTRIES FEED ========== */
 .entries-feed {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.75rem;
-  max-width: 700px;
+  width: 100%;
+}
+
+/* 2 columns on tablets and smaller laptops */
+@media (min-width: 768px) {
+  .entries-feed {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 3 columns on larger laptops and desktops */
+@media (min-width: 1200px) {
+  .entries-feed {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* ========== DASHBOARD SECTIONS ========== */
