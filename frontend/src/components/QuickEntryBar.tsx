@@ -5,9 +5,10 @@ import { addNaturalLanguageEntry } from "../functions/project/natural_language.j
 interface QuickEntryBarProps {
   onEntryCreated?: () => void;
   onVoiceOpen?: () => void;
+  placeholder?: string;
 }
 
-export function QuickEntryBar({ onEntryCreated, onVoiceOpen }: QuickEntryBarProps) {
+export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: QuickEntryBarProps) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -73,7 +74,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen }: QuickEntryBarProp
             ref={inputRef}
             type="text"
             className="quick-entry-input"
-            placeholder='Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+            placeholder={placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}

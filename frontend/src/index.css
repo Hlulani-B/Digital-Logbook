@@ -4280,3 +4280,19 @@ img { max-width: 100%; }
 [data-theme="dark"] .streak-heatmap-cell {
   outline-color: var(--accent);
 }
+
+/* ========== AI GREETING ========== */
+.ai-greeting {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent-glow), rgba(139, 115, 85, 0.05));
+  border: 1px solid rgba(139, 115, 85, 0.1);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.ai-greeting p {
+  margin: 0;
+  line-height: 1.4;
+}

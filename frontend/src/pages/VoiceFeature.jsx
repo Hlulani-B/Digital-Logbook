@@ -18,6 +18,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   const [transcript, setTranscript] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [elapsed, setElapsed] = useState(0);
+  const [aiConfirmation, setAiConfirmation] = useState("");
   const timerRef = useRef(null);
   const transcriberRef = useRef(null);
   const unsupported = useRef(false);
@@ -130,12 +131,27 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     setStatus("sending");
     const result = await quickAdd(transcript.trim());
     if (result.success) {
+      // Generate AI confirmation
+      const confirmResult = await askAI(
+        `Generate a brief, friendly confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Keep it under 10 words.`
+      );
+      if (confirmResult.success && confirmResult.response) {
+        setAiConfirmation(confirmResult.response);
+      }
       setStatus("done");
       if (onEntryCreated) onEntryCreated();
-      setTimeout(onClose, 1500);
+      setTimeout(onClose, 2000);
     } else {
+      // Generate AI error message
+      const errorResult = await askAI(
+        "Generate a friendly, brief error message telling the user their entry couldn't be saved and to try again. Keep it under 12 words."
+      );
+      if (errorResult.success && errorResult.response) {
+        setErrorMsg(errorResult.response);
+      } else {
+        setErrorMsg(result.message || "Failed to create entry. Please try again.");
+      }
       setStatus("error");
-      setErrorMsg(result.message || "Failed to create entry. Please try again.");
     }
   };
 
@@ -221,7 +237,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
           {status === "recording" && "Listening..."}
           {status === "recorded" && !transcript && "No speech detected — try again"}
           {status === "sending" && "Creating entry..."}
-          {status === "done" && "Entry created!"}
+          {status === "done" && (aiConfirmation || "Entry created!")}
           {status === "error" && errorMsg}
         </div>
 

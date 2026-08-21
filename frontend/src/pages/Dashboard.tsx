@@ -18,6 +18,7 @@ import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
 import VoiceFeature from "@/pages/VoiceFeature";
+import { askAI } from "@/functions/ai.js";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -76,6 +77,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // AI-generated messages
+  const [aiGreeting, setAiGreeting] = useState("Loading your dashboard...");
+  const [aiEmptyMessage, setAiEmptyMessage] = useState("No entries to show right now.");
+  const [aiPlaceholder, setAiPlaceholder] = useState("What are you working on?");
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -149,6 +155,53 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // AI-generated greeting based on time and data
+  useEffect(() => {
+    if (!loading && projects.length > 0) {
+      const hour = new Date().getHours();
+      const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+      const entryCount = entries.length;
+      const dueCount = dueSoonRows.length;
+      
+      (async () => {
+        const result = await askAI(
+          `Generate a friendly ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Keep it under 15 words. Be warm and encouraging.`
+        );
+        if (result.success && result.response) {
+          setAiGreeting(result.response);
+        }
+      })();
+    } else if (!loading) {
+      setAiGreeting("Welcome! Let's get you started.");
+    }
+  }, [loading, projects, entries, dueSoonRows]);
+
+  // AI-generated empty state message
+  useEffect(() => {
+    if (!loading && filteredEntries.length === 0) {
+      (async () => {
+        const result = await askAI(
+          "Generate a short, encouraging message for when there are no entries to show. Keep it under 12 words. Be motivational."
+        );
+        if (result.success && result.response) {
+          setAiEmptyMessage(result.response);
+        }
+      })();
+    }
+  }, [loading, filteredEntries.length]);
+
+  // Rotating AI placeholder for quick entry
+  useEffect(() => {
+    const placeholders = [
+      "What are you working on?",
+      "What did you just finish?",
+      "Working on anything exciting?",
+      "What's your current task?",
+      "Tell me about your progress...",
+    ];
+    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
+  }, []);
 
   // Focus search input when opened
   useEffect(() => {
@@ -742,6 +795,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* AI Greeting */}
+        <div className="ai-greeting animate-in">
+          <p>{aiGreeting}</p>
+        </div>
+
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
@@ -877,7 +935,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         </div>
 
         {/* Quick Entry Bar - Natural Language */}
-        <QuickEntryBar onEntryCreated={() => { loadData(); }} onVoiceOpen={() => setVoiceOpen(true)} />
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} onVoiceOpen={() => setVoiceOpen(true)} placeholder={aiPlaceholder} />
 
         {/* Loading */}
         {loading && (
@@ -907,7 +965,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                 <p className="empty-desc">
                   {viewMode === "due-soon"
                     ? "No entries are due within the next 3 days. Switch to \"All Entries\" to see everything."
-                    : "No entries match the current filters. Try a different view or sort."}
+                    : aiEmptyMessage}
                 </p>
               </div>
             ) : (
