@@ -3161,6 +3161,22 @@ img { max-width: 100%; }
   white-space: nowrap;
 }
 
+/* ========== STATS PANEL DIVIDER & REFLECTION ========== */
+.feed-stats-divider {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.feed-stats-reflection {
+  margin-top: 0.75rem;
+  padding: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary, var(--text-muted));
+  line-height: 1.5;
+}
+.feed-stats-reflection p {
+  margin: 0;
+}
+
 /* ========== STATS PAGE (standalone route) ========== */
 .stats-page {
   min-height: 100vh;

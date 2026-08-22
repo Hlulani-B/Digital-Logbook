@@ -8,7 +8,6 @@ import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { ActivitySummary } from "@/components/ActivitySummary";
-import { StatsReflection } from "@/components/StatsReflection";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
@@ -819,9 +818,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
-
-        {/* Stats Reflection */}
-        <StatsReflection />
 
         {/* Search bar inline for mobile */}
         {activeView === "activity" ? (
