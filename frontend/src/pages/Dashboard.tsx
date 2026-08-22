@@ -21,6 +21,7 @@ import { AddEntry } from "@/pages/AddEntry";
 import VoiceFeature from "@/pages/VoiceFeature";
 import { askAI } from "@/functions/ai.js";
 import { getToneInstruction } from "@/functions/tone";
+import { FiArchive } from "react-icons/fi";
 
 /** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -725,14 +726,18 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                     title="Archive project"
                     style={{
                       background: "transparent",
-                      border: "1px solid rgba(99,102,241,0.35)",
-                      color: "#6366f1",
+                      border: "1px solid rgba(139, 115, 85, 0.3)",
+                      color: "var(--text-secondary, #6b7280)",
                       borderRadius: "0.4rem",
                       padding: "0.2rem 0.5rem",
                       fontSize: "0.7rem",
                       cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
                     }}
                   >
+                    <FiArchive size={12} />
                     Archive
                   </button>
                 </div>
@@ -797,9 +802,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                         type="button"
                         className="entry-box__menu-item"
                         onClick={() => { handleArchiveProject(activeView); setProjectMenuOpen(false); }}
-                        style={{ color: "#6366f1" }}
+                        style={{ color: "var(--text-secondary, #6b7280)", display: "flex", alignItems: "center", gap: "0.5rem" }}
                       >
-                        📦 Archive Project
+                        <FiArchive size={16} /> Archive Project
                       </button>
                     </div>
                   )}
@@ -831,7 +836,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             )}
             {archivedProjects.length === 0 ? (
               <div className="empty-state animate-in">
-                <div className="empty-icon">📦</div>
+                <div className="empty-icon"><FiArchive size={40} /></div>
                 <h2 className="empty-title">No archived projects</h2>
                 <p className="empty-desc">Archive a project from the sidebar or the ⋯ menu to see it here.</p>
               </div>

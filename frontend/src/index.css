@@ -4395,11 +4395,13 @@ img { max-width: 100%; }
   box-shadow: 0 0 0 2px rgba(139, 107, 79, 0.12);
 }
 
-.tone-emoji {
-  font-size: 1.5rem;
+.tone-icon {
   flex-shrink: 0;
   width: 36px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
 }
 
 .tone-info {

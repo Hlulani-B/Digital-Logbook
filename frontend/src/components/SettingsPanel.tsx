@@ -678,7 +678,7 @@ export function SettingsPanel({
                   >
                     {TONE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.emoji} {opt.label}
+                        {opt.label}
                       </option>
                     ))}
                   </select>

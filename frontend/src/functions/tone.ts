@@ -1,3 +1,5 @@
+import { FiHeart, FiZap, FiSmile } from "react-icons/fi";
+
 /**
  * Tone preference — how the notebook "talks" to the user.
  *
@@ -49,23 +51,23 @@ export function getToneInstruction(): string {
 /**
  * Tone option metadata for the UI selector.
  */
-export const TONE_OPTIONS: { value: Tone; label: string; description: string; emoji: string }[] = [
+export const TONE_OPTIONS: { value: Tone; label: string; description: string; icon: any }[] = [
   {
     value: "soft",
     label: "Soft & Encouraging",
     description: "Warm, gentle, believes in you. Like a supportive friend.",
-    emoji: "🌿",
+    icon: FiHeart,
   },
   {
     value: "tough",
     label: "Tough Love",
     description: "Direct, no sugarcoating. Pushes you to be better.",
-    emoji: "🔥",
+    icon: FiZap,
   },
   {
     value: "cynical",
     label: "Casual & Cynical",
     description: "Witty, slightly sarcastic. Roasts you but has your back.",
-    emoji: "😏",
+    icon: FiSmile,
   },
 ];

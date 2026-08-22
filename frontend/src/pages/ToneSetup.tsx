@@ -45,7 +45,7 @@ export function ToneSetup() {
                   className={`tone-option ${isSelected ? "tone-option-selected" : ""}`}
                   onClick={() => setSelected(option.value)}
                 >
-                  <span className="tone-emoji">{option.emoji}</span>
+                  <span className="tone-icon"><option.icon size={24} /></span>
                   <div className="tone-info">
                     <span className="tone-label">{option.label}</span>
                     <span className="tone-desc">{option.description}</span>
