@@ -20,8 +20,68 @@ ALTER TABLE public.ai_provider_cooldowns
 ALTER TABLE public.activity_log
   ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
 
--- 2. Update purge_deleted_users to only purge soft-deleted records
---    (users where deleted=true AND grace period has expired)
+-- 2. Update delete_user RPC to soft-delete all data
+CREATE OR REPLACE FUNCTION delete_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  user_email TEXT;
+BEGIN
+  SELECT u.email INTO user_email
+    FROM auth.users u
+   WHERE u.id = auth.uid();
+
+  IF user_email IS NULL THEN
+    RAISE EXCEPTION 'Authenticated user not found';
+  END IF;
+
+  -- Soft-delete all related data
+  UPDATE public.entries SET deleted = true WHERE user_email = user_email;
+  UPDATE public.fields SET deleted = true WHERE user_email = user_email;
+  UPDATE public.projects SET deleted = true WHERE user_email = user_email;
+  UPDATE public.activity_log SET deleted = true WHERE user_email = user_email;
+
+  -- Mark user as deleted and schedule deletion
+  INSERT INTO public.users (email, deletion_scheduled_at, deleted)
+  VALUES (user_email, now(), true)
+  ON CONFLICT (email)
+  DO UPDATE SET deletion_scheduled_at = now(), deleted = true;
+END;
+$$;
+
+-- 3. Update restore_user RPC to restore all soft-deleted data
+CREATE OR REPLACE FUNCTION restore_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  user_email TEXT;
+BEGIN
+  SELECT u.email INTO user_email
+    FROM auth.users u
+   WHERE u.id = auth.uid();
+
+  IF user_email IS NULL THEN
+    RAISE EXCEPTION 'Authenticated user not found';
+  END IF;
+
+  -- Restore all related data
+  UPDATE public.entries SET deleted = false WHERE user_email = user_email;
+  UPDATE public.fields SET deleted = false WHERE user_email = user_email;
+  UPDATE public.projects SET deleted = false WHERE user_email = user_email;
+  UPDATE public.activity_log SET deleted = false WHERE user_email = user_email;
+
+  -- Restore user account
+  UPDATE public.users
+     SET deletion_scheduled_at = NULL, deleted = false
+   WHERE email = user_email;
+END;
+$$;
+
+-- 4. Update purge_deleted_users to only purge soft-deleted records
 CREATE OR REPLACE FUNCTION purge_deleted_users()
 RETURNS void
 LANGUAGE plpgsql
@@ -37,7 +97,6 @@ BEGIN
        AND deletion_scheduled_at IS NOT NULL
        AND deletion_scheduled_at < now() - INTERVAL '30 days'
   LOOP
-    -- Soft-deleted records are already marked — now permanently remove them
     DELETE FROM public.activity_log WHERE user_email = rec.email;
     DELETE FROM public.entries      WHERE user_email = rec.email;
     DELETE FROM public.fields       WHERE user_email = rec.email;

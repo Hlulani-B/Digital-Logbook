@@ -52,10 +52,17 @@ BEGIN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
-  INSERT INTO public.users (email, deletion_scheduled_at)
-  VALUES (user_email, now())
+  -- Soft-delete all related data
+  UPDATE public.entries SET deleted = true WHERE user_email = user_email;
+  UPDATE public.fields SET deleted = true WHERE user_email = user_email;
+  UPDATE public.projects SET deleted = true WHERE user_email = user_email;
+  UPDATE public.activity_log SET deleted = true WHERE user_email = user_email;
+
+  -- Mark user as deleted and schedule deletion
+  INSERT INTO public.users (email, deletion_scheduled_at, deleted)
+  VALUES (user_email, now(), true)
   ON CONFLICT (email)
-  DO UPDATE SET deletion_scheduled_at = now();
+  DO UPDATE SET deletion_scheduled_at = now(), deleted = true;
 END;
 $$;
 
@@ -77,8 +84,15 @@ BEGIN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
+  -- Restore all related data
+  UPDATE public.entries SET deleted = false WHERE user_email = user_email;
+  UPDATE public.fields SET deleted = false WHERE user_email = user_email;
+  UPDATE public.projects SET deleted = false WHERE user_email = user_email;
+  UPDATE public.activity_log SET deleted = false WHERE user_email = user_email;
+
+  -- Restore user account
   UPDATE public.users
-     SET deletion_scheduled_at = NULL
+     SET deletion_scheduled_at = NULL, deleted = false
    WHERE email = user_email;
 END;
 $$;
