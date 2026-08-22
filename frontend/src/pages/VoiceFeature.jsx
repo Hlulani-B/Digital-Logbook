@@ -89,7 +89,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     (async () => {
       const tone = getToneInstruction();
       const result = await askAI(
-        `Generate a short, friendly one-line instruction telling the user to speak a log entry or describe a new project. Keep it under 20 words. ${tone}`
+        `Generate a friendly instruction telling the user to speak a log entry or describe a new project. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their speaking skills, their voice, or how they talk to themselves. Be witty and entertaining. ${tone}`
       );
       if (result.success && result.response) {
         setAiPrompt(parseAIResponse(result.response));
@@ -147,19 +147,19 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       // Generate AI confirmation
       const tone = getToneInstruction();
       const confirmResult = await askAI(
-        `Generate a brief, friendly confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Keep it under 10 words. ${tone}`
+        `Generate a confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about what they said, how they said it, or the content of their entry. Be witty and entertaining. ${tone}`
       );
       if (confirmResult.success && confirmResult.response) {
         setAiConfirmation(parseAIResponse(confirmResult.response));
       }
       setStatus("done");
       if (onEntryCreated) onEntryCreated();
-      setTimeout(onClose, 2000);
+      setTimeout(onClose, 15000);
     } else {
       // Generate AI error message
       const tone = getToneInstruction();
       const errorResult = await askAI(
-        `Generate a friendly, brief error message telling the user their entry couldn't be saved and to try again. Keep it under 12 words. ${tone}`
+        `Generate an error message telling the user their entry couldn't be saved and to try again. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their tech skills, their internet connection, or their luck. Be witty and entertaining. ${tone}`
       );
       if (errorResult.success && errorResult.response) {
         setErrorMsg(parseAIResponse(errorResult.response));

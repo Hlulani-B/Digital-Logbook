@@ -206,7 +206,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a friendly ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Keep it under 15 words. ${tone}`
+          `Generate a ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their productivity, their procrastination, or their life choices. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           const msg = parseAIResponse(result.response);
@@ -220,10 +220,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
   }, [loading, projects, entries, dueSoonRows]);
 
-  // Auto-dismiss greeting toast after 6 seconds
+  // Auto-dismiss greeting toast after 15 seconds
   useEffect(() => {
     if (showGreetingToast) {
-      const t = setTimeout(() => setShowGreetingToast(false), 6000);
+      const t = setTimeout(() => setShowGreetingToast(false), 15000);
       return () => clearTimeout(t);
     }
   }, [showGreetingToast]);
@@ -309,7 +309,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a short, motivating message for when there are no entries to show. Keep it under 12 words. ${tone}`
+          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
