@@ -1,8 +1,7 @@
 import { Search } from '../functions/search.js';
-import { supabase } from '../supabase.js';
-import { createMockChain } from '../__mocks__/supabaseMock.js';
+import pool from '../db.js';
 
-jest.mock('../supabase.js');
+jest.mock('../db.js');
 
 describe('Search', () => {
   let search;
@@ -10,26 +9,12 @@ describe('Search', () => {
   beforeEach(() => {
     search = new Search();
     jest.spyOn(console, 'log').mockImplementation(() => {});
-    supabase.from.mockReset();
+    pool.query.mockReset();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
-
-  // Helper: creates a mock chain that resolves with given data/error and tracks calls
-  function mockQuery({ data = [], error = null } = {}) {
-    const chain = {
-      select: jest.fn(),
-      eq: jest.fn(),
-      or: jest.fn(),
-      then: jest.fn((resolve) => resolve({ data, error })),
-    };
-    chain.select.mockReturnValue(chain);
-    chain.eq.mockReturnValue(chain);
-    chain.or.mockReturnValue(chain);
-    return chain;
-  }
 
   describe('searchAll', () => {
     it('1. should return matching entries', async () => {
@@ -38,7 +23,7 @@ describe('Search', () => {
         { entries: { title: 'Signup Flow', status: 'pending' } },
         { entries: { title: 'Dashboard View', status: 'done' } },
       ];
-      supabase.from.mockReturnValue(mockQuery({ data: mockData }));
+      pool.query.mockResolvedValueOnce({ rows: mockData });
 
       const result = await search.searchAll('a@b.com', 'login');
 
@@ -53,7 +38,7 @@ describe('Search', () => {
         { entries: { title: 'Login Feature' } },
         { entries: { title: 'Signup Flow' } },
       ];
-      supabase.from.mockReturnValue(mockQuery({ data: mockData }));
+      pool.query.mockResolvedValueOnce({ rows: mockData });
 
       const result = await search.searchAll('a@b.com', 'dashboard');
 
@@ -62,7 +47,7 @@ describe('Search', () => {
     });
 
     it('3. should return empty array when no entries exist', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [] }));
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       const result = await search.searchAll('a@b.com', 'test');
 
@@ -71,16 +56,15 @@ describe('Search', () => {
     });
 
     it('4. should match keyword case-insensitively', async () => {
-      const mockData = [{ entries: { title: 'LOGIN feature' } }];
-      supabase.from.mockReturnValue(mockQuery({ data: mockData }));
+      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'LOGIN feature' } }] });
 
       const result = await search.searchAll('a@b.com', 'LOGIN');
 
       expect(result.data).toHaveLength(1);
     });
 
-    it('5. should return failure when Supabase returns an error', async () => {
-      supabase.from.mockReturnValue(mockQuery({ error: { message: 'query failed' } }));
+    it('5. should return failure when database returns an error', async () => {
+      pool.query.mockRejectedValueOnce(new Error('query failed'));
 
       const result = await search.searchAll('a@b.com', 'test');
 
@@ -88,19 +72,22 @@ describe('Search', () => {
     });
 
     it('6. should handle unexpected thrown errors', async () => {
-      supabase.from.mockImplementation(() => { throw new Error('Connection lost'); });
+      pool.query.mockRejectedValueOnce(new Error('Connection lost'));
 
       const result = await search.searchAll('a@b.com', 'test');
 
       expect(result).toEqual({ success: false, message: 'Connection lost' });
     });
 
-    it('7. should call supabase with correct chain', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [] }));
+    it('7. should call pool.query with correct SQL', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       await search.searchAll('a@b.com', 'test');
 
-      expect(supabase.from).toHaveBeenCalledWith('entries');
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT * FROM entries'),
+        ['a@b.com']
+      );
     });
   });
 
@@ -110,7 +97,7 @@ describe('Search', () => {
         { entries: { title: 'Login Feature' } },
         { entries: { title: 'Signup Flow' } },
       ];
-      supabase.from.mockReturnValue(mockQuery({ data: mockData }));
+      pool.query.mockResolvedValueOnce({ rows: mockData });
 
       const result = await search.searchProject('a@b.com', 'ProjectA', 'login');
 
@@ -120,7 +107,7 @@ describe('Search', () => {
     });
 
     it('9. should return empty array when no entries match in project', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [{ entries: { title: 'Login' } }] }));
+      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'Login' } }] });
 
       const result = await search.searchProject('a@b.com', 'ProjectA', 'dashboard');
 
@@ -129,7 +116,7 @@ describe('Search', () => {
     });
 
     it('10. should return empty array when project has no entries', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [] }));
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       const result = await search.searchProject('a@b.com', 'ProjectA', 'test');
 
@@ -138,15 +125,15 @@ describe('Search', () => {
     });
 
     it('11. should match keyword case-insensitively', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [{ entries: { title: 'LOGIN feature' } }] }));
+      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'LOGIN feature' } }] });
 
       const result = await search.searchProject('a@b.com', 'ProjectA', 'login');
 
       expect(result.data).toHaveLength(1);
     });
 
-    it('12. should return failure when Supabase returns an error', async () => {
-      supabase.from.mockReturnValue(mockQuery({ error: { message: 'query failed' } }));
+    it('12. should return failure when database returns an error', async () => {
+      pool.query.mockRejectedValueOnce(new Error('query failed'));
 
       const result = await search.searchProject('a@b.com', 'ProjectA', 'test');
 
@@ -154,19 +141,22 @@ describe('Search', () => {
     });
 
     it('13. should handle unexpected thrown errors', async () => {
-      supabase.from.mockImplementation(() => { throw new Error('Connection lost'); });
+      pool.query.mockRejectedValueOnce(new Error('Connection lost'));
 
       const result = await search.searchProject('a@b.com', 'ProjectA', 'test');
 
       expect(result).toEqual({ success: false, message: 'Connection lost' });
     });
 
-    it('14. should call supabase with correct chain', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [] }));
+    it('14. should call pool.query with correct SQL', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       await search.searchProject('a@b.com', 'ProjectA', 'test');
 
-      expect(supabase.from).toHaveBeenCalledWith('entries');
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT * FROM entries'),
+        ['a@b.com', 'ProjectA']
+      );
     });
   });
 
@@ -178,20 +168,12 @@ describe('Search', () => {
         { project_name: 'Gamma App' },
       ];
 
-      let fromCallCount = 0;
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return mockQuery({ data: mockProjects });
-        }
-        // entries table — return different data based on call order
-        fromCallCount++;
-        if (fromCallCount === 2) {
-          // Alpha Project entries
-          return mockQuery({ data: [{ entries: { title: 'Alpha task 1' } }, { entries: { title: 'Alpha task 2' } }] });
-        }
-        // Beta Project entries
-        return mockQuery({ data: [{ entries: { title: 'Beta task 1' } }] });
-      });
+      // Q1: get projects
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: entries for Alpha Project
+      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'Alpha task 1' } }, { entries: { title: 'Alpha task 2' } }] });
+      // Q3: entries for Beta Project
+      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'Beta task 1' } }] });
 
       const result = await search.searchProjects('a@b.com', 'project');
 
@@ -205,7 +187,7 @@ describe('Search', () => {
         { project_name: 'Alpha Project' },
         { project_name: 'Beta Project' },
       ];
-      supabase.from.mockReturnValue(mockQuery({ data: mockProjects }));
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
 
       const result = await search.searchProjects('a@b.com', 'nonexistent');
 
@@ -214,7 +196,7 @@ describe('Search', () => {
     });
 
     it('17. should return empty array when no projects exist', async () => {
-      supabase.from.mockReturnValue(mockQuery({ data: [] }));
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       const result = await search.searchProjects('a@b.com', 'test');
 
@@ -223,12 +205,8 @@ describe('Search', () => {
     });
 
     it('18. should match project names case-insensitively', async () => {
-      const mockProjects = [{ project_name: 'Alpha Project' }];
-
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') return mockQuery({ data: mockProjects });
-        return mockQuery({ data: [{ entries: { title: 'task' } }] });
-      });
+      pool.query.mockResolvedValueOnce({ rows: [{ project_name: 'Alpha Project' }] });
+      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'task' } }] });
 
       const result = await search.searchProjects('a@b.com', 'ALPHA');
 
@@ -237,7 +215,7 @@ describe('Search', () => {
     });
 
     it('19. should return failure when projects query fails', async () => {
-      supabase.from.mockReturnValue(mockQuery({ error: { message: 'projects query failed' } }));
+      pool.query.mockRejectedValueOnce(new Error('projects query failed'));
 
       const result = await search.searchProjects('a@b.com', 'test');
 
@@ -245,15 +223,8 @@ describe('Search', () => {
     });
 
     it('20. should return failure when entries query fails for a matching project', async () => {
-      const mockProjects = [{ project_name: 'Alpha Project' }];
-      let callCount = 0;
-
-      supabase.from.mockImplementation((tableName) => {
-        callCount++;
-        if (tableName === 'projects') return mockQuery({ data: mockProjects });
-        // entries query fails
-        return mockQuery({ error: { message: 'entries query failed' } });
-      });
+      pool.query.mockResolvedValueOnce({ rows: [{ project_name: 'Alpha Project' }] });
+      pool.query.mockRejectedValueOnce(new Error('entries query failed'));
 
       const result = await search.searchProjects('a@b.com', 'Alpha');
 
@@ -261,23 +232,22 @@ describe('Search', () => {
     });
 
     it('21. should handle unexpected thrown errors', async () => {
-      supabase.from.mockImplementation(() => { throw new Error('Connection lost'); });
+      pool.query.mockRejectedValueOnce(new Error('Connection lost'));
 
       const result = await search.searchProjects('a@b.com', 'test');
 
       expect(result).toEqual({ success: false, message: 'Connection lost' });
     });
 
-    it('22. should call both projects and entries tables', async () => {
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') return mockQuery({ data: [{ project_name: 'TestProject' }] });
-        return mockQuery({ data: [] });
-      });
+    it('22. should call pool.query for both projects and entries', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ project_name: 'TestProject' }] });
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       await search.searchProjects('a@b.com', 'test');
 
-      expect(supabase.from).toHaveBeenCalledWith('projects');
-      expect(supabase.from).toHaveBeenCalledWith('entries');
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query).toHaveBeenNthCalledWith(1, expect.stringContaining('SELECT * FROM projects'), ['a@b.com']);
+      expect(pool.query).toHaveBeenNthCalledWith(2, expect.stringContaining('SELECT * FROM entries'), ['a@b.com', 'TestProject']);
     });
   });
 });

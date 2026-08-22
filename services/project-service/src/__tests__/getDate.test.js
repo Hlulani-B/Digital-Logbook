@@ -1,6 +1,8 @@
 import { getDate } from '../functions/entries.js';
 import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 
+jest.mock('../db.js');
+
 // Helper to get today's date in YYYY-MM-DD format
 function getTodayISO() {
   return format(startOfDay(new Date()), 'yyyy-MM-dd');

@@ -1,20 +1,17 @@
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 export class Search {
   async searchAll(user_email, keyword) {
     try {
-      const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .or('deleted.eq.false,deleted.is.null')
-
-      if (error) {
-        throw error;
-      }
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `SELECT * FROM entries
+         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [user_email]
+      );
 
       const lowerKeyword = keyword.toLowerCase();
-      const results = data.filter((row) =>
+      const results = rows.filter((row) =>
         JSON.stringify(row.entries).toLowerCase().includes(lowerKeyword)
       );
 
@@ -27,19 +24,15 @@ export class Search {
 
   async searchProject(user_email, project_name, keyword) {
     try {
-      const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .or('deleted.eq.false,deleted.is.null')
-
-      if (error) {
-        throw error;
-      }
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `SELECT * FROM entries
+         WHERE user_email = $1 AND project_name = $2 AND (deleted = false OR deleted IS NULL)`,
+        [user_email, project_name]
+      );
 
       const lowerKeyword = keyword.toLowerCase();
-      const results = data.filter((row) =>
+      const results = rows.filter((row) =>
         JSON.stringify(row.entries).toLowerCase().includes(lowerKeyword)
       );
 
@@ -52,15 +45,12 @@ export class Search {
 
   async searchProjects(user_email, keyword) {
     try {
-      const { data: projects, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_email', user_email)
-        .or('deleted.eq.false,deleted.is.null')
-
-      if (error) {
-        throw error;
-      }
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows: projects } = await pool.query(
+        `SELECT * FROM projects
+         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [user_email]
+      );
 
       const lowerKeyword = keyword.toLowerCase();
       const matchingProjects = projects.filter((project) =>
@@ -69,16 +59,11 @@ export class Search {
 
       const results = [];
       for (const project of matchingProjects) {
-        const { data: entries, error: entriesError } = await supabase
-          .from('entries')
-          .select('*')
-          .eq('user_email', user_email)
-          .eq('project_name', project.project_name)
-          .or('deleted.eq.false,deleted.is.null')
-
-        if (entriesError) {
-          throw entriesError;
-        }
+        const { rows: entries } = await pool.query(
+          `SELECT * FROM entries
+           WHERE user_email = $1 AND project_name = $2 AND (deleted = false OR deleted IS NULL)`,
+          [user_email, project.project_name]
+        );
 
         results.push(...entries);
       }

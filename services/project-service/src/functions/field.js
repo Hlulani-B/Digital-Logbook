@@ -1,17 +1,14 @@
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 export class Fields {
   async addField(user_email, table_name, field_name, data_type, is_required) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { error } = await supabase
-        .from('fields')
-        .insert({ user_email, table_name, field_name, data_type, is_required })
-        .select();
-
-      if (error) {
-        throw error;
-      }
+      if (!pool) throw new Error('Database pool not initialized');
+      await pool.query(
+        `INSERT INTO fields (user_email, table_name, field_name, data_type, is_required)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user_email, table_name, field_name, data_type, is_required]
+      );
 
       console.log('Field added successfully');
       return { success: true, message: 'Field added successfully' };
@@ -23,26 +20,21 @@ export class Fields {
 
   async editField(user_email, table_name, field_name, data_type, is_required) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
-        .from('fields')
-        .update({ data_type, is_required })
-        .eq('user_email', user_email)
-        .eq('table_name', table_name)
-        .eq('field_name', field_name)
-        .select();
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `UPDATE fields SET data_type = $1, is_required = $2
+         WHERE user_email = $3 AND table_name = $4 AND field_name = $5
+         RETURNING *`,
+        [data_type, is_required, user_email, table_name, field_name]
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
+      if (!rows || rows.length === 0) {
         console.log('Field not found. Something went wrong');
         return { success: false, message: 'Field not found. Something went wrong' };
       }
 
       console.log('Field updated successfully');
-      return { success: true, message: 'Field updated successfully', data };
+      return { success: true, message: 'Field updated successfully', data: rows };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };
@@ -51,19 +43,14 @@ export class Fields {
 
   async getFields(user_email, table_name) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
-        .from('fields')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('table_name', table_name)
-        .or('deleted.eq.false,deleted.is.null')
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `SELECT * FROM fields
+         WHERE user_email = $1 AND table_name = $2 AND (deleted = false OR deleted IS NULL)`,
+        [user_email, table_name]
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      return { success: true, message: 'Fields retrieved successfully', data };
+      return { success: true, message: 'Fields retrieved successfully', data: rows };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };

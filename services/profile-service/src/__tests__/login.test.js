@@ -1,16 +1,16 @@
-import { Login } from '../functions/login.js';
-import { supabase } from '../supabase.js';
-import { createMockSupabaseClient } from '../__mocks__/supabaseMock.js';
+import pool from '../db.js';
 
-jest.mock('../supabase.js');
+jest.mock('../db.js');
 
 describe('Login', () => {
-  let login;
+  let Login;
 
-  beforeEach(() => {
-    login = new Login();
+  beforeEach(async () => {
+    pool.query.mockReset();
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    supabase.from.mockReset();
+    // Re-import after mock is set up
+    const mod = await import('../functions/login.js');
+    Login = mod.Login;
   });
 
   afterEach(() => {
@@ -18,22 +18,19 @@ describe('Login', () => {
   });
 
   it('should return exists=true, deleted=false when active user exists', async () => {
-    supabase.from.mockImplementation((tableName) =>
-      createMockSupabaseClient({ [tableName]: { data: { email: 'a@b.com', deleted: false } } }).from(tableName)
-    );
+    pool.query.mockResolvedValueOnce({ rows: [{ email: 'a@b.com', deleted: false }] });
 
+    const login = new Login();
     const result = await login.checkUser('a@b.com');
 
     expect(result.exists).toBe(true);
     expect(result.deleted).toBe(false);
-    expect(supabase.from).toHaveBeenCalledWith('users');
   });
 
   it('should return exists=true, deleted=true when soft-deleted user exists', async () => {
-    supabase.from.mockImplementation((tableName) =>
-      createMockSupabaseClient({ [tableName]: { data: { email: 'a@b.com', deleted: true } } }).from(tableName)
-    );
+    pool.query.mockResolvedValueOnce({ rows: [{ email: 'a@b.com', deleted: true }] });
 
+    const login = new Login();
     const result = await login.checkUser('a@b.com');
 
     expect(result.exists).toBe(true);
@@ -41,10 +38,9 @@ describe('Login', () => {
   });
 
   it('should return exists=false when user does not exist', async () => {
-    supabase.from.mockImplementation((tableName) =>
-      createMockSupabaseClient({ [tableName]: { error: { code: 'PGRST116', message: 'No rows found' } } }).from(tableName)
-    );
+    pool.query.mockResolvedValueOnce({ rows: [] });
 
+    const login = new Login();
     const result = await login.checkUser('missing@b.com');
 
     expect(result.exists).toBe(false);
@@ -52,10 +48,9 @@ describe('Login', () => {
   });
 
   it('should return exists=false on unexpected error', async () => {
-    supabase.from.mockImplementation((tableName) =>
-      createMockSupabaseClient({ [tableName]: { error: { message: 'connection failed' } } }).from(tableName)
-    );
+    pool.query.mockRejectedValueOnce(new Error('connection failed'));
 
+    const login = new Login();
     const result = await login.checkUser('a@b.com');
 
     expect(result.exists).toBe(false);

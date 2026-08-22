@@ -5,28 +5,27 @@
  *   - deleted: whether the user is currently soft-deleted (in 30-day grace period)
  * Frontend uses this to decide: active user → dashboard, deleted user → auto-restore, new user → create-profile
  */
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 
 export class Login {
   async checkUser(email) {
     try {
-      if (!supabase) {
-        console.error('Supabase client not initialized');
+      if (!pool) {
+        console.error('Database pool not initialized');
         return { exists: false, deleted: false };
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('email, deleted')
-        .eq('email', email)
-        .single();
+      const { rows } = await pool.query(
+        `SELECT email, deleted FROM users WHERE email = $1`,
+        [email]
+      );
 
-      if (error) {
-        console.error(error);
+      if (rows.length === 0) {
         return { exists: false, deleted: false };
       }
 
+      const data = rows[0];
       return { exists: !!data, deleted: data?.deleted === true };
     } catch (error) {
       console.error(error);

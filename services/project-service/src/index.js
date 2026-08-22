@@ -42,7 +42,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({ service: 'project-service', status: 'healthy' });
 });
-// All /service routes require a valid Supabase JWT.
+// All /service routes require a valid JWT.
 // The verified user's email is attached to req.userEmail by requireAuth.
 app.use('/service', requireAuth, projectRoutes);
 app.use('/service', requireAuth, entryRoutes);
