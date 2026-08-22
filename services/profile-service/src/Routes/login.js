@@ -34,7 +34,7 @@ router.post('/login', async (req, res) => {
         }
         
         const result = await login.checkUser(values.email);
-        return res.json({ exists: result });
+        return res.json(result);
       }
       default:
         return res.status(400).json({ error: 'Invalid function' });
