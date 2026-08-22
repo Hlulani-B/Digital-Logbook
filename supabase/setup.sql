@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   name                    VARCHAR(100),
   avatar                  TEXT,
   created_at              TIMESTAMPTZ  DEFAULT now(),
-  deletion_scheduled_at   TIMESTAMPTZ
+  deletion_scheduled_at   TIMESTAMPTZ,
+  deleted                 BOOLEAN      NOT NULL DEFAULT false
 );
 
 -- 1b. Activity log table
@@ -25,7 +26,8 @@ CREATE TABLE IF NOT EXISTS public.activity_log (
   entity_type  VARCHAR(50),
   entity_name  VARCHAR(255),
   details      JSONB,
-  created_at   TIMESTAMPTZ DEFAULT now()
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  deleted      BOOLEAN     NOT NULL DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_log_user_email
@@ -95,7 +97,8 @@ BEGIN
   FOR rec IN
     SELECT email
       FROM public.users
-     WHERE deletion_scheduled_at IS NOT NULL
+     WHERE deleted = true
+       AND deletion_scheduled_at IS NOT NULL
        AND deletion_scheduled_at < now() - INTERVAL '30 days'
   LOOP
     -- Clean up app tables
@@ -158,6 +161,7 @@ BEGIN
   FROM entries e
   WHERE e.user_email = p_user_email
     AND e.archived = false
+    AND e.deleted = false
   GROUP BY e.project_name
   ORDER BY total_duration DESC;
 END;
