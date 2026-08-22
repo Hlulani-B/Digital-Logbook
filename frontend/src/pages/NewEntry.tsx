@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { updateEntry } from "../functions/project/entries.js";
+import { updateEntry, deleteEntryById } from "../functions/project/entries.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
 import { isOverdue, getOverdueText } from "../functions/dashboard/overdue.js";
 import { formatInterval } from "../functions/dashboard/stats.js";
@@ -95,9 +95,10 @@ interface EntryBoxProps {
   onUpdated?: (updatedEntry: EntryRow) => void;
   onArchiveToggled?: (entryId: string, archived: boolean) => void;
   onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
+  onDelete?: (entryId: string) => void;
 }
 
-export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged }: EntryBoxProps) {
+export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged, onDelete }: EntryBoxProps) {
   const {
     id,
     user_email,
@@ -117,6 +118,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -287,6 +289,23 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       setError(err instanceof Error ? err.message : "Failed to update archive state");
     } finally {
       setArchiving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user_email || deleting) return;
+    if (!window.confirm("Delete this entry? You can recover it later.")) return;
+    setDeleting(true);
+    setError(null);
+    setMenuOpen(false);
+    try {
+      const result = await deleteEntryById(user_email, id);
+      if (result?.success === false) throw new Error(result.message || "Failed to delete entry");
+      onDelete?.(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete entry");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -471,6 +490,14 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
               disabled={archiving}
             >
               {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+            </button>
+            <button
+              type="button"
+              className="entry-box__menu-item entry-box__menu-item--danger"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
             </button>
           </div>
         )}

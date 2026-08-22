@@ -92,6 +92,16 @@ export async function deleteEntry(user_email, project_name, entry) {
   });
 }
 
+export async function deleteEntryById(user_email, entry_id) {
+  return request(`${PROJECT_URL}/service/entry`, {
+    method: "POST",
+    body: JSON.stringify({
+      function: "deleteById",
+      values: { user_email, entry_id },
+    }),
+  });
+}
+
 export async function sortUnarchivedEntries(user_email, project_name, sort_type) {
   return request(`${PROJECT_URL}/service/entry`, {
     method: "POST",

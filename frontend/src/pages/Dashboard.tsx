@@ -941,7 +941,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
               </div>
             ) : (
               filteredEntries.map((row, i) => (
-                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} onDelete={() => loadData()} />
               ))
             )}
           </div>
@@ -964,7 +964,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
-                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} onDelete={() => loadData()} />
                 ))}
               </div>
             )}
