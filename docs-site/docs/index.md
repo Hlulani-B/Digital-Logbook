@@ -21,7 +21,7 @@ predetermined schema.
 | Role | Person |
 |---|---|
 | Documentation | Siphesihle |
-| Frontend / Auth setup | Hlulani-B |
+| Fullstack | Hlulani Baloyi |
 | *(add remaining team members and roles here)* | |
 
 ## Quick links
