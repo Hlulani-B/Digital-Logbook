@@ -964,6 +964,61 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#soft-delete-ambiguous-column-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Soft-delete ambiguous column error
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-card-dropdown-appearing-far-below-card" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry card dropdown appearing far below card
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#raw-postgres-interval-displayed-in-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw Postgres interval displayed in UI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-service-crash-on-startup-utf-16-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        project-service crash on startup (UTF-16 encoding)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#render-build-failure-typescript-undefined-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Render build failure — TypeScript undefined error
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1188,6 +1243,61 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#soft-delete-ambiguous-column-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Soft-delete ambiguous column error
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-card-dropdown-appearing-far-below-card" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry card dropdown appearing far below card
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#raw-postgres-interval-displayed-in-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw Postgres interval displayed in UI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-service-crash-on-startup-utf-16-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        project-service crash on startup (UTF-16 encoding)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#render-build-failure-typescript-undefined-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Render build failure — TypeScript undefined error
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1252,6 +1362,30 @@ pushed, <code>git fetch &amp;&amp; git checkout main &amp;&amp; git pull</code> 
 <p><strong>Takeaway:</strong> writing code and pushing it are two separate steps — worth
 teammates confirming a push happened (not just a local commit) before
 assuming something is "done."</p>
+<h2 id="soft-delete-ambiguous-column-error">Soft-delete ambiguous column error<a class="headerlink" href="#soft-delete-ambiguous-column-error" title="Permanent link">&para;</a></h2>
+<p><strong>Issue:</strong> Calling <code>delete_user()</code> RPC threw <code>column reference user_email is ambiguous</code>.</p>
+<p><strong>Root cause:</strong> The PL/pgSQL variable <code>user_email</code> in the <code>DECLARE</code> block had the same name as the <code>user_email</code> column in the tables. Postgres couldn't resolve which one the <code>WHERE</code> clause referred to.</p>
+<p><strong>Fix:</strong> Renamed the variable to <code>v_email</code> in both <code>delete_user()</code> and <code>restore_user()</code> functions.</p>
+<p><strong>Takeaway:</strong> always prefix PL/pgSQL variables to avoid collision with column names — Postgres resolves ambiguities in favour of columns.</p>
+<h2 id="entry-card-dropdown-appearing-far-below-card">Entry card dropdown appearing far below card<a class="headerlink" href="#entry-card-dropdown-appearing-far-below-card" title="Permanent link">&para;</a></h2>
+<p><strong>Issue:</strong> The Edit/Archive dropdown from the ⋯ menu on entry cards appeared floating far below the card instead of anchored to the button.</p>
+<p><strong>Root cause:</strong> <code>.entry-box__menu-wrap</code> had no <code>position</code> set, so the dropdown's <code>position: absolute</code> resolved against <code>.entry-box</code> (the whole card) instead of the menu wrapper.</p>
+<p><strong>Fix:</strong> Added <code>position: relative</code> to <code>.entry-box__menu-wrap</code>.</p>
+<p><strong>Takeaway:</strong> <code>position: absolute</code> resolves against the nearest <em>positioned</em> ancestor — if a wrapper has no <code>position</code>, the absolute child skips past it.</p>
+<h2 id="raw-postgres-interval-displayed-in-ui">Raw Postgres interval displayed in UI<a class="headerlink" href="#raw-postgres-interval-displayed-in-ui" title="Permanent link">&para;</a></h2>
+<p><strong>Issue:</strong> Duration showed as "2 days 06:27:39.557" (raw Postgres interval) instead of a human-readable format.</p>
+<p><strong>Root cause:</strong> <code>durationToMs()</code> only parsed "HH:MM:SS" format and didn't handle the "N days" prefix that Postgres adds for intervals over 24 hours.</p>
+<p><strong>Fix:</strong> Updated <code>durationToMs()</code> to extract a "N days" prefix first, then parse the remaining time portion. Added <code>formatInterval()</code> helper.</p>
+<h2 id="project-service-crash-on-startup-utf-16-encoding">project-service crash on startup (UTF-16 encoding)<a class="headerlink" href="#project-service-crash-on-startup-utf-16-encoding" title="Permanent link">&para;</a></h2>
+<p><strong>Issue:</strong> project-service crashed with <code>SyntaxError: Invalid or unexpected token</code> on startup.</p>
+<p><strong>Root cause:</strong> <code>supabase.js</code> was encoded as UTF-16 LE (BOM bytes 0xFF 0xFE). Node.js expects UTF-8.</p>
+<p><strong>Fix:</strong> Converted the file from UTF-16 LE to UTF-8. Content was unchanged.</p>
+<p><strong>Takeaway:</strong> editors on Windows can silently save files as UTF-16 — always verify encoding for files that will be executed by Node.js.</p>
+<h2 id="render-build-failure-typescript-undefined-error">Render build failure — TypeScript undefined error<a class="headerlink" href="#render-build-failure-typescript-undefined-error" title="Permanent link">&para;</a></h2>
+<p><strong>Issue:</strong> Render deploy failed with <code>error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'</code> in AuthCallback.tsx.</p>
+<p><strong>Root cause:</strong> <code>data.session.user.email</code> from Supabase types is <code>string | null | undefined</code>, but <code>routeUser()</code> expected <code>string</code>.</p>
+<p><strong>Fix:</strong> Added <code>if (!email)</code> guard before each <code>routeUser(email)</code> call, navigating to <code>/create-profile</code> if email is missing.</p>
+<p><strong>Takeaway:</strong> Supabase types are strict — always handle nullable fields even when you "know" they'll be present at runtime.</p>
 
 
 

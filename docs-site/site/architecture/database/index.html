@@ -749,6 +749,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#activity_log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        activity_log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rpc-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RPC Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RPC Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#delete_user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete_user()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restore_user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restore_user()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#trade-off" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1225,6 +1275,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#activity_log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        activity_log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rpc-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RPC Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RPC Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#delete_user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete_user()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restore_user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restore_user()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#trade-off" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1295,6 +1395,16 @@ field.</p>
 <td></td>
 </tr>
 <tr>
+<td>deleted</td>
+<td>BOOLEAN</td>
+<td>default false — soft-delete flag</td>
+</tr>
+<tr>
+<td>deletion_scheduled_at</td>
+<td>TIMESTAMPTZ</td>
+<td>set when user soft-deletes their account</td>
+</tr>
+<tr>
 <td>created_at</td>
 <td>TIMESTAMP</td>
 <td>default CURRENT_TIMESTAMP</td>
@@ -1322,9 +1432,24 @@ field.</p>
 <td>NOT NULL, FK → users(email)</td>
 </tr>
 <tr>
+<td>description</td>
+<td>TEXT</td>
+<td>optional project description</td>
+</tr>
+<tr>
+<td>unique_name</td>
+<td>VARCHAR(150)</td>
+<td>unique per-user project slug</td>
+</tr>
+<tr>
 <td>archived</td>
 <td>BOOLEAN</td>
 <td>default false</td>
+</tr>
+<tr>
+<td>deleted</td>
+<td>BOOLEAN</td>
+<td>default false — soft-delete flag</td>
 </tr>
 <tr>
 <td>created_at</td>
@@ -1372,6 +1497,11 @@ field.</p>
 <td>is_required</td>
 <td>BOOLEAN</td>
 <td>default false</td>
+</tr>
+<tr>
+<td>deleted</td>
+<td>BOOLEAN</td>
+<td>default false — soft-delete flag</td>
 </tr>
 <tr>
 <td>created_at</td>
@@ -1439,6 +1569,11 @@ field.</p>
 <td>duration</td>
 <td>INTERVAL</td>
 <td>generated, <code>ended_at - started_at</code></td>
+</tr>
+<tr>
+<td>deleted</td>
+<td>BOOLEAN</td>
+<td>default false — soft-delete flag</td>
 </tr>
 <tr>
 <td>created_at</td>
@@ -1556,8 +1691,81 @@ field.</p>
 <td>Indexes on <code>archived</code></td>
 <td>Keeps "show only active" / "show only archived" filters fast as data grows</td>
 </tr>
+<tr>
+<td><code>deleted</code> on all tables</td>
+<td>Soft-delete support — users can delete their account and restore it within a grace period. All related rows (entries, fields, projects, activity_log) are marked <code>deleted = true</code> instead of being hard-deleted, so the data can be recovered if the user signs back in</td>
+</tr>
+<tr>
+<td><code>deletion_scheduled_at</code> on <code>users</code></td>
+<td>Records when the soft-delete happened, enabling future expiry logic (e.g. hard-delete after 30 days)</td>
+</tr>
+<tr>
+<td><code>description</code> on <code>projects</code></td>
+<td>Optional free-text description so users can note what a project is about</td>
+</tr>
+<tr>
+<td><code>unique_name</code> on <code>projects</code></td>
+<td>A per-user slug for URL-friendly project references</td>
+</tr>
 </tbody>
 </table>
+<h2 id="activity_log">activity_log<a class="headerlink" href="#activity_log" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>UUID</td>
+<td>PK, default gen_random_uuid()</td>
+</tr>
+<tr>
+<td>user_email</td>
+<td>VARCHAR(255)</td>
+<td>NOT NULL</td>
+</tr>
+<tr>
+<td>action</td>
+<td>VARCHAR(50)</td>
+<td>e.g. CREATE, UPDATE, DELETE</td>
+</tr>
+<tr>
+<td>entity_type</td>
+<td>VARCHAR(50)</td>
+<td>e.g. PROJECT, ENTRY</td>
+</tr>
+<tr>
+<td>entity_name</td>
+<td>VARCHAR(150)</td>
+<td>name of the affected entity</td>
+</tr>
+<tr>
+<td>details</td>
+<td>JSONB</td>
+<td>optional structured metadata</td>
+</tr>
+<tr>
+<td>deleted</td>
+<td>BOOLEAN</td>
+<td>default false — soft-delete flag</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td>TIMESTAMPTZ</td>
+<td>default CURRENT_TIMESTAMP</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rpc-functions">RPC Functions<a class="headerlink" href="#rpc-functions" title="Permanent link">&para;</a></h2>
+<h3 id="delete_user">delete_user()<a class="headerlink" href="#delete_user" title="Permanent link">&para;</a></h3>
+<p>Soft-deletes the authenticated user's account. Marks all related rows (entries, fields, projects, activity_log) as <code>deleted = true</code> and inserts/updates the user row with <code>deleted = true</code> and <code>deletion_scheduled_at = now()</code>. Uses <code>v_email</code> variable to avoid PL/pgSQL ambiguity with the <code>user_email</code> column name.</p>
+<h3 id="restore_user">restore_user()<a class="headerlink" href="#restore_user" title="Permanent link">&para;</a></h3>
+<p>Reverses a soft-delete. Sets <code>deleted = false</code> and clears <code>deletion_scheduled_at</code> on the user row and all related rows. Called automatically when a soft-deleted user signs back in.</p>
 <h2 id="trade-off">Trade-off<a class="headerlink" href="#trade-off" title="Permanent link">&para;</a></h2>
 <p>This design trades some query complexity — values have to be interpreted
 using their corresponding <code>fields</code> definition — for schema flexibility that

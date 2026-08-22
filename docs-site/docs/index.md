@@ -35,8 +35,8 @@ predetermined schema.
 
 ## Tech stack
 
-- **Frontend:** React (Vite), React Router, Firebase Auth
-- **Backend:** Node.js / Express, split into services (auth, dashboard, project)
+- **Frontend:** React (Vite), React Router, Supabase Auth
+- **Backend:** Node.js / Express, split into microservices (auth, profile, project, dashboard)
 - **Database:** PostgreSQL via Supabase (accessed only through our own API — never directly from the frontend)
 - **Version control:** Gitea (`sdp.ms.wits.ac.za`)
 - **CI/CD:** Gitea Actions workflow definition, mirrored to GitHub for deployment

@@ -23,6 +23,8 @@ field.
 | username | VARCHAR(50) | NOT NULL, UNIQUE |
 | name | VARCHAR(100) | NOT NULL |
 | avatar | TEXT | |
+| deleted | BOOLEAN | default false — soft-delete flag |
+| deletion_scheduled_at | TIMESTAMPTZ | set when user soft-deletes their account |
 | created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
 
 ## projects
@@ -31,7 +33,10 @@ field.
 |---|---|---|
 | project_name | VARCHAR(150) | PK, NOT NULL |
 | user_email | VARCHAR(255) | NOT NULL, FK → users(email) |
+| description | TEXT | optional project description |
+| unique_name | VARCHAR(150) | unique per-user project slug |
 | archived | BOOLEAN | default false |
+| deleted | BOOLEAN | default false — soft-delete flag |
 | created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
 
 ## fields
@@ -44,6 +49,7 @@ field.
 | field_name | VARCHAR(100) | NOT NULL |
 | data_type | VARCHAR(50) | e.g. text, number, boolean, date |
 | is_required | BOOLEAN | default false |
+| deleted | BOOLEAN | default false — soft-delete flag |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
 ## entries
@@ -60,6 +66,7 @@ field.
 | started_at | TIMESTAMPTZ | nullable, set when user starts a work session |
 | ended_at | TIMESTAMPTZ | nullable, set when user stops the session |
 | duration | INTERVAL | generated, `ended_at - started_at` |
+| deleted | BOOLEAN | default false — soft-delete flag |
 | created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
 
 ```sql
@@ -114,6 +121,31 @@ ADD COLUMN duration INTERVAL GENERATED ALWAYS AS (ended_at - started_at) STORED;
 | Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
 | `archived` on `projects`/`entries` | Soft-archive support lets users hide projects/entries without deleting data. Both default `false` so existing rows remain visible |
 | Indexes on `archived` | Keeps "show only active" / "show only archived" filters fast as data grows |
+| `deleted` on all tables | Soft-delete support — users can delete their account and restore it within a grace period. All related rows (entries, fields, projects, activity_log) are marked `deleted = true` instead of being hard-deleted, so the data can be recovered if the user signs back in |
+| `deletion_scheduled_at` on `users` | Records when the soft-delete happened, enabling future expiry logic (e.g. hard-delete after 30 days) |
+| `description` on `projects` | Optional free-text description so users can note what a project is about |
+| `unique_name` on `projects` | A per-user slug for URL-friendly project references |
+
+## activity_log
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK, default gen_random_uuid() |
+| user_email | VARCHAR(255) | NOT NULL |
+| action | VARCHAR(50) | e.g. CREATE, UPDATE, DELETE |
+| entity_type | VARCHAR(50) | e.g. PROJECT, ENTRY |
+| entity_name | VARCHAR(150) | name of the affected entity |
+| details | JSONB | optional structured metadata |
+| deleted | BOOLEAN | default false — soft-delete flag |
+| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
+
+## RPC Functions
+
+### delete_user()
+Soft-deletes the authenticated user's account. Marks all related rows (entries, fields, projects, activity_log) as `deleted = true` and inserts/updates the user row with `deleted = true` and `deletion_scheduled_at = now()`. Uses `v_email` variable to avoid PL/pgSQL ambiguity with the `user_email` column name.
+
+### restore_user()
+Reverses a soft-delete. Sets `deleted = false` and clears `deletion_scheduled_at` on the user row and all related rows. Called automatically when a soft-deleted user signs back in.
 
 ## Trade-off
 

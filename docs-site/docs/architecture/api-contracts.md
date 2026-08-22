@@ -45,6 +45,49 @@ Headers: Authorization: Bearer <token>
 Response: { success: boolean, message: string }
 ```
 
+### Check User
+```
+POST /auth/checkuser
+Body: { email: string }
+Response: { exists: boolean, deleted: boolean }
+```
+Returns `deleted: true` if the user has soft-deleted their account. The frontend uses this to auto-restore on sign-in.
+
+## Profile Service (port 5004)
+
+### Get Profile
+```
+POST /service/profile
+Headers: Authorization: Bearer <token>
+Body: { function: "getProfile", values: { email } }
+Response: { success: boolean, data: { email, username, name, avatar, deleted } }
+```
+
+### Update Profile
+```
+POST /service/profile
+Headers: Authorization: Bearer <token>
+Body: { function: "updateProfile", values: { email, updates: { name?, username?, avatar? } } }
+Response: { success: boolean, data: object }
+```
+
+### Create Profile
+```
+POST /service/profile
+Headers: Authorization: Bearer <token>
+Body: { function: "createProfile", values: { email, name, username, avatar? } }
+Response: { success: boolean, message: string }
+```
+
+### Restore Account
+```
+POST /service/profile
+Headers: Authorization: Bearer <token>
+Body: { function: "restoreAccount", values: { email } }
+Response: { success: boolean, message: string }
+```
+Calls the `restore_user()` RPC to reverse a soft-delete.
+
 ## Project Service (port 5003)
 
 ### Projects
@@ -131,7 +174,7 @@ Body: { function: "sortUnarchived" | "sortArchived", values: { user_email, proje
 Response: { success: boolean, data: array }
 ```
 
-### Natural Language Entry
+#### Natural Language Entry
 ```
 POST /service/natural-language-entry
 Headers: Authorization: Bearer <token>
@@ -147,6 +190,9 @@ Response: {
   new_fields?: array
 }
 ```
+
+!!! note "AI constraint"
+    The AI prompt explicitly instructs the model to **never** include `due_date`, `due date`, `priority`, or `status` as custom fields — these are already built-in columns on every entry.
 
 ### Fields
 
@@ -231,6 +277,26 @@ Headers: Authorization: Bearer <token>
 Body: { function: "getStats", values: { user_email } }
 Response: { success: boolean, data: { total_entries, total_projects, due_soon, time_tracked } }
 ```
+
+### Soft-Delete
+
+#### Delete User Account (Soft)
+```
+POST /service/profile
+Headers: Authorization: Bearer <token>
+Body: { function: "deleteAccount", values: { email } }
+Response: { success: boolean, message: string }
+```
+Calls `delete_user()` RPC. Marks all user data as `deleted = true` rather than hard-deleting.
+
+#### Restore User Account
+```
+POST /service/profile
+Headers: Authorization: Bearer <token>
+Body: { function: "restoreAccount", values: { email } }
+Response: { success: boolean, message: string }
+```
+Calls `restore_user()` RPC. Reverses soft-delete — sets `deleted = false` on user and all related rows.
 
 ## Common Response Patterns
 
