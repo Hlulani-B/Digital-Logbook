@@ -79,7 +79,7 @@ export class Project {
         .from('projects')
         .select('project_name, description, created_at, archived')
         .eq('user_email', user_email)
-        .eq('deleted', false)
+        .or('deleted.eq.false,deleted.is.null')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -105,7 +105,7 @@ export class Project {
         .update({ deleted: true })
         .eq('project_name', project_name)
         .eq('user_email', user_email)
-        .eq('deleted', false));
+        .or('deleted.eq.false,deleted.is.null'));
 
       if (error) {
         throw error;
@@ -117,7 +117,7 @@ export class Project {
         .update({ deleted: true })
         .eq('table_name', project_name)
         .eq('user_email', user_email)
-        .eq('deleted', false));
+        .or('deleted.eq.false,deleted.is.null'));
 
       if (error) {
         throw error;
@@ -129,7 +129,7 @@ export class Project {
         .update({ deleted: true })
         .eq('project_name', project_name)
         .eq('user_email', user_email)
-        .eq('deleted', false));
+        .or('deleted.eq.false,deleted.is.null'));
 
       if (error) {
         throw error;

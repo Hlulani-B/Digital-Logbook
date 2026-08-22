@@ -7,7 +7,7 @@ export class Search {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null')
 
       if (error) {
         throw error;
@@ -32,7 +32,7 @@ export class Search {
         .select('*')
         .eq('user_email', user_email)
         .eq('project_name', project_name)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null')
 
       if (error) {
         throw error;
@@ -56,7 +56,7 @@ export class Search {
         .from('projects')
         .select('*')
         .eq('user_email', user_email)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null')
 
       if (error) {
         throw error;
@@ -74,7 +74,7 @@ export class Search {
           .select('*')
           .eq('user_email', user_email)
           .eq('project_name', project.project_name)
-          .eq('deleted', false);
+          .or('deleted.eq.false,deleted.is.null')
 
         if (entriesError) {
           throw entriesError;

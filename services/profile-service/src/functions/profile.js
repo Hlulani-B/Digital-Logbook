@@ -129,7 +129,7 @@ export class Profile {
         .from('users')
         .select('*')
         .eq('email', email)
-        .eq('deleted', false)
+        .or('deleted.eq.false,deleted.is.null')
         .single();
 
       if (error) throw error;
@@ -150,23 +150,23 @@ export class Profile {
       let error;
 
       // Soft-delete all entries for this user
-      ({ error } = await supabase.from('entries').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
+      ({ error } = await supabase.from('entries').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
       if (error) throw error;
 
       // Soft-delete all fields for this user
-      ({ error } = await supabase.from('fields').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
+      ({ error } = await supabase.from('fields').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
       if (error) throw error;
 
       // Soft-delete all projects for this user
-      ({ error } = await supabase.from('projects').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
+      ({ error } = await supabase.from('projects').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
       if (error) throw error;
 
       // Soft-delete all activity logs for this user
-      ({ error } = await supabase.from('activity_log').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
+      ({ error } = await supabase.from('activity_log').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
       if (error) throw error;
 
       // Soft-delete the user account
-      ({ error } = await supabase.from('users').update({ deleted: true }).eq('email', email).eq('deleted', false));
+      ({ error } = await supabase.from('users').update({ deleted: true }).eq('email', email).or('deleted.eq.false,deleted.is.null'));
       if (error) throw error;
 
       return { success: true, message: 'Profile deleted successfully' };

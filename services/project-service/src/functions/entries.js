@@ -91,7 +91,7 @@ export class Entries {
         .select('*')
         .eq('user_email', user_email)
         .eq('project_name', project_name)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null');
 
       if (error) {
         throw error;
@@ -111,7 +111,7 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('deleted', false)
+        .or('deleted.eq.false,deleted.is.null')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -134,7 +134,7 @@ export class Entries {
         .eq('user_email', user_email)
         .eq('project_name', project_name)
         .eq('entries', entry)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null');
 
       if (error) {
         throw error;
@@ -156,7 +156,7 @@ export class Entries {
         .update({ deleted: true })
         .eq('id', entry_id)
         .eq('user_email', user_email)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null');
 
       if (error) {
         throw error;
@@ -177,7 +177,7 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('deleted', false)
+        .or('deleted.eq.false,deleted.is.null')
         .or('archived.eq.false,archived.is.null');
 
       if (project_name) {
@@ -223,7 +223,7 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('deleted', false)
+        .or('deleted.eq.false,deleted.is.null')
         .eq('archived', true);
 
       if (project_name) {

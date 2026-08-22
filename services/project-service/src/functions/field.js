@@ -57,7 +57,7 @@ export class Fields {
         .select('*')
         .eq('user_email', user_email)
         .eq('table_name', table_name)
-        .eq('deleted', false);
+        .or('deleted.eq.false,deleted.is.null')
 
       if (error) {
         throw error;
