@@ -50,3 +50,42 @@ jobs:
         with:
           name: coverage-badge-${{ matrix.service }}
           path: services/${{ matrix.service }}/badges/
+
+  # Collect all badges and commit them to the repo
+  update-badges:
+    needs: coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITEA_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Download all badge artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-badge-*
+          path: /tmp/badges-raw
+
+      - name: Organise badges into badges/ directory
+        run: |
+          mkdir -p badges/dashboard-service badges/profile-service badges/project-service
+          for svc in dashboard-service profile-service project-service; do
+            if [ -d "/tmp/badges-raw/coverage-badge-$svc" ]; then
+              cp /tmp/badges-raw/coverage-badge-$svc/*.svg badges/$svc/ 2>/dev/null || true
+            fi
+          done
+          ls -R badges/
+
+      - name: Commit and push badges
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@codacaine.dev"
+          git add badges/
+          if git diff --cached --quiet; then
+            echo "No badge changes to commit"
+          else
+            git commit -m "chore: update test coverage badges [skip ci]"
+            git push
+          fi

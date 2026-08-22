@@ -5,11 +5,13 @@ https://hlulani-b.github.io/Digital-Logbook/
 
 ## Test Coverage
 
+> Badges are auto-updated by CI on every push to `main`.
+
 | Service | Lines | Statements | Functions | Branches |
 | :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](https://img.shields.io/badge/lines-71.13%25-yellow) | ![Statements](https://img.shields.io/badge/statements-67.53%25-yellow) | ![Functions](https://img.shields.io/badge/functions-65.38%25-yellow) | ![Branches](https://img.shields.io/badge/branches-59.25%25-yellow) |
-| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-85.71%25-brightgreen) | ![Statements](https://img.shields.io/badge/statements-82.50%25-brightgreen) | ![Functions](https://img.shields.io/badge/functions-100%25-brightgreen) | ![Branches](https://img.shields.io/badge/branches-71.42%25-brightgreen) |
-| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-brightgreen) | ![Statements](https://img.shields.io/badge/statements-100%25-brightgreen) | ![Functions](https://img.shields.io/badge/functions-100%25-brightgreen) | ![Branches](https://img.shields.io/badge/branches-100%25-brightgreen) |
+| **Project Service** | ![Lines](./badges/project-service/lines.svg) | ![Statements](./badges/project-service/statements.svg) | ![Functions](./badges/project-service/functions.svg) | ![Branches](./badges/project-service/branches.svg) |
+| **Profile Service** | ![Lines](./badges/profile-service/lines.svg) | ![Statements](./badges/profile-service/statements.svg) | ![Functions](./badges/profile-service/functions.svg) | ![Branches](./badges/profile-service/branches.svg) |
+| **Dashboard Service** | ![Lines](./badges/dashboard-service/lines.svg) | ![Statements](./badges/dashboard-service/statements.svg) | ![Functions](./badges/dashboard-service/functions.svg) | ![Branches](./badges/dashboard-service/branches.svg) |
 
 
 ##  Deployed Live Services
