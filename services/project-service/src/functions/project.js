@@ -79,6 +79,7 @@ export class Project {
         .from('projects')
         .select('project_name, description, created_at, archived')
         .eq('user_email', user_email)
+        .eq('deleted', false)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -93,43 +94,48 @@ export class Project {
   }
 
   async deleteProject(user_email, project_name) {
-    // When deleting a project, also delete all of its entries and custom fields
+    // When deleting a project, soft-delete all of its entries and custom fields
     try {
       if (!supabase) throw new Error('Supabase client not initialized');
       let error;
 
+      // Soft-delete entries for this project
       ({ error } = await supabase
         .from('entries')
-        .delete()
+        .update({ deleted: true })
         .eq('project_name', project_name)
-        .eq('user_email', user_email));
+        .eq('user_email', user_email)
+        .eq('deleted', false));
 
       if (error) {
         throw error;
       }
 
-      // Delete custom fields tied to this project (table_name == project_name)
+      // Soft-delete custom fields tied to this project
       ({ error } = await supabase
         .from('fields')
-        .delete()
+        .update({ deleted: true })
         .eq('table_name', project_name)
-        .eq('user_email', user_email));
+        .eq('user_email', user_email)
+        .eq('deleted', false));
 
       if (error) {
         throw error;
       }
 
+      // Soft-delete the project itself
       ({ error } = await supabase
         .from('projects')
-        .delete()
+        .update({ deleted: true })
         .eq('project_name', project_name)
-        .eq('user_email', user_email));
+        .eq('user_email', user_email)
+        .eq('deleted', false));
 
       if (error) {
         throw error;
       }
 
-      console.log('Project deleted successfully');
+      console.log('Project soft-deleted successfully');
       return { success: true, message: 'Project deleted successfully' };
     } catch (error) {
       console.log(error);

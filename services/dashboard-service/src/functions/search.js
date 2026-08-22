@@ -6,7 +6,8 @@ export class Search {
       const { data, error } = await supabase
         .from('entries')
         .select('*')
-        .eq('user_email', user_email);
+        .eq('user_email', user_email)
+        .eq('deleted', false);
 
       if (error) {
         throw error;
@@ -30,7 +31,8 @@ export class Search {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('project_name', project_name);
+        .eq('project_name', project_name)
+        .eq('deleted', false);
 
       if (error) {
         throw error;
@@ -53,7 +55,8 @@ export class Search {
       const { data: projects, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('user_email', user_email);
+        .eq('user_email', user_email)
+        .eq('deleted', false);
 
       if (error) {
         throw error;
@@ -70,7 +73,8 @@ export class Search {
           .from('entries')
           .select('*')
           .eq('user_email', user_email)
-          .eq('project_name', project.project_name);
+          .eq('project_name', project.project_name)
+          .eq('deleted', false);
 
         if (entriesError) {
           throw entriesError;

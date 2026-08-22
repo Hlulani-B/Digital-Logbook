@@ -52,6 +52,7 @@ export class ActivityLog {
         .from('activity_log')
         .select('*')
         .eq('user_email', user_email)
+        .eq('deleted', false)
         .order('created_at', { ascending: false })
         .limit(limit);
 

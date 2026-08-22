@@ -90,7 +90,8 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
-        .eq('project_name', project_name);
+        .eq('project_name', project_name)
+        .eq('deleted', false);
 
       if (error) {
         throw error;
@@ -110,6 +111,7 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
+        .eq('deleted', false)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -126,18 +128,19 @@ export class Entries {
   async deleteEntry(user_email, project_name, entry) {
     try {
       if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('entries')
-        .delete()
-        .eq('entries.user_email', user_email)
-        .eq('entries.project_name', project_name)
-        .eq('entries.entries', entry);
+        .update({ deleted: true })
+        .eq('user_email', user_email)
+        .eq('project_name', project_name)
+        .eq('entries', entry)
+        .eq('deleted', false);
 
       if (error) {
         throw error;
       }
 
-      console.log('Entry deleted successfully');
+      console.log('Entry soft-deleted successfully');
       return { success: true, message: 'Entry deleted successfully' };
     } catch (error) {
       console.log('deleteEntry error:', error);
@@ -152,6 +155,7 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
+        .eq('deleted', false)
         .or('archived.eq.false,archived.is.null');
 
       if (project_name) {
@@ -197,6 +201,7 @@ export class Entries {
         .from('entries')
         .select('*')
         .eq('user_email', user_email)
+        .eq('deleted', false)
         .eq('archived', true);
 
       if (project_name) {

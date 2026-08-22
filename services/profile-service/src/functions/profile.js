@@ -129,6 +129,7 @@ export class Profile {
         .from('users')
         .select('*')
         .eq('email', email)
+        .eq('deleted', false)
         .single();
 
       if (error) throw error;
@@ -148,16 +149,24 @@ export class Profile {
 
       let error;
 
-      ({ error } = await supabase.from('entries').delete().eq('entries.user_email', email));
+      // Soft-delete all entries for this user
+      ({ error } = await supabase.from('entries').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
       if (error) throw error;
 
-      ({ error } = await supabase.from('fields').delete().eq('fields.user_email', email));
+      // Soft-delete all fields for this user
+      ({ error } = await supabase.from('fields').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
       if (error) throw error;
 
-      ({ error } = await supabase.from('projects').delete().eq('projects.user_email', email));
+      // Soft-delete all projects for this user
+      ({ error } = await supabase.from('projects').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
       if (error) throw error;
 
-      ({ error } = await supabase.from('users').delete().eq('users.email', email));
+      // Soft-delete all activity logs for this user
+      ({ error } = await supabase.from('activity_log').update({ deleted: true }).eq('user_email', email).eq('deleted', false));
+      if (error) throw error;
+
+      // Soft-delete the user account
+      ({ error } = await supabase.from('users').update({ deleted: true }).eq('email', email).eq('deleted', false));
       if (error) throw error;
 
       return { success: true, message: 'Profile deleted successfully' };
