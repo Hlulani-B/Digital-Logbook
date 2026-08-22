@@ -15,6 +15,7 @@ export function createMockChain({ error = null, data = [] } = {}) {
     update: jest.fn().mockReturnThis(),
     delete: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    or: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     then: jest.fn((resolve) => resolve({ data, error })),
   };
