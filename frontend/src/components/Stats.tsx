@@ -53,6 +53,7 @@ ${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[
 Make it insightful and encouraging. ${tone}`;
 
         const aiResult = await askAI(prompt);
+        console.log("[Stats] AI result:", aiResult);
         if (aiResult.success && aiResult.response) {
           // Parse AI response
           try {
@@ -75,9 +76,24 @@ Make it insightful and encouraging. ${tone}`;
           } catch {
             setReflection(aiResult.response);
           }
+        } else {
+          // Fallback if AI fails
+          setReflection(
+            topProject
+              ? `You've got ${totalEntries} entries across ${projects.length} projects. ${topProject[0]} is leading with ${topProject[1]} entries this week — keep it up!`
+              : `You've got ${totalEntries} entries across ${projects.length} projects. Log more this week to build momentum!`
+          );
         }
       } catch (err) {
         console.error("[Stats] Reflection error:", err);
+        // Fallback on error
+        const totalEntries = entries.length;
+        const topProject = projects.length > 0 ? projects[0] : null;
+        setReflection(
+          topProject
+            ? `You've got ${totalEntries} entries across ${projects.length} projects. ${(topProject as any).project_name} is your most active — nice work!`
+            : `You've got ${totalEntries} entries across ${projects.length} projects. Keep logging to build your streak!`
+        );
       }
     };
 
