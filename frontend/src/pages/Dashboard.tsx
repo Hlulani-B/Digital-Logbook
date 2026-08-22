@@ -8,6 +8,7 @@ import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { ActivitySummary } from "@/components/ActivitySummary";
+import { StatsReflection } from "@/components/StatsReflection";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
@@ -762,6 +763,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             <p>{aiGreeting}</p>
           </div>
         )}
+
+        {/* Stats Reflection */}
+        <StatsReflection />
 
         {/* Feed Header */}
         <div className="feed-header animate-in">
