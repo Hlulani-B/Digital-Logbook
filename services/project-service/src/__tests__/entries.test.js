@@ -320,4 +320,28 @@ describe('Entries', () => {
       expect(result.data).toEqual(mockData);
     });
   });
+
+  // ─── deleteEntryById ─────────────────────────────────────────
+  describe('deleteEntryById', () => {
+    it('should soft-delete an entry by id', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { data: [{ id: 42, deleted: true }] } }).from(tableName)
+      );
+
+      const result = await entries.deleteEntryById('a@b.com', 42);
+
+      expect(result).toEqual({ success: true, message: 'Entry deleted successfully' });
+      expect(supabase.from).toHaveBeenCalledWith('entries');
+    });
+
+    it('should return failure when Supabase returns an error', async () => {
+      supabase.from.mockImplementation((tableName) =>
+        createMockSupabaseClient({ [tableName]: { error: { message: 'delete by id failed' } } }).from(tableName)
+      );
+
+      const result = await entries.deleteEntryById('a@b.com', 42);
+
+      expect(result).toEqual({ success: false, message: 'delete by id failed' });
+    });
+  });
 });
