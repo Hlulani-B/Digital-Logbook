@@ -9,9 +9,9 @@ https://digital-logbook-documentation-site.onrender.com
 
 | Service | Lines | Statements | Functions | Branches |
 | :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/lines.svg) | ![Statements](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/statements.svg) | ![Functions](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/functions.svg) | ![Branches](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/branches.svg) |
-| **Profile Service** | ![Lines](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/lines.svg) | ![Statements](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/statements.svg) | ![Functions](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/functions.svg) | ![Branches](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/branches.svg) |
-| **Dashboard Service** | ![Lines](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/lines.svg) | ![Statements](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/statements.svg) | ![Functions](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/functions.svg) | ![Branches](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/branches.svg) |
+| **Project Service** | ![Lines](https://img.shields.io/badge/lines-77%25-yellow) | ![Statements](https://img.shields.io/badge/statements-74%25-yellow) | ![Functions](https://img.shields.io/badge/functions-67%25-yellow) | ![Branches](https://img.shields.io/badge/branches-65%25-yellow) |
+| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-69%25-yellow) | ![Statements](https://img.shields.io/badge/statements-65%25-yellow) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-52%25-red) |
+| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-green) | ![Statements](https://img.shields.io/badge/statements-100%25-green) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-100%25-green) |
 
 
 ##  Deployed Live Services
