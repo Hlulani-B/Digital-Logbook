@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { editProjectName, deleteProject } from "@/functions/project/project.js";
 import { getFields, addField, editField } from "@/functions/project/fields.js";
+import { FiEdit2 } from "react-icons/fi";
 
 interface ProjectSettingsPanelProps {
   open: boolean;
@@ -310,7 +311,7 @@ export function ProjectSettingsPanel({
                             style={{ padding: "0.35rem 0.55rem", fontSize: "0.85rem" }}
                             title="Edit field"
                           >
-                            ✎
+                            <FiEdit2 size={16} />
                           </button>
                         </>
                       )}

@@ -13,6 +13,8 @@ import { ActivityPage } from "@/pages/Activity";
 import { CreateProfile } from "@/pages/CreateProfile";
 import { AvatarPage } from "@/pages/Avatar";
 import { ToneSetup } from "@/pages/ToneSetup";
+import { ThemeSetup } from "@/pages/ThemeSetup";
+import { FrequencySetup } from "@/pages/FrequencySetup";
 import { ProjectsPage } from "@/pages/Project";
 import { StatsView } from "@/pages/StatsView";
 import { StreakView } from "@/pages/StreakView";
@@ -143,6 +145,22 @@ export function App() {
             element={
               <ProtectedRoute>
                 <ToneSetup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/theme-setup"
+            element={
+              <ProtectedRoute>
+                <ThemeSetup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/frequency-setup"
+            element={
+              <ProtectedRoute>
+                <FrequencySetup />
               </ProtectedRoute>
             }
           />

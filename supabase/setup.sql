@@ -42,25 +42,25 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  user_email TEXT;
+  v_email TEXT;
 BEGIN
-  SELECT u.email INTO user_email
+  SELECT u.email INTO v_email
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  IF user_email IS NULL THEN
+  IF v_email IS NULL THEN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
   -- Soft-delete all related data
-  UPDATE public.entries SET deleted = true WHERE user_email = user_email;
-  UPDATE public.fields SET deleted = true WHERE user_email = user_email;
-  UPDATE public.projects SET deleted = true WHERE user_email = user_email;
-  UPDATE public.activity_log SET deleted = true WHERE user_email = user_email;
+  UPDATE public.entries SET deleted = true WHERE user_email = v_email;
+  UPDATE public.fields SET deleted = true WHERE user_email = v_email;
+  UPDATE public.projects SET deleted = true WHERE user_email = v_email;
+  UPDATE public.activity_log SET deleted = true WHERE user_email = v_email;
 
   -- Mark user as deleted and schedule deletion
   INSERT INTO public.users (email, deletion_scheduled_at, deleted)
-  VALUES (user_email, now(), true)
+  VALUES (v_email, now(), true)
   ON CONFLICT (email)
   DO UPDATE SET deletion_scheduled_at = now(), deleted = true;
 END;
@@ -74,26 +74,26 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  user_email TEXT;
+  v_email TEXT;
 BEGIN
-  SELECT u.email INTO user_email
+  SELECT u.email INTO v_email
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  IF user_email IS NULL THEN
+  IF v_email IS NULL THEN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
   -- Restore all related data
-  UPDATE public.entries SET deleted = false WHERE user_email = user_email;
-  UPDATE public.fields SET deleted = false WHERE user_email = user_email;
-  UPDATE public.projects SET deleted = false WHERE user_email = user_email;
-  UPDATE public.activity_log SET deleted = false WHERE user_email = user_email;
+  UPDATE public.entries SET deleted = false WHERE user_email = v_email;
+  UPDATE public.fields SET deleted = false WHERE user_email = v_email;
+  UPDATE public.projects SET deleted = false WHERE user_email = v_email;
+  UPDATE public.activity_log SET deleted = false WHERE user_email = v_email;
 
   -- Restore user account
   UPDATE public.users
      SET deletion_scheduled_at = NULL, deleted = false
-   WHERE email = user_email;
+   WHERE email = v_email;
 END;
 $$;
 

@@ -14,12 +14,12 @@ export function ToneSetup() {
   const handleContinue = () => {
     setSaving(true);
     setTone(selected);
-    setTimeout(() => navigate("/dashboard"), 400);
+    setTimeout(() => navigate("/theme-setup"), 400);
   };
 
   const handleSkip = () => {
     setTone("soft");
-    navigate("/dashboard");
+    navigate("/theme-setup");
   };
 
   return (

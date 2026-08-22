@@ -2,10 +2,31 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "@/lib/supabase";
 import { checkUser } from "../functions/profile/login.js";
+import { useAuth } from "@/context/AuthContext";
 
 export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { restoreAccount } = useAuth();
+
+  /** Route after checking user status — auto-restores soft-deleted users */
+  const routeUser = async (email: string) => {
+    try {
+      const result = await checkUser(email);
+      if (result.exists && result.deleted) {
+        // Soft-deleted user signing back in during grace period — auto-restore
+        try { await restoreAccount(); } catch { /* best effort */ }
+        navigate("/dashboard", { replace: true });
+      } else if (result.exists) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/create-profile", { replace: true });
+      }
+    } catch (err) {
+      console.error("checkUser failed, defaulting to create-profile:", err);
+      navigate("/create-profile", { replace: true });
+    }
+  };
 
   useEffect(() => {
     let client;
@@ -39,9 +60,9 @@ export function AuthCallback() {
             if (email) localStorage.setItem("email", email);
             // Clean up the URL
             window.history.replaceState({}, document.title, window.location.pathname);
+            if (!email) { navigate("/create-profile", { replace: true }); return; }
             try {
-              const result = await checkUser(email);
-              navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
+              await routeUser(email);
             } catch (err) {
               console.error("checkUser failed, defaulting to create-profile:", err);
               navigate("/create-profile", { replace: true });
@@ -59,9 +80,9 @@ export function AuthCallback() {
         if (!error && data.session) {
           const email = data.session.user.email;
           if (email) localStorage.setItem("email", email);
+          if (!email) { navigate("/create-profile", { replace: true }); return; }
           try {
-            const result = await checkUser(email);
-            navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
+            await routeUser(email);
           } catch (err) {
             console.error("checkUser failed, defaulting to create-profile:", err);
             navigate("/create-profile", { replace: true });
@@ -77,9 +98,9 @@ export function AuthCallback() {
       if (data.session) {
         const email = data.session.user.email;
         if (email) localStorage.setItem("email", email);
+        if (!email) { navigate("/create-profile", { replace: true }); return; }
         try {
-          const result = await checkUser(email);
-          navigate(result.exists ? "/dashboard" : "/create-profile", { replace: true });
+          await routeUser(email);
         } catch (err) {
           console.error("checkUser failed, defaulting to create-profile:", err);
           navigate("/create-profile", { replace: true });
