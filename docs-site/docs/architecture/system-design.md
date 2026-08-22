@@ -193,14 +193,22 @@ await logActivity({
 });
 ```
 
+### 6. Natural Language Entry — AI Field Constraints
+**Decision**: The AI prompt explicitly forbids creating `due_date`, `priority`, or `status` as custom fields.
+
+**Rationale**:
+- These are built-in columns on every entry already
+- Without the constraint, the AI would sometimes create redundant custom fields like "Due Date" alongside the real `due_date` column
+- Keeps the schema clean and avoids user confusion
+
 ## Database Design
 
 ### Core Tables
-- `users` - User profiles (email PK, username, avatar_url)
-- `projects` - User projects (user_email FK, project_name, description, archived)
-- `entries` - Log entries (user_email FK, project_name FK, entries JSONB, due_date, priority)
-- `fields` - Custom fields per project (user_email FK, project_name FK, field_name, data_type)
-- `activity_log` - User action history (user_email FK, action, entity_type, entity_name, details)
+- `users` - User profiles (email PK, username, avatar_url, deleted, deletion_scheduled_at)
+- `projects` - User projects (user_email FK, project_name, description, unique_name, archived, deleted)
+- `entries` - Log entries (user_email FK, project_name FK, entries JSONB, due_date, priority, deleted)
+- `fields` - Custom fields per project (user_email FK, project_name FK, field_name, data_type, deleted)
+- `activity_log` - User action history (user_email FK, action, entity_type, entity_name, details, deleted)
 
 ### JSONB Pattern
 Entries use JSONB for flexible field storage:
@@ -223,6 +231,46 @@ Entries use JSONB for flexible field storage:
 - Supabase Auth handles password hashing, JWT issuance
 - Tokens expire after 1 hour
 - Refresh tokens stored in localStorage
+
+### Soft-Delete & Account Recovery
+**Decision**: Account deletion uses soft-delete rather than hard-delete.
+
+**Rationale**:
+- Users may delete their account impulsively — soft-delete lets them recover
+- Sign-in flow checks `deleted` status and auto-restores if needed
+- All related data (entries, projects, fields, activity_log) is marked `deleted = true` in one atomic RPC call
+- `deletion_scheduled_at` enables future hard-delete expiry (e.g. after 30 days)
+
+**Flow**:
+```
+User clicks "Delete Account"
+    │
+    ▼
+Frontend calls deleteAccount()
+    │
+    ▼
+Backend calls delete_user() RPC
+    │
+    ├──► Mark entries, fields, projects, activity_log as deleted = true
+    ├──► Set users.deleted = true, deletion_scheduled_at = now()
+    └──► Sign out user
+
+User signs in again later
+    │
+    ▼
+Frontend calls checkUser(email)
+    │
+    ▼
+Backend returns { exists: true, deleted: true }
+    │
+    ▼
+Frontend auto-calls restoreAccount()
+    │
+    ▼
+Backend calls restore_user() RPC
+    │
+    └──► Set deleted = false on all rows, clear deletion_scheduled_at
+```
 
 ### Authorization
 - `requireAuth` middleware on all protected routes

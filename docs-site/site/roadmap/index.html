@@ -922,16 +922,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sprint-2-planned" class="md-nav__link">
+  <a href="#sprint-2-in-progress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sprint 2 - Planned
+        Sprint 2 - In Progress
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Sprint 2 - Planned">
+    <nav class="md-nav" aria-label="Sprint 2 - In Progress">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#completed-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Completed Features
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#planned-features" class="md-nav__link">
@@ -1196,16 +1207,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sprint-2-planned" class="md-nav__link">
+  <a href="#sprint-2-in-progress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sprint 2 - Planned
+        Sprint 2 - In Progress
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Sprint 2 - Planned">
+    <nav class="md-nav" aria-label="Sprint 2 - In Progress">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#completed-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Completed Features
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#planned-features" class="md-nav__link">
@@ -1506,7 +1528,31 @@
 - Auth Service: <code>https://auth-service-hl52.onrender.com</code>
 - Project Service: <code>https://project-service-96ml.onrender.com</code>
 - Dashboard Service: <code>https://dashboard-service-bpc5.onrender.com</code></p>
-<h2 id="sprint-2-planned">Sprint 2 - Planned<a class="headerlink" href="#sprint-2-planned" title="Permanent link">&para;</a></h2>
+<h2 id="sprint-2-in-progress">Sprint 2 - In Progress<a class="headerlink" href="#sprint-2-in-progress" title="Permanent link">&para;</a></h2>
+<h3 id="completed-features">Completed Features<a class="headerlink" href="#completed-features" title="Permanent link">&para;</a></h3>
+<h4 id="soft-delete-account-recovery">Soft-Delete &amp; Account Recovery<a class="headerlink" href="#soft-delete-account-recovery" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>005_add_soft_delete_column.sql</code> — migration adding <code>deleted</code> column to all tables, <code>delete_user()</code> and <code>restore_user()</code> RPC functions</li>
+<li><code>checkUser</code> now returns <code>{ exists, deleted }</code> instead of boolean</li>
+<li>Frontend auto-restores soft-deleted users on sign-in (SignIn.tsx, AuthCallback.tsx)</li>
+<li>Fixed PL/pgSQL variable ambiguity: renamed <code>user_email</code> → <code>v_email</code> in <code>delete_user()</code> and <code>restore_user()</code> to prevent "column reference is ambiguous" Postgres error</li>
+</ul>
+<h4 id="onboarding-enhancements">Onboarding Enhancements<a class="headerlink" href="#onboarding-enhancements" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Theme Setup page — 7 colour themes, 5 fonts, 3 corner styles with live preview</li>
+<li>Frequency Setup page — nudge frequency picker (silent / gentle / daily / active)</li>
+<li>Tone Setup now navigates to ThemeSetup instead of dashboard</li>
+<li>Full onboarding flow: CreateProfile → Avatar → ToneSetup → ThemeSetup → FrequencySetup → Dashboard</li>
+</ul>
+<h4 id="bug-fixes">Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Entry card dropdown positioning — added <code>position: relative</code> to <code>.entry-box__menu-wrap</code></li>
+<li>Duration formatting — <code>durationToMs()</code> now parses Postgres interval format (e.g. "2 days 06:27:39.557")</li>
+<li>Natural language AI prompt — added rule to never create <code>due_date</code>, <code>priority</code>, or <code>status</code> as custom fields</li>
+<li>Login route double-wrap fix — <code>res.json(result)</code> instead of <code>res.json({ exists: result })</code></li>
+<li>project-service <code>supabase.js</code> UTF-16 encoding crash — converted to UTF-8</li>
+<li>AuthCallback TypeScript build error — added null guard for <code>email</code> parameter</li>
+</ul>
 <h3 id="planned-features">Planned Features<a class="headerlink" href="#planned-features" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Server-side caching (Redis)</li>
@@ -1515,9 +1561,7 @@
 <li>WebSocket for real-time updates</li>
 <li>Background job queue for AI calls</li>
 <li>Comprehensive logging (Winston/Pino)</li>
-<li>Dark mode auto-detection</li>
-<li>High contrast theme option</li>
-<li>Custom color picker for themes</li>
+<li>Nudge engine implementation</li>
 <li>Drag-and-drop entry reordering</li>
 </ul>
 <h3 id="technical-debt">Technical Debt<a class="headerlink" href="#technical-debt" title="Permanent link">&para;</a></h3>
@@ -1527,6 +1571,7 @@
 <li>Implement API rate limiting</li>
 <li>Add request validation middleware</li>
 <li>Set up monitoring and alerting</li>
+<li>Convert remaining JS pages to TypeScript</li>
 </ul>
 
 

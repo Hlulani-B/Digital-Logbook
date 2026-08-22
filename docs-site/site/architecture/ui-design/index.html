@@ -984,6 +984,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onboarding-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onboarding Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Onboarding Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#theme-setup-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Theme Setup Page
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frequency-setup-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frequency Setup Page
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#component-library" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2101,6 +2140,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onboarding-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onboarding Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Onboarding Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#theme-setup-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Theme Setup Page
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frequency-setup-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frequency Setup Page
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#component-library" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2838,7 +2916,11 @@
 <li><strong>Dark</strong> - Pure black/white/grey for low-light environments</li>
 <li><strong>Pastel Vintage</strong> - Softer pastel palettes (ivory, blush, powder blue, pale lilac, sage mist, soft tan)</li>
 <li><strong>Brown Vintage</strong> - Rich earth tones (espresso, navy ink, deep plum, forest, terracotta, walnut)</li>
+<li><strong>Rose</strong> - Warm rose-toned palette</li>
+<li><strong>Forest</strong> - Deep green nature-inspired tones</li>
+<li><strong>Ocean</strong> - Cool blue-grey coastal palette</li>
 </ol>
+<p>Users can preview and select themes during onboarding (ThemeSetup page) or change them at any time in Settings.</p>
 <h3 id="dark-theme">Dark Theme<a class="headerlink" href="#dark-theme" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">&quot;dark&quot;</span><span class="o">]</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nv">--bg</span><span class="p">:</span><span class="w"> </span><span class="mh">#000000</span><span class="p">;</span>
@@ -2852,9 +2934,10 @@
 <h3 id="font-stack">Font Stack<a class="headerlink" href="#font-stack" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Primary</strong>: Lora (serif) - Default font for readability</li>
-<li><strong>Alternatives</strong>: Playfair Display, Crimson Text, EB Garamond</li>
+<li><strong>Alternatives</strong>: Playfair Display, Crimson Text, EB Garamond, Plus Jakarta Sans</li>
 <li><strong>UI</strong>: Plus Jakarta Sans (sans-serif) for interface elements</li>
 </ul>
+<p>Users can preview each font with a live "The quick brown fox" sample during onboarding (ThemeSetup page) or change in Settings.</p>
 <h3 id="base-sizes">Base Sizes<a class="headerlink" href="#base-sizes" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Desktop</strong>: 18px base (112.5%)</li>
@@ -2901,27 +2984,61 @@
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>â”‚ âœï¸ Quick add: &quot;Fixed login bug...&quot; âž¤ â”‚
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 </code></pre></div></p>
+<h2 id="onboarding-flow">Onboarding Flow<a class="headerlink" href="#onboarding-flow" title="Permanent link">&para;</a></h2>
+<p>The full onboarding sequence after first sign-in:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Sign In / OAuth
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    │
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    ▼
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>CreateProfile (name, username)
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    │
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    ▼
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>Avatar Selection
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    │
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    ▼
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>Tone Setup (communication tone preference)
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    │
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    ▼
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>Theme Setup (theme colour, font, corner style — with live preview)
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    │
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    ▼
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>Frequency Setup (nudge frequency: silent / gentle / daily / active)
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    │
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    ▼
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>Dashboard
+</code></pre></div>
+<h3 id="theme-setup-page">Theme Setup Page<a class="headerlink" href="#theme-setup-page" title="Permanent link">&para;</a></h3>
+<p>Visual onboarding page where users pick:
+- <strong>Theme</strong>: 7 colour swatches (light, dark, blush, powder blue, pale lilac, sage mist, soft tan, etc.)
+- <strong>Font</strong>: 5 options with live "The quick brown fox" preview in each
+- <strong>Corner Style</strong>: 3 options (rounded, soft, sharp) with visual box previews</p>
+<h3 id="frequency-setup-page">Frequency Setup Page<a class="headerlink" href="#frequency-setup-page" title="Permanent link">&para;</a></h3>
+<p>Lets users choose how often the logbook nudges them:
+- <strong>Silent</strong> — Never nudge, I'll check in myself
+- <strong>Gentle</strong> — Once a week, soft reminder
+- <strong>Daily</strong> — Daily nudge at a time I choose
+- <strong>Active</strong> — Multiple times a day, high engagement</p>
+<p>Stored in <code>localStorage</code> as <code>dl_nudge_frequency</code>. The actual nudge engine is a future feature.</p>
 <h2 id="component-library">Component Library<a class="headerlink" href="#component-library" title="Permanent link">&para;</a></h2>
 <h3 id="buttons">Buttons<a class="headerlink" href="#buttons" title="Permanent link">&para;</a></h3>
 <h4 id="primary-button">Primary Button<a class="headerlink" href="#primary-button" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">.</span><span class="nc">btn-primary</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="mh">#3b2f1e</span><span class="p">;</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#faf6ec</span><span class="p">;</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--radius-xs</span><span class="p">);</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.55</span><span class="kt">rem</span><span class="w"> </span><span class="mf">1.35</span><span class="kt">rem</span><span class="p">;</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">.</span><span class="nc">btn-primary</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="mh">#3b2f1e</span><span class="p">;</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#faf6ec</span><span class="p">;</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--radius-xs</span><span class="p">);</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.55</span><span class="kt">rem</span><span class="w"> </span><span class="mf">1.35</span><span class="kt">rem</span><span class="p">;</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">}</span>
 </code></pre></div>
 <h4 id="save-button">Save Button<a class="headerlink" href="#save-button" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">.</span><span class="nc">btn-save</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="kc">white</span><span class="p">;</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">.</span><span class="nc">btn-save</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="kc">white</span><span class="p">;</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">}</span>
 </code></pre></div>
 <h4 id="dark-theme-overrides">Dark Theme Overrides<a class="headerlink" href="#dark-theme-overrides" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">&quot;dark&quot;</span><span class="o">]</span><span class="w"> </span><span class="p">.</span><span class="nc">btn-primary</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#000000</span><span class="p">;</span><span class="w"> </span><span class="c">/* Black text on light background */</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">&quot;dark&quot;</span><span class="o">]</span><span class="w"> </span><span class="p">.</span><span class="nc">btn-primary</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#000000</span><span class="p">;</span><span class="w"> </span><span class="c">/* Black text on light background */</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="p">}</span>
 </code></pre></div>
 <h3 id="entry-box">Entry Box<a class="headerlink" href="#entry-box" title="Permanent link">&para;</a></h3>
 <p>Notion-style card with:
@@ -2929,15 +3046,15 @@
 - Colored priority/status tags
 - Table layout for fields
 - Three-dots menu for actions</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>â”‚ Project Name              â‹¯    â”‚
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>â”‚ Description: Fixed login bug   â”‚
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>â”‚ Status: completed              â”‚
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>â”‚ Hours: 2                       â”‚
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>â”‚ Priority: Urgent    Due: Aug 20â”‚
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>â”‚ Project Name              â‹¯    â”‚
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>â”‚ Description: Fixed login bug   â”‚
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>â”‚ Status: completed              â”‚
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>â”‚ Hours: 2                       â”‚
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>â”‚ Priority: Urgent    Due: Aug 20â”‚
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 </code></pre></div>
 <h3 id="drawer-menu">Drawer Menu<a class="headerlink" href="#drawer-menu" title="Permanent link">&para;</a></h3>
 <p>Slide-out navigation with:
@@ -2947,16 +3064,16 @@
 <h3 id="settings-panel">Settings Panel<a class="headerlink" href="#settings-panel" title="Permanent link">&para;</a></h3>
 <p>Slide-out panel with tabs:
 - <strong>Profile</strong>: Username, avatar
-- <strong>Preferences</strong>: Theme, font, corner style
+- <strong>Preferences</strong>: Theme, font, corner style, time format, week start, nudge frequency
 - <strong>Account</strong>: Password reset, delete account</p>
 <h3 id="toast-notifications">Toast Notifications<a class="headerlink" href="#toast-notifications" title="Permanent link">&para;</a></h3>
 <p>Pretty toast for AI comments:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">.</span><span class="nc">quick-entry-toast</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nb">linear-gradient</span><span class="p">(</span><span class="mi">135</span><span class="kt">deg</span><span class="p">,</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">139</span><span class="p">,</span><span class="mi">115</span><span class="p">,</span><span class="mi">85</span><span class="p">,</span><span class="mf">0.08</span><span class="p">),</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">166</span><span class="p">,</span><span class="mi">139</span><span class="p">,</span><span class="mi">107</span><span class="p">,</span><span class="mf">0.12</span><span class="p">));</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">139</span><span class="p">,</span><span class="mi">115</span><span class="p">,</span><span class="mi">85</span><span class="p">,</span><span class="mf">0.18</span><span class="p">);</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--radius-sm</span><span class="p">);</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span><span class="k">animation</span><span class="p">:</span><span class="w"> </span><span class="n">toast-slide-in</span><span class="w"> </span><span class="mf">0.35</span><span class="kt">s</span><span class="w"> </span><span class="kc">ease-out</span><span class="p">;</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">.</span><span class="nc">quick-entry-toast</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nb">linear-gradient</span><span class="p">(</span><span class="mi">135</span><span class="kt">deg</span><span class="p">,</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">139</span><span class="p">,</span><span class="mi">115</span><span class="p">,</span><span class="mi">85</span><span class="p">,</span><span class="mf">0.08</span><span class="p">),</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">166</span><span class="p">,</span><span class="mi">139</span><span class="p">,</span><span class="mi">107</span><span class="p">,</span><span class="mf">0.12</span><span class="p">));</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">139</span><span class="p">,</span><span class="mi">115</span><span class="p">,</span><span class="mi">85</span><span class="p">,</span><span class="mf">0.18</span><span class="p">);</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--radius-sm</span><span class="p">);</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="k">animation</span><span class="p">:</span><span class="w"> </span><span class="n">toast-slide-in</span><span class="w"> </span><span class="mf">0.35</span><span class="kt">s</span><span class="w"> </span><span class="kc">ease-out</span><span class="p">;</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="p">}</span>
 </code></pre></div></p>
 <h2 id="responsive-design">Responsive Design<a class="headerlink" href="#responsive-design" title="Permanent link">&para;</a></h2>
 <h3 id="breakpoints">Breakpoints<a class="headerlink" href="#breakpoints" title="Permanent link">&para;</a></h3>
@@ -2995,10 +3112,10 @@
 - <strong>Soft</strong>: <code>border-radius: 6px</code>
 - <strong>Sharp</strong>: <code>border-radius: 0</code></p>
 <p>Applied globally via CSS custom property:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nv">--radius-sm</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nv">--radius-xs</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="kt">px</span><span class="p">;</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nv">--radius-sm</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nv">--radius-xs</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="kt">px</span><span class="p">;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="p">}</span>
 </code></pre></div></p>
 <h2 id="iconography">Iconography<a class="headerlink" href="#iconography" title="Permanent link">&para;</a></h2>
 <h3 id="icon-library">Icon Library<a class="headerlink" href="#icon-library" title="Permanent link">&para;</a></h3>
@@ -3055,6 +3172,7 @@
 <li>Custom color picker for themes</li>
 <li>Drag-and-drop entry reordering</li>
 <li>Collapsible drawer sections</li>
+<li>Nudge engine implementation (uses frequency preference from onboarding)</li>
 </ul>
 <hr />
 <h2 id="ui-walkthrough-a-screenshots">UI Walkthrough â€” Screenshots<a class="headerlink" href="#ui-walkthrough-a-screenshots" title="Permanent link">&para;</a></h2>
