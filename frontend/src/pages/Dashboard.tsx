@@ -11,7 +11,7 @@ import { ActivitySummary } from "@/components/ActivitySummary";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { getArchives, unarchiveEntry } from "@/functions/project/archives.js";
+import { getArchives } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
@@ -578,18 +578,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
-  };
-
-  const handleUnarchiveEntry = async (entryId: string, projectName: string) => {
-    if (!email) return;
-    setArchiveError(null);
-    try {
-      const result = await unarchiveEntry(email, projectName, entryId);
-      if (result?.success === false) throw new Error(result.message || "Failed to unarchive entry");
-      setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
-    } catch (err) {
-      setArchiveError(err instanceof Error ? err.message : "Failed to unarchive entry");
-    }
   };
 
   const PRIORITY_LABELS: Record<string, string> = {
