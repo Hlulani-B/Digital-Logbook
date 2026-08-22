@@ -17,34 +17,48 @@ describe('Login', () => {
     jest.restoreAllMocks();
   });
 
-  it('should return true when user exists', async () => {
+  it('should return exists=true, deleted=false when active user exists', async () => {
     supabase.from.mockImplementation((tableName) =>
-      createMockSupabaseClient({ [tableName]: { data: { email: 'a@b.com' } } }).from(tableName)
+      createMockSupabaseClient({ [tableName]: { data: { email: 'a@b.com', deleted: false } } }).from(tableName)
     );
 
     const result = await login.checkUser('a@b.com');
 
-    expect(result).toBe(true);
+    expect(result.exists).toBe(true);
+    expect(result.deleted).toBe(false);
     expect(supabase.from).toHaveBeenCalledWith('users');
   });
 
-  it('should return false when user does not exist', async () => {
+  it('should return exists=true, deleted=true when soft-deleted user exists', async () => {
+    supabase.from.mockImplementation((tableName) =>
+      createMockSupabaseClient({ [tableName]: { data: { email: 'a@b.com', deleted: true } } }).from(tableName)
+    );
+
+    const result = await login.checkUser('a@b.com');
+
+    expect(result.exists).toBe(true);
+    expect(result.deleted).toBe(true);
+  });
+
+  it('should return exists=false when user does not exist', async () => {
     supabase.from.mockImplementation((tableName) =>
       createMockSupabaseClient({ [tableName]: { error: { code: 'PGRST116', message: 'No rows found' } } }).from(tableName)
     );
 
     const result = await login.checkUser('missing@b.com');
 
-    expect(result).toBe(false);
+    expect(result.exists).toBe(false);
+    expect(result.deleted).toBe(false);
   });
 
-  it('should return false on unexpected error', async () => {
+  it('should return exists=false on unexpected error', async () => {
     supabase.from.mockImplementation((tableName) =>
       createMockSupabaseClient({ [tableName]: { error: { message: 'connection failed' } } }).from(tableName)
     );
 
     const result = await login.checkUser('a@b.com');
 
-    expect(result).toBe(false);
+    expect(result.exists).toBe(false);
+    expect(result.deleted).toBe(false);
   });
 });
