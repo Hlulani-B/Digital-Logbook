@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { updateEntry } from "../functions/project/entries.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
 import { isOverdue, getOverdueText } from "../functions/dashboard/overdue.js";
+import { formatInterval } from "../functions/dashboard/stats.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
 
@@ -517,7 +518,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
           {duration && (
             <span className="entry-box__meta-item">
               <span className="entry-box__meta-label">Duration</span>
-              <span className="entry-box__meta-value">{duration}</span>
+              <span className="entry-box__meta-value">{formatInterval(duration)}</span>
             </span>
           )}
         </div>
