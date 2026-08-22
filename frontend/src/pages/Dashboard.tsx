@@ -21,7 +21,7 @@ import { AddEntry } from "@/pages/AddEntry";
 import VoiceFeature from "@/pages/VoiceFeature";
 import { askAI } from "@/functions/ai.js";
 import { getToneInstruction } from "@/functions/tone";
-import { FiArchive } from "react-icons/fi";
+import { FiArchive, FiX } from "react-icons/fi";
 
 /** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -851,7 +851,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                 const name = project.project_name as string;
                 return (
                   <div key={`archived-${name}-${i}`} className="glass" style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderRadius: "0.85rem", marginBottom: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>📦</span>
+                    <FiArchive size={18} style={{ opacity: 0.6 }} />
                     <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem", opacity: 0.7 }}>{name}</span>
                     <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>Archived (read-only)</span>
                     <button
@@ -1119,7 +1119,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                     onClick={() => removeProjectField(index)}
                     title="Remove field"
                   >
-                    ✕
+                    <FiX size={16} />
                   </button>
                 </div>
               ))}
