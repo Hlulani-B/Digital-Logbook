@@ -67,6 +67,15 @@ router.post('/entry', async (req, res) => {
         }
         return res.json(result);
       }
+      case "deleteById": {
+        const { entry_id } = values;
+        if (!entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await entries.deleteEntryById(user_email, entry_id);
+        if (result.success) {
+          await logActivity(user_email, 'ENTRY_DELETED', 'entry', entry_id, { entry_id });
+        }
+        return res.json(result);
+      }
       case "get": {
         const { project_name } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });

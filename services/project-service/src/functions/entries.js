@@ -148,6 +148,28 @@ export class Entries {
     }
   }
 
+  async deleteEntryById(user_email, entry_id) {
+    try {
+      if (!supabase) throw new Error('Supabase client not initialized');
+      const { error } = await supabase
+        .from('entries')
+        .update({ deleted: true })
+        .eq('id', entry_id)
+        .eq('user_email', user_email)
+        .eq('deleted', false);
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('Entry soft-deleted by id:', entry_id);
+      return { success: true, message: 'Entry deleted successfully' };
+    } catch (error) {
+      console.log('deleteEntryById error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
   async sortUnarchivedEntries(user_email, project_name, sort_type) {
     try {
       if (!supabase) throw new Error('Supabase client not initialized');
