@@ -295,6 +295,7 @@ Rules:
 - Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit.
 - If matched=1: set "project" to the EXACT matching project_name from the list above, and "fields" to an object of field_name:value pairs filled from the entry text using ONLY that project's existing fields.
 - If matched=0: You MUST create a new project. Set "project" to a short sensible new project name. Set "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense. Set "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
+- NEVER include "due_date", "due date", "priority", or "status" as custom fields — these are already built-in columns on every entry.
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - Due date: YYYY-MM-DD or null
 - Write a short, soft, human comment back to the user. If matched=1, say something like "Added to [project name] — [warm comment]". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]". One sentence, warm and low-key.
