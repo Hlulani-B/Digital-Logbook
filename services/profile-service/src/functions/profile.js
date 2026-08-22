@@ -148,16 +148,16 @@ export class Profile {
 
       let error;
 
-      ({ error } = await supabase.from('entries').delete().eq('user_email', email));
+      ({ error } = await supabase.from('entries').delete().eq('entries.user_email', email));
       if (error) throw error;
 
-      ({ error } = await supabase.from('fields').delete().eq('user_email', email));
+      ({ error } = await supabase.from('fields').delete().eq('fields.user_email', email));
       if (error) throw error;
 
-      ({ error } = await supabase.from('projects').delete().eq('user_email', email));
+      ({ error } = await supabase.from('projects').delete().eq('projects.user_email', email));
       if (error) throw error;
 
-      ({ error } = await supabase.from('users').delete().eq('email', email));
+      ({ error } = await supabase.from('users').delete().eq('users.email', email));
       if (error) throw error;
 
       return { success: true, message: 'Profile deleted successfully' };
