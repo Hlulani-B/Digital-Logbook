@@ -90,13 +90,7 @@ export function ActivitySummary() {
     return () => { cancelled = true; };
   }, [email]);
 
-  if (loading) {
-    return (
-      <div className="activity-summary animate-in">
-        <p>Generating summary...</p>
-      </div>
-    );
-  }
+  if (loading || !summary) return null;
 
   return (
     <div className="activity-summary animate-in">

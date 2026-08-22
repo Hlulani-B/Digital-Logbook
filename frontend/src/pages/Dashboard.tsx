@@ -764,9 +764,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </div>
         )}
 
-        {/* Stats Reflection */}
-        <StatsReflection />
-
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
@@ -817,6 +814,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
+
+        {/* Stats Reflection */}
+        <StatsReflection />
 
         {/* Search bar inline for mobile */}
         {activeView === "activity" ? (

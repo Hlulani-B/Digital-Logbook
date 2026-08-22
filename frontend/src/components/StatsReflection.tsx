@@ -104,15 +104,7 @@ Make it insightful and encouraging. ${tone}`;
     };
   }, [email]);
 
-  if (loading) {
-    return (
-      <div className="stats-reflection animate-in">
-        <p>Generating insight...</p>
-      </div>
-    );
-  }
-
-  if (!reflection) return null;
+  if (loading || !reflection) return null;
 
   return (
     <div className="stats-reflection animate-in">
