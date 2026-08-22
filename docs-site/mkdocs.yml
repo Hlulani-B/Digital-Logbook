@@ -22,10 +22,9 @@ theme:
     text: Lora
     code: Fira Code
   features:
-    - navigation.tabs
-    - navigation.tabs.sticky
-    - navigation.top
+    - navigation.sections
     - navigation.expand
+    - navigation.top
     - navigation.indexes
     - search.suggest
     - search.highlight
@@ -70,10 +69,11 @@ nav:
       - UI Design: architecture/ui-design.md
       - Voice Recording: architecture/voice-feature.md
   - Roadmap: roadmap.md
-  - Development Log: development/log.md
-  - Methodology & Git Workflow: development/methodology.md
-  - Meeting Log: development/meetings.md
-  - Sprint 1 User Stories: development/user-stories.md
-  - Open Questions & Decisions: development/decisions.md
-  - Issues & Trouleshooting: development/issues.md
-  - AI Attribution: development/ai-attribution.md
+  - Development:
+      - Development Log: development/log.md
+      - Methodology & Git Workflow: development/methodology.md
+      - Meeting Log: development/meetings.md
+      - Sprint 1 User Stories: development/user-stories.md
+      - Open Questions & Decisions: development/decisions.md
+      - Issues & Troubleshooting: development/issues.md
+      - AI Attribution: development/ai-attribution.md
