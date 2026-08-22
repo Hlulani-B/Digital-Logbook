@@ -11,6 +11,7 @@ import { ActivitySummary } from "@/components/ActivitySummary";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
+import { getArchives, unarchiveEntry } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
@@ -88,6 +89,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   // Archive state
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
@@ -177,6 +179,21 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Load archived entries when archives view is active
+  useEffect(() => {
+    if (activeView !== "archives" || !email) return;
+    (async () => {
+      try {
+        const result = await getArchives(email, null);
+        if (result?.success !== false) {
+          setArchivedEntries(result?.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load archived entries:", err);
+      }
+    })();
+  }, [activeView, email]);
 
   // AI-generated greeting — shown as a toast
   useEffect(() => {
@@ -542,34 +559,37 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const handleUnarchiveProject = async (projectName: string) => {
     if (!email) return;
     setArchiveError(null);
-    // Update local state immediately
+    try {
+      const { unarchiveProject } = await import("@/functions/project/archives.js");
+      const result = await unarchiveProject(email, projectName);
+      if (result?.success === false) throw new Error(result.message || "Failed to unarchive project");
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Failed to unarchive project");
+      return;
+    }
+    // Update local state
     setProjects((prev) => prev.map((p) =>
       p.project_name === projectName ? { ...p, archived: false } : p
     ));
     setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
-    // Remove from localStorage
     const next = new Set(localArchived);
     next.delete(projectName);
     setLocalArchived(next);
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
-    // Best-effort DB update
+  };
+
+  const handleUnarchiveEntry = async (entryId: string, projectName: string) => {
+    if (!email) return;
+    setArchiveError(null);
     try {
-      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
-      await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'apikey': anonJwt || apiKey,
-          'Authorization': `Bearer ${anonJwt || apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ archived: false }),
-      });
-    } catch {}
+      const result = await unarchiveEntry(email, projectName, entryId);
+      if (result?.success === false) throw new Error(result.message || "Failed to unarchive entry");
+      setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Failed to unarchive entry");
+    }
   };
 
   const PRIORITY_LABELS: Record<string, string> = {
@@ -686,7 +706,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </button>
           <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
-            Archived Projects
+            Archives
           </button>
           <button className="drawer-item" onClick={() => { navigate("/stats"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -773,7 +793,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "activity" ? "Activity Log" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
               {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
@@ -830,12 +850,14 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             {archiveError && (
               <div className="auth-error" style={{ marginBottom: "1rem" }}>{archiveError}</div>
             )}
+
+            {/* Archived Projects */}
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem", opacity: 0.7, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <FiArchive size={16} /> Archived Projects
+              <span style={{ fontSize: "0.8rem", fontWeight: 400 }}>({archivedProjects.length})</span>
+            </h2>
             {archivedProjects.length === 0 ? (
-              <div className="empty-state animate-in">
-                <div className="empty-icon"><FiArchive size={40} /></div>
-                <h2 className="empty-title">No archived projects</h2>
-                <p className="empty-desc">Archive a project from the sidebar or the ⋯ menu to see it here.</p>
-              </div>
+              <p style={{ fontSize: "0.85rem", opacity: 0.5, marginBottom: "1.5rem" }}>No archived projects</p>
             ) : (
               archivedProjects.map((project, i) => {
                 const name = project.project_name as string;
@@ -855,6 +877,33 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                   </div>
                 );
               })
+            )}
+
+            {/* Archived Entries */}
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginTop: "1.5rem", marginBottom: "0.75rem", opacity: 0.7, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <FiArchive size={16} /> Archived Entries
+              <span style={{ fontSize: "0.8rem", fontWeight: 400 }}>({archivedEntries.length})</span>
+            </h2>
+            {archivedEntries.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon"><FiArchive size={40} /></div>
+                <h2 className="empty-title">No archived entries</h2>
+                <p className="empty-desc">Archive an entry from the ⋯ menu to see it here.</p>
+              </div>
+            ) : (
+              archivedEntries.map((row, i) => (
+                <EntryBox
+                  key={`archived-entry-${row.id || i}`}
+                  entry={row as any}
+                  onUpdated={() => loadData()}
+                  onPriorityChanged={handleSetPriority}
+                  onArchiveToggled={(entryId, isArchived) => {
+                    if (!isArchived) {
+                      setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
+                    }
+                  }}
+                />
+              ))
             )}
           </div>
         ) : (
