@@ -60,6 +60,7 @@ export function AuthCallback() {
             if (email) localStorage.setItem("email", email);
             // Clean up the URL
             window.history.replaceState({}, document.title, window.location.pathname);
+            if (!email) { navigate("/create-profile", { replace: true }); return; }
             try {
               await routeUser(email);
             } catch (err) {
@@ -79,6 +80,7 @@ export function AuthCallback() {
         if (!error && data.session) {
           const email = data.session.user.email;
           if (email) localStorage.setItem("email", email);
+          if (!email) { navigate("/create-profile", { replace: true }); return; }
           try {
             await routeUser(email);
           } catch (err) {
@@ -96,6 +98,7 @@ export function AuthCallback() {
       if (data.session) {
         const email = data.session.user.email;
         if (email) localStorage.setItem("email", email);
+        if (!email) { navigate("/create-profile", { replace: true }); return; }
         try {
           await routeUser(email);
         } catch (err) {
