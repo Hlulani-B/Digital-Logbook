@@ -59,6 +59,7 @@ extra_css:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Features: features.md
   - Architecture:
       - Overview: architecture/overview.md
       - Database Schema: architecture/database.md
