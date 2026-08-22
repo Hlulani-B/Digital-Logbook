@@ -2680,6 +2680,26 @@ img { max-width: 100%; }
 .status-up-next { background: color-mix(in srgb, var(--border) 40%, transparent); color: var(--text-dim, #6b5d4a); }
 .status-in-motion { background: rgba(253, 236, 200, 0.5); color: #a06b1a; }
 .status-done { background: rgba(219, 237, 219, 0.5); color: #2f7e3e; }
+
+/* Inline status dropdown on entry card — looks like a badge, acts like a select */
+.entry-box__tags .entry-box__status-select {
+  appearance: auto;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: transparent;
+}
+.entry-box__tags .entry-box__status-select:focus {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: 1px;
+}
+.entry-box__tags .entry-box__status-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 .priority-urgent-important { background: rgba(251, 228, 228, 0.5); color: #c4453b; }
 .priority-urgent { background: rgba(253, 236, 211, 0.5); color: #b3711a; }
 .priority-low { background: rgba(227, 233, 251, 0.5); color: #3a5fc4; }

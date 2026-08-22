@@ -309,6 +309,32 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     }
   };
 
+  const handleStatusChange = async (newStatus: EntryStatus) => {
+    if (!user_email || !project_name || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      // If moving to done_and_dusted, auto-set ended_at
+      const newEndedAt = newStatus === "done_and_dusted" && !ended_at ? new Date().toISOString() : ended_at;
+      // If moving to in_motion and not started yet, auto-set started_at
+      const newStartedAt = newStatus === "in_motion" && !started_at ? new Date().toISOString() : started_at;
+      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, newStatus, newStartedAt, newEndedAt, duration);
+      if (result?.success === false) {
+        setError(result.message || "Failed to update status");
+        return;
+      }
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update status");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleStartTask = async () => {
     if (!user_email || saving) return;
     setSaving(true);
@@ -456,9 +482,17 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
           ) : (
             priority && <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
           )}
-          <span className={`entry-box__tag ${STATUS_CLASS[status]}`}>
-            {STATUS_LABELS[status]}
-          </span>
+          <select
+            className={`entry-box__tag entry-box__status-select ${STATUS_CLASS[status]}`}
+            value={status}
+            onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
+            onClick={(e) => e.stopPropagation()}
+            disabled={saving || archived}
+          >
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
           {isOverdue(due_date ?? null, status) && (
             <span className="entry-box__tag entry-box__tag--overdue">
               {getOverdueText(due_date ?? null, status)}
