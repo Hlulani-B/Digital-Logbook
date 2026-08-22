@@ -129,18 +129,12 @@ export class Entries {
       const { data, error } = await supabase
         .from('entries')
         .delete()
-        .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .eq('entries', entry)
-        .select();
+        .eq('entries.user_email', user_email)
+        .eq('entries.project_name', project_name)
+        .eq('entries.entries', entry);
 
       if (error) {
         throw error;
-      }
-
-      if (!data || data.length === 0) {
-        console.log('Entry not found for delete');
-        return { success: false, message: 'Entry not found. Something went wrong' };
       }
 
       console.log('Entry deleted successfully');

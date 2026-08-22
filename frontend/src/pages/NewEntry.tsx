@@ -319,7 +319,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     setError(null);
     try {
       const now = new Date().toISOString();
-      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, status, started_at, now, null);
+      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, "completed", started_at, now, null);
       if (result?.success === false) {
         setError(result.message || "Failed to end task");
         return;
@@ -329,7 +329,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
         return;
       }
       // Always reload from database to show actual state
-      onUpdated?.({ ...entry, ended_at: now });
+      onUpdated?.({ ...entry, ended_at: now, status: "completed" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to end task");
     } finally {
