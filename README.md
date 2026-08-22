@@ -9,9 +9,9 @@ https://digital-logbook-documentation-site.onrender.com
 
 | Service | Lines | Statements | Functions | Branches |
 | :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](./badges/project-service/lines.svg) | ![Statements](./badges/project-service/statements.svg) | ![Functions](./badges/project-service/functions.svg) | ![Branches](./badges/project-service/branches.svg) |
-| **Profile Service** | ![Lines](./badges/profile-service/lines.svg) | ![Statements](./badges/profile-service/statements.svg) | ![Functions](./badges/profile-service/functions.svg) | ![Branches](./badges/profile-service/branches.svg) |
-| **Dashboard Service** | ![Lines](./badges/dashboard-service/lines.svg) | ![Statements](./badges/dashboard-service/statements.svg) | ![Functions](./badges/dashboard-service/functions.svg) | ![Branches](./badges/dashboard-service/branches.svg) |
+| **Project Service** | ![Lines](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/lines.svg) | ![Statements](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/statements.svg) | ![Functions](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/functions.svg) | ![Branches](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/project-service/branches.svg) |
+| **Profile Service** | ![Lines](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/lines.svg) | ![Statements](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/statements.svg) | ![Functions](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/functions.svg) | ![Branches](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/profile-service/branches.svg) |
+| **Dashboard Service** | ![Lines](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/lines.svg) | ![Statements](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/statements.svg) | ![Functions](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/functions.svg) | ![Branches](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/raw/branch/main/badges/dashboard-service/branches.svg) |
 
 
 ##  Deployed Live Services
