@@ -2611,6 +2611,9 @@ img { max-width: 100%; }
 }
 .entry-box--archived { opacity: 0.6; }
 
+.entry-box__menu-wrap {
+  position: relative;
+}
 .entry-box__menu-btn {
   position: absolute; top: 0.35rem; right: 0.4rem;
   background: transparent; border: 1px solid transparent;
