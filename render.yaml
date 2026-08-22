@@ -93,5 +93,5 @@ services:
     env: static
     plan: free
     rootDir: docs-site
-    buildCommand: pip install -r requirements.txt && mkdocs build
+    buildCommand: echo "pre-built"
     staticPublishPath: site
