@@ -1,6 +1,6 @@
 ## Link to the Documentation site
 
-https://hlulani-b.github.io/Digital-Logbook/
+https://digital-logbook-documentation-site.onrender.com
 
 
 ## Test Coverage
