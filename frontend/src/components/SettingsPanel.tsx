@@ -3,6 +3,7 @@ import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { getTone, setTone, TONE_OPTIONS, type Tone } from "@/functions/tone";
+import { getNudgeFrequency, setNudgeFrequency, type NudgeFrequency } from "@/pages/FrequencySetup";
 import {
   getProfile,
   updateName,
@@ -31,6 +32,7 @@ interface Preferences {
   compactMode: boolean;
   notifications: boolean;
   weeklyReminder: boolean;
+  nudgeFrequency: string;
 }
 
 interface SettingsPanelProps {
@@ -206,6 +208,7 @@ export function SettingsPanel({
     compactMode: false,
     notifications: true,
     weeklyReminder: false,
+    nudgeFrequency: getNudgeFrequency(),
   };
 
   const [profile] = useState<ProfileSettings>(() =>
@@ -780,6 +783,30 @@ export function SettingsPanel({
                     />
                     <span className="toggle-track" />
                   </label>
+                </div>
+
+                <div className="field-group" style={{ marginTop: "0.75rem" }}>
+                  <label className="field-label" htmlFor="nudgeFrequency">
+                    Notebook check-in frequency
+                  </label>
+                  <select
+                    id="nudgeFrequency"
+                    className="field-input"
+                    value={prefs.nudgeFrequency}
+                    onChange={(e) => {
+                      const freq = e.target.value as NudgeFrequency;
+                      setPrefs((p) => ({ ...p, nudgeFrequency: freq }));
+                      setNudgeFrequency(freq);
+                    }}
+                  >
+                    <option value="silent">Silent — never nudge</option>
+                    <option value="gentle">Gentle — every 2-3 days</option>
+                    <option value="daily">Daily — once a day</option>
+                    <option value="active">Active — 2-3x a day</option>
+                  </select>
+                  <p className="field-hint">
+                    How often your logbook checks in with nudges and encouragement.
+                  </p>
                 </div>
               </div>
             </>
