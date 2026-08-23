@@ -8,7 +8,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 
 ## Meeting 1 — 27 July 2026
 
-**Venue:** Wartenweiler Library, Discussion Room 2
+**Venue:** Wartenweiler Library, Focus Room 2
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** First meeting as a group. No project had been assigned yet.
@@ -28,7 +28,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 
 ## Meeting 2 — 3 August 2026
 
-**Venue:** Wartenweiler Library, Focus room 2
+**Venue:** Commerce Library, Room 3
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** The Digital Logbook project had now been officially assigned to us.
@@ -66,21 +66,18 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
   custom entry-format requirement
 - Consolidated the team's understanding of the project based on the tutor's answers
 
-**Decisions made:**
+**Decisions made:** *(add specific answers the tutor gave here, if not
+already captured elsewhere — e.g. this is likely where the Firebase
+Auth/Firestore clarification and other confirmed decisions on the
+[Decisions page](decisions.md) originated. Worth cross-referencing.)*
 
-- Specific tutor answers from this meeting were captured on the
-  [Decisions page](decisions.md) (e.g., auth and database clarifications).
-
-**Open questions:**
-
-- See [Decisions page](decisions.md) for questions carried forward after this
-  meeting.
+**Open questions:** *(carry forward anything not resolved)*
 
 ---
 
 ## Meeting 4 — 7 August 2026
 
-**Venue:** Wartenweiler Library, Discussion Room 2
+**Venue:** Wartenweiler Library, Focus Room 2
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** Team now had a clear, shared understanding of project requirements.
@@ -89,7 +86,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 
 - Wrote Sprint 1 user stories with Given/When/Then acceptance tests
   (see [Sprint 1 User Stories](user-stories.md))
-- Assigned tasks to team members
+- Assigned tasks to team members via Trello
 - Set up the project repository on Gitea
 
 **Decisions made:**
@@ -111,7 +108,7 @@ approach, which surfaced later during initial implementation).
 
 ### Meeting 5 — 13 August 2026
 
-**Venue:** Wartenweiler Library, Discussion Room 2  
+**Venue:** Wartenweiler Library, Focus Room 2  
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** Authentication functionality had reached a working structure, including sign-up and login. The team met to discuss how to proceed with Sprint 1 implementation and establish a database design that would support the project requirements efficiently.
