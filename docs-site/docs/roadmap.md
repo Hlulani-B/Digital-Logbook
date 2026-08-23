@@ -245,7 +245,29 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Project Service: `https://project-service-96ml.onrender.com`
 - Dashboard Service: `https://dashboard-service-bpc5.onrender.com`
 
-## Sprint 2 - Planned
+## Sprint 2 - In Progress
+
+### Completed Features
+
+#### Soft-Delete & Account Recovery
+- `005_add_soft_delete_column.sql` — migration adding `deleted` column to all tables, `delete_user()` and `restore_user()` RPC functions
+- `checkUser` now returns `{ exists, deleted }` instead of boolean
+- Frontend auto-restores soft-deleted users on sign-in (SignIn.tsx, AuthCallback.tsx)
+- Fixed PL/pgSQL variable ambiguity: renamed `user_email` → `v_email` in `delete_user()` and `restore_user()` to prevent "column reference is ambiguous" Postgres error
+
+#### Onboarding Enhancements
+- Theme Setup page — 7 colour themes, 5 fonts, 3 corner styles with live preview
+- Frequency Setup page — nudge frequency picker (silent / gentle / daily / active)
+- Tone Setup now navigates to ThemeSetup instead of dashboard
+- Full onboarding flow: CreateProfile → Avatar → ToneSetup → ThemeSetup → FrequencySetup → Dashboard
+
+#### Bug Fixes
+- Entry card dropdown positioning — added `position: relative` to `.entry-box__menu-wrap`
+- Duration formatting — `durationToMs()` now parses Postgres interval format (e.g. "2 days 06:27:39.557")
+- Natural language AI prompt — added rule to never create `due_date`, `priority`, or `status` as custom fields
+- Login route double-wrap fix — `res.json(result)` instead of `res.json({ exists: result })`
+- project-service `supabase.js` UTF-16 encoding crash — converted to UTF-8
+- AuthCallback TypeScript build error — added null guard for `email` parameter
 
 ### Planned Features
 - Server-side caching (Redis)
@@ -254,9 +276,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - WebSocket for real-time updates
 - Background job queue for AI calls
 - Comprehensive logging (Winston/Pino)
-- Dark mode auto-detection
-- High contrast theme option
-- Custom color picker for themes
+- Nudge engine implementation
 - Drag-and-drop entry reordering
 
 ### Technical Debt
@@ -265,3 +285,4 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Implement API rate limiting
 - Add request validation middleware
 - Set up monitoring and alerting
+- Convert remaining JS pages to TypeScript

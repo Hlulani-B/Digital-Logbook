@@ -1,15 +1,17 @@
 ## Link to the Documentation site
 
-https://hlulani-b.github.io/Digital-Logbook/
+https://digital-logbook-documentation-site.onrender.com
 
 
 ## Test Coverage
 
+> Badges are auto-updated by CI on every push to `main`.
+
 | Service | Lines | Statements | Functions | Branches |
 | :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](https://img.shields.io/badge/lines-71.13%25-yellow) | ![Statements](https://img.shields.io/badge/statements-67.53%25-yellow) | ![Functions](https://img.shields.io/badge/functions-65.38%25-yellow) | ![Branches](https://img.shields.io/badge/branches-59.25%25-yellow) |
-| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-85.71%25-brightgreen) | ![Statements](https://img.shields.io/badge/statements-82.50%25-brightgreen) | ![Functions](https://img.shields.io/badge/functions-100%25-brightgreen) | ![Branches](https://img.shields.io/badge/branches-71.42%25-brightgreen) |
-| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-brightgreen) | ![Statements](https://img.shields.io/badge/statements-100%25-brightgreen) | ![Functions](https://img.shields.io/badge/functions-100%25-brightgreen) | ![Branches](https://img.shields.io/badge/branches-100%25-brightgreen) |
+| **Project Service** | ![Lines](https://img.shields.io/badge/lines-77%25-yellow) | ![Statements](https://img.shields.io/badge/statements-74%25-yellow) | ![Functions](https://img.shields.io/badge/functions-67%25-yellow) | ![Branches](https://img.shields.io/badge/branches-65%25-yellow) |
+| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-69%25-yellow) | ![Statements](https://img.shields.io/badge/statements-65%25-yellow) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-52%25-red) |
+| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-green) | ![Statements](https://img.shields.io/badge/statements-100%25-green) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-100%25-green) |
 
 
 ##  Deployed Live Services

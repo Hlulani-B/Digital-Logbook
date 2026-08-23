@@ -18,12 +18,14 @@
     "@google/generative-ai": "^0.21.0",
     "@huggingface/inference": "^3.0.0",
     "@neondatabase/serverless": "^1.0.0",
-    "@supabase/supabase-js": "^2.112.2",
     "cors": "^2.8.6",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jose": "^6.0.12",
+    "leven": "^3.1.0",
     "openai": "^4.0.0",
-    "ws": "^8.21.3"
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -36,6 +38,9 @@
   "jest": {
     "transform": {
       "^.+\\.js$": "babel-jest"
+    },
+    "moduleNameMapper": {
+      "^date-fns$": "<rootDir>/node_modules/date-fns/index.cjs"
     },
     "collectCoverageFrom": [
       "src/functions/**/*.js",

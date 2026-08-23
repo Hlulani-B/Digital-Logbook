@@ -87,3 +87,11 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+
+  - type: web
+    name: docs-site
+    env: static
+    plan: free
+    rootDir: docs-site
+    buildCommand: echo "pre-built"
+    staticPublishPath: site

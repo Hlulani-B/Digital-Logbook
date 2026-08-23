@@ -1,4 +1,4 @@
-import { supabase } from '../supabase.js';
+import pool from "../db.js";
 import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Entries } from './entries.js';
@@ -17,7 +17,7 @@ const fields = new Fields();
 export class Priority {
   async setPriority(user_email, priorityValue, project_name, entry_id) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
+      if (!pool) throw new Error('Database pool not initialized');
       let newPriority;
       switch (String(priorityValue)) {
         case '0':
@@ -36,14 +36,11 @@ export class Priority {
           return { success: false, message: 'Invalid priority value' };
       }
 
-      const { error } = await supabase
-        .from('entries')
-        .update({ priority: newPriority })
-        .eq('id', entry_id)
-        .eq('user_email', user_email)
-        .eq('project_name', project_name);
-
-      if (error) throw error;
+      await pool.query(
+        `UPDATE entries SET priority = $1
+         WHERE id = $2 AND user_email = $3 AND project_name = $4`,
+        [newPriority, entry_id, user_email, project_name]
+      );
 
       const label = newPriority || 'none';
       return { success: true, message: `Priority set to ${label}` };

@@ -28,6 +28,11 @@ The app uses CSS custom properties for theming, defined in `index.css`:
 2. **Dark** - Pure black/white/grey for low-light environments
 3. **Pastel Vintage** - Softer pastel palettes (ivory, blush, powder blue, pale lilac, sage mist, soft tan)
 4. **Brown Vintage** - Rich earth tones (espresso, navy ink, deep plum, forest, terracotta, walnut)
+5. **Rose** - Warm rose-toned palette
+6. **Forest** - Deep green nature-inspired tones
+7. **Ocean** - Cool blue-grey coastal palette
+
+Users can preview and select themes during onboarding (ThemeSetup page) or change them at any time in Settings.
 
 ### Dark Theme
 ```css
@@ -45,8 +50,10 @@ The app uses CSS custom properties for theming, defined in `index.css`:
 
 ### Font Stack
 - **Primary**: Lora (serif) - Default font for readability
-- **Alternatives**: Playfair Display, Crimson Text, EB Garamond
+- **Alternatives**: Playfair Display, Crimson Text, EB Garamond, Plus Jakarta Sans
 - **UI**: Plus Jakarta Sans (sans-serif) for interface elements
+
+Users can preview each font with a live "The quick brown fox" sample during onboarding (ThemeSetup page) or change in Settings.
 
 ### Base Sizes
 - **Desktop**: 18px base (112.5%)
@@ -102,6 +109,47 @@ Fixed at top of dashboard for rapid log entry:
 â”‚ âœï¸ Quick add: "Fixed login bug..." âž¤ â”‚
 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
+
+## Onboarding Flow
+
+The full onboarding sequence after first sign-in:
+
+```
+Sign In / OAuth
+    │
+    ▼
+CreateProfile (name, username)
+    │
+    ▼
+Avatar Selection
+    │
+    ▼
+Tone Setup (communication tone preference)
+    │
+    ▼
+Theme Setup (theme colour, font, corner style — with live preview)
+    │
+    ▼
+Frequency Setup (nudge frequency: silent / gentle / daily / active)
+    │
+    ▼
+Dashboard
+```
+
+### Theme Setup Page
+Visual onboarding page where users pick:
+- **Theme**: 7 colour swatches (light, dark, blush, powder blue, pale lilac, sage mist, soft tan, etc.)
+- **Font**: 5 options with live "The quick brown fox" preview in each
+- **Corner Style**: 3 options (rounded, soft, sharp) with visual box previews
+
+### Frequency Setup Page
+Lets users choose how often the logbook nudges them:
+- **Silent** — Never nudge, I'll check in myself
+- **Gentle** — Once a week, soft reminder
+- **Daily** — Daily nudge at a time I choose
+- **Active** — Multiple times a day, high engagement
+
+Stored in `localStorage` as `dl_nudge_frequency`. The actual nudge engine is a future feature.
 
 ## Component Library
 
@@ -161,7 +209,7 @@ Slide-out navigation with:
 ### Settings Panel
 Slide-out panel with tabs:
 - **Profile**: Username, avatar
-- **Preferences**: Theme, font, corner style
+- **Preferences**: Theme, font, corner style, time format, week start, nudge frequency
 - **Account**: Password reset, delete account
 
 ### Toast Notifications
@@ -273,6 +321,7 @@ All text meets WCAG AA standards:
 - Custom color picker for themes
 - Drag-and-drop entry reordering
 - Collapsible drawer sections
+- Nudge engine implementation (uses frequency preference from onboarding)
 
 ---
 

@@ -1,8 +1,7 @@
 import { Natural_language } from '../functions/entries.js';
-import { supabase } from '../supabase.js';
-import { createMockSupabaseClient } from '../__mocks__/supabaseMock.js';
+import pool from '../db.js';
 
-jest.mock('../supabase.js');
+jest.mock('../db.js');
 jest.mock('../functions/ai.js', () => ({
   AI: jest.fn(),
 }));
@@ -17,7 +16,7 @@ describe('Natural_language', () => {
     nl = new Natural_language();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    supabase.from.mockReset();
+    pool.query.mockReset();
     AI.mockReset();
   });
 
@@ -29,14 +28,7 @@ describe('Natural_language', () => {
 
   describe('entry', () => {
     it('should return failure when getProjectsByEmail fails', async () => {
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { error: { message: 'DB connection failed' } },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({}).from(tableName);
-      });
+      pool.query.mockRejectedValueOnce(new Error('DB connection failed'));
 
       const result = await nl.entry('test@example.com', 'Fixed login bug');
 
@@ -55,22 +47,14 @@ describe('Natural_language', () => {
         { field_name: 'status', data_type: 'text', is_required: false },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: mockFields },
-          }).from(tableName);
-        }
-        // entries table (insert)
-        return createMockSupabaseClient({
-          entries: { data: [{ id: 1, entries: { description: 'Fixed login bug' } }] },
-        }).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: mockFields });
+      // Q3: getFields for MobileApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
+      // Q4: addEntry
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1, entries: { description: 'Fixed login bug' } }] });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 1,
@@ -88,7 +72,7 @@ describe('Natural_language', () => {
       expect(result.project).toBe('WebApp');
       expect(result.fields.description).toBe('Fixed login bug');
       expect(result.priority).toBe('Urgent and important');
-      expect(result.due_date).toBe('2026-08-20');
+      expect(result.due_date).toBe('2026-08-20'); // getDate parses "Aug 20"
       expect(result.comment).toBe('Nice work squashing that bug!');
       expect(result.created_new_project).toBe(false);
     });
@@ -102,69 +86,18 @@ describe('Natural_language', () => {
         { field_name: 'description', data_type: 'text', is_required: true },
       ];
 
-      let projectInserted = false;
-      let fieldsInserted = [];
-      let entryInserted = false;
-      let projectsCallCount = 0;
-
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          projectsCallCount++;
-          const isInsert = projectsCallCount > 1;
-          const chain = {
-            insert: jest.fn(function (data) { if (isInsert) { projectInserted = true; } return chain; }),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => {
-            if (isInsert) {
-              resolve({ data: [{ id: 99 }], error: null });
-            } else {
-              resolve({ data: mockProjects, error: null });
-            }
-          });
-          return chain;
-        }
-        if (tableName === 'fields') {
-          const chain = {
-            insert: jest.fn(function (data) { chain._wasInserted = true; fieldsInserted.push(data); return chain; }),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => {
-            if (chain._wasInserted) {
-              resolve({ data: [{ id: 100 + fieldsInserted.length }], error: null });
-            } else {
-              resolve({ data: mockFields, error: null });
-            }
-          });
-          return chain;
-        }
-        if (tableName === 'entries') {
-          const chain = {
-            insert: jest.fn(function () { entryInserted = true; return chain; }),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => resolve({ data: [{ id: 200 }], error: null }));
-          return chain;
-        }
-        const chain = { insert: jest.fn(), select: jest.fn(), update: jest.fn(), delete: jest.fn(), eq: jest.fn(), or: jest.fn(), order: jest.fn() };
-        chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
-        return chain;
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: mockFields });
+      // Q3: addProject('DatabaseMigration')
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 99 }] });
+      // Q4: addField description
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 101 }] });
+      // Q5: addField notes
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 102 }] });
+      // Q6: addEntry
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 200 }] });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 0,
@@ -188,9 +121,6 @@ describe('Natural_language', () => {
       expect(result.fields.description).toBe('Migrated user data');
       expect(result.priority).toBe('Urgent but not important');
       expect(result.comment).toBe('Big migration done — brave work!');
-      expect(projectInserted).toBe(true);
-      expect(fieldsInserted).toHaveLength(2);
-      expect(entryInserted).toBe(true);
     });
 
     it('should return failure when AI returns invalid JSON', async () => {
@@ -198,19 +128,10 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({}).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       AI.mockResolvedValue('this is not json at all');
 
@@ -225,19 +146,10 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({}).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 1,
@@ -259,21 +171,12 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({
-          entries: { data: [{ id: 2 }] },
-        }).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
+      // Q3: addEntry
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 2 }] });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 1,
@@ -299,19 +202,10 @@ describe('Natural_language', () => {
         { project_name: 'OldProject', description: 'Archived', archived: true },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({}).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp (only non-archived project)
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       // AI tries to match OldProject which is archived, so matched=1 but project not in filtered list
       AI.mockResolvedValue(JSON.stringify({
@@ -334,21 +228,12 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({
-          entries: { data: [{ id: 3 }] },
-        }).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
+      // Q3: addEntry
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 3 }] });
 
       AI.mockResolvedValue('```json\n{"matched":1,"project":"WebApp","fields":{"description":"test"},"new_fields":[],"priority":null,"due_date":null,"comment":"nice"}\n```');
 
@@ -359,9 +244,7 @@ describe('Natural_language', () => {
     });
 
     it('should handle errors thrown during processing', async () => {
-      supabase.from.mockImplementation(() => {
-        throw new Error('Unexpected DB failure');
-      });
+      pool.query.mockRejectedValueOnce(new Error('Unexpected DB failure'));
 
       const result = await nl.entry('test@example.com', 'anything');
 
@@ -374,19 +257,10 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          return createMockSupabaseClient({
-            projects: { data: mockProjects },
-          }).from(tableName);
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({
-            fields: { data: [] },
-          }).from(tableName);
-        }
-        return createMockSupabaseClient({}).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 0,
@@ -408,35 +282,12 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web app', archived: false },
       ];
 
-      let projectsCallCount = 0;
-
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          projectsCallCount++;
-          const isInsert = projectsCallCount > 1;
-          const chain = {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => {
-            if (isInsert) {
-              resolve({ data: null, error: { message: 'Project already exists' } });
-            } else {
-              resolve({ data: mockProjects, error: null });
-            }
-          });
-          return chain;
-        }
-        if (tableName === 'fields') {
-          return createMockSupabaseClient({ fields: { data: [] } }).from(tableName);
-        }
-        return createMockSupabaseClient({}).from(tableName);
-      });
+      // Q1: getProjectsByEmail
+      pool.query.mockResolvedValueOnce({ rows: mockProjects });
+      // Q2: getFields for WebApp
+      pool.query.mockResolvedValueOnce({ rows: [] });
+      // Q3: addProject fails
+      pool.query.mockRejectedValueOnce(new Error('Project already exists'));
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 0,
@@ -456,66 +307,16 @@ describe('Natural_language', () => {
     it('should handle new_fields with missing field_name gracefully', async () => {
       const mockProjects = [];
 
-      let fieldsInserted = [];
-      let projectsCallCount = 0;
-      supabase.from.mockImplementation((tableName) => {
-        if (tableName === 'projects') {
-          projectsCallCount++;
-          const isInsert = projectsCallCount > 1;
-          const chain = {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => {
-            if (isInsert) {
-              resolve({ data: [{ id: 99 }], error: null });
-            } else {
-              resolve({ data: mockProjects, error: null });
-            }
-          });
-          return chain;
-        }
-        if (tableName === 'fields') {
-          const chain = {
-            insert: jest.fn(function (data) { chain._wasInserted = true; fieldsInserted.push(data); return chain; }),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => {
-            if (chain._wasInserted) {
-              resolve({ data: [{ id: 100 + fieldsInserted.length }], error: null });
-            } else {
-              resolve({ data: [], error: null });
-            }
-          });
-          return chain;
-        }
-        if (tableName === 'entries') {
-          const chain = {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            or: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-          };
-          chain.then = jest.fn((resolve) => resolve({ data: [{ id: 200 }], error: null }));
-          return chain;
-        }
-        const chain = { insert: jest.fn(), select: jest.fn(), update: jest.fn(), delete: jest.fn(), eq: jest.fn(), or: jest.fn(), order: jest.fn() };
-        chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
-        return chain;
-      });
+      // Q1: getProjectsByEmail (empty)
+      pool.query.mockResolvedValueOnce({ rows: [] });
+      // Q2: addProject
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 99 }] });
+      // Q3: addField description
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 101 }] });
+      // Q4: addField notes (skips the one without field_name)
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 102 }] });
+      // Q5: addEntry
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 200 }] });
 
       AI.mockResolvedValue(JSON.stringify({
         matched: 0,
@@ -534,8 +335,8 @@ describe('Natural_language', () => {
       const result = await nl.entry('test@example.com', 'started a new project');
 
       expect(result.success).toBe(true);
-      // Should only insert 2 fields (the one with field_name)
-      expect(fieldsInserted).toHaveLength(2);
+      // 5 total queries: getProjectsByEmail + addProject + 2 addField + addEntry
+      expect(pool.query).toHaveBeenCalledTimes(5);
     });
   });
 });

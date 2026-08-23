@@ -1,34 +1,35 @@
 /**
  * When user signs up or logs in, this function is called to check if the user exists in the database.
- * if the user does not exist then return false so that frontend can direct them to create a profile
- * if user does exist then return true so that frontend can direct them to the dashboard
+ * Returns an object with:
+ *   - exists: whether the user row was found (regardless of deleted status)
+ *   - deleted: whether the user is currently soft-deleted (in 30-day grace period)
+ * Frontend uses this to decide: active user → dashboard, deleted user → auto-restore, new user → create-profile
  */
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 
 export class Login {
   async checkUser(email) {
     try {
-      if (!supabase) {
-        console.error('Supabase client not initialized');
-        return false;
+      if (!pool) {
+        console.error('Database pool not initialized');
+        return { exists: false, deleted: false };
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('email')
-        .eq('email', email)
-        .single();
+      const { rows } = await pool.query(
+        `SELECT email, deleted FROM users WHERE email = $1`,
+        [email]
+      );
 
-      if (error) {
-        console.error(error);
-        return false;
+      if (rows.length === 0) {
+        return { exists: false, deleted: false };
       }
 
-      return data ? true : false;
+      const data = rows[0];
+      return { exists: !!data, deleted: data?.deleted === true };
     } catch (error) {
       console.error(error);
-      return false;
+      return { exists: false, deleted: false };
     }
   }
 }

@@ -16,7 +16,7 @@ export function SignIn() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
+  const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail, restoreAccount } = useAuth();
 
   // Video background: alternate between two videos for seamless loop
   const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
@@ -38,7 +38,11 @@ export function SignIn() {
     let destination = "/create-profile";
     try {
       const result = await checkUser(userEmail);
-      if (result.exists) {
+      if (result.exists && result.deleted) {
+        // Soft-deleted user signing back in during grace period — auto-restore
+        try { await restoreAccount(); } catch { /* best effort */ }
+        destination = "/dashboard";
+      } else if (result.exists) {
         destination = "/dashboard";
       }
     } catch (err) {

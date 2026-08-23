@@ -1,25 +1,22 @@
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 export class Project {
   async addProject(user_email, project_name, description) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { error } = await supabase
-        .from('projects')
-        .insert({ user_email, project_name, description })
-        .select();
-
-      if (error) {
-        // 23505 = unique_violation (e.g. duplicate project name for this user)
-        if (error.code === '23505') {
-          return { success: false, message: 'A project with this name already exists for your account.' };
-        }
-        throw error;
-      }
+      if (!pool) throw new Error('Database pool not initialized');
+      await pool.query(
+        `INSERT INTO projects (user_email, project_name, description)
+         VALUES ($1, $2, $3)`,
+        [user_email, project_name, description]
+      );
 
       console.log('Project added successfully');
       return { success: true, message: 'Project added successfully' };
     } catch (error) {
+      // 23505 = unique_violation (e.g. duplicate project name for this user)
+      if (error.code === '23505') {
+        return { success: false, message: 'A project with this name already exists for your account.' };
+      }
       console.log(error);
       return { success: false, message: error.message };
     }
@@ -27,65 +24,59 @@ export class Project {
 
   async editProjectName(user_email, new_project_name, old_project_name) {
     // Also update all the project entries and custom fields that have this project name
+    let client;
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      let error;
+      if (!pool) throw new Error('Database pool not initialized');
+      client = await pool.connect();
+
+      await client.query('BEGIN');
 
       // Update related entries first
-      ({ error } = await supabase
-        .from('entries')
-        .update({ project_name: new_project_name })
-        .eq('project_name', old_project_name)
-        .eq('user_email', user_email));
-
-      if (error) {
-        throw error;
-      }
+      await client.query(
+        `UPDATE entries SET project_name = $1
+         WHERE project_name = $2 AND user_email = $3`,
+        [new_project_name, old_project_name, user_email]
+      );
 
       // Update the custom fields tied to this project (table_name == project_name)
-      ({ error } = await supabase
-        .from('fields')
-        .update({ table_name: new_project_name })
-        .eq('table_name', old_project_name)
-        .eq('user_email', user_email));
-
-      if (error) {
-        throw error;
-      }
+      await client.query(
+        `UPDATE fields SET table_name = $1
+         WHERE table_name = $2 AND user_email = $3`,
+        [new_project_name, old_project_name, user_email]
+      );
 
       // Then update the project record
-      ({ error } = await supabase
-        .from('projects')
-        .update({ project_name: new_project_name })
-        .eq('project_name', old_project_name)
-        .eq('user_email', user_email));
+      await client.query(
+        `UPDATE projects SET project_name = $1
+         WHERE project_name = $2 AND user_email = $3`,
+        [new_project_name, old_project_name, user_email]
+      );
 
-      if (error) {
-        throw error;
-      }
+      await client.query('COMMIT');
 
       console.log('Project name updated successfully');
       return { success: true, message: 'Project name updated successfully' };
     } catch (error) {
+      if (client) await client.query('ROLLBACK');
       console.log(error);
       return { success: false, message: error.message };
+    } finally {
+      if (client) client.release();
     }
   }
 
   async getProjectsByEmail(user_email) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
-        .from('projects')
-        .select('project_name, description, created_at, archived')
-        .eq('user_email', user_email)
-        .order('created_at', { ascending: false });
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `SELECT project_name, description, created_at, archived
+         FROM projects
+         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
+         ORDER BY created_at DESC`,
+        [user_email]
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      return { success: true, projects: data || [] };
+      return { success: true, projects: rows || [] };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };
@@ -93,47 +84,45 @@ export class Project {
   }
 
   async deleteProject(user_email, project_name) {
-    // When deleting a project, also delete all of its entries and custom fields
+    // When deleting a project, soft-delete all of its entries and custom fields
+    let client;
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      let error;
+      if (!pool) throw new Error('Database pool not initialized');
+      client = await pool.connect();
 
-      ({ error } = await supabase
-        .from('entries')
-        .delete()
-        .eq('project_name', project_name)
-        .eq('user_email', user_email));
+      await client.query('BEGIN');
 
-      if (error) {
-        throw error;
-      }
+      // Soft-delete entries for this project
+      await client.query(
+        `UPDATE entries SET deleted = true
+         WHERE project_name = $1 AND user_email = $2 AND (deleted = false OR deleted IS NULL)`,
+        [project_name, user_email]
+      );
 
-      // Delete custom fields tied to this project (table_name == project_name)
-      ({ error } = await supabase
-        .from('fields')
-        .delete()
-        .eq('table_name', project_name)
-        .eq('user_email', user_email));
+      // Soft-delete custom fields tied to this project
+      await client.query(
+        `UPDATE fields SET deleted = true
+         WHERE table_name = $1 AND user_email = $2 AND (deleted = false OR deleted IS NULL)`,
+        [project_name, user_email]
+      );
 
-      if (error) {
-        throw error;
-      }
+      // Soft-delete the project itself
+      await client.query(
+        `UPDATE projects SET deleted = true
+         WHERE project_name = $1 AND user_email = $2 AND (deleted = false OR deleted IS NULL)`,
+        [project_name, user_email]
+      );
 
-      ({ error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('project_name', project_name)
-        .eq('user_email', user_email));
+      await client.query('COMMIT');
 
-      if (error) {
-        throw error;
-      }
-
-      console.log('Project deleted successfully');
+      console.log('Project soft-deleted successfully');
       return { success: true, message: 'Project deleted successfully' };
     } catch (error) {
+      if (client) await client.query('ROLLBACK');
       console.log(error);
       return { success: false, message: error.message };
+    } finally {
+      if (client) client.release();
     }
   }
 }

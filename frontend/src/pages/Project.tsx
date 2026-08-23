@@ -6,6 +6,7 @@ import {
   deleteProject,
   getProjectsByEmail,
 } from "../functions/project/project.js";
+import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen } from "react-icons/fi";
 
 type ProjectRecord = { project_name: string; archived?: boolean; created_at?: string; [key: string]: unknown };
 type EntryRecord = Record<string, unknown>;
@@ -352,7 +353,7 @@ export function ProjectsPage() {
             borderRadius: "1rem",
           }}
         >
-          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📓</div>
+          <FiBookOpen size={40} style={{ opacity: 0.5 }} />
           <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem", fontWeight: 700 }}>
             No projects yet
           </h3>
@@ -503,7 +504,7 @@ export function ProjectsPage() {
                           className="btn-secondary"
                           style={{ padding: "0.4rem 0.6rem" }}
                         >
-                          ✎
+                          <FiEdit2 size={16} />
                         </button>
                         <button
                           type="button"
@@ -520,7 +521,7 @@ export function ProjectsPage() {
                             cursor: "pointer",
                           }}
                         >
-                          📦
+                          <FiArchive size={16} />
                         </button>
                         <button
                           type="button"
@@ -537,7 +538,7 @@ export function ProjectsPage() {
                             cursor: "pointer",
                           }}
                         >
-                          🗑
+                          <FiTrash2 size={16} />
                         </button>
                       </div>
                     )}
@@ -573,7 +574,7 @@ export function ProjectsPage() {
             gap: "0.5rem",
           }}
         >
-          📦 Archive
+          <FiArchive size={16} /> Archive
           <span
             style={{
               background: "rgba(255,255,255,0.25)",
@@ -616,7 +617,7 @@ export function ProjectsPage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
               <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-                📦 Archived Projects
+                <FiArchive size={18} /> Archived Projects
               </h2>
               <button
                 type="button"
@@ -624,7 +625,7 @@ export function ProjectsPage() {
                 className="btn-secondary"
                 style={{ padding: "0.4rem 0.6rem" }}
               >
-                ✕
+                <FiX size={16} />
               </button>
             </div>
 

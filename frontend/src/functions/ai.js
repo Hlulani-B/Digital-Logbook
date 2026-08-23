@@ -1,4 +1,4 @@
-import { request, PROJECT_URL } from "./lib/api";
+import { request, PROJECT_URL } from "@/lib/api";
 
 /**
  * Send a prompt to the AI backend and get a response.

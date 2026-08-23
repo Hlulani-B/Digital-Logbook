@@ -7,16 +7,40 @@ import { Stats } from "@/components/Stats";
 import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 import { QuickEntryBar } from "@/components/QuickEntryBar";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { ActivitySummary } from "@/components/ActivitySummary";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { supabase } from "@/lib/supabase";
+import { getArchives } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
+import VoiceFeature from "@/pages/VoiceFeature";
+import { askAI } from "@/functions/ai.js";
+import { getToneInstruction } from "@/functions/tone";
+import { FiArchive, FiX } from "react-icons/fi";
+
+/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
+function parseAIResponse(response: string): string {
+  try {
+    const parsed = JSON.parse(response);
+    if (typeof parsed === "string") return parsed;
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
+        if (typeof parsed[key] === "string") return parsed[key];
+      }
+      for (const val of Object.values(parsed)) {
+        if (typeof val === "string") return val;
+      }
+    }
+    return response;
+  } catch {
+    return response;
+  }
+}
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -65,6 +89,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   // Archive state
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
@@ -72,6 +97,15 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
+
+  // Voice recorder
+  const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // AI-generated messages
+  const [aiGreeting, setAiGreeting] = useState("");
+  const [showGreetingToast, setShowGreetingToast] = useState(false);
+  const [aiEmptyMessage, setAiEmptyMessage] = useState("No entries to show right now.");
+  const [aiPlaceholder, setAiPlaceholder] = useState("What are you working on?");
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -146,6 +180,66 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     loadData();
   }, [loadData]);
 
+  // Load archived entries when archives view is active
+  useEffect(() => {
+    if (activeView !== "archives" || !email) return;
+    (async () => {
+      try {
+        const result = await getArchives(email, null);
+        if (result?.success !== false) {
+          setArchivedEntries(result?.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load archived entries:", err);
+      }
+    })();
+  }, [activeView, email]);
+
+  // AI-generated greeting — shown as a toast
+  useEffect(() => {
+    if (!loading && projects.length > 0) {
+      const hour = new Date().getHours();
+      const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+      const entryCount = entries.length;
+      const dueCount = dueSoonRows.length;
+      
+      (async () => {
+        const tone = getToneInstruction();
+        const result = await askAI(
+          `Generate a ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their productivity, their procrastination, or their life choices. Be witty and entertaining. ${tone}`
+        );
+        if (result.success && result.response) {
+          const msg = parseAIResponse(result.response);
+          setAiGreeting(msg);
+          setShowGreetingToast(true);
+        }
+      })();
+    } else if (!loading) {
+      setAiGreeting("Welcome! Let's get you started.");
+      setShowGreetingToast(true);
+    }
+  }, [loading, projects, entries, dueSoonRows]);
+
+  // Auto-dismiss greeting toast after 30 seconds
+  useEffect(() => {
+    if (showGreetingToast) {
+      const t = setTimeout(() => setShowGreetingToast(false), 30000);
+      return () => clearTimeout(t);
+    }
+  }, [showGreetingToast]);
+
+  // Rotating AI placeholder for quick entry
+  useEffect(() => {
+    const placeholders = [
+      "What are you working on?",
+      "What did you just finish?",
+      "Working on anything exciting?",
+      "What's your current task?",
+      "Tell me about your progress...",
+    ];
+    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
+  }, []);
+
   // Focus search input when opened
   useEffect(() => {
     if (searchOpen && searchRef.current) {
@@ -208,6 +302,21 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
     return filtered;
   }, [entries, activeView, searchResults, viewMode]);
+
+  // AI-generated empty state message
+  useEffect(() => {
+    if (!loading && filteredEntries.length === 0) {
+      (async () => {
+        const tone = getToneInstruction();
+        const result = await askAI(
+          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+        );
+        if (result.success && result.response) {
+          setAiEmptyMessage(parseAIResponse(result.response));
+        }
+      })();
+    }
+  }, [loading, filteredEntries.length]);
 
   // Search using provided search functions
   useEffect(() => {
@@ -450,50 +559,25 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const handleUnarchiveProject = async (projectName: string) => {
     if (!email) return;
     setArchiveError(null);
-    // Update local state immediately
+    try {
+      const { unarchiveProject } = await import("@/functions/project/archives.js");
+      const result = await unarchiveProject(email, projectName);
+      if (result?.success === false) throw new Error(result.message || "Failed to unarchive project");
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Failed to unarchive project");
+      return;
+    }
+    // Update local state
     setProjects((prev) => prev.map((p) =>
       p.project_name === projectName ? { ...p, archived: false } : p
     ));
     setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
-    // Remove from localStorage
     const next = new Set(localArchived);
     next.delete(projectName);
     setLocalArchived(next);
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
-    // Best-effort DB update
-    try {
-      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
-      await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'apikey': anonJwt || apiKey,
-          'Authorization': `Bearer ${anonJwt || apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ archived: false }),
-      });
-    } catch {}
-  };
-
-  // Seed test projects using authenticated Supabase client (INSERT works via RLS)
-  const handleSeedTestProjects = async () => {
-    if (!email || !supabase) return;
-    const testProjects = [
-      { user_email: email, project_name: "Website Redesign", description: "Redesign the main company website with modern UI", archived: false },
-      { user_email: email, project_name: "Mobile App MVP", description: "Build the first version of the iOS/Android app", archived: false },
-      { user_email: email, project_name: "Q4 Marketing Plan", description: "Plan and execute Q4 marketing campaigns", archived: false },
-      { user_email: email, project_name: "Internal Tools Audit", description: "Audit all internal tools and consolidate", archived: false },
-      { user_email: email, project_name: "Database Migration", description: "Migrate legacy database to new architecture", archived: false },
-    ];
-    for (const p of testProjects) {
-      await supabase.from("projects").upsert(p, { onConflict: "user_email,project_name" }).select();
-    }
-    await loadData();
   };
 
   const PRIORITY_LABELS: Record<string, string> = {
@@ -608,18 +692,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             All Entries
             <span className="drawer-badge">{entries.length}</span>
           </button>
-          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { navigate("/dashboard/recent"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Recent
-          </button>
-          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { navigate("/dashboard/drafts"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Drafts
-          </button>
           <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
-            Archived Projects
-            <span className="drawer-badge">{archivedProjects.length}</span>
+            Archives
           </button>
           <button className="drawer-item" onClick={() => { navigate("/stats"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -631,64 +706,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </button>
         </div>
 
-        {/* Archive section — always visible */}
-        <div className="drawer-section">
-          <p className="drawer-section-title">📦 Archived ({archivedProjects.length})</p>
-          {archiveError && (
-            <p style={{ color: "#dc2626", fontSize: "0.75rem", padding: "0.25rem 0" }}>{archiveError}</p>
-          )}
-          <div className="drawer-project-list">
-            {archivedProjects.length === 0 ? (
-              <p className="drawer-empty">No archived projects yet</p>
-            ) : (
-              archivedProjects.map((project) => {
-                const name = project.project_name as string;
-                return (
-                  <div key={name} className="drawer-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ opacity: 0.6 }}>{name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleUnarchiveProject(name)}
-                      title="Unarchive"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid rgba(99,102,241,0.4)",
-                        color: "#6366f1",
-                        borderRadius: "0.4rem",
-                        padding: "0.2rem 0.5rem",
-                        fontSize: "0.75rem",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ↩ Unarchive
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
         <div className="drawer-section drawer-projects">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <p className="drawer-section-title">Projects</p>
-            <button
-              type="button"
-              onClick={handleSeedTestProjects}
-              title="Add 5 test projects"
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(99,102,241,0.4)",
-                color: "#6366f1",
-                borderRadius: "0.4rem",
-                padding: "0.2rem 0.5rem",
-                fontSize: "0.7rem",
-                cursor: "pointer",
-              }}
-            >
-              + Test Projects
-            </button>
-          </div>
+          <p className="drawer-section-title">Projects</p>
           <div className="drawer-project-list">
             {projects.filter((p) => !p.archived).map((project) => {
               const name = project.project_name as string;
@@ -714,21 +733,25 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                     title="Archive project"
                     style={{
                       background: "transparent",
-                      border: "1px solid rgba(99,102,241,0.35)",
-                      color: "#6366f1",
+                      border: "1px solid rgba(139, 115, 85, 0.3)",
+                      color: "var(--text-secondary, #6b7280)",
                       borderRadius: "0.4rem",
                       padding: "0.2rem 0.5rem",
-                      fontSize: "0.8rem",
+                      fontSize: "0.7rem",
                       cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
                     }}
                   >
-                    📦
+                    <FiArchive size={12} />
+                    Archive
                   </button>
                 </div>
               );
             })}
             {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet. Click "+ Test Projects" above.</p>
+              <p className="drawer-empty">No projects yet. Create one below.</p>
             )}
           </div>
         </div>
@@ -739,19 +762,26 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             New Project
           </button>
           <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
-            📋 Manage Projects
+            Manage Projects
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* AI Greeting Toast */}
+        {showGreetingToast && aiGreeting && (
+          <div className="ai-toast animate-in">
+            <p>{aiGreeting}</p>
+          </div>
+        )}
+
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView === "activity" ? "Activity Log" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
               {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
@@ -779,9 +809,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                         type="button"
                         className="entry-box__menu-item"
                         onClick={() => { handleArchiveProject(activeView); setProjectMenuOpen(false); }}
-                        style={{ color: "#6366f1" }}
+                        style={{ color: "var(--text-secondary, #6b7280)", display: "flex", alignItems: "center", gap: "0.5rem" }}
                       >
-                        📦 Archive Project
+                        <FiArchive size={16} /> Archive Project
                       </button>
                     </div>
                   )}
@@ -799,24 +829,29 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
         {/* Search bar inline for mobile */}
         {activeView === "activity" ? (
-          <ActivityFeed />
+          <>
+            <ActivitySummary />
+            <ActivityFeed />
+          </>
         ) : activeView === "archives" ? (
           <div className="entries-feed">
             {archiveError && (
               <div className="auth-error" style={{ marginBottom: "1rem" }}>{archiveError}</div>
             )}
+
+            {/* Archived Projects */}
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem", opacity: 0.7, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <FiArchive size={16} /> Archived Projects
+              <span style={{ fontSize: "0.8rem", fontWeight: 400 }}>({archivedProjects.length})</span>
+            </h2>
             {archivedProjects.length === 0 ? (
-              <div className="empty-state animate-in">
-                <div className="empty-icon">📦</div>
-                <h2 className="empty-title">No archived projects</h2>
-                <p className="empty-desc">Archive a project from the sidebar or the ⋯ menu to see it here.</p>
-              </div>
+              <p style={{ fontSize: "0.85rem", opacity: 0.5, marginBottom: "1.5rem" }}>No archived projects</p>
             ) : (
               archivedProjects.map((project, i) => {
                 const name = project.project_name as string;
                 return (
                   <div key={`archived-${name}-${i}`} className="glass" style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderRadius: "0.85rem", marginBottom: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>📦</span>
+                    <FiArchive size={18} style={{ opacity: 0.6 }} />
                     <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem", opacity: 0.7 }}>{name}</span>
                     <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>Archived (read-only)</span>
                     <button
@@ -830,6 +865,33 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                   </div>
                 );
               })
+            )}
+
+            {/* Archived Entries */}
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginTop: "1.5rem", marginBottom: "0.75rem", opacity: 0.7, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <FiArchive size={16} /> Archived Entries
+              <span style={{ fontSize: "0.8rem", fontWeight: 400 }}>({archivedEntries.length})</span>
+            </h2>
+            {archivedEntries.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon"><FiArchive size={40} /></div>
+                <h2 className="empty-title">No archived entries</h2>
+                <p className="empty-desc">Archive an entry from the ⋯ menu to see it here.</p>
+              </div>
+            ) : (
+              archivedEntries.map((row, i) => (
+                <EntryBox
+                  key={`archived-entry-${row.id || i}`}
+                  entry={row as any}
+                  onUpdated={() => loadData()}
+                  onPriorityChanged={handleSetPriority}
+                  onArchiveToggled={(entryId, isArchived) => {
+                    if (!isArchived) {
+                      setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
+                    }
+                  }}
+                />
+              ))
             )}
           </div>
         ) : (
@@ -881,7 +943,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         </div>
 
         {/* Quick Entry Bar - Natural Language */}
-        <QuickEntryBar onEntryCreated={() => { loadData(); }} />
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} onVoiceOpen={() => setVoiceOpen(true)} placeholder={aiPlaceholder} />
 
         {/* Loading */}
         {loading && (
@@ -911,12 +973,12 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                 <p className="empty-desc">
                   {viewMode === "due-soon"
                     ? "No entries are due within the next 3 days. Switch to \"All Entries\" to see everything."
-                    : "No entries match the current filters. Try a different view or sort."}
+                    : aiEmptyMessage}
                 </p>
               </div>
             ) : (
               filteredEntries.map((row, i) => (
-                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} onDelete={() => loadData()} />
               ))
             )}
           </div>
@@ -939,7 +1001,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
-                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} />
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} onDelete={() => loadData()} />
                 ))}
               </div>
             )}
@@ -1057,7 +1119,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                     onClick={() => removeProjectField(index)}
                     title="Remove field"
                   >
-                    ✕
+                    <FiX size={16} />
                   </button>
                 </div>
               ))}
@@ -1124,6 +1186,14 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Voice Feature Modal */}
+      {voiceOpen && (
+        <VoiceFeature
+          onClose={() => setVoiceOpen(false)}
+          onEntryCreated={() => { setVoiceOpen(false); loadData(); }}
+        />
       )}
 
       {/* Settings Panel */}

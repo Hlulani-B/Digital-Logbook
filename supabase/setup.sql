@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   name                    VARCHAR(100),
   avatar                  TEXT,
   created_at              TIMESTAMPTZ  DEFAULT now(),
-  deletion_scheduled_at   TIMESTAMPTZ
+  deletion_scheduled_at   TIMESTAMPTZ,
+  deleted                 BOOLEAN      NOT NULL DEFAULT false
 );
 
 -- 1b. Activity log table
@@ -25,7 +26,8 @@ CREATE TABLE IF NOT EXISTS public.activity_log (
   entity_type  VARCHAR(50),
   entity_name  VARCHAR(255),
   details      JSONB,
-  created_at   TIMESTAMPTZ DEFAULT now()
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  deleted      BOOLEAN     NOT NULL DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_log_user_email
@@ -40,21 +42,27 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  authenticated_email TEXT;
+  v_email TEXT;
 BEGIN
-  SELECT u.email INTO authenticated_email
+  SELECT u.email INTO v_email
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  IF authenticated_email IS NULL THEN
+  IF v_email IS NULL THEN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
-  INSERT INTO public.users AS u (email, deletion_scheduled_at)
-  VALUES (authenticated_email, now())
+  -- Soft-delete all related data
+  UPDATE public.entries SET deleted = true WHERE user_email = v_email;
+  UPDATE public.fields SET deleted = true WHERE user_email = v_email;
+  UPDATE public.projects SET deleted = true WHERE user_email = v_email;
+  UPDATE public.activity_log SET deleted = true WHERE user_email = v_email;
+
+  -- Mark user as deleted and schedule deletion
+  INSERT INTO public.users (email, deletion_scheduled_at, deleted)
+  VALUES (v_email, now(), true)
   ON CONFLICT (email)
-  DO UPDATE SET deletion_scheduled_at = now()
-  WHERE u.email = authenticated_email;
+  DO UPDATE SET deletion_scheduled_at = now(), deleted = true;
 END;
 $$;
 
@@ -66,19 +74,26 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  authenticated_email TEXT;
+  v_email TEXT;
 BEGIN
-  SELECT u.email INTO authenticated_email
+  SELECT u.email INTO v_email
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  IF authenticated_email IS NULL THEN
+  IF v_email IS NULL THEN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
+  -- Restore all related data
+  UPDATE public.entries SET deleted = false WHERE user_email = v_email;
+  UPDATE public.fields SET deleted = false WHERE user_email = v_email;
+  UPDATE public.projects SET deleted = false WHERE user_email = v_email;
+  UPDATE public.activity_log SET deleted = false WHERE user_email = v_email;
+
+  -- Restore user account
   UPDATE public.users
-     SET deletion_scheduled_at = NULL
-   WHERE email = authenticated_email;
+     SET deletion_scheduled_at = NULL, deleted = false
+   WHERE email = v_email;
 END;
 $$;
 
@@ -96,7 +111,8 @@ BEGIN
   FOR rec IN
     SELECT email
       FROM public.users
-     WHERE deletion_scheduled_at IS NOT NULL
+     WHERE deleted = true
+       AND deletion_scheduled_at IS NOT NULL
        AND deletion_scheduled_at < now() - INTERVAL '30 days'
   LOOP
     -- Clean up app tables
@@ -159,6 +175,7 @@ BEGIN
   FROM entries e
   WHERE e.user_email = p_user_email
     AND e.archived = false
+    AND e.deleted = false
   GROUP BY e.project_name
   ORDER BY total_duration DESC;
 END;

@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { calculateTotalTimeTracked, calculateProjectStats } from "@/functions/dashboard/stats.js";
+import { askAI } from "@/functions/ai.js";
+import { getToneInstruction } from "@/functions/tone";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -14,6 +16,89 @@ interface StatsProps {
 
 export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsProps) {
   const [statsOpen, setStatsOpen] = useState(false);
+  const [reflection, setReflection] = useState("");
+
+  // Generate AI reflection when stats panel is opened
+  useEffect(() => {
+    if (!statsOpen || reflection || activeProject) return;
+
+    const generateReflection = async () => {
+      try {
+        // Calculate quick stats
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const recentEntries = entries.filter((e) => {
+          const created = new Date(e.created_at as string);
+          return created >= weekAgo;
+        });
+
+        const projectCounts: Record<string, number> = {};
+        recentEntries.forEach((e) => {
+          const name = e.project_name as string;
+          projectCounts[name] = (projectCounts[name] || 0) + 1;
+        });
+
+        const topProject = Object.entries(projectCounts).sort((a, b) => b[1] - a[1])[0];
+        const totalEntries = entries.length;
+        const weekEntries = recentEntries.length;
+
+        // Build prompt for AI
+        const tone = getToneInstruction();
+        const prompt = `Generate a brief, friendly stats reflection (under 25 words) for a user with:
+- ${totalEntries} total entries
+- ${weekEntries} entries in the past week
+- ${projects.length} projects
+${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[1]} entries)` : ""}
+
+Make it insightful and encouraging. ${tone}`;
+
+        const aiResult = await askAI(prompt);
+        console.log("[Stats] AI result:", aiResult);
+        if (aiResult.success && aiResult.response) {
+          // Parse AI response
+          try {
+            const parsed = JSON.parse(aiResult.response);
+            if (typeof parsed === "object" && parsed !== null) {
+              for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
+                if (typeof parsed[key] === "string") {
+                  setReflection(parsed[key]);
+                  return;
+                }
+              }
+              for (const val of Object.values(parsed)) {
+                if (typeof val === "string") {
+                  setReflection(val);
+                  return;
+                }
+              }
+            }
+            setReflection(aiResult.response);
+          } catch {
+            setReflection(aiResult.response);
+          }
+        } else {
+          // Fallback if AI fails
+          setReflection(
+            topProject
+              ? `You've got ${totalEntries} entries across ${projects.length} projects. ${topProject[0]} is leading with ${topProject[1]} entries this week — keep it up!`
+              : `You've got ${totalEntries} entries across ${projects.length} projects. Log more this week to build momentum!`
+          );
+        }
+      } catch (err) {
+        console.error("[Stats] Reflection error:", err);
+        // Fallback on error
+        const totalEntries = entries.length;
+        const topProject = projects.length > 0 ? projects[0] : null;
+        setReflection(
+          topProject
+            ? `You've got ${totalEntries} entries across ${projects.length} projects. ${(topProject as any).project_name} is your most active — nice work!`
+            : `You've got ${totalEntries} entries across ${projects.length} projects. Keep logging to build your streak!`
+        );
+      }
+    };
+
+    generateReflection();
+  }, [statsOpen, reflection, activeProject, entries, projects]);
 
   // Calculate total time tracked (including in-progress tasks)
   const totalTimeTracked = useMemo(() => {
@@ -116,6 +201,16 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
                 </div>
               ))}
             </div>
+          )}
+
+          {/* AI Reflection — shown when no single project is selected */}
+          {!activeProject && reflection && (
+            <>
+              <div className="feed-stats-divider" />
+              <div className="feed-stats-reflection">
+                <p>{reflection}</p>
+              </div>
+            </>
           )}
         </div>
       ) : (

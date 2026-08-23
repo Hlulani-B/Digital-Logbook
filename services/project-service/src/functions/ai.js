@@ -1,4 +1,4 @@
-import { supabase } from "../supabase.js";
+import pool from "../db.js";
 import OpenAI from "openai";
 import { InferenceClient } from "@huggingface/inference";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -10,7 +10,7 @@ console.log("[AI] OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY ? "SET ("
 console.log("[AI] CEREBRAS_API_KEY:", process.env.CEREBRAS_API_KEY ? "SET (" + process.env.CEREBRAS_API_KEY.slice(0, 8) + "...)" : "NOT SET");
 console.log("[AI] GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "SET (" + process.env.GEMINI_API_KEY.slice(0, 8) + "...)" : "NOT SET");
 console.log("[AI] GROQ_API_KEY:", process.env.GROQ_API_KEY ? "SET (" + process.env.GROQ_API_KEY.slice(0, 8) + "...)" : "NOT SET");
-console.log("[AI] Supabase client:", supabase ? "available" : "NULL");
+console.log("[AI] Database pool:", pool ? "available" : "NULL");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -196,26 +196,21 @@ const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 async function isOnCooldown(providerName) {
   console.log("[AI][Cooldown] Checking cooldown for:", providerName);
   try {
-    if (!supabase) {
-      console.log("[AI][Cooldown] Supabase is NULL, skipping cooldown check");
+    if (!pool) {
+      console.log("[AI][Cooldown] Pool is NULL, skipping cooldown check");
       return false;
     }
-    const { data, error } = await supabase
-      .from("ai_provider_cooldowns")
-      .select("cooldown_until")
-      .eq("provider", providerName)
-      .maybeSingle();
+    const { rows } = await pool.query(
+      `SELECT cooldown_until FROM ai_provider_cooldowns WHERE provider = $1`,
+      [providerName]
+    );
 
-    if (error) {
-      console.log("[AI][Cooldown] Error for", providerName, ":", error.message);
-      return false;
-    }
-    if (!data) {
+    if (rows.length === 0) {
       console.log("[AI][Cooldown] No cooldown record for", providerName);
       return false;
     }
-    const isHot = new Date(data.cooldown_until).getTime() > Date.now();
-    console.log("[AI][Cooldown]", providerName, "cooldown_until:", data.cooldown_until, "is on cooldown:", isHot);
+    const isHot = new Date(rows[0].cooldown_until).getTime() > Date.now();
+    console.log("[AI][Cooldown]", providerName, "cooldown_until:", rows[0].cooldown_until, "is on cooldown:", isHot);
     return isHot;
   } catch (err) {
     console.warn("[AI][Cooldown] Check failed for", providerName, ":", err.message || err);
@@ -226,15 +221,18 @@ async function isOnCooldown(providerName) {
 async function setCooldown(providerName) {
   console.log("[AI][Cooldown] Setting cooldown for:", providerName);
   try {
-    if (!supabase) {
-      console.log("[AI][Cooldown] Supabase is NULL, cannot set cooldown");
+    if (!pool) {
+      console.log("[AI][Cooldown] Pool is NULL, cannot set cooldown");
       return;
     }
     const cooldownUntil = new Date(Date.now() + COOLDOWN_MS).toISOString();
     console.log("[AI][Cooldown] Until:", cooldownUntil);
-    await supabase
-      .from("ai_provider_cooldowns")
-      .upsert({ provider: providerName, cooldown_until: cooldownUntil }, { onConflict: "provider" });
+    await pool.query(
+      `INSERT INTO ai_provider_cooldowns (provider, cooldown_until)
+       VALUES ($1, $2)
+       ON CONFLICT (provider) DO UPDATE SET cooldown_until = $2`,
+      [providerName, cooldownUntil]
+    );
     console.log("[AI][Cooldown] Set successfully for", providerName);
   } catch (err) {
     console.warn("[AI][Cooldown] Failed to set for", providerName, ":", err.message || err);
