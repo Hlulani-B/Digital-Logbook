@@ -64,6 +64,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   // Drawer state
@@ -409,9 +410,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     setDeleteError(null);
     try {
       await deleteAccount();
-      navigate("/signin");
+      // Stay signed in; refresh the profile so the scheduled-deletion banner appears immediately
+      setProfileRefreshKey((k) => k + 1);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
       setDeleting(false);
     }
   };
@@ -1206,6 +1209,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         avatarUrl={avatarUrl}
         provider={provider}
         onClose={() => setSettingsOpen(false)}
+        profileRefreshKey={profileRefreshKey}
         onDeleteAccount={handleDeleteAccount}
         onRestoreAccount={handleRestoreAccount}
         onResetPassword={resetPassword}

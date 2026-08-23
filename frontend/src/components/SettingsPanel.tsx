@@ -44,6 +44,7 @@ interface SettingsPanelProps {
   avatarUrl?: string;
   provider: string;
   onClose: () => void;
+  profileRefreshKey?: number;
   onDeleteAccount: () => void;
   onRestoreAccount: () => Promise<void>;
   onResetPassword: (email: string) => Promise<void>;
@@ -172,6 +173,7 @@ export function SettingsPanel({
   avatarUrl,
   provider,
   onClose,
+  profileRefreshKey = 0,
   onDeleteAccount,
   onRestoreAccount,
   onResetPassword,
@@ -310,7 +312,7 @@ export function SettingsPanel({
     })();
 
     return () => { cancelled = true; };
-  }, [open, email]);
+  }, [open, email, profileRefreshKey]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
