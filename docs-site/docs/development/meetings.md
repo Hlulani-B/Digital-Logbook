@@ -135,3 +135,41 @@ approach, which surfaced later during initial implementation).
 **Next step decided:**
 - Refine and finalise the database schema
 - Begin implementation of the dashboard and project-creation functionality once the schema has been agreed upon
+
+---
+
+## Meeting 6 — 17 August 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Missy (Nasiphi), Siphesihle, Hlulani, Sicelo, Zamo, Lupa (full team)
+
+**Context:** Sprint 1 implementation is underway. The team met to share progress updates and confirm who is doing what before the next tutor/client check-in.
+
+**What we did:**
+
+- Each member reported on their current Sprint 1 task:
+  - **Missy (Nasiphi):** Properly implemented the login structure.
+  - **Siphesihle:** Implemented the project/create-button functionality.
+  - **Hlulani:** Created the updated UI and implemented entry-side features.
+  - **Sicelo:** Committed to implementing the Stats feature.
+  - **Zamo:** Committed to implementing activity logs.
+  - **Lupa:** Was busy over the weekend; committed to completing the archive button before the tutor/client meeting.
+- Reviewed how the individual pieces fit together for the dashboard and entry flow.
+
+**Decisions made:**
+
+- Task ownership for the remaining Sprint 1 features confirmed as above.
+- Everyone agreed to have their assigned parts ready before the upcoming tutor/client session.
+
+**Open questions / disagreements:**
+
+- Frustration over local testing limitations because localhost was not working reliably. The team had to commit code they could not fully verify locally and rely on the deployed environment to confirm behaviour.
+
+**Next step decided:**
+
+- Lupa to finish the archive button before the tutor/client meeting.
+- Rest of the team to continue with their assigned features and be ready to demonstrate progress.
+
+**Proof of meeting:**
+
+![Team call screenshot showing all attendees](../assets/meetings/meeting-06-2026-08-17.png)
