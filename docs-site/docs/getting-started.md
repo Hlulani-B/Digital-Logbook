@@ -59,7 +59,7 @@ npm install
 npm start
 ```
 
-Repeat for `dashboard-service` and `project-service` (each has its own
+Repeat for `dashboard-service`, `project-service`, and `profile-service` (each has its own
 `package.json` and default port — see
 [Architecture Overview](architecture/overview.md)).
 
@@ -73,12 +73,26 @@ SUPABASE_URL=<ask a teammate or check the team's shared secrets note>
 SUPABASE_KEY=<ask a teammate or check the team's shared secrets note>
 ```
 
+The `auth-service` uses `SUPABASE_SERVICE_ROLE_KEY` instead of `SUPABASE_KEY`
+for privileged account operations.
+
+The frontend needs a `.env` file in `frontend/` with:
+
+```
+VITE_SUPABASE_URL=<same Supabase URL>
+VITE_SUPABASE_ANON_KEY=<Supabase anon key>
+VITE_PROJECT_SERVICE_URL=http://localhost:5003
+VITE_PROFILE_SERVICE_URL=http://localhost:5004
+```
+
+See each folder's `.env.example` for the exact variables that service expects.
+
 ## Branches
 
-- `main` — the current default/working branch
-- `services` — *(clarify with the team what this branch is for and whether it should be merged into `main` or retired)*
+- `main` — the default branch. All completed work is merged here.
+- Feature branches — create a branch off `main` for each feature or fix, then
+  open a merge request back into `main`.
 
-!!! note "Open question"
-    Confirm with the team which branch new work should target, and whether
-    `services` should be merged into `main`. See
-    [Open Questions & Decisions](development/decisions.md).
+!!! tip
+    Keep feature branches short-lived and focused on one change. This makes
+    reviews easier and reduces merge conflicts.
