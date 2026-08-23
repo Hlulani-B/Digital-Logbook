@@ -122,3 +122,51 @@ worked in the deployed environment.
 **Takeaway:** when local integration is painful, clear port assignments and
 health-check habits become even more important. A containerised local setup
 (Docker Compose) is a candidate improvement if time allows.
+
+## Soft-delete ambiguous column error
+
+**Issue:** Calling `delete_user()` RPC threw `column reference user_email is ambiguous`.
+
+**Root cause:** The PL/pgSQL variable `user_email` in the `DECLARE` block had the same name as the `user_email` column in the tables. Postgres couldn't resolve which one the `WHERE` clause referred to.
+
+**Fix:** Renamed the variable to `v_email` in both `delete_user()` and `restore_user()` functions.
+
+**Takeaway:** always prefix PL/pgSQL variables to avoid collision with column names — Postgres resolves ambiguities in favour of columns.
+
+## Entry card dropdown appearing far below card
+
+**Issue:** The Edit/Archive dropdown from the ⋯ menu on entry cards appeared floating far below the card instead of anchored to the button.
+
+**Root cause:** `.entry-box__menu-wrap` had no `position` set, so the dropdown's `position: absolute` resolved against `.entry-box` (the whole card) instead of the menu wrapper.
+
+**Fix:** Added `position: relative` to `.entry-box__menu-wrap`.
+
+**Takeaway:** `position: absolute` resolves against the nearest *positioned* ancestor — if a wrapper has no `position`, the absolute child skips past it.
+
+## Raw Postgres interval displayed in UI
+
+**Issue:** Duration showed as "2 days 06:27:39.557" (raw Postgres interval) instead of a human-readable format.
+
+**Root cause:** `durationToMs()` only parsed "HH:MM:SS" format and didn't handle the "N days" prefix that Postgres adds for intervals over 24 hours.
+
+**Fix:** Updated `durationToMs()` to extract a "N days" prefix first, then parse the remaining time portion. Added `formatInterval()` helper.
+
+## project-service crash on startup (UTF-16 encoding)
+
+**Issue:** project-service crashed with `SyntaxError: Invalid or unexpected token` on startup.
+
+**Root cause:** `supabase.js` was encoded as UTF-16 LE (BOM bytes 0xFF 0xFE). Node.js expects UTF-8.
+
+**Fix:** Converted the file from UTF-16 LE to UTF-8. Content was unchanged.
+
+**Takeaway:** editors on Windows can silently save files as UTF-16 — always verify encoding for files that will be executed by Node.js.
+
+## Render build failure — TypeScript undefined error
+
+**Issue:** Render deploy failed with `error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'` in AuthCallback.tsx.
+
+**Root cause:** `data.session.user.email` from Supabase types is `string | null | undefined`, but `routeUser()` expected `string`.
+
+**Fix:** Added `if (!email)` guard before each `routeUser(email)` call, navigating to `/create-profile` if email is missing.
+
+**Takeaway:** Supabase types are strict — always handle nullable fields even when you "know" they'll be present at runtime.

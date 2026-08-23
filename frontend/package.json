@@ -9,11 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@marsidev/react-turnstile": "^1.6.0",
     "@supabase/supabase-js": "^2.112.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-icons": "^5.7.0",
+    "react-media-recorder": "^1.7.2",
     "react-router-dom": "^7.6.1"
   },
   "devDependencies": {

@@ -4,14 +4,43 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Stats } from "@/components/Stats";
+import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
+import { QuickEntryBar } from "@/components/QuickEntryBar";
+import { ActivityFeed } from "@/components/ActivityFeed";
+import { ActivitySummary } from "@/components/ActivitySummary";
 import { addProject, getProjectsByEmail } from "@/functions/project/project.js";
 import { addField } from "@/functions/project/fields.js";
-import { sortUnarchivedEntries, sortArchivedEntries } from "@/functions/project/entries.js";
-import { archiveProject, unarchiveProject } from "@/functions/project/archives.js";
+import { sortUnarchivedEntries } from "@/functions/project/entries.js";
+import { getArchives } from "@/functions/project/archives.js";
+import { setPriority } from "@/functions/project/priority.js";
+import { getProfile } from "@/functions/profile/profile.js";
 import { dueSoon } from "@/functions/dashboard.js";
-import { searchAll, searchProject } from "@/functions/dashboard/search.js";
+import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
 import { AddEntry } from "@/pages/AddEntry";
+import VoiceFeature from "@/pages/VoiceFeature";
+import { askAI } from "@/functions/ai.js";
+import { getToneInstruction } from "@/functions/tone";
+import { FiArchive, FiX } from "react-icons/fi";
+
+/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
+function parseAIResponse(response: string): string {
+  try {
+    const parsed = JSON.parse(response);
+    if (typeof parsed === "string") return parsed;
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
+        if (typeof parsed[key] === "string") return parsed[key];
+      }
+      for (const val of Object.values(parsed)) {
+        if (typeof val === "string") return val;
+      }
+    }
+    return response;
+  } catch {
+    return response;
+  }
+}
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -22,18 +51,25 @@ type ProjectFieldDraft = {
   is_required: boolean;
 };
 
-export function Dashboard() {
-  const { user, signOut, deleteAccount, resetPassword } = useAuth();
+type DashboardProps = {
+  defaultView?: string;
+};
+
+export function Dashboard({ defaultView = "all" }: DashboardProps) {
+  const { user, signOut, deleteAccount, restoreAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>("all");
+  const [activeView, setActiveView] = useState<"all" | "recent" | "drafts" | "archives" | string>(defaultView);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,10 +88,25 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
-  const [archiveRows, setArchiveRows] = useState<Entry[]>([]);
+  // Archive state
+  const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
+
+  // Voice recorder
+  const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // AI-generated messages
+  const [aiGreeting, setAiGreeting] = useState("");
+  const [showGreetingToast, setShowGreetingToast] = useState(false);
+  const [aiEmptyMessage, setAiEmptyMessage] = useState("No entries to show right now.");
+  const [aiPlaceholder, setAiPlaceholder] = useState("What are you working on?");
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -68,6 +119,11 @@ export function Dashboard() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState("");
+
+  // Project settings panel
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   const email = user?.email || "";
 
@@ -84,8 +140,23 @@ export function Dashboard() {
         sortUnarchivedEntries(email, project, sortType),
         dueSoon(email, null),
       ]);
+      // Read localStorage archived set (DB UPDATE is blocked by RLS)
+      let localArch = new Set<string>();
+      try {
+        const raw = localStorage.getItem(`dl_archived_${email}`);
+        if (raw) localArch = new Set(JSON.parse(raw));
+      } catch {}
+      setLocalArchived(localArch);
+
       if (projectsRes.status === "fulfilled") {
-        setProjects(projectsRes.value?.projects || []);
+        const allProjects = (projectsRes.value?.projects || []) as Project[];
+        // Merge DB archived flag with localStorage archived set
+        const merged = allProjects.map((p) => ({
+          ...p,
+          archived: p.archived === true || localArch.has(p.project_name as string),
+        }));
+        setProjects(merged);
+        setArchivedProjects(merged.filter((p) => p.archived));
       } else {
         console.error("Failed to load projects:", projectsRes.reason);
       }
@@ -99,16 +170,6 @@ export function Dashboard() {
       } else {
         console.error("Failed to load due soon:", dueSoonRes.reason);
       }
-
-      // Also fetch archived rows for archive view
-      if (activeView === "archives") {
-        try {
-          const archiveData = await sortArchivedEntries(email, project, sortType);
-          setArchiveRows(archiveData?.data || []);
-        } catch (archiveErr) {
-          console.error("Failed to load archives:", archiveErr);
-        }
-      }
     } catch (err) {
       console.error("[Dashboard] loadData exception:", err);
     } finally {
@@ -119,6 +180,66 @@ export function Dashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Load archived entries when archives view is active
+  useEffect(() => {
+    if (activeView !== "archives" || !email) return;
+    (async () => {
+      try {
+        const result = await getArchives(email, null);
+        if (result?.success !== false) {
+          setArchivedEntries(result?.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load archived entries:", err);
+      }
+    })();
+  }, [activeView, email]);
+
+  // AI-generated greeting — shown as a toast
+  useEffect(() => {
+    if (!loading && projects.length > 0) {
+      const hour = new Date().getHours();
+      const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+      const entryCount = entries.length;
+      const dueCount = dueSoonRows.length;
+      
+      (async () => {
+        const tone = getToneInstruction();
+        const result = await askAI(
+          `Generate a ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their productivity, their procrastination, or their life choices. Be witty and entertaining. ${tone}`
+        );
+        if (result.success && result.response) {
+          const msg = parseAIResponse(result.response);
+          setAiGreeting(msg);
+          setShowGreetingToast(true);
+        }
+      })();
+    } else if (!loading) {
+      setAiGreeting("Welcome! Let's get you started.");
+      setShowGreetingToast(true);
+    }
+  }, [loading, projects, entries, dueSoonRows]);
+
+  // Auto-dismiss greeting toast after 30 seconds
+  useEffect(() => {
+    if (showGreetingToast) {
+      const t = setTimeout(() => setShowGreetingToast(false), 30000);
+      return () => clearTimeout(t);
+    }
+  }, [showGreetingToast]);
+
+  // Rotating AI placeholder for quick entry
+  useEffect(() => {
+    const placeholders = [
+      "What are you working on?",
+      "What did you just finish?",
+      "Working on anything exciting?",
+      "What's your current task?",
+      "Tell me about your progress...",
+    ];
+    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
+  }, []);
 
   // Focus search input when opened
   useEffect(() => {
@@ -134,19 +255,28 @@ export function Dashboard() {
         setDrawerOpen(false);
         setFabOpen(false);
         setSearchOpen(false);
+        setProjectMenuOpen(false);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Close project menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setProjectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // Filtered entries — uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // If search results are available, use them
     if (searchResults !== null) return searchResults;
-
-    // If archive view, use archiveRows
-    if (activeView === "archives") return archiveRows;
 
     // Otherwise use all entries (unarchived)
     let filtered = [...entries];
@@ -172,7 +302,22 @@ export function Dashboard() {
     }
 
     return filtered;
-  }, [entries, activeView, searchResults, archiveRows, viewMode]);
+  }, [entries, activeView, searchResults, viewMode]);
+
+  // AI-generated empty state message
+  useEffect(() => {
+    if (!loading && filteredEntries.length === 0) {
+      (async () => {
+        const tone = getToneInstruction();
+        const result = await askAI(
+          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+        );
+        if (result.success && result.response) {
+          setAiEmptyMessage(parseAIResponse(result.response));
+        }
+      })();
+    }
+  }, [loading, filteredEntries.length]);
 
   // Search using provided search functions
   useEffect(() => {
@@ -182,11 +327,26 @@ export function Dashboard() {
     }
     let cancelled = false;
     (async () => {
-      const result = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives")
-        ? await searchProject(email, activeView, searchQuery.trim())
-        : await searchAll(email, searchQuery.trim());
+      // Run both entry search and project name search in parallel
+      const isProjectView = (activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives");
+      const entrySearch = isProjectView
+        ? searchProject(email, activeView, searchQuery.trim())
+        : searchAll(email, searchQuery.trim());
+      const projectSearch = searchProjects(email, searchQuery.trim());
+
+      const [entryResult, projectResult] = await Promise.all([entrySearch, projectSearch]);
+
       if (!cancelled) {
-        setSearchResults(result?.data || []);
+        // Merge results, deduplicating by entry id
+        const entryRows = entryResult?.data || [];
+        const projectRows = projectResult?.data || [];
+        const seen = new Set();
+        const merged = [...entryRows, ...projectRows].filter((row: Entry) => {
+          if (seen.has(row.id as string)) return false;
+          seen.add(row.id as string);
+          return true;
+        });
+        setSearchResults(merged);
       }
     })();
     return () => { cancelled = true; };
@@ -195,6 +355,8 @@ export function Dashboard() {
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
   const preferredName = (() => {
+    // Priority: profile-service username > localStorage preferred name > full name
+    if (profileUsername?.trim()) return profileUsername.trim();
     if (!user?.id) return fullDisplayName;
     try {
       const raw = localStorage.getItem(`dl_settings_profile_${user.id}`);
@@ -205,8 +367,32 @@ export function Dashboard() {
     } catch {}
     return fullDisplayName;
   })();
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  // Profile-service avatar/username take priority over Google/OAuth profile data
+  const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || "email";
+
+  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  useEffect(() => {
+    if (!email) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getProfile(email);
+        const profileData = result?.data || result;
+        const avatar = (profileData as Record<string, unknown>)?.avatar as string;
+        const username = (profileData as Record<string, unknown>)?.username as string;
+        if (!cancelled) {
+          if (avatar) {
+            setProfileAvatar(avatar);
+          }
+          if (username) {
+            setProfileUsername(username);
+          }
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [email]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -224,10 +410,24 @@ export function Dashboard() {
     setDeleteError(null);
     try {
       await deleteAccount();
-      navigate("/signin");
+      // Stay signed in; refresh the profile so the scheduled-deletion banner appears immediately
+      setProfileRefreshKey((k) => k + 1);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRestoreAccount = async () => {
+    setRestoring(true);
+    setRestoreError(null);
+    try {
+      await restoreAccount();
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Failed to restore account");
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -267,6 +467,20 @@ export function Dashboard() {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
+    
+    // Validate fields before creating project
+    const nonEmptyFields = projectFields.filter((f) => f.field_name.trim());
+    if (nonEmptyFields.length > 0) {
+      // Check for duplicate field names (case-insensitive)
+      const fieldNames = nonEmptyFields.map((f) => f.field_name.trim().toLowerCase());
+      const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+      if (duplicates.length > 0) {
+        const uniqueDuplicates = [...new Set(duplicates)];
+        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(", ")}`);
+        return;
+      }
+    }
+    
     setCreatingProject(true);
     setNewProjectError(null);
 
@@ -275,16 +489,15 @@ export function Dashboard() {
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
       // Save any non-empty project fields (best-effort after project is created)
-      const validFields = projectFields.filter((f) => f.field_name.trim());
-      if (validFields.length > 0) {
+      if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
-          validFields.map((f) =>
+          nonEmptyFields.map((f) =>
             addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
           )
         );
         const failures = results
           .map((r, i) =>
-            r.status === "rejected" ? validFields[i].field_name : null
+            r.status === "rejected" ? nonEmptyFields[i].field_name : null
           )
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
@@ -306,23 +519,93 @@ export function Dashboard() {
     }
   };
 
+  // Archive project — uses localStorage (DB UPDATE blocked by RLS)
   const handleArchiveProject = async (projectName: string) => {
-    if (!email) return;
-    try {
-      await archiveProject(email, projectName);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to archive project:", err);
+    if (!email) {
+      setArchiveError("Cannot archive: no email");
+      return;
     }
+    setArchiveError(null);
+    // Update local state immediately for instant UI feedback
+    setProjects((prev) => prev.map((p) =>
+      p.project_name === projectName ? { ...p, archived: true } : p
+    ));
+    const project = projects.find((p) => p.project_name === projectName);
+    if (project) {
+      setArchivedProjects((prev) => [...prev, { ...project, archived: true }]);
+    }
+    // Save to localStorage for persistence across reloads
+    const next = new Set(localArchived);
+    next.add(projectName);
+    setLocalArchived(next);
+    try {
+      localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
+    } catch {}
+    // Best-effort DB update (will silently fail due to RLS, that's OK)
+    try {
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': anonJwt || apiKey,
+          'Authorization': `Bearer ${anonJwt || apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ archived: true }),
+      });
+    } catch {}
   };
 
   const handleUnarchiveProject = async (projectName: string) => {
     if (!email) return;
+    setArchiveError(null);
     try {
-      await unarchiveProject(email, projectName);
-      await loadData();
+      const { unarchiveProject } = await import("@/functions/project/archives.js");
+      const result = await unarchiveProject(email, projectName);
+      if (result?.success === false) throw new Error(result.message || "Failed to unarchive project");
     } catch (err) {
-      console.error("Failed to unarchive project:", err);
+      setArchiveError(err instanceof Error ? err.message : "Failed to unarchive project");
+      return;
+    }
+    // Update local state
+    setProjects((prev) => prev.map((p) =>
+      p.project_name === projectName ? { ...p, archived: false } : p
+    ));
+    setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    const next = new Set(localArchived);
+    next.delete(projectName);
+    setLocalArchived(next);
+    try {
+      localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
+    } catch {}
+  };
+
+  const PRIORITY_LABELS: Record<string, string> = {
+    "0": "Urgent and important",
+    "1": "Urgent but not important",
+    "2": "Not urgent, not important",
+  };
+
+  const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
+    if (!email) return;
+    try {
+      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
+      const result = await setPriority(email, priorityValue, projectName, entryId);
+      if (result?.success === false) {
+        console.error("Failed to set priority:", result.message);
+        return;
+      }
+      // Update the entry in local state
+      setEntries((prev: Entry[]) =>
+        prev.map((e: Entry) =>
+          e.id === entryId ? { ...e, priority: priorityLabel } : e
+        )
+      );
+    } catch (err) {
+      console.error("Failed to set priority:", err);
     }
   };
 
@@ -407,54 +690,23 @@ export function Dashboard() {
 
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
-          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { setActiveView("all"); setDrawerOpen(false); }}>
+          <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { navigate("/dashboard/all"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             All Entries
             <span className="drawer-badge">{entries.length}</span>
           </button>
-          <button className={`drawer-item ${activeView === "recent" ? "active" : ""}`} onClick={() => { setActiveView("recent"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Recent
+          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+            Archives
           </button>
-          <button className={`drawer-item ${activeView === "drafts" ? "active" : ""}`} onClick={() => { setActiveView("drafts"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Drafts
-          </button>
-          <button className="drawer-item" onClick={() => {}} style={{ opacity: 0.6, cursor: "default" }}>
+          <button className="drawer-item" onClick={() => { navigate("/stats"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             My Stats
           </button>
-        </div>
-
-        <div className="drawer-section">
-          <p className="drawer-section-title">Archive</p>
-          <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            Archived Projects
-            <span className="drawer-badge">{projects.filter((p) => p.archived).length}</span>
+          <button className={`drawer-item ${activeView === "activity" ? "active" : ""}`} onClick={() => { navigate("/dashboard/activity"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Activity Log
           </button>
-          {projects.filter((p) => p.archived).map((project) => {
-            const name = project.project_name as string;
-            const count = entries.filter((e) => e.project_name === name).length;
-            return (
-              <button
-                key={name}
-                className={`drawer-item drawer-item-archived ${activeView === name ? "active" : ""}`}
-                onClick={() => { setActiveView(name); setDrawerOpen(false); }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-                {name}
-                <span className="drawer-badge">{count}</span>
-                <span
-                  className="drawer-item-action"
-                  onClick={(e) => { e.stopPropagation(); handleUnarchiveProject(name); }}
-                  title="Unarchive project"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                </span>
-              </button>
-            );
-          })}
         </div>
 
         <div className="drawer-section drawer-projects">
@@ -464,26 +716,45 @@ export function Dashboard() {
               const name = project.project_name as string;
               const count = entries.filter((e) => e.project_name === name).length;
               return (
-                <button
+                <div
                   key={name}
                   className={`drawer-item ${activeView === name ? "active" : ""}`}
-                  onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                  {name}
-                  <span className="drawer-badge">{count}</span>
-                  <span
-                    className="drawer-item-action"
-                    onClick={(e) => { e.stopPropagation(); handleArchiveProject(name); }}
-                    title="Archive project"
+                  <button
+                    type="button"
+                    onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                    style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
-                  </span>
-                </button>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    {name}
+                    <span className="drawer-badge">{count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveProject(name)}
+                    title="Archive project"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(139, 115, 85, 0.3)",
+                      color: "var(--text-secondary, #6b7280)",
+                      borderRadius: "0.4rem",
+                      padding: "0.2rem 0.5rem",
+                      fontSize: "0.7rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <FiArchive size={12} />
+                    Archive
+                  </button>
+                </div>
               );
             })}
             {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet</p>
+              <p className="drawer-empty">No projects yet. Create one below.</p>
             )}
           </div>
         </div>
@@ -493,29 +764,141 @@ export function Dashboard() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Project
           </button>
+          <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
+            Manage Projects
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* AI Greeting Toast */}
+        {showGreetingToast && aiGreeting && (
+          <div className="ai-toast animate-in">
+            <p>{aiGreeting}</p>
+          </div>
+        )}
+
         {/* Feed Header */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archived Projects" : activeView}
+                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
-              {searchQuery && (
-                <p className="feed-subtitle">
-                  {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
-                </p>
+              {/* Project settings three-dots menu - only show for specific projects */}
+              {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
+                <div className="project-menu-wrap" ref={projectMenuRef} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className="entry-box__menu-btn"
+                    onClick={() => setProjectMenuOpen((v) => !v)}
+                    aria-label="Project settings"
+                    aria-expanded={projectMenuOpen}
+                    style={{ position: "static" }}
+                  >
+                    ⋯
+                  </button>
+                  {projectMenuOpen && (
+                    <div className="entry-box__menu" style={{ top: "100%", right: "auto", left: 0 }}>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { setProjectSettingsOpen(true); setProjectMenuOpen(false); }}
+                      >
+                        Project Settings
+                      </button>
+                      <button
+                        type="button"
+                        className="entry-box__menu-item"
+                        onClick={() => { handleArchiveProject(activeView); setProjectMenuOpen(false); }}
+                        style={{ color: "var(--text-secondary, #6b7280)", display: "flex", alignItems: "center", gap: "0.5rem" }}
+                      >
+                        <FiArchive size={16} /> Archive Project
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
+            {searchQuery && (
+              <p className="feed-subtitle">
+                {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+              </p>
+            )}
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
 
         {/* Search bar inline for mobile */}
+        {activeView === "activity" ? (
+          <>
+            <ActivitySummary />
+            <ActivityFeed />
+          </>
+        ) : activeView === "archives" ? (
+          <div className="entries-feed">
+            {archiveError && (
+              <div className="auth-error" style={{ marginBottom: "1rem" }}>{archiveError}</div>
+            )}
+
+            {/* Archived Projects */}
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem", opacity: 0.7, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <FiArchive size={16} /> Archived Projects
+              <span style={{ fontSize: "0.8rem", fontWeight: 400 }}>({archivedProjects.length})</span>
+            </h2>
+            {archivedProjects.length === 0 ? (
+              <p style={{ fontSize: "0.85rem", opacity: 0.5, marginBottom: "1.5rem" }}>No archived projects</p>
+            ) : (
+              archivedProjects.map((project, i) => {
+                const name = project.project_name as string;
+                return (
+                  <div key={`archived-${name}-${i}`} className="glass" style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderRadius: "0.85rem", marginBottom: "0.75rem" }}>
+                    <FiArchive size={18} style={{ opacity: 0.6 }} />
+                    <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem", opacity: 0.7 }}>{name}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>Archived (read-only)</span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnarchiveProject(name)}
+                      className="btn-secondary"
+                      style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+                    >
+                      ↩ Unarchive
+                    </button>
+                  </div>
+                );
+              })
+            )}
+
+            {/* Archived Entries */}
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginTop: "1.5rem", marginBottom: "0.75rem", opacity: 0.7, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <FiArchive size={16} /> Archived Entries
+              <span style={{ fontSize: "0.8rem", fontWeight: 400 }}>({archivedEntries.length})</span>
+            </h2>
+            {archivedEntries.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon"><FiArchive size={40} /></div>
+                <h2 className="empty-title">No archived entries</h2>
+                <p className="empty-desc">Archive an entry from the ⋯ menu to see it here.</p>
+              </div>
+            ) : (
+              archivedEntries.map((row, i) => (
+                <EntryBox
+                  key={`archived-entry-${row.id || i}`}
+                  entry={row as any}
+                  onUpdated={() => loadData()}
+                  onPriorityChanged={handleSetPriority}
+                  onArchiveToggled={(entryId, isArchived) => {
+                    if (!isArchived) {
+                      setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
+                    }
+                  }}
+                />
+              ))
+            )}
+          </div>
+        ) : (
+        <>
         <div className="feed-search-bar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
@@ -562,6 +945,9 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* Quick Entry Bar - Natural Language */}
+        <QuickEntryBar onEntryCreated={() => { loadData(); }} onVoiceOpen={() => setVoiceOpen(true)} placeholder={aiPlaceholder} />
+
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
@@ -590,12 +976,12 @@ export function Dashboard() {
                 <p className="empty-desc">
                   {viewMode === "due-soon"
                     ? "No entries are due within the next 3 days. Switch to \"All Entries\" to see everything."
-                    : "No entries match the current filters. Try a different view or sort."}
+                    : aiEmptyMessage}
                 </p>
               </div>
             ) : (
               filteredEntries.map((row, i) => (
-                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                <EntryBox key={`entry-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} onDelete={() => loadData()} />
               ))
             )}
           </div>
@@ -618,11 +1004,13 @@ export function Dashboard() {
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
-                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} />
+                  <EntryBox key={`search-${row.id || i}`} entry={row as any} onUpdated={() => loadData()} onPriorityChanged={handleSetPriority} onDelete={() => loadData()} />
                 ))}
               </div>
             )}
           </>
+        )}
+        </>
         )}
       </main>
 
@@ -734,7 +1122,7 @@ export function Dashboard() {
                     onClick={() => removeProjectField(index)}
                     title="Remove field"
                   >
-                    ✕
+                    <FiX size={16} />
                   </button>
                 </div>
               ))}
@@ -803,6 +1191,14 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* Voice Feature Modal */}
+      {voiceOpen && (
+        <VoiceFeature
+          onClose={() => setVoiceOpen(false)}
+          onEntryCreated={() => { setVoiceOpen(false); loadData(); }}
+        />
+      )}
+
       {/* Settings Panel */}
       <SettingsPanel
         open={settingsOpen}
@@ -813,10 +1209,24 @@ export function Dashboard() {
         avatarUrl={avatarUrl}
         provider={provider}
         onClose={() => setSettingsOpen(false)}
+        profileRefreshKey={profileRefreshKey}
         onDeleteAccount={handleDeleteAccount}
+        onRestoreAccount={handleRestoreAccount}
         onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
+        restoring={restoring}
+        restoreError={restoreError}
+      />
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={activeView}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { setActiveView("all"); loadData(); }}
+        onProjectDeleted={() => { setActiveView("all"); loadData(); }}
       />
     </div>
   );

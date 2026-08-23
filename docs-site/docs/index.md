@@ -21,7 +21,7 @@ predetermined schema.
 | Role / Primary focus | Person |
 |---|---|
 | Documentation & project creation | Siphesihle |
-| Frontend, UI/UX & entry-side features | Hlulani-B |
+| Frontend, UI/UX, fullstack & entry-side features | Hlulani-B (Hlulani Baloyi) |
 | Login / auth structure | Nasiphi (Missy) |
 | Statistics & dashboard summaries | Sicelo |
 | Activity logs | Zamokuhle (Zamo) |

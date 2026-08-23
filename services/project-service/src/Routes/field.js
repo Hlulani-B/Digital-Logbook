@@ -1,5 +1,6 @@
 import express from 'express';
 import { Fields } from '../functions/field.js';
+import { logActivity } from '../functions/activityLog.js';
 
 const router = express.Router();
 
@@ -36,12 +37,18 @@ router.post('/field', async (req, res) => {
         const { table_name, field_name, data_type, is_required } = values;
         if (!table_name || !field_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await fields.addField(user_email, table_name, field_name, data_type, is_required);
+        if (result.success) {
+          await logActivity(user_email, 'FIELD_ADDED', 'field', field_name, { project_name: table_name, data_type, is_required });
+        }
         return res.json(result);
       }
       case 'edit': {
         const { table_name, field_name, data_type, is_required } = values;
         if (!table_name || !field_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await fields.editField(user_email, table_name, field_name, data_type, is_required);
+        if (result.success) {
+          await logActivity(user_email, 'FIELD_EDITED', 'field', field_name, { project_name: table_name, data_type, is_required });
+        }
         return res.json(result);
       }
       case 'get': {

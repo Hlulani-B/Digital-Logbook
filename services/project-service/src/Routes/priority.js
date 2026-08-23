@@ -1,5 +1,6 @@
 import express from 'express';
 import { Priority } from '../functions/priority.js';
+import { logActivity } from '../functions/activityLog.js';
 
 const router = express.Router();
 
@@ -36,6 +37,9 @@ router.post('/priority', async (req, res) => {
         const { priorityValue, project_name, entry_id } = values;
         if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await priority.setPriority(user_email, priorityValue, project_name, entry_id);
+        if (result.success) {
+          await logActivity(user_email, 'PRIORITY_SET', 'entry', String(entry_id), { project_name, entry_id, priority: priorityValue });
+        }
         return res.json(result);
       }
       default:

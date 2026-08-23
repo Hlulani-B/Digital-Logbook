@@ -3,6 +3,16 @@
 
 A microservices-based digital logbook app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
 
+## Test Coverage
+
+> Badges are auto-updated by CI on every push to `main`.
+
+| Service | Lines | Statements | Functions | Branches |
+| :--- | :---: | :---: | :---: | :---: |
+| **Project Service** | ![Lines](../badges/project-service/lines.svg) | ![Statements](../badges/project-service/statements.svg) | ![Functions](../badges/project-service/functions.svg) | ![Branches](../badges/project-service/branches.svg) |
+| **Profile Service** | ![Lines](../badges/profile-service/lines.svg) | ![Statements](../badges/profile-service/statements.svg) | ![Functions](../badges/profile-service/functions.svg) | ![Branches](../badges/profile-service/branches.svg) |
+| **Dashboard Service** | ![Lines](../badges/dashboard-service/lines.svg) | ![Statements](../badges/dashboard-service/statements.svg) | ![Functions](../badges/dashboard-service/functions.svg) | ![Branches](../badges/dashboard-service/branches.svg) |
+
 ## Architecture
 
 This is a monorepo containing independent backend services and a React frontend. Each service runs as its own process on its own port.

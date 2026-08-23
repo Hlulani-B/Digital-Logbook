@@ -7,9 +7,17 @@ import { AuthCallback } from "@/pages/AuthCallback";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { UpdatePassword } from "@/pages/UpdatePassword";
 import { Dashboard } from "@/pages/Dashboard";
+import { AllEntriesPage } from "@/pages/AllEntries";
+import { ArchivesPage } from "@/pages/Archives";
+import { ActivityPage } from "@/pages/Activity";
 import { CreateProfile } from "@/pages/CreateProfile";
 import { AvatarPage } from "@/pages/Avatar";
+import { ToneSetup } from "@/pages/ToneSetup";
+import { ThemeSetup } from "@/pages/ThemeSetup";
+import { FrequencySetup } from "@/pages/FrequencySetup";
 import { ProjectsPage } from "@/pages/Project";
+import { StatsView } from "@/pages/StatsView";
+import { StreakView } from "@/pages/StreakView";
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -93,6 +101,30 @@ export function App() {
             }
           />
           <Route
+            path="/dashboard/all"
+            element={
+              <ProtectedRoute>
+                <AllEntriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/archives"
+            element={
+              <ProtectedRoute>
+                <ArchivesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/activity"
+            element={
+              <ProtectedRoute>
+                <ActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/create-profile"
             element={
               <ProtectedRoute>
@@ -109,10 +141,50 @@ export function App() {
             }
           />
           <Route
+            path="/tone-setup"
+            element={
+              <ProtectedRoute>
+                <ToneSetup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/theme-setup"
+            element={
+              <ProtectedRoute>
+                <ThemeSetup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/frequency-setup"
+            element={
+              <ProtectedRoute>
+                <FrequencySetup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/projects"
             element={
               <ProtectedRoute>
                 <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stats"
+            element={
+              <ProtectedRoute>
+                <StatsView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/streaks"
+            element={
+              <ProtectedRoute>
+                <StreakView />
               </ProtectedRoute>
             }
           />

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { updateEntry } from "../functions/project/entries.js";
+import { updateEntry, deleteEntryById } from "../functions/project/entries.js";
 import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
+import { isOverdue, getOverdueText } from "../functions/dashboard/overdue.js";
+import { formatInterval } from "../functions/dashboard/stats.js";
 
 type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
 
@@ -92,9 +94,11 @@ interface EntryBoxProps {
   entry: EntryRow;
   onUpdated?: (updatedEntry: EntryRow) => void;
   onArchiveToggled?: (entryId: string, archived: boolean) => void;
+  onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
+  onDelete?: (entryId: string) => void;
 }
 
-export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) {
+export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged, onDelete }: EntryBoxProps) {
   const {
     id,
     user_email,
@@ -114,6 +118,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -277,7 +282,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         ? await unarchiveEntry(user_email, project_name, id)
         : await archiveEntry(user_email, project_name, id);
 
-      if (result?.error) throw new Error(result.error);
       if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
 
       onArchiveToggled?.(id, !archived);
@@ -285,6 +289,49 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
       setError(err instanceof Error ? err.message : "Failed to update archive state");
     } finally {
       setArchiving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user_email || deleting) return;
+    if (!window.confirm("Delete this entry? You can recover it later.")) return;
+    setDeleting(true);
+    setError(null);
+    setMenuOpen(false);
+    try {
+      const result = await deleteEntryById(user_email, id);
+      if (result?.success === false) throw new Error(result.message || "Failed to delete entry");
+      onDelete?.(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete entry");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: EntryStatus) => {
+    if (!user_email || !project_name || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      // If moving to done_and_dusted, auto-set ended_at
+      const newEndedAt = newStatus === "done_and_dusted" && !ended_at ? new Date().toISOString() : ended_at;
+      // If moving to in_motion and not started yet, auto-set started_at
+      const newStartedAt = newStatus === "in_motion" && !started_at ? new Date().toISOString() : started_at;
+      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, newStatus, newStartedAt, newEndedAt, duration);
+      if (result?.success === false) {
+        setError(result.message || "Failed to update status");
+        return;
+      }
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update status");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -318,7 +365,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     setError(null);
     try {
       const now = new Date().toISOString();
-      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, status, started_at, now, null);
+      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, "done_and_dusted", started_at, now, null);
       if (result?.success === false) {
         setError(result.message || "Failed to end task");
         return;
@@ -328,7 +375,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
         return;
       }
       // Always reload from database to show actual state
-      onUpdated?.({ ...entry, ended_at: now });
+      onUpdated?.({ ...entry, ended_at: now, status: "done_and_dusted" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to end task");
     } finally {
@@ -420,12 +467,37 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
     <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
       <div className="entry-box__header">
         <div className="entry-box__tags">
-          {priority && (
-            <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
+          {onPriorityChanged ? (
+            <select
+              className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
+              value={priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : "3"}
+              onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="0">Urgent & important</option>
+              <option value="1">Urgent, not important</option>
+              <option value="2">Not urgent</option>
+              <option value="3">No priority</option>
+            </select>
+          ) : (
+            priority && <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
           )}
-          <span className={`entry-box__tag ${STATUS_CLASS[status]}`}>
-            {STATUS_LABELS[status]}
-          </span>
+          <select
+            className={`entry-box__tag entry-box__status-select ${STATUS_CLASS[status]}`}
+            value={status}
+            onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
+            onClick={(e) => e.stopPropagation()}
+            disabled={saving || archived}
+          >
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          {isOverdue(due_date ?? null, status) && (
+            <span className="entry-box__tag entry-box__tag--overdue">
+              {getOverdueText(due_date ?? null, status)}
+            </span>
+          )}
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>
@@ -452,6 +524,14 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
               disabled={archiving}
             >
               {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+            </button>
+            <button
+              type="button"
+              className="entry-box__menu-item entry-box__menu-item--danger"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
             </button>
           </div>
         )}
@@ -499,7 +579,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled }: EntryBoxProps) 
           {duration && (
             <span className="entry-box__meta-item">
               <span className="entry-box__meta-label">Duration</span>
-              <span className="entry-box__meta-value">{duration}</span>
+              <span className="entry-box__meta-value">{formatInterval(duration)}</span>
             </span>
           )}
         </div>

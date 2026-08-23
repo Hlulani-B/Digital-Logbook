@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 // Dev mode bypass - creates mock user for local testing
 const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === "true";
@@ -28,12 +28,13 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
-  signInWithEmail: (email: string, password: string, captchaToken?: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string, captchaToken?: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  restoreAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
       setState({
         user: session?.user ?? null,
         session,
@@ -69,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = getSupabase().auth.onAuthStateChange((_event, session) => {
       setState({
         user: session?.user ?? null,
         session,
@@ -82,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     if (DEV_MODE) { console.log("[DEV MODE] signInWithGoogle skipped"); return; }
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await getSupabase().auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGitHub = async () => {
     if (DEV_MODE) { console.log("[DEV MODE] signInWithGitHub skipped"); return; }
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await getSupabase().auth.signInWithOAuth({
       provider: "github",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
@@ -102,24 +103,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signInWithEmail = async (email: string, password: string, captchaToken?: string) => {
+  const signInWithEmail = async (email: string, password: string) => {
     if (DEV_MODE) { console.log("[DEV MODE] signInWithEmail skipped"); return; }
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await getSupabase().auth.signInWithPassword({
       email,
       password,
-      options: captchaToken ? { captchaToken } : undefined,
     });
     if (error) throw error;
   };
 
-  const signUpWithEmail = async (email: string, password: string, captchaToken?: string) => {
+  const signUpWithEmail = async (email: string, password: string) => {
     if (DEV_MODE) { console.log("[DEV MODE] signUpWithEmail skipped"); return; }
-    const { error } = await supabase.auth.signUp({
+    const { error } = await getSupabase().auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        ...(captchaToken ? { captchaToken } : {}),
       },
     });
     if (error) throw error;
@@ -127,35 +126,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     if (DEV_MODE) { console.log("[DEV MODE] signOut skipped"); return; }
-    const { error } = await supabase.auth.signOut();
+    const { error } = await getSupabase().auth.signOut();
     if (error) throw error;
   };
 
-  const resetPassword = async (email: string, captchaToken?: string) => {
+  const resetPassword = async (email: string) => {
     if (DEV_MODE) { console.log("[DEV MODE] resetPassword skipped"); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/update-password`,
-      ...(captchaToken ? { captchaToken } : {}),
     });
     if (error) throw error;
   };
 
   const updatePassword = async (newPassword: string) => {
     if (DEV_MODE) { console.log("[DEV MODE] updatePassword skipped"); return; }
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const { error } = await getSupabase().auth.updateUser({ password: newPassword });
     if (error) throw error;
   };
 
   const deleteAccount = async () => {
     if (DEV_MODE) { console.log("[DEV MODE] deleteAccount skipped"); return; }
-    // Call the delete_user RPC function defined in Supabase SQL
-    const { error } = await supabase.rpc("delete_user");
+
+    // Schedule the account for deletion (30-day grace period).
+    // The user stays signed in so they can see the scheduled-deletion banner and restore immediately.
+    const { error } = await getSupabase().rpc("delete_user");
     if (error) {
-      // Fallback: sign out if RPC fails
-      await supabase.auth.signOut();
-      throw new Error(
-        "Could not delete account automatically. You have been signed out. Contact support if needed."
-      );
+      throw new Error(error.message || "Could not schedule account deletion");
+    }
+  };
+
+  const restoreAccount = async () => {
+    if (DEV_MODE) { console.log("[DEV MODE] restoreAccount skipped"); return; }
+
+    // Cancel the scheduled deletion
+    const { error } = await getSupabase().rpc("restore_user");
+    if (error) {
+      throw new Error(error.message || "Could not restore account");
     }
   };
 
@@ -171,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         updatePassword,
         deleteAccount,
+        restoreAccount,
       }}
     >
       {children}

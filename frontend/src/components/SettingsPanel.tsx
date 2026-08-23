@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/hooks/useTheme";
 import { AvatarPicker } from "@/components/AvatarPicker";
+import { getTone, setTone, TONE_OPTIONS, type Tone } from "@/functions/tone";
+import { getNudgeFrequency, setNudgeFrequency, type NudgeFrequency } from "@/pages/FrequencySetup";
 import {
   getProfile,
   updateName,
@@ -26,10 +27,12 @@ interface Preferences {
   theme: string;
   fontFamily: string;
   cornerStyle: string;
+  tone: string;
   autoSave: boolean;
   compactMode: boolean;
   notifications: boolean;
   weeklyReminder: boolean;
+  nudgeFrequency: string;
 }
 
 interface SettingsPanelProps {
@@ -41,10 +44,14 @@ interface SettingsPanelProps {
   avatarUrl?: string;
   provider: string;
   onClose: () => void;
+  profileRefreshKey?: number;
   onDeleteAccount: () => void;
-  onResetPassword: (email: string, captchaToken?: string) => Promise<void>;
+  onRestoreAccount: () => Promise<void>;
+  onResetPassword: (email: string) => Promise<void>;
   deleting: boolean;
   deleteError: string | null;
+  restoring: boolean;
+  restoreError: string | null;
 }
 
 const STORAGE_PREFIX = "dl_settings_";
@@ -86,28 +93,21 @@ function ResetPasswordInline({
   onResetPassword,
 }: {
   email: string;
-  onResetPassword: (email: string, captchaToken?: string) => Promise<void>;
+  onResetPassword: (email: string) => Promise<void>;
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [captchaVerified, setCaptchaVerified] = useState(false);
-  const captchaTokenRef = useRef<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
   const { isDark } = useTheme();
 
   const handleSend = async () => {
     setSending(true);
     setError(null);
     try {
-      await onResetPassword(email, captchaTokenRef.current || undefined);
+      await onResetPassword(email);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
-      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
-      turnstileRef.current?.reset();
-      setCaptchaVerified(false);
-      captchaTokenRef.current = null;
     } finally {
       setSending(false);
     }
@@ -155,34 +155,11 @@ function ResetPasswordInline({
       )}
       <button
         onClick={handleSend}
-        disabled={sending || !email || !captchaVerified}
+        disabled={sending || !email}
         className="btn-secondary"
       >
         {sending ? "Sending..." : "Send Reset Link"}
       </button>
-
-      <div className="captcha-wrapper" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
-        <Turnstile
-          ref={turnstileRef}
-          siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
-          onSuccess={(token) => {
-            setCaptchaVerified(true);
-            captchaTokenRef.current = token;
-          }}
-          onError={() => {
-            setCaptchaVerified(false);
-            captchaTokenRef.current = null;
-          }}
-          onExpire={() => {
-            setCaptchaVerified(false);
-            captchaTokenRef.current = null;
-          }}
-          options={{
-            theme: isDark ? "dark" : "light",
-            size: "flexible",
-          }}
-        />
-      </div>
     </>
   );
 }
@@ -196,10 +173,14 @@ export function SettingsPanel({
   avatarUrl,
   provider,
   onClose,
+  profileRefreshKey = 0,
   onDeleteAccount,
+  onRestoreAccount,
   onResetPassword,
   deleting,
   deleteError,
+  restoring,
+  restoreError,
 }: SettingsPanelProps) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [saved, setSaved] = useState(false);
@@ -224,10 +205,12 @@ export function SettingsPanel({
     theme: currentTheme,
     fontFamily: "lora",
     cornerStyle: "rounded",
+    tone: getTone(),
     autoSave: true,
     compactMode: false,
     notifications: true,
     weeklyReminder: false,
+    nudgeFrequency: getNudgeFrequency(),
   };
 
   const [profile] = useState<ProfileSettings>(() =>
@@ -271,7 +254,10 @@ export function SettingsPanel({
     applyFont(prefs.fontFamily);
     applyCorners(prefs.cornerStyle);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 800);
   };
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -284,7 +270,6 @@ export function SettingsPanel({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
-  const [debugResponse, setDebugResponse] = useState<string>("");
 
   // Fetch profile from service when panel opens
   useEffect(() => {
@@ -295,9 +280,7 @@ export function SettingsPanel({
       try {
         const result = await getProfile(email);
         if (cancelled) return;
-        
-        setDebugResponse(JSON.stringify(result, null, 2));
-        
+
         // If profile doesn't exist, create it first
         if (result?.success === false || result?.error) {
           const addResult = await addEmail(email);
@@ -305,7 +288,6 @@ export function SettingsPanel({
             // Fetch again after creating
             const freshResult = await getProfile(email);
             if (!cancelled) {
-              setDebugResponse("After create: " + JSON.stringify(freshResult, null, 2));
               const profileData = freshResult?.data || freshResult;
               setServerProfile(profileData);
               setName((profileData as Record<string, unknown>)?.name as string || "");
@@ -330,7 +312,7 @@ export function SettingsPanel({
     })();
 
     return () => { cancelled = true; };
-  }, [open, email]);
+  }, [open, email, profileRefreshKey]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,7 +329,10 @@ export function SettingsPanel({
       if (usernameResult?.error) throw new Error(usernameResult.error);
 
       setProfileSuccess(true);
-      setTimeout(() => setProfileSuccess(false), 2000);
+      setTimeout(() => {
+        setProfileSuccess(false);
+        onClose();
+      }, 800);
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : "Could not save changes");
     } finally {
@@ -450,22 +435,40 @@ export function SettingsPanel({
                   <p className="field-hint">Loading profile...</p>
                 ) : (
                   <>
-                    {debugResponse && (
-                      <pre style={{
-                        fontSize: "0.7rem",
-                        padding: "0.5rem",
-                        borderRadius: "var(--radius-xs)",
-                        background: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6",
-                        border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`,
-                        color: isDark ? "#a0a0a0" : "#6b7280",
-                        marginBottom: "0.75rem",
-                        overflow: "auto",
-                        maxHeight: "120px",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-all",
+                    {!profileError && serverProfile && (
+                      <div className="profile-summary" style={{
+                        padding: "1.25rem",
+                        borderRadius: "var(--radius-sm)",
+                        background: isDark ? "rgba(255,255,255,0.05)" : "#f8f6f2",
+                        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "var(--border)"}`,
+                        marginBottom: "1.25rem",
+                        textAlign: "center",
                       }}>
-                        {debugResponse}
-                      </pre>
+                        {(avatarUrl || (serverProfile?.avatar as string)) && (
+                          <img
+                            src={(serverProfile?.avatar as string) || avatarUrl}
+                            alt=""
+                            style={{
+                              width: 72,
+                              height: 72,
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              margin: "0 auto 0.75rem",
+                              border: `2px solid ${isDark ? "rgba(255,255,255,0.12)" : "#e5e7eb"}`,
+                              background: isDark ? "rgba(255,255,255,0.08)" : "#fff",
+                            }}
+                          />
+                        )}
+                        <p style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "var(--text)" }}>
+                          {name || "—"}
+                        </p>
+                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                          @{username || "—"}
+                        </p>
+                        <p style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", color: "var(--text-dim)" }}>
+                          {email}
+                        </p>
+                      </div>
                     )}
                     <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                     <div className="field-group">
@@ -662,6 +665,37 @@ export function SettingsPanel({
               </div>
 
               <div className="panel-section">
+                <p className="panel-section-title">Notebook Personality</p>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="tone">
+                    How should your notebook talk to you?
+                  </label>
+                  <select
+                    id="tone"
+                    className="field-input"
+                    value={prefs.tone}
+                    onChange={(e) => {
+                      const newTone = e.target.value as Tone;
+                      setPrefs((p) => ({ ...p, tone: newTone }));
+                      setTone(newTone);
+                    }}
+                  >
+                    {TONE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="field-hint">
+                    {prefs.tone === "soft" && "Warm, gentle, and encouraging. Like a caring friend."}
+                    {prefs.tone === "tough" && "Direct and no-nonsense. Pushes you to be better."}
+                    {prefs.tone === "cynical" && "Witty and slightly sarcastic. Roasts you but has your back."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="panel-section">
                 <p className="panel-section-title">Behavior</p>
 
                 <div className="toggle-row">
@@ -752,6 +786,30 @@ export function SettingsPanel({
                     <span className="toggle-track" />
                   </label>
                 </div>
+
+                <div className="field-group" style={{ marginTop: "0.75rem" }}>
+                  <label className="field-label" htmlFor="nudgeFrequency">
+                    Notebook check-in frequency
+                  </label>
+                  <select
+                    id="nudgeFrequency"
+                    className="field-input"
+                    value={prefs.nudgeFrequency}
+                    onChange={(e) => {
+                      const freq = e.target.value as NudgeFrequency;
+                      setPrefs((p) => ({ ...p, nudgeFrequency: freq }));
+                      setNudgeFrequency(freq);
+                    }}
+                  >
+                    <option value="silent">Silent — never nudge</option>
+                    <option value="gentle">Gentle — every 2-3 days</option>
+                    <option value="daily">Daily — once a day</option>
+                    <option value="active">Active — 2-3x a day</option>
+                  </select>
+                  <p className="field-hint">
+                    How often your logbook checks in with nudges and encouragement.
+                  </p>
+                </div>
               </div>
             </>
           )}
@@ -772,12 +830,64 @@ export function SettingsPanel({
                       {provider}
                     </span>
                   </div>
-                  <div className="setting-item">
-                    <span className="setting-label">User ID</span>
-                    <span className="setting-value mono">{userId}</span>
-                  </div>
                 </div>
               </div>
+
+              {serverProfile?.deletion_scheduled_at && (
+                <>
+                  <hr className="divider" />
+                  <div className="panel-section">
+                    <p className="panel-section-title" style={{ color: "var(--danger-text)" }}>
+                      Account Scheduled for Deletion
+                    </p>
+                    <div
+                      style={{
+                        padding: "0.75rem 1rem",
+                        borderRadius: "var(--radius-xs)",
+                        background: isDark ? "rgba(239,68,68,0.1)" : "#fef2f2",
+                        border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#fecaca"}`,
+                        color: isDark ? "#fca5a5" : "#b91c1c",
+                        fontSize: "0.8125rem",
+                        lineHeight: 1.5,
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      Your account is scheduled to be permanently deleted on{" "}
+                      <strong>
+                        {new Date(
+                          new Date(serverProfile.deletion_scheduled_at as string).getTime() +
+                            30 * 24 * 60 * 60 * 1000
+                        ).toLocaleDateString()}
+                      </strong>
+                      . You can restore it any time before then.
+                    </div>
+                    {restoreError && (
+                      <p style={{ marginBottom: "0.75rem", color: "var(--danger-text)" }}>
+                        {restoreError}
+                      </p>
+                    )}
+                    <button
+                      onClick={async () => {
+                        try {
+                          await onRestoreAccount();
+                          // Refresh profile so the scheduled-deletion banner disappears
+                          const fresh = await getProfile(email);
+                          const freshData = fresh?.data || fresh;
+                          setServerProfile(freshData);
+                          setName((freshData as Record<string, unknown>)?.name as string || "");
+                          setUsername((freshData as Record<string, unknown>)?.username as string || "");
+                        } catch {
+                          // Errors are surfaced via the restoreError prop
+                        }
+                      }}
+                      disabled={restoring}
+                      className="btn-primary"
+                    >
+                      {restoring ? "Restoring..." : "Restore Account"}
+                    </button>
+                  </div>
+                </>
+              )}
 
               <hr className="divider" />
 
@@ -794,41 +904,46 @@ export function SettingsPanel({
                   Danger Zone
                 </p>
                 <p className="danger-desc">
-                  Permanently delete your account and all associated data. This
-                  action cannot be undone.
+                  {serverProfile?.deletion_scheduled_at
+                    ? "Your account is already scheduled for deletion. Restoring it will cancel the request."
+                    : "Deleting your account starts a 30-day grace period. During this time you can sign back in and restore your account. After 30 days, all data is permanently removed."}
                 </p>
 
-                {!showDeleteConfirm ? (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="btn-danger"
-                  >
-                    Delete Account
-                  </button>
-                ) : (
-                  <div className="confirm-box">
-                    {deleteError && (
-                      <p style={{ marginBottom: "0.75rem" }}>{deleteError}</p>
+                {!serverProfile?.deletion_scheduled_at && (
+                  <>
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="btn-danger"
+                      >
+                        Delete Account
+                      </button>
+                    ) : (
+                      <div className="confirm-box">
+                        {deleteError && (
+                          <p style={{ marginBottom: "0.75rem" }}>{deleteError}</p>
+                        )}
+                        <p>Are you sure? Your account will enter a 30-day grace period before being permanently deleted.</p>
+                        <div className="confirm-actions">
+                          <button
+                            onClick={onDeleteAccount}
+                            disabled={deleting}
+                            className="btn-danger-solid"
+                          >
+                            {deleting ? "Scheduling..." : "Yes, Schedule Deletion"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowDeleteConfirm(false);
+                            }}
+                            className="btn-secondary"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    <p>Are you sure? This cannot be undone.</p>
-                    <div className="confirm-actions">
-                      <button
-                        onClick={onDeleteAccount}
-                        disabled={deleting}
-                        className="btn-danger-solid"
-                      >
-                        {deleting ? "Deleting..." : "Yes, Delete My Account"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowDeleteConfirm(false);
-                        }}
-                        className="btn-secondary"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             </>

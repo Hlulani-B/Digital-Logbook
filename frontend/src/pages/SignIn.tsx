@@ -1,15 +1,10 @@
 import { useState, useRef, useCallback, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/hooks/useTheme";
 import { checkUser } from "../functions/profile/login.js";
 import { useNavigate } from "react-router-dom";
 
 type Provider = "google" | "github";
-
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
-const DISABLE_CAPTCHA = import.meta.env.VITE_DISABLE_CAPTCHA === "true";
 
 export function SignIn() {
   const navigate = useNavigate();
@@ -21,11 +16,7 @@ export function SignIn() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [captchaVerified, setCaptchaVerified] = useState(false);
-  const captchaTokenRef = useRef<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
-  const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
-  const { isDark } = useTheme();
+  const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail, restoreAccount } = useAuth();
 
   // Video background: alternate between two videos for seamless loop
   const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
@@ -47,7 +38,11 @@ export function SignIn() {
     let destination = "/create-profile";
     try {
       const result = await checkUser(userEmail);
-      if (result.exists) {
+      if (result.exists && result.deleted) {
+        // Soft-deleted user signing back in during grace period — auto-restore
+        try { await restoreAccount(); } catch { /* best effort */ }
+        destination = "/dashboard";
+      } else if (result.exists) {
         destination = "/dashboard";
       }
     } catch (err) {
@@ -57,7 +52,6 @@ export function SignIn() {
   };
 
   const handleSignIn = async (provider: Provider) => {
-    if (!DISABLE_CAPTCHA && !captchaVerified) return;
     setOauthLoading(provider);
     setError(null);
     setSuccess(null);
@@ -78,7 +72,6 @@ export function SignIn() {
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!DISABLE_CAPTCHA && !captchaVerified) return;
 
     if (mode === "signup" && password !== confirmPassword) {
       setError("Passwords do not match");
@@ -90,20 +83,16 @@ export function SignIn() {
     setSuccess(null);
     try {
       if (mode === "signin") {
-        await signInWithEmail(email, password, DISABLE_CAPTCHA ? undefined : captchaTokenRef.current || undefined);
+        await signInWithEmail(email, password);
         await routeAfterAuth(email);
       } else {
-        await signUpWithEmail(email, password, DISABLE_CAPTCHA ? undefined : captchaTokenRef.current || undefined);
+        await signUpWithEmail(email, password);
         setSuccess(
           "Account created! Please check your email to confirm your account before signing in."
         );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
-      // Reset CAPTCHA after a failed attempt so the user gets a fresh token
-      turnstileRef.current?.reset();
-      setCaptchaVerified(false);
-      captchaTokenRef.current = null;
     } finally {
       setEmailLoading(false);
     }
@@ -212,7 +201,7 @@ export function SignIn() {
 
             <button
               type="submit"
-              disabled={emailLoading || !captchaVerified}
+              disabled={emailLoading}
               className="btn-primary auth-submit"
             >
               {emailLoading
@@ -249,30 +238,6 @@ export function SignIn() {
             )}
           </div>
 
-          {/* CAPTCHA */}
-          <div className="captcha-wrapper">
-            <Turnstile
-              ref={turnstileRef}
-              siteKey={SITE_KEY}
-              onSuccess={(token) => {
-                setCaptchaVerified(true);
-                captchaTokenRef.current = token;
-              }}
-              onError={() => {
-                setCaptchaVerified(false);
-                captchaTokenRef.current = null;
-              }}
-              onExpire={() => {
-                setCaptchaVerified(false);
-                captchaTokenRef.current = null;
-              }}
-              options={{
-                theme: isDark ? "dark" : "light",
-                size: "flexible",
-              }}
-            />
-          </div>
-
           <div className="auth-divider">
             <span>or continue with</span>
           </div>
@@ -281,7 +246,7 @@ export function SignIn() {
           <div className="auth-buttons">
             <button
               onClick={() => handleSignIn("google")}
-              disabled={isLoading || (!DISABLE_CAPTCHA && !captchaVerified)}
+              disabled={isLoading}
               className="oauth-btn"
               data-provider="google"
               aria-label="Continue with Google"
@@ -297,7 +262,7 @@ export function SignIn() {
 
             <button
               onClick={() => handleSignIn("github")}
-              disabled={isLoading || (!DISABLE_CAPTCHA && !captchaVerified)}
+              disabled={isLoading}
               className="oauth-btn"
               data-provider="github"
               aria-label="Continue with GitHub"

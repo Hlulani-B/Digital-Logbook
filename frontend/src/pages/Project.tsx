@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import {
   editProjectName,
   deleteProject,
   getProjectsByEmail,
 } from "../functions/project/project.js";
+import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen } from "react-icons/fi";
 
-type ProjectRecord = { project_name: string; [key: string]: unknown };
+type ProjectRecord = { project_name: string; archived?: boolean; created_at?: string; [key: string]: unknown };
+type EntryRecord = Record<string, unknown>;
 
 const TAB_COLORS = ["#ec4899", "#8b5cf6", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444"];
 
@@ -25,6 +28,7 @@ export function ProjectsPage() {
 
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
 
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -33,29 +37,120 @@ export function ProjectsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Archive state
+  const [archivedProjects, setArchivedProjects] = useState<ProjectRecord[]>([]);
+  const [showArchive, setShowArchive] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
+
+  // Archived project detail view
+  const [viewingArchived, setViewingArchived] = useState<string | null>(null);
+  const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
+  const [loadingEntries, setLoadingEntries] = useState(false);
+
+  // Auto-seed test projects when the user has none (uses authenticated Supabase session)
+  const seedTestProjects = useCallback(async () => {
+    if (!email || !supabase) return;
+    const testProjects = [
+      { user_email: email, project_name: "Website Redesign", description: "Redesign the main company website with modern UI", archived: false },
+      { user_email: email, project_name: "Mobile App MVP", description: "Build the first version of the iOS/Android app", archived: false },
+      { user_email: email, project_name: "Q4 Marketing Plan", description: "Plan and execute Q4 marketing campaigns", archived: false },
+      { user_email: email, project_name: "Internal Tools Audit", description: "Audit all internal tools and consolidate", archived: false },
+      { user_email: email, project_name: "Database Migration", description: "Migrate legacy database to new architecture", archived: false },
+    ];
+    for (const p of testProjects) {
+      await supabase.from("projects").upsert(p, { onConflict: "user_email,project_name" }).select();
+    }
+  }, [email]);
+
   const loadProjects = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await getProjectsByEmail(email);
-      if (result?.error) throw new Error(result.error);
-      const list: ProjectRecord[] = Array.isArray(result)
-        ? result
-        : Array.isArray(result?.projects)
-          ? result.projects
-          : [];
+      // Try Supabase directly first (works with authenticated session)
+      let list: ProjectRecord[] = [];
+      if (supabase) {
+        const { data, error: sbError } = await supabase
+          .from("projects")
+          .select("project_name, description, created_at, archived")
+          .eq("user_email", email)
+          .order("created_at", { ascending: false });
+        if (sbError) throw new Error(sbError.message);
+        list = (data || []).filter((p) => !p.archived);
+      } else {
+        // Fallback to backend API
+        const result = await getProjectsByEmail(email);
+        if (result?.error) throw new Error(result.error);
+        list = (Array.isArray(result)
+          ? result
+          : Array.isArray(result?.projects)
+            ? result.projects
+            : []
+        ).filter((p: ProjectRecord) => !p.archived);
+      }
       setProjects(list);
+
+      // Always ensure test projects exist (upsert won't duplicate)
+      if (supabase && email) {
+        await seedTestProjects();
+        const { data: allData } = await supabase
+          .from("projects")
+          .select("project_name, description, created_at, archived")
+          .eq("user_email", email)
+          .order("created_at", { ascending: false });
+        list = (allData || []).filter((p) => !p.archived);
+        setProjects(list);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load your projects");
     } finally {
       setLoading(false);
     }
+  }, [email, seedTestProjects]);
+
+  const loadArchivedProjects = useCallback(async () => {
+    if (!email || !supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("project_name, created_at, archived")
+        .eq("user_email", email)
+        .eq("archived", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setArchivedProjects(data || []);
+    } catch (err) {
+      console.error("Failed to load archived projects:", err);
+    }
   }, [email]);
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    loadArchivedProjects();
+  }, [loadProjects, loadArchivedProjects]);
+
+  const handleCreateProject = async () => {
+    const trimmed = newProjectName.trim();
+    if (!trimmed || !email) return;
+    setSaving(true);
+    try {
+      if (supabase) {
+        const { error: createError } = await supabase
+          .from("projects")
+          .insert({ user_email: email, project_name: trimmed, description: "" })
+          .select();
+        if (createError) throw new Error(createError.message);
+      }
+      setNewProjectName("");
+      setCreating(false);
+      await loadProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create project");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const startEdit = (name: string) => {
     setEditingName(name);
@@ -96,6 +191,61 @@ export function ProjectsPage() {
       setError(err instanceof Error ? err.message : "Could not delete project");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleArchive = async (name: string) => {
+    if (!email || !supabase) return;
+    setArchiving(true);
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ archived: true })
+        .eq("user_email", email)
+        .eq("project_name", name);
+      if (error) throw error;
+      setConfirmArchive(null);
+      await Promise.all([loadProjects(), loadArchivedProjects()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not archive project");
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleUnarchive = async (name: string) => {
+    if (!email || !supabase) return;
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ archived: false })
+        .eq("user_email", email)
+        .eq("project_name", name);
+      if (error) throw error;
+      setViewingArchived(null);
+      setArchivedEntries([]);
+      await Promise.all([loadProjects(), loadArchivedProjects()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not unarchive project");
+    }
+  };
+
+  const handleViewArchivedEntries = async (name: string) => {
+    if (!email || !supabase) return;
+    setViewingArchived(name);
+    setLoadingEntries(true);
+    try {
+      const { data, error } = await supabase
+        .from("entries")
+        .select("*")
+        .eq("user_email", email)
+        .eq("project_name", name);
+      if (error) throw error;
+      setArchivedEntries(data || []);
+    } catch {
+      setArchivedEntries([]);
+    } finally {
+      setLoadingEntries(false);
     }
   };
 
@@ -140,22 +290,39 @@ export function ProjectsPage() {
             display: "flex",
             gap: "0.75rem",
             alignItems: "center",
-            justifyContent: "center",
             padding: "1rem 1.25rem",
             borderRadius: "0.85rem",
             marginBottom: "1.25rem",
             borderLeft: "6px solid #ec4899",
-            color: "var(--text-dim, #6b7280)",
-            fontSize: "0.875rem",
           }}
         >
-          Project creation is not available yet. Check back soon.
+          <input
+            autoFocus
+            type="text"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCreateProject();
+              if (e.key === "Escape") { setCreating(false); setNewProjectName(""); }
+            }}
+            className="field-input"
+            style={{ flex: 1 }}
+            placeholder="Project name"
+          />
           <button
             type="button"
-            onClick={() => { setCreating(false); }}
+            onClick={handleCreateProject}
+            disabled={saving || !newProjectName.trim()}
+            className="btn-primary"
+          >
+            {saving ? "Creating..." : "Create"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setCreating(false); setNewProjectName(""); }}
             className="btn-secondary"
           >
-            Close
+            Cancel
           </button>
         </div>
       )}
@@ -186,7 +353,7 @@ export function ProjectsPage() {
             borderRadius: "1rem",
           }}
         >
-          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📓</div>
+          <FiBookOpen size={40} style={{ opacity: 0.5 }} />
           <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem", fontWeight: 700 }}>
             No projects yet
           </h3>
@@ -206,6 +373,7 @@ export function ProjectsPage() {
             const color = colorForName(name);
             const isEditing = editingName === name;
             const isConfirming = confirmDelete === name;
+            const isConfirmingArchive = confirmArchive === name;
 
             return (
               <div
@@ -297,6 +465,35 @@ export function ProjectsPage() {
                           Cancel
                         </button>
                       </div>
+                    ) : isConfirmingArchive ? (
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-dim, #6b7280)" }}>
+                          Archive this project?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleArchive(name)}
+                          disabled={archiving}
+                          style={{
+                            background: "#6366f1",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "0.5rem",
+                            padding: "0.4rem 0.75rem",
+                            fontSize: "0.8rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {archiving ? "Archiving..." : "Yes, archive"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmArchive(null)}
+                          className="btn-secondary"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     ) : (
                       <div style={{ display: "flex", gap: "0.4rem" }}>
                         <button
@@ -307,7 +504,24 @@ export function ProjectsPage() {
                           className="btn-secondary"
                           style={{ padding: "0.4rem 0.6rem" }}
                         >
-                          ✎
+                          <FiEdit2 size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmArchive(name)}
+                          aria-label={`Archive ${name}`}
+                          title="Archive"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid rgba(99,102,241,0.35)",
+                            color: "#6366f1",
+                            borderRadius: "0.5rem",
+                            padding: "0.4rem 0.6rem",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <FiArchive size={16} />
                         </button>
                         <button
                           type="button"
@@ -324,7 +538,7 @@ export function ProjectsPage() {
                             cursor: "pointer",
                           }}
                         >
-                          🗑
+                          <FiTrash2 size={16} />
                         </button>
                       </div>
                     )}
@@ -333,6 +547,218 @@ export function ProjectsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Floating Archive button — corner of screen */}
+      {archivedProjects.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowArchive(true)}
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            right: "1.5rem",
+            background: "#6366f1",
+            color: "#fff",
+            border: "none",
+            borderRadius: "0.75rem",
+            padding: "0.75rem 1.25rem",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <FiArchive size={16} /> Archive
+          <span
+            style={{
+              background: "rgba(255,255,255,0.25)",
+              borderRadius: "0.5rem",
+              padding: "0.1rem 0.4rem",
+              fontSize: "0.75rem",
+            }}
+          >
+            {archivedProjects.length}
+          </span>
+        </button>
+      )}
+
+      {/* Archived Projects overlay */}
+      {showArchive && (
+        <div
+          onClick={() => { setShowArchive(false); setViewingArchived(null); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="glass"
+            style={{
+              width: "100%",
+              maxWidth: 640,
+              maxHeight: "80vh",
+              overflowY: "auto",
+              borderRadius: "1rem",
+              padding: "1.5rem",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
+                <FiArchive size={18} /> Archived Projects
+              </h2>
+              <button
+                type="button"
+                onClick={() => { setShowArchive(false); setViewingArchived(null); }}
+                className="btn-secondary"
+                style={{ padding: "0.4rem 0.6rem" }}
+              >
+                <FiX size={16} />
+              </button>
+            </div>
+
+            {archivedProjects.length === 0 ? (
+              <p style={{ textAlign: "center", color: "var(--text-dim, #6b7280)", padding: "2rem 0" }}>
+                No archived projects.
+              </p>
+            ) : !viewingArchived ? (
+              <div style={{ display: "grid", gap: "0.75rem" }}>
+                {archivedProjects.map((p) => {
+                  const name = p.project_name;
+                  const color = colorForName(name);
+                  return (
+                    <div
+                      key={name}
+                      className="glass"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1rem",
+                        padding: "1rem 1.25rem",
+                        borderRadius: "0.85rem",
+                        borderLeft: `6px solid ${color}`,
+                      }}
+                    >
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem" }}>{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleViewArchivedEntries(name)}
+                        className="btn-secondary"
+                        style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+                      >
+                        View entries
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUnarchive(name)}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(99,102,241,0.4)",
+                          color: "#6366f1",
+                          borderRadius: "0.5rem",
+                          padding: "0.4rem 0.6rem",
+                          fontSize: "0.85rem",
+                          cursor: "pointer",
+                        }}
+                        title="Unarchive"
+                      >
+                        ↩ Unarchive
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Archived project detail: entries view (read-only) */
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => { setViewingArchived(null); setArchivedEntries([]); }}
+                    className="btn-secondary"
+                    style={{ padding: "0.4rem 0.6rem" }}
+                  >
+                    ← Back
+                  </button>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                    {viewingArchived}
+                  </h3>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
+                    (read-only)
+                  </span>
+                </div>
+
+                {loadingEntries ? (
+                  <p style={{ textAlign: "center", color: "var(--text-dim, #6b7280)", padding: "1.5rem" }}>
+                    Loading entries...
+                  </p>
+                ) : archivedEntries.length === 0 ? (
+                  <p style={{ textAlign: "center", color: "var(--text-dim, #6b7280)", padding: "2rem 0" }}>
+                    No entries in this project.
+                  </p>
+                ) : (
+                  <div style={{ display: "grid", gap: "0.5rem" }}>
+                    {archivedEntries.map((entry, i) => (
+                      <div
+                        key={String(entry.id || i)}
+                        className="glass"
+                        style={{
+                          padding: "0.75rem 1rem",
+                          borderRadius: "0.65rem",
+                        }}
+                      >
+                        <p style={{ margin: 0, fontSize: "0.9rem" }}>
+                          {String(entry.entries || "Untitled entry")}
+                        </p>
+                        {!!entry.due_date && (
+                          <p style={{ margin: "0.25rem 0 0", fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
+                            Due: {new Date(entry.due_date as string).toLocaleDateString()}
+                          </p>
+                        )}
+                        {entry.priority != null && (
+                          <p style={{ margin: "0.15rem 0 0", fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
+                            Priority: {String(entry.priority)}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Unarchive button at bottom of entry view */}
+                <div style={{ marginTop: "1.25rem", textAlign: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleUnarchive(viewingArchived)}
+                    style={{
+                      background: "#6366f1",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "0.5rem",
+                      padding: "0.5rem 1rem",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↩ Unarchive this project
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

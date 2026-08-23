@@ -1,5 +1,6 @@
 import express from 'express';
 import { Project } from '../functions/project.js';
+import { logActivity } from '../functions/activityLog.js';
 
 const router = express.Router();
 
@@ -40,18 +41,25 @@ router.post('/project', async (req, res) => {
           const clientError = /already exists|foreign key|violates check/i.test(result.message || '');
           return res.status(clientError ? 400 : 500).json(result);
         }
+        await logActivity(user_email, 'PROJECT_CREATED', 'project', project_name, { description });
         return res.json(result);
       }
       case "edit": {
         const { new_project_name, old_project_name } = values;
         if (!new_project_name || !old_project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await project.editProjectName(user_email, new_project_name, old_project_name);
+        if (result.success) {
+          await logActivity(user_email, 'PROJECT_RENAMED', 'project', new_project_name, { old_project_name, new_project_name });
+        }
         return res.json(result);
       }
       case "delete": {
         const { project_name } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await project.deleteProject(user_email, project_name);
+        if (result.success) {
+          await logActivity(user_email, 'PROJECT_DELETED', 'project', project_name);
+        }
         return res.json(result);
       }
       case "getProjects": {

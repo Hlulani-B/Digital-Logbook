@@ -1,3 +1,23 @@
+## Link to the Documentation site
+
+https://digital-logbook-documentation-site.onrender.com
+
+
+## AI Usage
+
+This project uses AI-assisted development for the frontend authentication module. See [`AI_USAGE.md`](AI_USAGE.md) for a summary and [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md) for the full declaration.
+
+
+## Test Coverage
+
+> Badges are auto-updated by CI on every push to `main`.
+
+| Service | Lines | Statements | Functions | Branches |
+| :--- | :---: | :---: | :---: | :---: |
+| **Project Service** | ![Lines](https://img.shields.io/badge/lines-77%25-yellow) | ![Statements](https://img.shields.io/badge/statements-74%25-yellow) | ![Functions](https://img.shields.io/badge/functions-67%25-yellow) | ![Branches](https://img.shields.io/badge/branches-65%25-yellow) |
+| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-69%25-yellow) | ![Statements](https://img.shields.io/badge/statements-65%25-yellow) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-52%25-red) |
+| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-green) | ![Statements](https://img.shields.io/badge/statements-100%25-green) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-100%25-green) |
+
 
 ##  Deployed Live Services
 
@@ -11,6 +31,7 @@ The backend microservices are deployed on Render:
 | **Profile Service** | Backend API | [https://profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com) |
 
 
+test: https://digital-logbook-hlulani.onrender.com
 
 
 

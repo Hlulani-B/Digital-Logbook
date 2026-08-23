@@ -1,0 +1,91 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [main, hlulani]
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - dashboard-service
+          - profile-service
+          - project-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: services/${{ matrix.service }}
+        run: npm ci
+
+      - name: Run tests with coverage
+        working-directory: services/${{ matrix.service }}
+        run: npm run test:coverage
+
+      - name: Generate coverage badge
+        working-directory: services/${{ matrix.service }}
+        run: npx coverage-badges-cli --output ./badges
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage/
+
+      - name: Upload badge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge-${{ matrix.service }}
+          path: services/${{ matrix.service }}/badges/
+
+  # Collect all badges and commit them to the repo
+  update-badges:
+    needs: coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITEA_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Download all badge artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-badge-*
+          path: /tmp/badges-raw
+
+      - name: Organise badges into badges/ directory
+        run: |
+          mkdir -p badges/dashboard-service badges/profile-service badges/project-service
+          for svc in dashboard-service profile-service project-service; do
+            if [ -d "/tmp/badges-raw/coverage-badge-$svc" ]; then
+              cp /tmp/badges-raw/coverage-badge-$svc/*.svg badges/$svc/ 2>/dev/null || true
+            fi
+          done
+          ls -R badges/
+
+      - name: Commit and push badges
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@codacaine.dev"
+          git add badges/
+          if git diff --cached --quiet; then
+            echo "No badge changes to commit"
+          else
+            git commit -m "chore: update test coverage badges [skip ci]"
+            git push
+          fi

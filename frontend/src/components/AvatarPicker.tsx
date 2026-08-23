@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { updateAvatar } from "../functions/profile/profile.js";
 import { useTheme } from "@/hooks/useTheme";
+import { getSupabase } from "@/lib/supabase";
 
 interface AvatarPickerProps {
   currentAvatar?: string | null;
@@ -10,24 +11,41 @@ interface AvatarPickerProps {
 
 // DiceBear avatar options (same as Avatar page)
 const AVATAR_OPTIONS = [
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Sunset",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Ocean",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Forest",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Ember",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Storm",
-  "https://api.dicebear.com/7.x/identicon/svg?seed=Meadow",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Nova",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Comet",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Aurora",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Nebula",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Solstice",
-  "https://api.dicebear.com/7.x/shapes/svg?seed=Zenith",
+  // Women (10 Avatars)
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Bella&backgroundColor=ffd6e8",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Rosa&backgroundColor=ffe0f0",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna&backgroundColor=f3d9fa",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia&backgroundColor=ffe4ec",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Ivy&backgroundColor=fbe4ff",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco&backgroundColor=ffe9f3",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Daisy&backgroundColor=ffd1dc",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Chloe&backgroundColor=f3c5ff",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Ruby&backgroundColor=ffe3ec",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=RetroGirl&backgroundColor=fbbf24",
+
+  // Boys (10 Avatars)
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&backgroundColor=c084fc",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Ethan&backgroundColor=60a5fa",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Liam&backgroundColor=34d399",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Noah&backgroundColor=fbbf24",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mason&backgroundColor=f87171",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Lucas&backgroundColor=38bdf8",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Oliver&backgroundColor=a78bfa",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Aiden&backgroundColor=4ade80",
+  "https://api.dicebear.com/7.x/open-peeps/svg?seed=PixelSam&backgroundColor=f87171",
+  "https://api.dicebear.com/7.x/open-peeps/svg?seed=GameBoy&backgroundColor=34d399",
+
+  // Queer, Trans Women & Non-Binary (10 Avatars)
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=River&backgroundColor=f472b6",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Soren&backgroundColor=a855f7",
+  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Kai&backgroundColor=fb7185",
+  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Rowan&backgroundColor=38bdf8",
+  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Quinn&backgroundColor=c084fc",
+  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Alex&backgroundColor=facc15",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Eden&backgroundColor=f43f5e",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Jules&backgroundColor=818cf8",
+  "https://api.dicebear.com/7.x/big-ears/svg?seed=CyberPunk&backgroundColor=60a5fa",
+  "https://api.dicebear.com/7.x/big-ears/svg?seed=8BitHero&backgroundColor=a78bfa"
 ];
 
 export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPickerProps) {
@@ -44,8 +62,15 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
     setError(null);
     setSuccess(false);
     try {
+      // Save to profile-service
       const result = await updateAvatar(email, avatarUrl);
       if (result?.error) throw new Error(result.error);
+
+      // Also update Supabase user metadata so navbar shows the avatar
+      await getSupabase().auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      });
+
       setSuccess(true);
       onAvatarChange?.(avatarUrl);
       setTimeout(() => setSuccess(false), 2000);
@@ -99,13 +124,13 @@ export function AvatarPicker({ currentAvatar, email, onAvatarChange }: AvatarPic
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(6, 1fr)",
+          gridTemplateColumns: "repeat(auto-fill, minmax(40px, 1fr))",
           gap: "0.5rem",
           padding: "0.75rem",
           borderRadius: "var(--radius-sm)",
           background: isDark ? "rgba(255,255,255,0.04)" : "#f9fafb",
           border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`,
-          maxWidth: "320px",
+          maxWidth: "360px",
         }}
       >
         {AVATAR_OPTIONS.map((avatarUrl) => {
