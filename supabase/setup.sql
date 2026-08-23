@@ -40,20 +40,21 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  user_email TEXT;
+  authenticated_email TEXT;
 BEGIN
-  SELECT u.email INTO user_email
+  SELECT u.email INTO authenticated_email
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  IF user_email IS NULL THEN
+  IF authenticated_email IS NULL THEN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
-  INSERT INTO public.users (email, deletion_scheduled_at)
-  VALUES (user_email, now())
+  INSERT INTO public.users AS u (email, deletion_scheduled_at)
+  VALUES (authenticated_email, now())
   ON CONFLICT (email)
-  DO UPDATE SET deletion_scheduled_at = now();
+  DO UPDATE SET deletion_scheduled_at = now()
+  WHERE u.email = authenticated_email;
 END;
 $$;
 
@@ -65,19 +66,19 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  user_email TEXT;
+  authenticated_email TEXT;
 BEGIN
-  SELECT u.email INTO user_email
+  SELECT u.email INTO authenticated_email
     FROM auth.users u
    WHERE u.id = auth.uid();
 
-  IF user_email IS NULL THEN
+  IF authenticated_email IS NULL THEN
     RAISE EXCEPTION 'Authenticated user not found';
   END IF;
 
   UPDATE public.users
      SET deletion_scheduled_at = NULL
-   WHERE email = user_email;
+   WHERE email = authenticated_email;
 END;
 $$;
 
@@ -99,10 +100,10 @@ BEGIN
        AND deletion_scheduled_at < now() - INTERVAL '30 days'
   LOOP
     -- Clean up app tables
-    DELETE FROM public.activity_log WHERE user_email = rec.email;
-    DELETE FROM public.entries      WHERE user_email = rec.email;
-    DELETE FROM public.fields       WHERE user_email = rec.email;
-    DELETE FROM public.projects     WHERE user_email = rec.email;
+    DELETE FROM public.activity_log al WHERE al.user_email = rec.email;
+    DELETE FROM public.entries      e  WHERE e.user_email  = rec.email;
+    DELETE FROM public.fields       f  WHERE f.user_email  = rec.email;
+    DELETE FROM public.projects     p  WHERE p.user_email  = rec.email;
     DELETE FROM public.users        WHERE email = rec.email;
 
     -- Remove the auth account
