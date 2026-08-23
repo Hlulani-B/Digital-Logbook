@@ -28,7 +28,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 
 ## Meeting 2 — 3 August 2026
 
-**Venue:** Commerce Library, Room 3
+**Venue:** Wartenweiler Library, Focus room 2
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** The Digital Logbook project had now been officially assigned to us.
@@ -66,12 +66,15 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
   custom entry-format requirement
 - Consolidated the team's understanding of the project based on the tutor's answers
 
-**Decisions made:** *(add specific answers the tutor gave here, if not
-already captured elsewhere — e.g. this is likely where the Firebase
-Auth/Firestore clarification and other confirmed decisions on the
-[Decisions page](decisions.md) originated. Worth cross-referencing.)*
+**Decisions made:**
 
-**Open questions:** *(carry forward anything not resolved)*
+- Specific tutor answers from this meeting were captured on the
+  [Decisions page](decisions.md) (e.g., auth and database clarifications).
+
+**Open questions:**
+
+- See [Decisions page](decisions.md) for questions carried forward after this
+  meeting.
 
 ---
 
@@ -86,7 +89,7 @@ Auth/Firestore clarification and other confirmed decisions on the
 
 - Wrote Sprint 1 user stories with Given/When/Then acceptance tests
   (see [Sprint 1 User Stories](user-stories.md))
-- Assigned tasks to team members via Trello
+- Assigned tasks to team members
 - Set up the project repository on Gitea
 
 **Decisions made:**
