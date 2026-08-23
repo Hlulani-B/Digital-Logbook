@@ -3,6 +3,11 @@
 https://digital-logbook-documentation-site.onrender.com
 
 
+## AI Usage
+
+This project uses AI-assisted development for the frontend authentication module. See [`AI_USAGE.md`](AI_USAGE.md) for a summary and [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md) for the full declaration.
+
+
 ## Test Coverage
 
 > Badges are auto-updated by CI on every push to `main`.
