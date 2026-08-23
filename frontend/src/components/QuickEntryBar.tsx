@@ -18,14 +18,14 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
 
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(() => setMessage(""), 15000);
+      const timer = setTimeout(() => setMessage(""), 30000);
       return () => clearTimeout(timer);
     }
   }, [message]);
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(""), 15000);
+      const timer = setTimeout(() => setToast(""), 30000);
       return () => clearTimeout(timer);
     }
   }, [toast]);

@@ -220,10 +220,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
   }, [loading, projects, entries, dueSoonRows]);
 
-  // Auto-dismiss greeting toast after 15 seconds
+  // Auto-dismiss greeting toast after 30 seconds
   useEffect(() => {
     if (showGreetingToast) {
-      const t = setTimeout(() => setShowGreetingToast(false), 15000);
+      const t = setTimeout(() => setShowGreetingToast(false), 30000);
       return () => clearTimeout(t);
     }
   }, [showGreetingToast]);
