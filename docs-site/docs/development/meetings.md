@@ -173,3 +173,45 @@ approach, which surfaced later during initial implementation).
 **Proof of meeting:**
 
 ![Team call screenshot showing all attendees](../assets/meetings/meeting-06-2026-08-17.png)
+
+---
+
+## Meeting 7 — 20 August 2026
+
+**Venue:** Wartenweiler Library, Focus room 2 (team in person; client/tutor JP joined online via Microsoft Teams)
+**Attendees:** Missy (Nasiphi), Siphesihle, Hlulani, Sicelo, Zamo, Lupa (full team) + JP (client/tutor)
+
+**Context:** Sprint 1 progress demonstration to the client/tutor. The team showed the current Digital Logbook build and collected feedback before continuing with the remaining Sprint 1 work.
+
+**What we did:**
+
+- Demonstrated the current progress on the Digital Logbook application.
+- Captured client feedback and requested changes:
+  - Add a voice feature.
+  - Show how many tasks are being completed / add task-completion visibility.
+  - Make the entry button more visible.
+  - Make the dashboard toggleable.
+  - Add a pin feature.
+  - Fix the entry card taking up half the space.
+- Discussed two competing ideas for the dashboard:
+  - One view: show projects/recent projects first, then drill into project entries.
+  - Alternative view: show entries directly on the dashboard with a clear project label for quick recording.
+- The client/tutor directed the team to use a bit of both approaches.
+
+**Decisions made:**
+
+- Dashboard will support both project-centric and entry-centric views (hybrid approach as suggested by the client).
+- Client feedback items (voice, stats/visibility, entry button, toggle, pin, entry-card sizing) were accepted as the next priorities.
+
+**Open questions / disagreements:**
+
+- Team members disagreed on what should appear on the dashboard by default. This was resolved by the client/tutor’s “bit of both” guidance.
+
+**Next step decided:**
+
+- Start implementing the client feedback items listed above.
+- Continue Sprint 1 work with the agreed dashboard direction.
+
+**Proof of meeting:**
+
+![Teams call screenshot showing the client/tutor JP and team members during the demo](../assets/meetings/meeting-07-2026-08-20.jpeg)
