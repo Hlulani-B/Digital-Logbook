@@ -2601,6 +2601,8 @@ img { max-width: 100%; }
   box-shadow: none;
   transition: border-color 0.15s ease, background 0.15s ease;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   overflow-wrap: break-word;
   word-break: break-word;
 }
@@ -2656,12 +2658,16 @@ img { max-width: 100%; }
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.4rem;
+  min-width: 0;
+  overflow: hidden;
 }
 .entry-box__header-right {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 .entry-box__project {
   font-family: var(--font-heading, "Playfair Display", serif);
@@ -2669,6 +2675,10 @@ img { max-width: 100%; }
   font-size: 1.1rem;
   color: var(--text, #1f1e1c);
   letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .entry-box__tags {
   display: flex;
@@ -2752,9 +2762,9 @@ img { max-width: 100%; }
   color: var(--text-muted, #8b8a85);
   font-weight: 600;
   font-size: 0.85rem;
-  width: 38%;
+  width: 35%;
   vertical-align: top;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 .entry-box__field--editing .entry-box__field-key {
   padding: 0;
@@ -2785,6 +2795,7 @@ img { max-width: 100%; }
 
 .entry-box__table {
   width: 100%; border-collapse: collapse; font-size: 0.95rem;
+  table-layout: fixed;
 }
 .entry-box__row { border-top: 1px solid var(--border, #edece9); }
 .entry-box__row:first-child { border-top: none; }
@@ -2799,6 +2810,8 @@ img { max-width: 100%; }
   display: flex; flex-wrap: wrap; gap: 0.8rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border, #edece9);
+  min-width: 0;
+  overflow: hidden;
 }
 .entry-box__meta-item { display: flex; flex-direction: column; gap: 0.12rem; }
 .entry-box__meta-label {
