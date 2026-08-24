@@ -14,7 +14,7 @@ import { searchEntriesInProject } from "@/functions/project/search.js";
 import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
 import { getToneInstruction } from "@/functions/tone";
 import { askAI } from "@/functions/ai.js";
-import { FiArrowLeft, FiSettings, FiMic } from "react-icons/fi";
+import { FiMic } from "react-icons/fi";
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -319,16 +319,16 @@ export function ProjectDetailPage() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      {/* Top Navigation */}
+      {/* Top Navigation — identical to Dashboard */}
       <nav className="navbar">
         <div className="navbar-inner">
           <div className="nav-left-group">
-            <button
-              className="nav-hamburger project-back-btn"
-              onClick={() => navigate("/dashboard")}
-              aria-label="Back to dashboard"
-            >
-              <FiArrowLeft size={20} />
+            <button className="nav-hamburger" onClick={() => navigate("/dashboard")} aria-label="Back to dashboard">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
             </button>
             <div className="nav-logo">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -337,11 +337,10 @@ export function ProjectDetailPage() {
                 <path d="M8 11h4" />
               </svg>
             </div>
-            <span className="nav-title project-nav-title">{projectName}</span>
+            <span className="nav-title">Digital Logbook</span>
           </div>
 
           <div className="nav-right-group">
-            {/* Search — toggleable, matches Dashboard */}
             {searchOpen ? (
               <div className="nav-search-inline">
                 <input
@@ -366,10 +365,6 @@ export function ProjectDetailPage() {
                 </svg>
               </button>
             )}
-            {/* Project settings gear — icon button, matches nav pattern */}
-            <button className="nav-icon-btn" onClick={() => setProjectSettingsOpen(true)} aria-label="Project settings">
-              <FiSettings size={18} />
-            </button>
             <div className="nav-user">
               <ProfileMenu
                 displayName={preferredName}
@@ -387,16 +382,22 @@ export function ProjectDetailPage() {
 
       {/* Main Content */}
       <main className="dash-main">
-        {/* Feed Header */}
+        {/* Project heading + settings on same line */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
             <h1 className="feed-title">{projectName}</h1>
-            {searchQuery && (
-              <p className="feed-subtitle">
-                {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
-              </p>
-            )}
+            <button
+              className="btn-secondary project-settings-btn"
+              onClick={() => setProjectSettingsOpen(true)}
+            >
+              Project Settings
+            </button>
           </div>
+          {searchQuery && (
+            <p className="feed-subtitle">
+              {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+            </p>
+          )}
         </div>
 
         {/* Search bar inline for mobile */}
