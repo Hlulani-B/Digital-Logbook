@@ -1,20 +1,19 @@
-<svg width="126.1" height="20" viewBox="0 0 1261 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="statements: 67.53%">
-  <title>statements: 67.53%</title>
-  <linearGradient id="xNltV" x2="0" y2="100%">
+<svg width="119" height="20" viewBox="0 0 1190 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="statements: 73.56%">
+  <title>statements: 73.56%</title>
+  <linearGradient id="g" x2="0" y2="100%">
     <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
     <stop offset="1" stop-opacity=".1"/>
   </linearGradient>
-  <mask id="zrReZ"><rect width="1261" height="200" rx="30" fill="#FFF"/></mask>
-  <g mask="url(#zrReZ)">
-    <rect width="721" height="200" fill="#555"/>
-    <rect width="540" height="200" fill="#cba317" x="721"/>
-    <rect width="1261" height="200" fill="url(#xNltV)"/>
+  <mask id="m"><rect width="1190" height="200" rx="30" fill="#FFF"/></mask>
+  <g mask="url(#m)">
+    <rect width="680" height="200" fill="#555"/>
+    <rect width="510" height="200" fill="#a0a127" x="680"/>
+    <rect width="1190" height="200" fill="url(#g)"/>
   </g>
   <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
-    <text x="60" y="148" textLength="621" fill="#000" opacity="0.25">statements</text>
-    <text x="50" y="138" textLength="621">statements</text>
-    <text x="776" y="148" textLength="440" fill="#000" opacity="0.25">67.53%</text>
-    <text x="766" y="138" textLength="440">67.53%</text>
+    <text x="60" y="148" textLength="580" fill="#000" opacity="0.25">statements</text>
+    <text x="50" y="138" textLength="580">statements</text>
+    <text x="735" y="148" textLength="410" fill="#000" opacity="0.25">73.56%</text>
+    <text x="725" y="138" textLength="410">73.56%</text>
   </g>
-  
 </svg>

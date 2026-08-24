@@ -177,6 +177,33 @@ const PRIORITY_LABELS: Record<string, string> = {
   "2": "Not urgent, not important",
 };
 
+// Human-readable labels for detail keys
+const DETAIL_LABELS: Record<string, string> = {
+  project_name: "Project",
+  old_project_name: "Old name",
+  new_project_name: "New name",
+  description: "Description",
+  due_date: "Due date",
+  priority: "Priority",
+  entry_id: "Entry ID",
+  source: "Source",
+  field_name: "Field",
+  data_type: "Type",
+  is_required: "Required",
+};
+
+function formatDetailValue(key: string, value: unknown): string {
+  if (value == null) return "—";
+  if (key === "priority") return PRIORITY_LABELS[String(value)] || String(value);
+  if (key === "is_required") return value ? "Yes" : "No";
+  if (key === "source") return value === "natural-language" ? "Quick Add (AI)" : String(value);
+  if (key === "due_date" && value) {
+    const d = new Date(String(value));
+    if (!isNaN(d.getTime())) return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+  return String(value);
+}
+
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -270,8 +297,9 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
         const entityName = truncateName(activity.entity_name);
         const details = activity.details || {};
-        const projectName = (details.project_name as string) || (details.old_project_name as string);
-        const priorityLabel = details.priority != null ? PRIORITY_LABELS[String(details.priority)] : null;
+        const detailEntries = Object.entries(details).filter(
+          ([key, val]) => val != null && val !== "" && key !== "old_project_name" && key !== "new_project_name"
+        );
         const isRename = activity.action_type === "PROJECT_RENAMED";
         const oldName = String(details.old_project_name ?? "");
         const newName = String(details.new_project_name ?? "");
@@ -297,20 +325,19 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
                     </span>
                   </>
                 )}
-                {projectName && !isRename && config.entityLabel !== "project" && (
-                  <>
-                    {" "}
-                    <span className="activity-detail">in {projectName}</span>
-                  </>
-                )}
-                {priorityLabel && (
-                  <>
-                    {" "}
-                    <span className="activity-detail">→ {priorityLabel}</span>
-                  </>
-                )}
               </p>
               <span className="activity-time">{formatRelativeTime(activity.created_at)}</span>
+
+              {detailEntries.length > 0 && (
+                <div className="activity-details">
+                  {detailEntries.map(([key, val]) => (
+                    <div key={key} className="activity-detail-row">
+                      <span className="activity-detail-key">{DETAIL_LABELS[key] || key.replace(/_/g, " ")}</span>
+                      <span className="activity-detail-value">{formatDetailValue(key, val)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
