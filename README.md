@@ -162,7 +162,7 @@ npm run dev
 
 # Digital Logbook — Frontend
 
-A modern, premium frontend for the **Digital Logbook** application built as part of the **COMS3011A Project 7** (University of the Witwatersrand). This frontend handles user authentication, profile management, and dashboard functionality using React, Supabase, and Cloudflare Turnstile.
+A modern, premium frontend for the **Digital Logbook** application built as part of the **COMS3011A Project 7** (University of the Witwatersrand). This frontend handles user authentication, profile management, and dashboard functionality using React and Supabase.
 
 ---
 
@@ -173,8 +173,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 | **React 19 + TypeScript** | UI framework with type safety |
 | **Vite 6** | Build tool and dev server |
 | **React Router v7** | Client-side routing |
-| **Supabase** | Authentication (Google & GitHub OAuth) |
-| **Cloudflare Turnstile** | CAPTCHA bot protection |
+| **Supabase** | Authentication (Google & GitHub OAuth, email/password, magic links) |
 | **CSS (custom)** | Premium glassmorphism UI (no Tailwind dependency) |
 
 ---
@@ -190,10 +189,10 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Key details:**
 - **Google OAuth** — one-click sign-in/sign-up via Google accounts
 - **GitHub OAuth** — alternative provider for developer-friendly authentication
-- **Email / Password** — traditional sign-in and sign-up with CAPTCHA-gated form; supports the password reset flow end-to-end
-- **Cloudflare Turnstile CAPTCHA** — invisible bot protection that must be verified before any sign-in button becomes active
+- **Email / Password** — traditional sign-in and sign-up; supports the password reset flow end-to-end
+- **Account restore prompt** — soft-deleted accounts (in the 30-day grace period) see a restore prompt on sign-in with a secure email confirmation link
 - **"Forgot password?" link** — accessible entry point to the password reset flow
-- Animated gradient background with glassmorphism card design
+- Split-screen video background with glassmorphism card design
 - OAuth accounts are created automatically on first sign-in (no separate sign-up step)
 
 ### 2. OAuth Callback Handler (`/auth/callback`)
@@ -249,19 +248,18 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 - **Weekly log reminder** — toggle Friday nudges to log hours
 
 #### Account Tab
-- **Account information** — email, sign-in method (Google/GitHub/email), and user ID
+- **Account information** — email and sign-in method (Google/GitHub/email)
 - **Password reset** — send a reset link to your email (sets up email-based auth alongside OAuth)
-- **Danger Zone** — permanently delete account with confirmation dialog
+- **Danger Zone** — schedule account deletion (starts a 30-day grace period); restore is handled via the sign-in page email-link flow
 
 ### 6. Reset Password Flow (`/reset-password`)
 
-**What it does:** Allows users to request a password reset link via email, protected by CAPTCHA.
+**What it does:** Allows users to request a password reset link via email.
 
 **Why:** The project specification requires password reset functionality. This serves users who need email-based authentication alongside their OAuth provider.
 
 **Key details:**
-- Accessible from the sign-in page ("Trouble signing in?") and the Settings panel Account tab
-- CAPTCHA-protected to prevent abuse
+- Accessible from the sign-in page ("Forgot password?") and the Settings panel Account tab
 - Reset link expires in 1 hour
 - Success confirmation shows which email received the link
 
@@ -285,9 +283,15 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 
 ### 9. Delete Account
 
-**What it does:** Permanently deletes the user's account and all associated data via a Supabase RPC function.
+**What it does:** Schedules the user's account for deletion and starts a 30-day grace period. During the grace period, the user can sign back in and restore the account via a secure email confirmation link. After 30 days, the account and all associated data are permanently purged by a scheduled Supabase RPC function.
 
-**Why:** The project specification requires account deletion capability. A confirmation dialog prevents accidental deletion.
+**Why:** The project specification requires account deletion capability. The grace period gives users a chance to recover accidentally deleted accounts, and the email confirmation step protects against unauthorized restoration.
+
+**Key details:**
+- Clicking **"Delete Account"** immediately signs the user out
+- Attempting to sign in during the grace period shows a restore prompt instead of logging the user in
+- Restoring requires clicking a confirmation link sent to the account email
+- Data is hard-deleted only after the 30-day window expires
 
 ---
 
@@ -307,7 +311,6 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 ### Prerequisites
 - Node.js 18+
 - A Supabase project with Google and GitHub OAuth providers enabled
-- A Cloudflare Turnstile widget with your site key
 
 ### Setup
 
@@ -327,7 +330,6 @@ See `.env.example` for all required variables:
 - `VITE_AUTH_SERVICE_URL` — auth microservice URL
 - `VITE_DASHBOARD_SERVICE_URL` — dashboard microservice URL
 - `VITE_PROJECT_SERVICE_URL` — project microservice URL
-- `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key
 
 ### Supabase Configuration
 
@@ -335,7 +337,7 @@ See `.env.example` for all required variables:
 2. Enable **GitHub** provider: Authentication → Providers → GitHub (paste Client ID + Secret)
 3. Set **Site URL** to `http://localhost:3000`
 4. Add `http://localhost:3000/**` to **Redirect URLs**
-5. Run `supabase/setup.sql` to create the `delete_user()` RPC function
+5. Run `supabase/setup.sql` to create the `delete_user()`, `restore_user()`, and `purge_deleted_users()` RPC functions
 
 ---
 
@@ -355,6 +357,7 @@ frontend/
 │   │   └── supabase.ts          # Supabase client
 │   ├── pages/
 │   │   ├── AuthCallback.tsx     # OAuth redirect handler
+│   │   ├── AuthRestore.tsx      # Email-link account restoration
 │   │   ├── Dashboard.tsx        # Main dashboard
 │   │   ├── ResetPassword.tsx    # Reset password request
 │   │   ├── SignIn.tsx           # Sign-in page

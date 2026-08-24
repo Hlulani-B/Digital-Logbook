@@ -1,6 +1,6 @@
 # Digital Logbook — Frontend
 
-A modern, premium frontend for the **Digital Logbook** application built as part of the **COMS3011A Project 7** (University of the Witwatersrand). This frontend handles user authentication, profile management, and dashboard functionality using React, Supabase, and Cloudflare Turnstile.
+A modern, premium frontend for the **Digital Logbook** application built as part of the **COMS3011A Project 7** (University of the Witwatersrand). This frontend handles user authentication, profile management, and dashboard functionality using React and Supabase.
 
 ---
 
@@ -11,9 +11,8 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 | **React 19 + TypeScript** | UI framework with type safety |
 | **Vite 6** | Build tool and dev server |
 | **React Router v7** | Client-side routing |
-| **Supabase** | Authentication (Google OAuth, GitHub OAuth, Email/Password) |
-| **Cloudflare Turnstile** | CAPTCHA bot protection |
-| **Brevo** | SMTP email delivery (confirmation and reset emails) |
+| **Supabase** | Authentication (Google OAuth, GitHub OAuth, Email/Password, magic links) |
+| **Brevo** | SMTP email delivery (confirmation, reset, and restore emails) |
 | **CSS (custom)** | Premium glassmorphism UI (no Tailwind dependency) |
 
 ---
@@ -29,8 +28,8 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Layout:**
 - **Split-screen design** — left panel shows a looping video showcase of the app; right panel contains the sign-in/sign-up form
 - **Video background** — two videos alternate seamlessly for a continuous loop effect
-- **Theme-aware CAPTCHA** — Turnstile widget switches between dark and light mode based on the app's current theme
 - **Post-auth routing** — after sign-in, the app checks if the user has a profile; new users are routed to `/create-profile`, returning users to `/dashboard`
+- **Account restore prompt** — soft-deleted accounts (in the 30-day grace period) see a restore prompt with a secure email confirmation link instead of being logged in
 
 **Three Authentication Methods:**
 
@@ -38,21 +37,20 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 |---|---|---|
 | **Google OAuth** | One-click sign-in via Google accounts | Account created automatically on first sign-in; no separate sign-up step |
 | **GitHub OAuth** | One-click sign-in via GitHub accounts | Same as Google — instant account creation |
-| **Email / Password** | Sign-up with confirmation email → sign in with credentials | Supports full password reset flow; CAPTCHA-gated to prevent bot abuse |
+| **Email / Password** | Sign-up with confirmation email → sign in with credentials | Supports full password reset flow |
 
 **How Email/Password Works (End-to-End):**
 1. User clicks "Create one" to switch to sign-up mode
 2. Enters email, password, and confirm password (must match)
-3. Completes the Cloudflare Turnstile CAPTCHA challenge
-4. Clicks "Create Account" — Supabase creates the user and sends a confirmation email via Brevo SMTP
-5. User clicks the confirmation link in the email
-6. Returns to the sign-in page, enters email and password
-7. Completes CAPTCHA and clicks "Sign In"
-8. App checks if user profile exists → routes to dashboard or create-profile page
+3. Clicks "Create Account" — Supabase creates the user and sends a confirmation email via Brevo SMTP
+4. User clicks the confirmation link in the email
+5. Returns to the sign-in page, enters email and password
+6. Clicks "Sign In"
+7. App checks if user profile exists → routes to dashboard or create-profile page
 
 **Password Reset Flow:**
 1. User clicks "Forgot password?" on the sign-in page
-2. Enters their email and completes CAPTCHA
+2. Enters their email
 3. Receives a reset link via email (expires in 1 hour)
 4. Clicks the link → sets a new password with strength meter feedback
 5. Redirected to dashboard on success
@@ -62,9 +60,9 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 - OAuth users who want email/password access can use the password reset flow to link both methods.
 
 **Key details:**
-- **Cloudflare Turnstile CAPTCHA** — invisible bot protection that must be verified before any authentication action
 - **Confirm password field** — appears only in sign-up mode to prevent typos
 - **"Forgot password?" link** — accessible entry point to the password reset flow
+- **Account restore flow** — soft-deleted accounts are blocked from signing in until they confirm restoration via a magic link sent to their email
 
 ### 2. OAuth Callback Handler (`/auth/callback`)
 
@@ -119,19 +117,18 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 - **Weekly log reminder** — toggle Friday nudges to log hours
 
 #### Account Tab
-- **Account information** — email, sign-in method (Google/GitHub/email), and user ID
+- **Account information** — email and sign-in method (Google/GitHub/email)
 - **Password reset** — send a reset link to your email (sets up email-based auth alongside OAuth)
-- **Danger Zone** — permanently delete account with confirmation dialog
+- **Danger Zone** — schedule account deletion (starts a 30-day grace period); restore is handled via the sign-in page email-link flow
 
 ### 6. Reset Password Flow (`/reset-password`)
 
-**What it does:** Allows users to request a password reset link via email, protected by CAPTCHA.
+**What it does:** Allows users to request a password reset link via email.
 
 **Why:** The project specification requires password reset functionality. This serves users who need email-based authentication alongside their OAuth provider.
 
 **Key details:**
-- Accessible from the sign-in page ("Trouble signing in?") and the Settings panel Account tab
-- CAPTCHA-protected to prevent abuse
+- Accessible from the sign-in page ("Forgot password?") and the Settings panel Account tab
 - Reset link expires in 1 hour
 - Success confirmation shows which email received the link
 
@@ -155,9 +152,15 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 
 ### 9. Delete Account
 
-**What it does:** Permanently deletes the user's account and all associated data via a Supabase RPC function.
+**What it does:** Schedules the user's account for deletion and starts a 30-day grace period. During the grace period, the user can sign back in and restore the account via a secure email confirmation link. After 30 days, the account and all associated data are permanently purged by a scheduled Supabase RPC function.
 
-**Why:** The project specification requires account deletion capability. A confirmation dialog prevents accidental deletion.
+**Why:** The project specification requires account deletion capability. The grace period gives users a chance to recover accidentally deleted accounts, and the email confirmation step protects against unauthorized restoration.
+
+**Key details:**
+- Clicking **"Delete Account"** immediately signs the user out
+- Attempting to sign in during the grace period shows a restore prompt instead of logging the user in
+- Restoring requires clicking a confirmation link sent to the account email
+- Data is hard-deleted only after the 30-day window expires
 
 ---
 
@@ -168,7 +171,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 - **Animated gradient orbs** — floating background elements for visual depth
 - **Staggered animations** — content enters with sequential fade-in-up transitions
 - **Gradient accents** — indigo-to-purple gradients on the logo, buttons, and greeting text
-- **Theme support** — dark and light mode with CAPTCHA widget that adapts automatically
+- **Theme support** — dark and light mode with automatic UI adaptation
 - **Responsive** — works on mobile (full-width panels) and desktop
 - **Custom favicon** — SVG-based "DL" badge matching the brand colour
 
@@ -179,7 +182,6 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 ### Prerequisites
 - Node.js 18+
 - A Supabase project with Google and GitHub OAuth providers enabled
-- A Cloudflare Turnstile widget with your site key
 
 ### Setup
 
@@ -199,7 +201,7 @@ See `.env.example` for all required variables:
 - `VITE_AUTH_SERVICE_URL` — auth microservice URL
 - `VITE_DASHBOARD_SERVICE_URL` — dashboard microservice URL
 - `VITE_PROJECT_SERVICE_URL` — project microservice URL
-- `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key
+
 
 ### Supabase Configuration
 
@@ -207,10 +209,9 @@ See `.env.example` for all required variables:
 2. Enable **GitHub** provider: Authentication → Providers → GitHub (paste Client ID + Secret)
 3. Set **Site URL** to `http://localhost:3000`
 4. Add `http://localhost:3000/**` to **Redirect URLs**
-5. Run `supabase/setup.sql` to create the `delete_user()` RPC function
+5. Run `supabase/setup.sql` to create the `delete_user()`, `restore_user()`, and `purge_deleted_users()` RPC functions
 6. **Enable email confirmations:** Authentication → Sign In / Providers → Confirm email → ON
-7. **Configure CAPTCHA:** Authentication → Attack Protection → Enable Captcha → choose Turnstile → paste the secret key (not the site key)
-8. **Configure SMTP:** Authentication → Emails → SMTP Settings → enable custom SMTP with Brevo credentials
+7. **Configure SMTP:** Authentication → Emails → SMTP Settings → enable custom SMTP with Brevo credentials
 
 ### External Services Configuration
 
@@ -228,19 +229,6 @@ Google OAuth is required for the Google sign-in button. Configure it before enab
    - `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`
 7. Copy the **Client ID** and **Client Secret**
 8. Paste them into **Supabase → Authentication → Providers → Google**
-
-#### Cloudflare Turnstile (CAPTCHA)
-Turnstile provides invisible bot protection for email/password and password reset flows. Both a site key (frontend) and a secret key (Supabase server-side) are required.
-
-1. Go to the [Cloudflare Turnstile dashboard](https://dash.cloudflare.com/) → **Turnstile → Add widget**
-2. Widget name: `Digital Logbook`
-3. Mode: **Managed** (recommended) or **Non-interactive**
-4. Add your domain: `localhost` (for local dev) and your production domain
-5. Copy the **Site key** — paste it into `.env` as `VITE_TURNSTILE_SITE_KEY`
-6. Copy the **Secret key** — paste it into **Supabase → Authentication → Attack Protection → Captcha secret**
-7. Click **Save changes** in Supabase
-
-> **Important:** The secret key and site key are different values. Pasting the site key into the secret field causes `invalid-input-secret` errors on every authentication request.
 
 #### Brevo SMTP (Email Delivery)
 Brevo sends transactional emails on behalf of Supabase: account confirmation emails on sign-up and password reset links.
@@ -293,6 +281,7 @@ frontend/
 │   │   └── supabase.ts          # Supabase client
 │   ├── pages/
 │   │   ├── AuthCallback.tsx     # OAuth redirect handler
+│   │   ├── AuthRestore.tsx      # Email-link account restoration
 │   │   ├── Dashboard.tsx        # Main dashboard
 │   │   ├── ResetPassword.tsx    # Reset password request
 │   │   ├── SignIn.tsx           # Sign-in page (split layout)
@@ -311,26 +300,22 @@ frontend/
 
 ## Troubles Encountered
 
-### 1. CAPTCHA Secret Key Mismatch
-**Problem:** The Turnstile secret key field in Supabase was accidentally filled with the **site key** instead of the **secret key**, causing `invalid-input-secret` errors on every email/password request. Additionally, the key was truncated when pasting.
-**Fix:** Copied the correct secret key from the Cloudflare Turnstile widget edit page and pasted the full value into Supabase → Authentication → Attack Protection → Captcha secret.
-
-### 2. Email Confirmation Emails Not Sending
+### 1. Email Confirmation Emails Not Sending
 **Problem:** After sign-up, no confirmation email arrived. Resend (initial SMTP provider) logs were completely empty.
 **Root cause:** Supabase's custom SMTP was not being used because either the "Enable custom SMTP" toggle was off, or the SMTP credentials were misconfigured.
 **Fix:** Switched to Brevo as the SMTP provider. Configured Supabase SMTP settings with Brevo credentials (`smtp-relay.brevo.com`, port 587, username `ab9b48001@smtp-brevo.com`, and the Brevo SMTP key as password). Verified the sender email in Brevo before configuring Supabase.
 
-### 3. Existing Users Not Receiving Confirmation Emails
+### 2. Existing Users Not Receiving Confirmation Emails
 **Problem:** After fixing SMTP, sign-up returned "Account created!" success but no email was sent for previously-used email addresses.
 **Root cause:** Supabase's `signUp` endpoint returns HTTP 200 for already-registered emails (security measure to prevent email enumeration), but silently skips sending the confirmation email.
 **Fix:** Delete the old user from Supabase → Authentication → Users and sign up fresh, or use "Forgot password?" to set a password for existing accounts.
 
-### 4. Vite Config Precedence Issue
+### 3. Vite Config Precedence Issue
 **Problem:** The `@/` path alias was not resolving, causing module not found errors.
 **Root cause:** A duplicate `vite.config.js` existed alongside `vite.config.ts`. Vite loads `.js` before `.ts`, so the alias configuration in `.ts` was ignored.
 **Fix:** Deleted the duplicate `vite.config.js` so Vite uses `vite.config.ts` with the correct path alias.
 
-### 5. Duplicate Files After Git Merge
+### 4. Duplicate Files After Git Merge
 **Problem:** After merging the Authentication branch into main (which had unrelated histories), duplicate files (`App.jsx`, `main.jsx`) were left behind, causing Vite to resolve the wrong entry points.
 **Fix:** Deleted the duplicate `.jsx` files and kept the `.tsx` versions from the Authentication branch.
 
@@ -343,7 +328,7 @@ This frontend was developed with significant AI assistance using **Qoder** (an A
 **Summary of AI involvement:**
 - **Human-directed:** All feature requirements, design decisions, authentication provider choices, and deployment strategy were decided by the student (Nasiphi Ntontela)
 - **AI-assisted:** Code generation, UI styling, debugging guidance, and configuration instructions were provided by the AI under the student's direct supervision
-- **Human-configured:** All external services (Supabase OAuth, Google Cloud Console, Cloudflare Turnstile, Brevo SMTP, Gitea) were configured manually by the student
+- **Human-configured:** All external services (Supabase OAuth, Google Cloud Console, Brevo SMTP, Gitea) were configured manually by the student
 - **Human-tested:** All features were manually tested in the browser after each change
 
 The AI accelerated implementation but did not independently make product, design, or architectural decisions.
