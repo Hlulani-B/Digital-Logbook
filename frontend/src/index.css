@@ -2650,6 +2650,11 @@ img { max-width: 100%; }
 .entry-box__menu-item--danger { color: #d1453b; }
 .entry-box__menu-item:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.entry-box__top-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .entry-box__header {
   display: flex;
   flex-direction: column;

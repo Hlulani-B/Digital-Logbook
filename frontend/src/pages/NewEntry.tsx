@@ -492,6 +492,42 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
 
   return (
     <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
+      <div className="entry-box__top-row">
+        <div className="entry-box__menu-wrap" ref={menuRef}>
+          <button
+            type="button"
+            className="entry-box__menu-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Entry options"
+            aria-expanded={menuOpen}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div className="entry-box__menu">
+              <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item entry-box__menu-item--danger"
+                onClick={handleToggleArchive}
+                disabled={archiving}
+              >
+                {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item entry-box__menu-item--danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="entry-box__header">
         <div className="entry-box__tags">
           {onPriorityChanged ? (
@@ -525,40 +561,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
               {getOverdueText(due_date ?? null, status)}
             </span>
           )}
-          <div className="entry-box__menu-wrap" ref={menuRef}>
-            <button
-              type="button"
-              className="entry-box__menu-btn"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Entry options"
-              aria-expanded={menuOpen}
-            >
-              ⋯
-            </button>
-            {menuOpen && (
-              <div className="entry-box__menu">
-                <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item entry-box__menu-item--danger"
-                  onClick={handleToggleArchive}
-                  disabled={archiving}
-                >
-                  {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item entry-box__menu-item--danger"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            )}
-          </div>
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>
