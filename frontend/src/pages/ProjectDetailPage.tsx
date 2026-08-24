@@ -14,7 +14,7 @@ import { searchEntriesInProject } from "@/functions/project/search.js";
 import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
 import { getToneInstruction } from "@/functions/tone";
 import { askAI } from "@/functions/ai.js";
-import { FiArrowLeft, FiMic } from "react-icons/fi";
+import { FiArrowLeft, FiSettings, FiMic } from "react-icons/fi";
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -366,12 +366,9 @@ export function ProjectDetailPage() {
                 </svg>
               </button>
             )}
-            {/* Project Settings button — text, far right */}
-            <button
-              className="btn-secondary project-settings-btn"
-              onClick={() => setProjectSettingsOpen(true)}
-            >
-              Project Settings
+            {/* Project settings gear — icon button, matches nav pattern */}
+            <button className="nav-icon-btn" onClick={() => setProjectSettingsOpen(true)} aria-label="Project settings">
+              <FiSettings size={18} />
             </button>
             <div className="nav-user">
               <ProfileMenu
