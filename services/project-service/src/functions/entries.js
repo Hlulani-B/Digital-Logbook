@@ -546,6 +546,13 @@ HARD RULE: If two activities would naturally belong to DIFFERENT projects/catego
 === STEP 5: FIELD VALUES — PARAPHRASE NEATLY (STRICT) ===
 When creating field values, you MUST write clean, well-phrased descriptions. This is NOT optional.
 - DO NOT just copy the user's raw words. DO NOT just extract keywords. REWRITE as a clear, neat description.
+- NEVER use first-person pronouns (I, my, me, mine, we, us, our) in field values. Write in a neutral, impersonal style — as if someone else is reading the log later.
+  - CORRECT: {"task": "Finish the report and email it to John"}
+  - WRONG: {"task": "I need to finish my report and email John"} ← contains "I" and "my"
+  - CORRECT: {"activity": "Gym session followed by preparing chips for dinner"}
+  - WRONG: {"activity": "I went to the gym and then I made chips"} ← contains "I"
+- If the user mentions ANOTHER person, pronouns for that person are fine (e.g., "he", "she", "they", "his", "her").
+  - CORRECT: {"task": "Call John and remind him about his presentation"}
 - CORRECT: {"task": "Ensure the report is finished and email it to John"}
 - WRONG: {"task": "make sure its done and send the email to john"} ← raw copy, not paraphrased
 - WRONG: {"task": "send email"} ← lost meaning, too short
