@@ -496,42 +496,58 @@ ${JSON.stringify(projectsWithFields)}
 
 Entry: "${cleanedText}"
 
-=== CRITICAL TASK SPLITTING RULE ===
-You MUST split the user's input into separate entries when it contains multiple DISTINCT activities or tasks. Look for:
-- Conjunctions joining different actions: "and", "also", "plus", "then", "after that", "also need to"
-- Semicolons or commas separating different tasks
-- Multiple verbs describing different activities
+=== STEP 1: REASONING (MANDATORY) ===
+Before responding, you MUST think step-by-step in your "comment" field. Show your reasoning:
+1. What DISTINCT activities/tasks are mentioned? List each one separately.
+2. For each activity, which existing project does it belong to? If NONE match clearly, say "NEW PROJECT needed".
+3. Are any activities being forced together that don't belong? If yes, SPLIT them.
+4. Final decision: matched=0, 1, 2, or 3?
 
-Examples of CORRECT splitting:
-- "going to the gym and making chips" → TWO entries: {"Gym": {"activity": "going to the gym"}} + {"Cooking": {"activity": "making chips"}} — these are COMPLETELY DIFFERENT activities, do NOT merge them into one project
-- "fixed login bug and updated docs for WebApp" → TWO entries in the SAME project: old=[{WebApp:{task:"fixed login bug"}}, {WebApp:{task:"updated docs"}}]
-- "deploy frontend to production and setup database migration" → TWO entries, possibly different projects
-- "buy groceries, cook dinner, and clean the kitchen" → THREE entries
+=== STEP 2: SPLITTING RULES (STRICT) ===
+You MUST split into separate entries when the input contains MULTIPLE DISTINCT activities.
 
-Examples of what is a SINGLE entry (do NOT split):
-- "worked on the login feature for WebApp" → ONE entry (all one task)
-- "meeting with the team about the API redesign" → ONE entry (all one task)
-- "studied chapter 5 and 6 for maths" → ONE entry (studying is one activity covering both chapters)
+SPLIT these into separate entries:
+- "going to the gym and making chips" → TWO entries: Gym (going to the gym) + Cooking (making chips) — COMPLETELY DIFFERENT activities
+- "fixed login bug and updated docs for WebApp" → TWO entries in same project
+- "buy groceries, cook dinner, clean kitchen" → THREE entries
+- "study maths and go for a run" → TWO entries: Maths + Fitness
+- "call the dentist and email the professor" → TWO entries: Health + Education
 
-RULE: If two activities would naturally belong to DIFFERENT projects or categories, they MUST be separate entries. Never create a combined project name like "Gym and Cooking" — that is WRONG.
-=== END SPLITTING RULE ===
+DO NOT split these (single activity):
+- "worked on the login feature for WebApp" → ONE entry
+- "studied chapter 5 and 6 for maths" → ONE entry (studying covers both)
+- "meeting with the team about API redesign" → ONE entry
 
-Rules:
-- Try to match each entry to one of the existing projects above.
-- Set "matched" to 1 if the input describes a SINGLE task that fits one existing project.
-- Set "matched" to 2 if the user is ONLY asking to create a new project (not logging an entry). Examples: "create a project called X", "make a new project for Y", "set up a project named Z". In this case, do NOT create an entry — just create the project.
-- Set "matched" to 3 if the input contains MULTIPLE distinct tasks/activities that need to be split. This includes: tasks going to different existing projects, tasks going to new projects, or a mix. Each distinct activity becomes its own entry.
-- If matched=1: set "project" to the EXACT matching project_name from the list above, and "fields" to an object of field_name:value pairs filled from the entry text using ONLY that project's existing fields.
-- If matched=0: You MUST create a new project. Set "project" to a short sensible new project name. Set "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense. Set "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
-- If matched=2: Set "project" to the project name the user wants to create. Set "new_fields" as an array of field definitions if the user mentioned any, otherwise an empty array. Set "fields" to an empty object {}. Set "priority" to null.
-- If matched=3: Set "old" as an array of objects for entries going to EXISTING projects, each shaped like {"ProjectName": {"field": "value"}}. Each DISTINCT activity gets its OWN object in the array — never combine two different activities into one object. Set "new" as an array of objects for entries going to NEW projects (that don't exist yet), each shaped like {"project_name": "NewProject", "fields": {"field": "value"}, "new_fields": [{"field_name":"...", "data_type":"text", "is_required":false}]}. Each new project gets its own object. If a new project doesn't need custom fields, set "new_fields" to an empty array. Set "priority" to null.
-- NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are already built-in columns on every entry.
+HARD RULE: If two activities would naturally belong to DIFFERENT projects/categories, they MUST be separate. NEVER create combined project names like "Gym and Cooking" — that is WRONG.
+
+=== STEP 3: PROJECT MATCHING RULES (STRICT) ===
+- If you are UNSURE which existing project a task belongs to, DO NOT GUESS.
+- Instead, create a NEW project for that task (use matched=3 with "new" array).
+- In your comment, explain: "I wasn't sure which project this belonged to, so I created a new one."
+- If the task mentions a project name EXPLICITLY (e.g., "for WebApp"), use that project.
+- If the task is VAGUE and could fit multiple projects, create a NEW project.
+- GUESSING IS FORBIDDEN. When in doubt, create new.
+
+=== STEP 4: MATCHED VALUES ===
+- matched=0: Single task, NO existing project matches. Create ONE new project + entry.
+- matched=1: Single task, fits ONE existing project EXACTLY. You are CERTAIN it belongs there.
+- matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
+- matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
+
+=== STEP 5: RESPONSE FORMAT ===
+If matched=0: {"matched":0,"project":"NewProjectName","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
+If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"field":"value"},"priority":null,"comment":"Your reasoning here..."}
+If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
+If matched=3: {"matched":3,"old":[{"ExistingProject":{"field":"value"}}],"new":[{"project_name":"NewProject","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}]}],"priority":null,"comment":"Your reasoning here..."}
+
+RULES:
+- NEVER include "due_date", "priority", or "status" as custom fields — these are built-in.
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
-- DO NOT include a "due_date" field in your response. The due date is handled separately by the system.
+- DO NOT include a "due_date" field — the system handles dates separately.
 - ${commentInstruction}
+- In your comment, EXPLAIN your reasoning: why you split tasks the way you did, why you chose certain projects, and why you created new ones when unsure.
 
-Respond with ONLY this JSON structure, nothing else:
-{"matched":1,"project":"name","fields":{"field":"value"},"new_fields":[],"priority":0,"comment":"..."}`;
+Respond with ONLY this JSON, nothing else:`;
 
       const aiResponse = await AI(prompt);
 
