@@ -486,8 +486,8 @@ export class Natural_language {
       const today = toISODate(new Date());
 
       const commentInstruction = calculatedDate
-        ? `Write a warm, human comment (1-2 sentences) back to the user. Keep it natural and low-key — no need to mention the date unless it feels relevant. If matched=1, say something like "Added to [project name] — [warm comment about the task]." If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]." If matched=2, say something like "Created project [project name] for you — [warm comment about getting started]."`
-        : `Write a warm, human comment (2-3 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, say something like "Added to [project name] — [warm comment about the task]. I couldn't pick up a due date from your text though, so it's been left blank for now — you can always edit it to add one.". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]. I didn't catch a due date in there, so it's unset for now — feel free to edit it later if you need one.". If matched=2, say something like "Created project [project name] for you — [warm comment]. You can start adding entries to it whenever you're ready.".`;
+        ? `Write a warm, human comment (1-2 sentences) back to the user. Keep it natural and low-key — no need to mention the date unless it feels relevant. If matched=1, say something like "Added to [project name] — [warm comment about the task]." If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]." If matched=2, say something like "Created project [project name] for you — [warm comment about getting started]." If matched=3, summarise what was added across the projects — e.g. "Added entries to WebApp and MobileApp, and created DevOps for you."`
+        : `Write a warm, human comment (2-3 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, say something like "Added to [project name] — [warm comment about the task]. I couldn't pick up a due date from your text though, so it's been left blank for now — you can always edit it to add one.". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]. I didn't catch a due date in there, so it's unset for now — feel free to edit it later if you need one.". If matched=2, say something like "Created project [project name] for you — [warm comment]. You can start adding entries to it whenever you're ready.". If matched=3, summarise what was added across the projects and mention no due date was set.`;
 
       const prompt = `Parse this log entry into JSON. Today is ${today}.
 
@@ -500,9 +500,11 @@ Rules:
 - Try to match this entry to one of the existing projects above.
 - Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit and the user wants to log an entry.
 - Set "matched" to 2 if the user is ONLY asking to create a new project (not logging an entry). Examples: "create a project called X", "make a new project for Y", "set up a project named Z". In this case, do NOT create an entry — just create the project.
+- Set "matched" to 3 if the user wants to add multiple entries across DIFFERENT projects in one go. Examples: "add login bug fix to WebApp and setup CI for DevOps", "log 2 hours on MobileApp and create a new Research project with notes". In this case, split the entries into "old" (existing projects) and "new" (projects that don't exist yet).
 - If matched=1: set "project" to the EXACT matching project_name from the list above, and "fields" to an object of field_name:value pairs filled from the entry text using ONLY that project's existing fields.
 - If matched=0: You MUST create a new project. Set "project" to a short sensible new project name. Set "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense. Set "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
 - If matched=2: Set "project" to the project name the user wants to create. Set "new_fields" as an array of field definitions if the user mentioned any, otherwise an empty array. Set "fields" to an empty object {}. Set "priority" to null.
+- If matched=3: Set "old" as an array of objects for entries going to EXISTING projects, each shaped like {"ProjectName": {"field": "value"}}. Set "new" as an array of objects for entries going to NEW projects (that don't exist yet), each shaped like {"project_name": "NewProject", "fields": {"field": "value"}, "new_fields": [{"field_name":"...", "data_type":"text", "is_required":false}]}. If a new project doesn't need custom fields, set "new_fields" to an empty array. Set "priority" to null.
 - NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are already built-in columns on every entry.
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - DO NOT include a "due_date" field in your response. The due date is handled separately by the system.
@@ -601,6 +603,111 @@ Respond with ONLY this JSON structure, nothing else:
           created_new_project: true,
           project_only: true,
           new_fields: newFields,
+        };
+      }
+
+      // ── Case: matched=3, multiple entries across different projects ──
+      if (parsed.matched === 3) {
+        console.log('[Natural_language] Taking matched=3 (multi-project) branch');
+
+        const oldEntries = Array.isArray(parsed.old) ? parsed.old : [];
+        const newEntries = Array.isArray(parsed.new) ? parsed.new : [];
+        const results = { old: [], new: [], errors: [] };
+
+        // Process entries for existing projects
+        for (const item of oldEntries) {
+          const projectNames = Object.keys(item);
+          for (const projName of projectNames) {
+            const matchedProject = projectsWithFields.find(p => p.project_name === projName);
+            if (!matchedProject) {
+              results.errors.push(`Project "${projName}" not found, skipping.`);
+              continue;
+            }
+            const fieldValues = item[projName] || {};
+            try {
+              const addResult = await entries.addEntry(
+                email,
+                projName,
+                fieldValues,
+                calculatedDate || null,
+                priorityLabel,
+              );
+              if (addResult.success) {
+                results.old.push({ project_name: projName, fields: fieldValues });
+              } else {
+                results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
+              }
+            } catch (err) {
+              results.errors.push(`Error adding entry to "${projName}": ${err.message}`);
+            }
+          }
+        }
+
+        // Process entries for new projects
+        for (const item of newEntries) {
+          const projName = item.project_name;
+          if (!projName) {
+            results.errors.push('New project entry missing project_name, skipping.');
+            continue;
+          }
+          const fieldValues = item.fields || {};
+          const newFields = Array.isArray(item.new_fields) ? item.new_fields : [];
+
+          try {
+            // Create the project
+            const createProjectResult = await project.addProject(email, projName, null);
+            if (!createProjectResult.success) {
+              results.errors.push(`Failed to create project "${projName}": ${createProjectResult.message}`);
+              continue;
+            }
+
+            // Create fields for the new project
+            for (const f of newFields) {
+              if (!f.field_name) continue;
+              await fields.addField(
+                email,
+                projName,
+                f.field_name,
+                f.data_type || 'text',
+                !!f.is_required,
+              );
+            }
+
+            // Add the entry
+            const addResult = await entries.addEntry(
+              email,
+              projName,
+              fieldValues,
+              calculatedDate || null,
+              priorityLabel,
+            );
+            if (addResult.success) {
+              results.new.push({ project_name: projName, fields: fieldValues, new_fields: newFields });
+            } else {
+              results.errors.push(`Created project "${projName}" but failed to add entry: ${addResult.message}`);
+            }
+          } catch (err) {
+            results.errors.push(`Error processing "${projName}": ${err.message}`);
+          }
+        }
+
+        const totalOld = results.old.length;
+        const totalNew = results.new.length;
+        const successCount = totalOld + totalNew;
+
+        if (successCount === 0 && results.errors.length > 0) {
+          return { success: false, message: results.errors.join('; ') };
+        }
+
+        return {
+          success: true,
+          message: `Added ${successCount} ${successCount === 1 ? 'entry' : 'entries'} across ${totalNew > 0 ? totalNew + ' new project' + (totalNew > 1 ? 's' : '') + ' and ' : ''}${totalOld > 0 ? totalOld + ' existing project' + (totalOld > 1 ? 's' : '') : ''}.`,
+          multi: true,
+          results,
+          priority: priorityLabel,
+          due_date: calculatedDate || null,
+          comment: parsed.comment || null,
+          created_new_project: totalNew > 0,
         };
       }
 

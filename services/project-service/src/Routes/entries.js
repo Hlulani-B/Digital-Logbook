@@ -132,7 +132,18 @@ router.post('/natural-language-entry', async (req, res) => {
 
     const result = await nlEntry.entry(user_email, text);
     if (result.success) {
-      await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), { project_name: result.project, source: 'natural-language', priority: result.priority, due_date: result.due_date });
+      if (result.multi) {
+        // matched=3: log each entry separately
+        const allEntries = [
+          ...(result.results.old || []).map(e => ({ project_name: e.project_name, fields: e.fields })),
+          ...(result.results.new || []).map(e => ({ project_name: e.project_name, fields: e.fields })),
+        ];
+        for (const e of allEntries) {
+          await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), { project_name: e.project_name, source: 'natural-language', priority: result.priority, due_date: result.due_date });
+        }
+      } else {
+        await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), { project_name: result.project, source: 'natural-language', priority: result.priority, due_date: result.due_date });
+      }
     }
     return res.json(result);
   } catch (error) {
