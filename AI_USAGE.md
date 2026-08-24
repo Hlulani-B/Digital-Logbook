@@ -24,9 +24,11 @@ The following frontend features were implemented with AI acting as a code-genera
   - Email/password sign-in and sign-up
   - Password reset and update-password flows
   - Account deletion with a 30-day grace period and restore capability
-  - Auto-restore for soft-deleted users who sign back in during the grace period
+  - Restore via secure email confirmation link on the sign-in page
+  - Auto-redirect of soft-deleted users to the sign-in restore prompt
 - **UI components**
-  - Sign-in page with split-screen video background
+  - Sign-in page with split-screen video background and account-restore prompt
+  - Dedicated `/auth/restore` page for email-link restoration
   - Dashboard with personalised greeting and stats
   - Profile menu, settings panel (Profile / Preferences / Account)
   - Protected routes

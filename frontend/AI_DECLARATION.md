@@ -7,7 +7,7 @@
 | **Name** | Nasiphi Ntontela |
 | **Student Number** | 2673619 |
 | **Project** | Codacaine — Digital Logbook |
-| **Date** | 13 August 2026 (updated 23 August 2026) |
+| **Date** | 13 August 2026 (updated 24 August 2026) |
 
 ---
 
@@ -47,7 +47,8 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested a 30-day account deletion grace period with restore capability
 - I requested dynamic login page concepts (particle field, aurora ribbons) and ultimately chose to revert to the original video background
 - I identified the "Welcome back" bug for new users
-- I requested auto-restore for soft-deleted users who sign back in during the grace period
+- I requested that scheduling deletion sign the user out immediately and that restoration require a secure email confirmation link
+- I directed the removal of the in-dashboard "Restore Account" button so restore only happens from the sign-in page
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -62,6 +63,7 @@ The AI generated the following code based on my instructions:
 | `src/pages/AuthCallback.tsx` | OAuth redirect handler | AI generated |
 | `src/pages/ResetPassword.tsx` | Password reset request page | AI generated |
 | `src/pages/UpdatePassword.tsx` | New password form with strength meter | AI generated |
+| `src/pages/AuthRestore.tsx` | Email-link account restoration handler | AI generated |
 | `src/components/ProfileMenu.tsx` | Avatar dropdown menu | AI generated from my requirements |
 | `src/components/SettingsPanel.tsx` | Slide-out settings panel (3 tabs) | AI generated from my requirements |
 | `src/components/ProtectedRoute.tsx` | Route guard for authenticated pages | AI generated |
@@ -103,6 +105,7 @@ I made all configuration decisions and directed the AI to execute the following:
 | Account deletion had no grace period | Me (student, requested) | AI (implemented 30-day grace period with schedule/restore/purge) |
 | Ambiguous `user_email` in `delete_user()` RPC | Me (student, observed 400 error) | AI (renamed variable to `v_email`, qualified column references) |
 | Soft-deleted users could not sign back in cleanly | Me (student, requested) | AI (added auto-restore on sign-in in SignIn.tsx) |
+| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified) | AI (changed `deleteAccount` to sign out, moved restore to email-link flow) |
 
 ---
 
@@ -128,7 +131,7 @@ I am solely responsible for the frontend authentication component of this projec
 1. **Reviewed all generated code** before accepting it
 2. **Tested features manually** in the browser after each change
 3. **Made all design decisions** — directed the premium UI aesthetic, chose feature scope, and selected all third-party services
-4. **Identified bugs** — caught the "Welcome back" greeting issue, missing reset password access, ambiguous `user_email` error, and soft-delete restore flow
+4. **Identified bugs** — caught the "Welcome back" greeting issue, missing reset password access, ambiguous `user_email` error, and soft-delete restore flow (including the need to sign out immediately after scheduling deletion)
 5. **Configured external services** — manually set up Supabase providers, Google Cloud Console, Cloudflare Turnstile, and **Brevo SMTP** (after switching from Resend)
 6. **Controlled deployment** — decided when and where to push code, and managed the merge into main myself
 
@@ -141,4 +144,4 @@ The AI was used as a **code generation and technical guidance tool** under my di
 ---
 
 **Signed:** Nasiphi Ntontela  
-**Date:** 23 August 2026
+**Date:** 24 August 2026
