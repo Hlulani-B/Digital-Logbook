@@ -496,12 +496,20 @@ ${JSON.stringify(projectsWithFields)}
 
 Entry: "${cleanedText}"
 
+=== STEP 0: UNDERSTAND THE INPUT (CRITICAL) ===
+Read the ENTIRE user input carefully. Do NOT truncate, cut off, or abbreviate any text.
+- Preserve the FULL meaning of what the user wrote. If they said "Make sure it's done and send the email to John", the task is "Make sure it's done and send the email to John" — NOT "Make sure it's" or "send email".
+- Use COMMON SENSE. Think about what the user actually means, not just keyword matching.
+- If the user writes casually (e.g., "gonna grab some food"), understand the intent (eating/lunch) — don't just extract random words.
+- Do NOT be lazy. Read every word and understand the full context before responding.
+
 === STEP 1: REASONING (MANDATORY) ===
 Before responding, you MUST think step-by-step in your "comment" field. Show your reasoning:
-1. What DISTINCT activities/tasks are mentioned? List each one separately.
-2. For each activity, which existing project does it belong to? If NONE match clearly, say "NEW PROJECT needed".
-3. Are any activities being forced together that don't belong? If yes, SPLIT them.
-4. Final decision: matched=0, 1, 2, or 3?
+1. What did the user ACTUALLY say? Quote the full intent, not just keywords.
+2. What DISTINCT activities/tasks are mentioned? List each one separately.
+3. For each activity, which existing project does it belong to? If NONE match clearly, say "NEW PROJECT needed".
+4. Are any activities being forced together that don't belong? If yes, SPLIT them.
+5. Final decision: matched=0, 1, 2, or 3?
 
 === STEP 2: SPLITTING RULES (STRICT) ===
 You MUST split into separate entries when the input contains MULTIPLE DISTINCT activities.
@@ -534,7 +542,16 @@ HARD RULE: If two activities would naturally belong to DIFFERENT projects/catego
 - matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
 - matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
 
-=== STEP 5: RESPONSE FORMAT ===
+=== STEP 5: FIELD VALUES — PRESERVE FULL TEXT ===
+When creating field values, you MUST preserve the COMPLETE task description. Do NOT truncate or abbreviate.
+- CORRECT: {"task": "Make sure it's done and send the email to John"}
+- WRONG: {"task": "Make sure it's"} ← TRUNCATED — this is a serious error
+- CORRECT: {"activity": "going to the gym and then making chips for dinner"}
+- WRONG: {"activity": "gym"} ← lost the full meaning
+
+The field value should capture the FULL intent of what the user wrote for that task.
+
+=== STEP 6: RESPONSE FORMAT ===
 If matched=0: {"matched":0,"project":"NewProjectName","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
 If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"field":"value"},"priority":null,"comment":"Your reasoning here..."}
 If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
@@ -545,7 +562,7 @@ RULES:
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - DO NOT include a "due_date" field — the system handles dates separately.
 - ${commentInstruction}
-- In your comment, EXPLAIN your reasoning: why you split tasks the way you did, why you chose certain projects, and why you created new ones when unsure.
+- In your comment, EXPLAIN your reasoning: what the user meant, why you split tasks the way you did, why you chose certain projects, and why you created new ones when unsure.
 
 Respond with ONLY this JSON, nothing else:`;
 
