@@ -224,7 +224,25 @@ function formatRelativeTime(dateStr: string): string {
 /** Truncate only very long project/entity display names; entry text is shown in full. */
 function truncateName(name: string | null | undefined, max = 120): string {
   if (!name) return "";
-  return name.length > max ? name.slice(0, max) + "…" : name;
+  return name.length > max ? name.slice(0, max) + "\u2026" : name;
+}
+
+/** If entity_name is a JSON string like {"field":"Buy bedding"}, extract the value. */
+function parseEntityName(name: string | null | undefined): string {
+  if (!name) return "";
+  try {
+    const parsed = JSON.parse(name);
+    if (typeof parsed === "object" && parsed !== null) {
+      // Return the first string value found
+      for (const val of Object.values(parsed)) {
+        if (typeof val === "string") return val;
+      }
+    }
+    if (typeof parsed === "string") return parsed;
+  } catch {
+    // Not JSON, return as-is
+  }
+  return name;
 }
 
 interface ActivityFeedProps {
@@ -296,10 +314,10 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     <div className="activity-feed">
       {activities.map((activity, i) => {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
-        const entityName = truncateName(activity.entity_name);
+        const entityName = truncateName(parseEntityName(activity.entity_name));
         const details = activity.details || {};
         const detailEntries = Object.entries(details).filter(
-          ([key, val]) => val != null && val !== "" && key !== "old_project_name" && key !== "new_project_name"
+          ([key, val]) => val != null && val !== "" && key !== "old_project_name" && key !== "new_project_name" && key !== "entry_id"
         );
         const isRename = activity.action_type === "PROJECT_RENAMED";
         const oldName = String(details.old_project_name ?? "");
