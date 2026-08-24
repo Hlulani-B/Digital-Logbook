@@ -156,16 +156,10 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       if (onEntryCreated) onEntryCreated();
       setTimeout(onClose, 15000);
     } else {
-      // Generate AI error message
-      const tone = getToneInstruction();
-      const errorResult = await askAI(
-        `Generate a very short 1-sentence error message telling the user their entry couldn't be saved and to try again. Keep it brief — no roasts, no fluff. ${tone}`
-      );
-      if (errorResult.success && errorResult.response) {
-        setErrorMsg(parseAIResponse(errorResult.response));
-      } else {
-        setErrorMsg(result.message || "Failed to create entry. Please try again.");
-      }
+      // Show the actual error message from the backend
+      const actualError = result.message || "Failed to create entry. Please try again.";
+      console.error("[VoiceFeature] quickAdd failed:", actualError);
+      setErrorMsg(actualError);
       setStatus("error");
     }
   };

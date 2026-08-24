@@ -13,9 +13,10 @@ import { getProjectsByEmail } from "@/functions/project/project.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { searchEntriesInProject } from "@/functions/project/search.js";
 import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
+import { archiveProject } from "@/functions/project/archives.js";
 import { getToneInstruction } from "@/functions/tone";
 import { askAI } from "@/functions/ai.js";
-import { FiMic } from "react-icons/fi";
+import { FiMic, FiArchive } from "react-icons/fi";
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -58,6 +59,7 @@ export function ProjectDetailPage() {
   // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [allProjects, setAllProjects] = useState<{ project_name: string }[]>([]);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -323,12 +325,27 @@ export function ProjectDetailPage() {
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || "email";
 
+  // Archive project — uses localStorage (DB UPDATE blocked by RLS)
+  const handleArchiveProject = async (projName: string) => {
+    if (!email) return;
+    // Update local state immediately for instant UI feedback
+    setAllProjects((prev) => prev.filter((p) => p.project_name !== projName));
+    try {
+      await archiveProject(email, projName);
+    } catch (err) {
+      console.error("Failed to archive project:", err);
+    }
+  };
+
   const handleLogout = async () => {
+    setLoggingOut(true);
     try {
       await signOut();
       navigate("/signin");
     } catch (err) {
       console.error("Logout error:", err);
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -345,7 +362,7 @@ export function ProjectDetailPage() {
       <nav className="navbar">
         <div className="navbar-inner">
           <div className="nav-left-group">
-            <button className="nav-hamburger" onClick={() => setDrawerOpen(true)} aria-label="Open navigation">
+            <button className="nav-hamburger" onClick={() => setDrawerOpen(!drawerOpen)} aria-label="Toggle menu">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
@@ -395,7 +412,7 @@ export function ProjectDetailPage() {
                 onManageProfile={() => openSettings("profile")}
                 onSettings={() => openSettings("preferences")}
                 onSignOut={handleLogout}
-                signingOut={false}
+                signingOut={loggingOut}
               />
             </div>
           </div>
@@ -437,16 +454,47 @@ export function ProjectDetailPage() {
         <div className="drawer-section drawer-projects">
           <p className="drawer-section-title">Projects</p>
           <div className="drawer-project-list">
-            {allProjects.map((p) => (
-              <button
-                key={p.project_name}
-                className={`drawer-item ${p.project_name === projectName ? "active" : ""}`}
-                onClick={() => { navigate(`/project/${encodeURIComponent(p.project_name)}`); setDrawerOpen(false); }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                {p.project_name}
-              </button>
-            ))}
+            {allProjects.map((p) => {
+              const name = p.project_name as string;
+              const count = entries.filter((e) => e.project_name === name).length;
+              return (
+                <div
+                  key={name}
+                  className={`drawer-item ${name === projectName ? "active" : ""}`}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { navigate(`/project/${encodeURIComponent(name)}`); setDrawerOpen(false); }}
+                    style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    {name}
+                    <span className="drawer-badge">{count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveProject(name)}
+                    title="Archive project"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(139, 115, 85, 0.3)",
+                      color: "var(--text-secondary, #6b7280)",
+                      borderRadius: "0.4rem",
+                      padding: "0.2rem 0.5rem",
+                      fontSize: "0.7rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <FiArchive size={12} />
+                    Archive
+                  </button>
+                </div>
+              );
+            })}
             {allProjects.length === 0 && (
               <p className="drawer-empty">No projects found.</p>
             )}
@@ -456,6 +504,9 @@ export function ProjectDetailPage() {
           <button className="btn-primary drawer-new-btn" onClick={() => { navigate("/dashboard"); setDrawerOpen(false); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Project
+          </button>
+          <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
+            Manage Projects
           </button>
         </div>
       </aside>
