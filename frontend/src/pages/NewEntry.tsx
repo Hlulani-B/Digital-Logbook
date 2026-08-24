@@ -525,9 +525,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
               {getOverdueText(due_date ?? null, status)}
             </span>
           )}
-        </div>
-        <div className="entry-box__header-right">
-          <span className="entry-box__project">{project_name}</span>
           <div className="entry-box__menu-wrap" ref={menuRef}>
             <button
               type="button"
@@ -563,6 +560,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
             )}
           </div>
         </div>
+        <span className="entry-box__project">{project_name}</span>
       </div>
 
       {entryFields.length > 0 && (
