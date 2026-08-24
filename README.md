@@ -55,18 +55,25 @@ codacaine/
 ├── frontend/                  # React app (Vite)
 │   └── src/
 ├── services/
-│   ├── auth-service/          # Handles login/signup via Supabase Auth
-│   │   ├── index.js
+│   ├── auth-service/          # Handles login/signup via Supabase Auth (port 5001)
+│   │   ├── src/index.js
 │   │   ├── package.json
 │   │   └── .env
-│   ├── dashboard-service/     # Cross-project summaries (dashboard only)
-│   │   ├── index.js
+│   ├── dashboard-service/     # Cross-project summaries & search (port 5002)
+│   │   ├── src/index.js
 │   │   ├── package.json
 │   │   └── .env
-│   └── project-service/       # Project entries, timeline, search, stats
-│       ├── index.js
+│   ├── project-service/       # Project entries, timeline, search, stats, AI (port 5003)
+│   │   ├── src/index.js
+│   │   ├── package.json
+│   │   └── .env
+│   └── profile-service/       # User profiles, avatars, preferences (port 5004)
+│       ├── src/index.js
 │       ├── package.json
 │       └── .env
+├── badges/                    # Auto-generated coverage badge SVGs
+├── scripts/                   # Utility scripts (badge generation, etc.)
+├── render.yaml                # Render deployment manifest
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md
@@ -75,8 +82,10 @@ codacaine/
 ## Prerequisites
 
 - Node.js (LTS) and npm
-- A Supabase project (URL + API key)
+- A Supabase project (URL + anon key + JWKS URL)
+- A PostgreSQL database (or Supabase's built-in Postgres)
 - Git
+- (Optional) AI provider API keys for natural-language features
 
 ## Getting Started
 
@@ -96,6 +105,8 @@ cd ..\dashboard-service
 npm install
 cd ..\project-service
 npm install
+cd ..\profile-service
+npm install
 cd ..\..
 ```
 
@@ -107,51 +118,36 @@ npm install
 cd ..
 ```
 
-## Environment Variables
+### 4. Configure environment variables
 
-Each backend service needs its own `.env` file in its root folder. These are not pushed to Gitea (listed in `.gitignore`) since they contain secret keys, so every teammate must create their own locally.
+Create a `.env` file in each service folder and in the `frontend/` folder (see [Environment Variables](#environment-variables) below).
 
-Create a `.env` file inside each service folder:
+### 5. Set up the database
 
-- `services/auth-service/.env`
-- `services/dashboard-service/.env`
-- `services/project-service/.env`
+Run the Supabase SQL migrations to create the required tables (`users`, `projects`, `fields`, `entries`, `activity_log`, etc.) and RPC functions (`delete_user()`, `restore_user()`, `purge_deleted_users()`).
 
-Each file should contain:
-
-```
-SUPABASE_URL=https://yourproject.supabase.co
-SUPABASE_KEY=your_supabase_key
-PORT=4001
-```
-
-Use the same `SUPABASE_URL` and `SUPABASE_KEY` across all three services (shared database), but give each service a different `PORT`:
-
-| Service | Port |
-|---|---|
-| auth-service | 4001 |
-| dashboard-service | 4002 |
-| project-service | 4003 |
-
-Get the Supabase URL and key from the team lead or Supabase project settings — do not commit these values to the repo.
-
-## Running the Project
+### 6. Run the project
 
 Run each service in its own terminal:
 
 ```powershell
 cd services\auth-service
-node index.js
+npm start
 ```
 
 ```powershell
 cd services\dashboard-service
-node index.js
+npm start
 ```
 
 ```powershell
 cd services\project-service
-node index.js
+npm start
+```
+
+```powershell
+cd services\profile-service
+npm start
 ```
 
 Run the frontend:
@@ -161,218 +157,106 @@ cd frontend
 npm run dev
 ```
 
-# Digital Logbook — Frontend
+The frontend runs on `http://localhost:3000` by default.
 
-A modern, premium frontend for the **Digital Logbook** application built as part of the **COMS3011A Project 7** (University of the Witwatersrand). This frontend handles user authentication, profile management, and dashboard functionality using React and Supabase.
+## Environment Variables
 
----
+Each service and the frontend need their own `.env` file. These are listed in `.gitignore` because they contain secrets — every developer must create their own locally.
 
-## Tech Stack
+### Frontend (`frontend/.env`)
 
-| Technology | Purpose |
+```
+VITE_SUPABASE_URL=https://yourproject.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_ANON_JWT=your_supabase_anon_jwt
+VITE_AUTH_SERVICE_URL=http://localhost:5001
+VITE_DASHBOARD_SERVICE_URL=http://localhost:5002
+VITE_PROJECT_SERVICE_URL=http://localhost:5003
+VITE_PROFILE_SERVICE_URL=http://localhost:5004
+```
+
+| Variable | Purpose |
 |---|---|
-| **React 19 + TypeScript** | UI framework with type safety |
-| **Vite 6** | Build tool and dev server |
-| **React Router v7** | Client-side routing |
-| **Supabase** | Authentication (Google & GitHub OAuth, email/password, magic links) |
-| **CSS (custom)** | Premium glassmorphism UI (no Tailwind dependency) |
+| `VITE_SUPABASE_URL` | Supabase project URL (used by the frontend Supabase client) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key (used for auth operations) |
+| `VITE_SUPABASE_ANON_JWT` | Supabase anon JWT (used for direct REST calls) |
+| `VITE_AUTH_SERVICE_URL` | Auth microservice URL |
+| `VITE_DASHBOARD_SERVICE_URL` | Dashboard microservice URL |
+| `VITE_PROJECT_SERVICE_URL` | Project microservice URL (falls back to deployed URL if not set) |
+| `VITE_PROFILE_SERVICE_URL` | Profile microservice URL (falls back to deployed URL if not set) |
+| `VITE_DEV_BYPASS` | (Optional) Set to `"true"` in dev to bypass auth for testing |
 
----
+### Backend services — all services (`services/*/\.env`)
 
-## Features
-
-### 1. Sign-In Page (`/signin`)
-
-**What it does:** Provides a clean, secure entry point for users to authenticate using their Google or GitHub accounts.
-
-**Why:** The project specification requires users to sign up and sign in using established authentication libraries. OAuth eliminates the need for users to remember passwords and leverages trusted identity providers.
-
-**Key details:**
-- **Google OAuth** — one-click sign-in/sign-up via Google accounts
-- **GitHub OAuth** — alternative provider for developer-friendly authentication
-- **Email / Password** — traditional sign-in and sign-up; supports the password reset flow end-to-end
-- **Account restore prompt** — soft-deleted accounts (in the 30-day grace period) see a restore prompt on sign-in with a secure email confirmation link
-- **"Forgot password?" link** — accessible entry point to the password reset flow
-- Split-screen video background with glassmorphism card design
-- OAuth accounts are created automatically on first sign-in (no separate sign-up step)
-
-### 2. OAuth Callback Handler (`/auth/callback`)
-
-**What it does:** Handles the redirect from Google/GitHub after authentication, exchanges the authorization code for a Supabase session, and redirects the user to the dashboard.
-
-**Why:** OAuth flows require a callback URL to complete authentication. This handler ensures a seamless transition from the identity provider back to the application.
-
-### 3. Dashboard (`/dashboard`)
-
-**What it does:** The main authenticated landing page showing a personalized greeting, stats overview, and quick actions.
-
-**Why:** Provides users with an immediate overview of their logbook activity and fast access to common actions.
-
-**Key details:**
-- **Smart greeting** — displays "Welcome" for first-time users and "Welcome back" for returning users, tracked per-user in `localStorage`
-- **Stats cards** — Total Entries, This Week, and Projects with animated entrance and hover effects
-- **Quick actions** — New Entry, View All Entries, Export Data buttons
-- **Gradient text** on the greeting heading for visual impact
-
-### 4. Profile Menu (Avatar Dropdown)
-
-**What it does:** Clicking the user's avatar/name in the navbar opens a dropdown menu with quick access to profile management, settings, and sign-out.
-
-**Why:** Keeps the navbar clean while providing instant access to account management without navigating away from the current page.
-
-**Key details:**
-- Shows user's name and email at the top
-- **Manage Profile** — opens the Profile tab in the settings panel
-- **Settings** — opens the Preferences tab
-- **Sign Out** — securely ends the session
-- Closes on outside click or Escape key
-
-### 5. Settings Panel (Slide-Out)
-
-**What it does:** A full-featured slide-out panel from the right side of the screen with three tabs for managing the user's account and preferences.
-
-**Why:** Allows users to personalise their logbook experience without leaving the dashboard, making the app easier to use over time.
-
-#### Profile Tab
-- **Preferred Name** — customise how the app greets you (overrides the Google/GitHub name on the dashboard)
-- **Role** — Student, Lecturer, Tutor, or Professional
-- **Student Number** — for Wits student identification
-- **Bio / Notes** — private notes visible only to the user
-
-#### Preferences Tab
-- **Default View** — choose where you land after sign-in (Dashboard, Entries, Projects, Calendar)
-- **Week Starts On** — Monday, Sunday, or Saturday
-- **Time Format** — 24-hour or 12-hour clock
-- **Auto-save entries** — toggle automatic draft saving
-- **Compact mode** — tighter layout to see more data at once
-- **Email notifications** — toggle account update emails
-- **Weekly log reminder** — toggle Friday nudges to log hours
-
-#### Account Tab
-- **Account information** — email and sign-in method (Google/GitHub/email)
-- **Password reset** — send a reset link to your email (sets up email-based auth alongside OAuth)
-- **Danger Zone** — schedule account deletion (starts a 30-day grace period); restore is handled via the sign-in page email-link flow
-
-### 6. Reset Password Flow (`/reset-password`)
-
-**What it does:** Allows users to request a password reset link via email.
-
-**Why:** The project specification requires password reset functionality. This serves users who need email-based authentication alongside their OAuth provider.
-
-**Key details:**
-- Accessible from the sign-in page ("Forgot password?") and the Settings panel Account tab
-- Reset link expires in 1 hour
-- Success confirmation shows which email received the link
-
-### 7. Update Password (`/auth/update-password`)
-
-**What it does:** After clicking a reset link, users set a new password with real-time feedback.
-
-**Why:** Provides a secure, user-friendly password update experience with visual guidance.
-
-**Key details:**
-- **Password strength meter** — 4-bar indicator (Weak → Fair → Good → Strong) with colour coding
-- **Live validation** — real-time "Passwords do not match" / "Passwords match" indicators
-- Submit button disables until passwords match and meet minimum length
-- Redirects to dashboard on success
-
-### 8. Protected Routes
-
-**What it does:** Ensures only authenticated users can access the dashboard. Unauthenticated users are redirected to the sign-in page.
-
-**Why:** Prevents unauthorised access to protected resources.
-
-### 9. Delete Account
-
-**What it does:** Schedules the user's account for deletion and starts a 30-day grace period. During the grace period, the user can sign back in and restore the account via a secure email confirmation link. After 30 days, the account and all associated data are permanently purged by a scheduled Supabase RPC function.
-
-**Why:** The project specification requires account deletion capability. The grace period gives users a chance to recover accidentally deleted accounts, and the email confirmation step protects against unauthorized restoration.
-
-**Key details:**
-- Clicking **"Delete Account"** immediately signs the user out
-- Attempting to sign in during the grace period shows a restore prompt instead of logging the user in
-- Restoring requires clicking a confirmation link sent to the account email
-- Data is hard-deleted only after the 30-day window expires
-
----
-
-## UI Design Philosophy
-
-- **Glassmorphism** — frosted-glass cards with backdrop blur on a deep dark background
-- **Animated gradient orbs** — floating background elements for visual depth
-- **Staggered animations** — content enters with sequential fade-in-up transitions
-- **Gradient accents** — indigo-to-purple gradients on the logo, buttons, and greeting text
-- **Responsive** — works on mobile (full-width panels) and desktop
-- **Custom favicon** — SVG-based "DL" badge matching the brand colour
-
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- A Supabase project with Google and GitHub OAuth providers enabled
-
-### Setup
-
-```bash
-cd frontend
-cp .env.example .env
-# Fill in your credentials in .env
-npm install
-npm run dev
-```
-
-### Environment Variables
-
-See `.env.example` for all required variables:
-- `VITE_SUPABASE_URL` — your Supabase project URL
-- `VITE_SUPABASE_ANON_KEY` — your Supabase anonymous key
-- `VITE_AUTH_SERVICE_URL` — auth microservice URL
-- `VITE_DASHBOARD_SERVICE_URL` — dashboard microservice URL
-- `VITE_PROJECT_SERVICE_URL` — project microservice URL
-
-### Supabase Configuration
-
-1. Enable **Google** provider: Authentication → Providers → Google (paste Client ID + Secret)
-2. Enable **GitHub** provider: Authentication → Providers → GitHub (paste Client ID + Secret)
-3. Set **Site URL** to `http://localhost:3000`
-4. Add `http://localhost:3000/**` to **Redirect URLs**
-5. Run `supabase/setup.sql` to create the `delete_user()`, `restore_user()`, and `purge_deleted_users()` RPC functions
-
----
-
-## Project Structure
+Every backend service shares the same database connection:
 
 ```
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── ProfileMenu.tsx      # Avatar dropdown menu
-│   │   ├── ProtectedRoute.tsx   # Route guard component
-│   │   └── SettingsPanel.tsx    # Slide-out settings panel
-│   ├── context/
-│   │   └── AuthContext.tsx      # Auth state management
-│   ├── lib/
-│   │   ├── api.ts               # Backend API helper
-│   │   └── supabase.ts          # Supabase client
-│   ├── pages/
-│   │   ├── AuthCallback.tsx     # OAuth redirect handler
-│   │   ├── AuthRestore.tsx      # Email-link account restoration
-│   │   ├── Dashboard.tsx        # Main dashboard
-│   │   ├── ResetPassword.tsx    # Reset password request
-│   │   ├── SignIn.tsx           # Sign-in page
-│   │   └── UpdatePassword.tsx   # Set new password
-│   ├── App.tsx                  # Router setup
-│   ├── index.css                # Premium UI styles
-│   └── main.tsx                 # App entry point
-├── .env.example                 # Environment template
-├── index.html                   # HTML entry
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── vitest.config.ts             # Test configuration
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `DATABASE_URL` | All services | PostgreSQL connection string (Supabase Postgres or any Postgres) |
+| `PORT` | All services | Port the service listens on (defaults: 5001–5004) |
+
+### Auth Service (`services/auth-service/.env`)
+
+```
+PORT=5001
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+SUPABASE_URL=https://yourproject.supabase.co
+SUPABASE_KEY=your_supabase_key
+```
+
+### Dashboard Service (`services/dashboard-service/.env`)
+
+```
+PORT=5002
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+### Project Service (`services/project-service/.env`)
+
+```
+PORT=5003
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+SUPABASE_JWKS_URL=https://yourproject.supabase.co/auth/v1/.well-known/jwks.json
+
+# AI provider keys (at least one required for natural-language features)
+OPENROUTER_API_KEY=
+HF_API_KEY=
+GEMINI_API_KEY=
+CEREBRAS_API_KEY=
+GROQ_API_KEY=
+```
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_JWKS_URL` | (Optional) Supabase JWKS endpoint for JWT verification. Auto-fetched if not set. |
+| `OPENROUTER_API_KEY` | OpenRouter API key — primary AI provider for natural-language parsing |
+| `HF_API_KEY` | HuggingFace inference API key (fallback AI provider) |
+| `GEMINI_API_KEY` | Google Gemini API key (fallback AI provider) |
+| `CEREBRAS_API_KEY` | Cerebras API key (fallback AI provider) |
+| `GROQ_API_KEY` | Groq API key (fallback AI provider) |
+
+### Profile Service (`services/profile-service/.env`)
+
+```
+PORT=5004
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+### Port Summary
+
+| Service | Default Port |
+|---|---|
+| auth-service | 5001 |
+| dashboard-service | 5002 |
+| project-service | 5003 |
+| profile-service | 5004 |
+| frontend (Vite dev server) | 3000 |
+
+Get the Supabase URL, keys, and database connection string from the team lead or Supabase project settings — **do not commit these values to the repo**.
 
 
 
@@ -419,42 +303,7 @@ git push -u origin feature/your-feature-name
 
 Then open a pull request on Gitea into `main` (or `services` for backend-only work).
 
-## Rule: Dashboard vs Project Data
-
-
-
-
-
-
-
-
-## Architecture Boundary
-
-**Frontend owns UI and auth orchestration.** It uses Supabase Auth directly for sign-in, sign-up, OAuth, password reset, and account restoration. It never:
-- Holds database credentials or service-specific secrets
-- Contains backend business logic (validation, data shaping, access rules)
-- Directly queries the database outside of Supabase Auth RPC calls
-
-**Backend owns all data access.** If the frontend needs new data or a new
-capability, the fix is always in `services/`:
-- Missing endpoint → add a new route + service function in Express
-- Wrong response shape → change the service function, not the frontend
-- New feature needing data → build it as a backend service first, then
-  call it from the frontend like everything else
-
-If you're editing frontend code and find yourself reaching for a database
-client, a service secret, or writing a query — stop, that logic belongs
-in `services/`.
-
-
-## Before Pushing to `main`
-
-1. `git pull origin main` — get the latest changes
-2. Run the app locally and confirm it builds/runs without errors
-3. Only then push
-
-Never push straight to `main` without pulling and testing first.
+## Architecture Rules
 
 - Project entries and their statistics stay scoped to that project (`project-service`).
 - The dashboard (`dashboard-service`) only shows cross-project summaries — it does not read individual entry tables directly.
-```
