@@ -551,7 +551,14 @@ When creating field values, you MUST preserve the COMPLETE task description. Do 
 
 The field value should capture the FULL intent of what the user wrote for that task.
 
-=== STEP 6: RESPONSE FORMAT ===
+=== STEP 6: HANDLING NONSENSE OR INCOMPLETE INPUT ===
+Sometimes the user's input may be incomplete, garbled, or nonsensical (e.g., "I need to go and.Make sure it's and then after that I have t" — a run-on sentence that cuts off mid-word).
+- If part of the input is clearly incomplete or doesn't make sense, you should STILL try to extract what you can.
+- In your "comment" field, EXPLAIN what you did: e.g., "The input appears to be cut off mid-sentence. I extracted 'I need to go and' as the task, but the rest ('Make sure it's and then after that I have t') was incomplete/garbled so I left it out."
+- If the ENTIRE input is nonsensical and you cannot extract any meaningful task, still create the entry but explain in the comment: "The input did not contain a clear, complete task. I created the entry with the raw text as-is because..."
+- NEVER silently discard text. If you leave something out, say WHY in the comment.
+
+=== STEP 7: RESPONSE FORMAT ===
 If matched=0: {"matched":0,"project":"NewProjectName","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
 If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"field":"value"},"priority":null,"comment":"Your reasoning here..."}
 If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
@@ -562,7 +569,7 @@ RULES:
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - DO NOT include a "due_date" field — the system handles dates separately.
 - ${commentInstruction}
-- In your comment, EXPLAIN your reasoning: what the user meant, why you split tasks the way you did, why you chose certain projects, and why you created new ones when unsure.
+- In your comment, EXPLAIN your reasoning: what the user meant, why you split tasks the way you did, why you chose certain projects, why you created new ones when unsure, and if you left out any part of the input, explain WHY it was nonsense/incomplete.
 
 Respond with ONLY this JSON, nothing else:`;
 

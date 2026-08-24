@@ -221,7 +221,8 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: date.getFullYear() === now.getFullYear() ? undefined : "numeric" });
 }
 
-function truncateName(name: string | null | undefined, max = 60): string {
+/** Truncate only very long project/entity display names; entry text is shown in full. */
+function truncateName(name: string | null | undefined, max = 120): string {
   if (!name) return "";
   return name.length > max ? name.slice(0, max) + "…" : name;
 }

@@ -4068,6 +4068,8 @@ img { max-width: 100%; }
   line-height: 1.5;
   color: var(--text-secondary);
   font-family: var(--font-body);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .activity-verb {
@@ -4082,6 +4084,8 @@ img { max-width: 100%; }
 .activity-entity-name {
   font-weight: 500;
   color: var(--text);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .activity-detail {
