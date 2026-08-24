@@ -220,7 +220,7 @@ approach, which surfaced later during initial implementation).
 
 ---
 
-### Meeting 8 — 24 August 2026
+## Meeting 8 — 24 August 2026
 
 **Venue:** Wartenweiler Library, Focus Room 2  
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
