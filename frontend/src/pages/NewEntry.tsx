@@ -128,6 +128,19 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     status = "up_next",
   } = entry;
 
+  // Parse entries if they come as a JSON string from the database
+  const parsedEntries = (() => {
+    if (!entries) return {};
+    if (typeof entries === "string") {
+      try {
+        return JSON.parse(entries);
+      } catch {
+        return {};
+      }
+    }
+    return entries;
+  })();
+
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -185,17 +198,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
-  const parsedEntries = (() => {
-    if (!entries) return {};
-    if (typeof entries === "string") {
-      try {
-        return JSON.parse(entries);
-      } catch {
-        return {};
-      }
-    }
-    return entries;
-  })();
   const entryFields = Object.entries(parsedEntries || {});
   const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
