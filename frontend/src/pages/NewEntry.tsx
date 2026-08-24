@@ -66,6 +66,20 @@ function formatFieldValue(value: unknown): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "object") return JSON.stringify(value);
+  // If it's a string that looks like JSON, try to parse and format it
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "object" && parsed !== null) {
+        // It's a JSON object, format each key-value pair
+        return Object.entries(parsed)
+          .map(([k, v]) => `${formatFieldKey(k)}: ${formatFieldValue(v)}`)
+          .join(", ");
+      }
+    } catch {
+      // Not valid JSON, return as-is
+    }
+  }
   return String(value);
 }
 
@@ -146,7 +160,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
 
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
+      Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
     )
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
@@ -171,7 +185,18 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
-  const entryFields = Object.entries(entries || {});
+  const parsedEntries = (() => {
+    if (!entries) return {};
+    if (typeof entries === "string") {
+      try {
+        return JSON.parse(entries);
+      } catch {
+        return {};
+      }
+    }
+    return entries;
+  })();
+  const entryFields = Object.entries(parsedEntries || {});
   const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
   const startedLabel = formatDate(started_at);
@@ -186,7 +211,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
   const handleCancel = () => {
     setDraftFields(
       Object.fromEntries(
-        Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
+        Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
       )
     );
     setDraftDueDate(toInputDate(due_date));
