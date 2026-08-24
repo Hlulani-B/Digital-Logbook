@@ -66,7 +66,7 @@ export function ProjectDetailPage() {
   // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [_searching, setSearching] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Quick entry
@@ -619,12 +619,9 @@ export function ProjectDetailPage() {
         provider={provider}
         onClose={() => setSettingsOpen(false)}
         onDeleteAccount={async () => {}}
-        onRestoreAccount={async () => {}}
         onResetPassword={resetPassword}
         deleting={false}
         deleteError={null}
-        restoring={false}
-        restoreError={null}
       />
 
       {/* Project Settings Panel */}
