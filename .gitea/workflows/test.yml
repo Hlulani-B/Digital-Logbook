@@ -87,5 +87,6 @@ jobs:
             echo "No badge changes to commit"
           else
             git commit -m "chore: update test coverage badges [skip ci]"
-            git push
+            git pull --rebase origin main || true
+            git push origin main
           fi

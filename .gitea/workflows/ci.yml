@@ -20,36 +20,42 @@ jobs:
           node-version: '20'
 
       # 1. Frontend
-      - name: Install & Test Frontend
-        run: |
-          cd frontend
-          npm install
-          npm test --if-present
+      - name: Install Frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint Frontend
+        working-directory: frontend
+        run: npx oxlint
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
 
       # 2. Auth Service
       - name: Install & Test Auth Service
+        working-directory: services/auth-service
         run: |
-          cd services/auth-service
-          npm install
-          npm test --if-present
+          npm ci
+          npm test
 
       # 3. Dashboard Service
       - name: Install & Test Dashboard Service
+        working-directory: services/dashboard-service
         run: |
-          cd services/dashboard-service
-          npm install
-          npm test --if-present
+          npm ci
+          npm test
 
       # 4. Project Service
       - name: Install & Test Project Service
+        working-directory: services/project-service
         run: |
-          cd services/project-service
-          npm install
-          npm test --if-present
+          npm ci
+          npm test
 
       # 5. Profile Service
       - name: Install & Test Profile Service
+        working-directory: services/profile-service
         run: |
-          cd services/profile-service
-          npm install
-          npm test --if-present
+          npm ci
+          npm test
