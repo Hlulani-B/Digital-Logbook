@@ -562,7 +562,12 @@ Sometimes the user's input may be incomplete, garbled, or nonsensical (e.g., "I 
 If matched=0: {"matched":0,"project":"NewProjectName","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
 If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"field":"value"},"priority":null,"comment":"Your reasoning here..."}
 If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
-If matched=3: {"matched":3,"old":[{"ExistingProject":{"field":"value"}}],"new":[{"project_name":"NewProject","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}]}],"priority":null,"comment":"Your reasoning here..."}
+If matched=3: {"matched":3,"old":[{"ExactProjectName":{"field":"value"}}],"new":[{"project_name":"BrandNewProject","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}]}],"priority":null,"comment":"Your reasoning here..."}
+
+CRITICAL FORMAT FOR matched=3:
+- "old" array: Each item is an object with ONE key = the EXACT existing project name, value = fields object. Example: [{"WebApp":{"task":"fixed login bug"}},{"Gym":{"task":"ran 5km"}}]
+- "new" array: Each item has "project_name" and "fields" keys. Example: [{"project_name":"Cooking","fields":{"recipe":"pasta"},"new_fields":[]}]
+- DO NOT use "project_name" as a key inside "old" items. The key MUST be the actual project name string.
 
 RULES:
 - NEVER include "due_date", "priority", or "status" as custom fields — these are built-in.
@@ -676,30 +681,43 @@ Respond with ONLY this JSON, nothing else:`;
 
         // Process entries for existing projects
         for (const item of oldEntries) {
-          const projectNames = Object.keys(item);
-          for (const projName of projectNames) {
-            const matchedProject = projectsWithFields.find(p => p.project_name === projName);
-            if (!matchedProject) {
-              results.errors.push(`Project "${projName}" not found, skipping.`);
-              continue;
+          // Handle both formats:
+          // Format A (expected): [{"ProjectName": {field: value}}] — key is the project name
+          // Format B (AI sometimes returns): [{"project_name": "ProjectName", "fields": {field: value}}]
+          let projName, fieldValues;
+
+          if (item.project_name && item.fields !== undefined) {
+            // Format B: AI returned {project_name: "...", fields: {...}}
+            projName = item.project_name;
+            fieldValues = item.fields || {};
+          } else {
+            // Format A: AI returned {"ProjectName": {field: value}}
+            const projectNames = Object.keys(item);
+            if (projectNames.length === 0) continue;
+            projName = projectNames[0];
+            fieldValues = item[projName] || {};
+          }
+
+          const matchedProject = projectsWithFields.find(p => p.project_name === projName);
+          if (!matchedProject) {
+            results.errors.push(`Project "${projName}" not found, skipping.`);
+            continue;
+          }
+          try {
+            const addResult = await entries.addEntry(
+              email,
+              projName,
+              fieldValues,
+              calculatedDate || null,
+              priorityLabel,
+            );
+            if (addResult.success) {
+              results.old.push({ project_name: projName, fields: fieldValues });
+            } else {
+              results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
             }
-            const fieldValues = item[projName] || {};
-            try {
-              const addResult = await entries.addEntry(
-                email,
-                projName,
-                fieldValues,
-                calculatedDate || null,
-                priorityLabel,
-              );
-              if (addResult.success) {
-                results.old.push({ project_name: projName, fields: fieldValues });
-              } else {
-                results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
-              }
-            } catch (err) {
-              results.errors.push(`Error adding entry to "${projName}": ${err.message}`);
-            }
+          } catch (err) {
+            results.errors.push(`Error adding entry to "${projName}": ${err.message}`);
           }
         }
 
@@ -714,7 +732,26 @@ Respond with ONLY this JSON, nothing else:`;
           const newFields = Array.isArray(item.new_fields) ? item.new_fields : [];
 
           try {
-            // Create the project
+            // Check if project already exists — if so, add entry to existing project instead
+            const existingProject = projectsWithFields.find(p => p.project_name === projName);
+            if (existingProject) {
+              // Project already exists, just add the entry
+              const addResult = await entries.addEntry(
+                email,
+                projName,
+                fieldValues,
+                calculatedDate || null,
+                priorityLabel,
+              );
+              if (addResult.success) {
+                results.old.push({ project_name: projName, fields: fieldValues });
+              } else {
+                results.errors.push(`Project "${projName}" already exists but failed to add entry: ${addResult.message}`);
+              }
+              continue;
+            }
+
+            // Create the new project
             const createProjectResult = await project.addProject(email, projName, null);
             if (!createProjectResult.success) {
               results.errors.push(`Failed to create project "${projName}": ${createProjectResult.message}`);
