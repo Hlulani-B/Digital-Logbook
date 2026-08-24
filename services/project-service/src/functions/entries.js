@@ -543,8 +543,15 @@ HARD RULE: If two activities would naturally belong to DIFFERENT projects/catego
 - matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
 - matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
 
-=== STEP 5: FIELD VALUES — PARAPHRASE NEATLY (STRICT) ===
-When creating field values, you MUST write clean, well-phrased descriptions. This is NOT optional.
+=== STEP 5: FIELD NAMES AND VALUES — PARAPHRASE NEATLY (STRICT) ===
+
+FIELD NAMES: You MUST choose meaningful, descriptive field names that describe what the value represents. NEVER use generic names like "field", "value", "data", "text", "content", "entry", or "item".
+- Think about what the value IS. Is it a task? A description? A note? An activity? A goal? A decision?
+- CORRECT field names: "task", "description", "activity", "note", "goal", "decision", "outcome", "topic", "subject", "discussion"
+- WRONG field names: "field", "value", "data", "text", "content", "entry", "item", "info", "stuff"
+- If the project already has fields, USE those existing field names. Only invent new ones for new projects.
+
+FIELD VALUES: You MUST write clean, well-phrased descriptions. This is NOT optional.
 - DO NOT just copy the user's raw words. DO NOT just extract keywords. REWRITE as a clear, neat description.
 - NEVER use first-person pronouns (I, my, me, mine, we, us, our) in field values. Write in a neutral, impersonal style — as if someone else is reading the log later.
   - CORRECT: {"task": "Finish the report and email it to John"}
@@ -554,12 +561,10 @@ When creating field values, you MUST write clean, well-phrased descriptions. Thi
 - If the user mentions ANOTHER person, pronouns for that person are fine (e.g., "he", "she", "they", "his", "her").
   - CORRECT: {"task": "Call John and remind him about his presentation"}
 - CORRECT: {"task": "Ensure the report is finished and email it to John"}
-- WRONG: {"task": "make sure its done and send the email to john"} ← raw copy, not paraphrased
+- WRONG: {"field": "make sure its done and send the email to john"} ← generic field name + raw copy
 - WRONG: {"task": "send email"} ← lost meaning, too short
 - CORRECT: {"activity": "Gym session followed by preparing chips for dinner"}
-- WRONG: {"activity": "gym and chips"} ← too vague, lost context
-- CORRECT: {"task": "Review pull request and leave feedback for the team"}
-- WRONG: {"task": "review pull"} ← truncated nonsense
+- WRONG: {"data": "gym and chips"} ← generic field name + too vague
 
 The field value must be a COMPLETE, WELL-WRITTEN sentence or phrase that someone reading it later will immediately understand.
 
@@ -571,10 +576,11 @@ Sometimes the user's input may be incomplete, garbled, or nonsensical (e.g., "I 
 - NEVER silently discard text. If you leave something out, say WHY in the comment.
 
 === STEP 7: RESPONSE FORMAT ===
-If matched=0: {"matched":0,"project":"NewProjectName","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
-If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"field":"value"},"priority":null,"comment":"Your reasoning here..."}
+IMPORTANT: Replace "task" with a MEANINGFUL field name (see Step 5). Never use "field" as a key.
+If matched=0: {"matched":0,"project":"NewProjectName","fields":{"task":"Paraphrased description"},"new_fields":[{"field_name":"task","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
+If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"task":"Paraphrased description"},"priority":null,"comment":"Your reasoning here..."}
 If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
-If matched=3: {"matched":3,"old":[{"ExactProjectName":{"field":"value"}}],"new":[{"project_name":"BrandNewProject","fields":{"field":"value"},"new_fields":[{"field_name":"...","data_type":"text","is_required":false}]}],"priority":null,"comment":"Your reasoning here..."}
+If matched=3: {"matched":3,"old":[{"ExactProjectName":{"task":"Paraphrased description"}}],"new":[{"project_name":"BrandNewProject","fields":{"task":"Paraphrased description"},"new_fields":[{"field_name":"task","data_type":"text","is_required":false}]}],"priority":null,"comment":"Your reasoning here..."}
 
 CRITICAL FORMAT FOR matched=3:
 - "old" array: Each item is an object with ONE key = the EXACT existing project name, value = fields object. Example: [{"WebApp":{"task":"fixed login bug"}},{"Gym":{"task":"ran 5km"}}]
