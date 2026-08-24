@@ -795,7 +795,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
+                {activeView === "all" ? "Dashboard" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
               {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
