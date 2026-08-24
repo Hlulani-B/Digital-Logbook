@@ -526,42 +526,43 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
             </span>
           )}
         </div>
-        <span className="entry-box__project">{project_name}</span>
-      </div>
-
-      <div className="entry-box__menu-wrap" ref={menuRef}>
-        <button
-          type="button"
-          className="entry-box__menu-btn"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Entry options"
-          aria-expanded={menuOpen}
-        >
-          ⋯
-        </button>
-        {menuOpen && (
-          <div className="entry-box__menu">
-            <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-              Edit
-            </button>
+        <div className="entry-box__header-right">
+          <span className="entry-box__project">{project_name}</span>
+          <div className="entry-box__menu-wrap" ref={menuRef}>
             <button
               type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleToggleArchive}
-              disabled={archiving}
+              className="entry-box__menu-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Entry options"
+              aria-expanded={menuOpen}
             >
-              {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+              ⋯
             </button>
-            <button
-              type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete"}
-            </button>
+            {menuOpen && (
+              <div className="entry-box__menu">
+                <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="entry-box__menu-item entry-box__menu-item--danger"
+                  onClick={handleToggleArchive}
+                  disabled={archiving}
+                >
+                  {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+                </button>
+                <button
+                  type="button"
+                  className="entry-box__menu-item entry-box__menu-item--danger"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {entryFields.length > 0 && (

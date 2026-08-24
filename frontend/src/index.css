@@ -2615,11 +2615,10 @@ img { max-width: 100%; }
   position: relative;
 }
 .entry-box__menu-btn {
-  position: absolute; top: 0.35rem; right: 0.4rem;
   background: transparent; border: 1px solid transparent;
   color: var(--text-muted, #9c9488);
   font-size: 1.3rem; line-height: 1;
-  padding: 0.25rem 0.55rem; cursor: pointer;
+  padding: 0.15rem 0.45rem; cursor: pointer;
   border-radius: var(--radius-xs, 5px); z-index: 5;
   transition: all 0.15s ease;
 }
@@ -2650,9 +2649,16 @@ img { max-width: 100%; }
 
 .entry-box__header {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.4rem;
-  padding-right: 1.5rem;
+}
+.entry-box__header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 .entry-box__project {
   font-family: var(--font-heading, "Playfair Display", serif);
@@ -2724,10 +2730,8 @@ img { max-width: 100%; }
   background: var(--surface, #ffffff);
 }
 .entry-box--editing .entry-box__header {
-  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
-  padding-right: 0;
 }
 .entry-box--editing .entry-box__project {
   font-weight: 700;
