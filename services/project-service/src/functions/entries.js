@@ -501,8 +501,8 @@ export class Natural_language {
       const today = toISODate(new Date());
 
       const commentInstruction = calculatedDate
-        ? `Write a warm, human comment (1-2 sentences) back to the user. Keep it natural and low-key — no need to mention the date unless it feels relevant. If matched=1, say something like "Added to [project name] — [warm comment about the task]." If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]."`
-        : `Write a warm, human comment (2-3 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, say something like "Added to [project name] — [warm comment about the task]. I couldn't pick up a due date from your text though, so it's been left blank for now — you can always edit it to add one.". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]. I didn't catch a due date in there, so it's unset for now — feel free to edit it later if you need one.".`;
+        ? `Write a warm, human comment (1-2 sentences) back to the user. Keep it natural and low-key — no need to mention the date unless it feels relevant. If matched=1, say something like "Added to [project name] — [warm comment about the task]." If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]." If matched=2, say something like "Created project [project name] for you — [warm comment about getting started]."`
+        : `Write a warm, human comment (2-3 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, say something like "Added to [project name] — [warm comment about the task]. I couldn't pick up a due date from your text though, so it's been left blank for now — you can always edit it to add one.". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]. I didn't catch a due date in there, so it's unset for now — feel free to edit it later if you need one.". If matched=2, say something like "Created project [project name] for you — [warm comment]. You can start adding entries to it whenever you're ready.".`;
 
       const prompt = `Parse this log entry into JSON. Today is ${today}.
 
@@ -513,9 +513,11 @@ Entry: "${cleanedText}"
 
 Rules:
 - Try to match this entry to one of the existing projects above.
-- Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit.
+- Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit and the user wants to log an entry.
+- Set "matched" to 2 if the user is ONLY asking to create a new project (not logging an entry). Examples: "create a project called X", "make a new project for Y", "set up a project named Z". In this case, do NOT create an entry — just create the project.
 - If matched=1: set "project" to the EXACT matching project_name from the list above, and "fields" to an object of field_name:value pairs filled from the entry text using ONLY that project's existing fields.
 - If matched=0: You MUST create a new project. Set "project" to a short sensible new project name. Set "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense. Set "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
+- If matched=2: Set "project" to the project name the user wants to create. Set "new_fields" as an array of field definitions if the user mentioned any, otherwise an empty array. Set "fields" to an empty object {}. Set "priority" to null.
 - NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are already built-in columns on every entry.
 - Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
 - DO NOT include a "due_date" field in your response. The due date is handled separately by the system.
@@ -573,7 +575,51 @@ Respond with ONLY this JSON structure, nothing else:
         };
       }
 
-      // ── Case: no match, create a new project + its fields, then add the entry ──
+      // ── Case: matched=2, user only wants to create a project (no entry) ──
+      if (parsed.matched === 2) {
+        // ── Case: user only wants to create a project (no entry) ──
+        console.log('[Natural_language] Taking matched=2 (create project only) branch');
+        const newProjectName = parsed.project;
+        if (!newProjectName) {
+          return { success: false, message: 'AI could not determine a project name.', suggestion: parsed };
+        }
+
+        console.log('[Natural_language] Creating project only:', newProjectName);
+        const createProjectResult = await project.addProject(email, newProjectName, null);
+        console.log('[Natural_language] Create project result:', createProjectResult);
+        if (!createProjectResult.success) {
+          return { success: false, message: 'Failed to create project: ' + createProjectResult.message };
+        }
+
+        const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
+        console.log('[Natural_language] Creating', newFields.length, 'fields:', newFields);
+        for (const f of newFields) {
+          if (!f.field_name) continue;
+          const addFieldResult = await fields.addField(
+            email,
+            newProjectName,
+            f.field_name,
+            f.data_type || 'text',
+            !!f.is_required,
+          );
+          console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
+        }
+
+        return {
+          success: true,
+          message: `Project "${newProjectName}" created successfully.`,
+          project: newProjectName,
+          fields: {},
+          priority: null,
+          due_date: null,
+          comment: parsed.comment || `Created project "${newProjectName}" for you.`,
+          created_new_project: true,
+          project_only: true,
+          new_fields: newFields,
+        };
+      }
+
+      // ── Case: matched=0, no match — create a new project + its fields, then add the entry ──
       console.log('[Natural_language] Taking matched=0 (create new project) branch');
       const newProjectName = parsed.project;
       if (!newProjectName) {

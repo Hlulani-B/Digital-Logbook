@@ -43,7 +43,13 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
 
     if (result.success) {
       setText("");
-      setMessage("Entry created!");
+      const isProjectOnly = (result.data as Record<string, unknown>)?.project_only === true;
+      if (isProjectOnly) {
+        const projName = (result.data as Record<string, unknown>)?.project as string || "";
+        setMessage(`Project "${projName}" created!`);
+      } else {
+        setMessage("Entry created!");
+      }
       setMessageType("success");
       const comment = result.data?.comment || result.data?.data?.comment;
       if (comment) {

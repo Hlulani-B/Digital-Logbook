@@ -720,7 +720,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                 >
                   <button
                     type="button"
-                    onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                    onClick={() => { navigate(`/project/${encodeURIComponent(name)}`); setDrawerOpen(false); }}
                     style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
@@ -1026,10 +1026,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </div>
         )}
         <button className={`fab ${fabOpen ? "fab-open" : ""}`} onClick={() => setFabOpen(!fabOpen)} aria-label="Quick actions">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
+          <span className="fab-label">New</span>
         </button>
       </div>
 

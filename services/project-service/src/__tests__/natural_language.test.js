@@ -537,5 +537,265 @@ describe('Natural_language', () => {
       // Should only insert 2 fields (the one with field_name)
       expect(fieldsInserted).toHaveLength(2);
     });
+
+    // ─── matched=2: project-only creation ─────────────────────────────
+
+    it('should create only a project (no entry) when matched=2', async () => {
+      const mockProjects = [
+        { project_name: 'WebApp', description: 'Main web app', archived: false },
+      ];
+
+      let projectInserted = false;
+      let entryInserted = false;
+      let projectsCallCount = 0;
+
+      supabase.from.mockImplementation((tableName) => {
+        if (tableName === 'projects') {
+          projectsCallCount++;
+          const isInsert = projectsCallCount > 1;
+          const chain = {
+            insert: jest.fn(function (data) { if (isInsert) { projectInserted = true; } return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (isInsert) {
+              resolve({ data: [{ id: 99 }], error: null });
+            } else {
+              resolve({ data: mockProjects, error: null });
+            }
+          });
+          return chain;
+        }
+        if (tableName === 'fields') {
+          const chain = {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
+          return chain;
+        }
+        if (tableName === 'entries') {
+          const chain = {
+            insert: jest.fn(function () { entryInserted = true; return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => resolve({ data: [{ id: 200 }], error: null }));
+          return chain;
+        }
+        const chain = { insert: jest.fn(), select: jest.fn(), update: jest.fn(), delete: jest.fn(), eq: jest.fn(), or: jest.fn(), order: jest.fn() };
+        chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
+        return chain;
+      });
+
+      AI.mockResolvedValue(JSON.stringify({
+        matched: 2,
+        project: 'WebsiteRedesign',
+        fields: {},
+        new_fields: [],
+        priority: null,
+        due_date: null,
+        comment: 'Created project WebsiteRedesign for you!',
+      }));
+
+      const result = await nl.entry('test@example.com', 'create a project called WebsiteRedesign');
+
+      expect(result.success).toBe(true);
+      expect(result.project).toBe('WebsiteRedesign');
+      expect(result.project_only).toBe(true);
+      expect(result.created_new_project).toBe(true);
+      expect(result.fields).toEqual({});
+      expect(result.priority).toBeNull();
+      expect(result.due_date).toBeNull();
+      expect(result.comment).toBe('Created project WebsiteRedesign for you!');
+      expect(projectInserted).toBe(true);
+      expect(entryInserted).toBe(false); // No entry should be created
+    });
+
+    it('should return failure when matched=2 but no project name', async () => {
+      const mockProjects = [
+        { project_name: 'WebApp', description: 'Main web app', archived: false },
+      ];
+
+      supabase.from.mockImplementation((tableName) => {
+        if (tableName === 'projects') {
+          return createMockSupabaseClient({
+            projects: { data: mockProjects },
+          }).from(tableName);
+        }
+        if (tableName === 'fields') {
+          return createMockSupabaseClient({
+            fields: { data: [] },
+          }).from(tableName);
+        }
+        return createMockSupabaseClient({}).from(tableName);
+      });
+
+      AI.mockResolvedValue(JSON.stringify({
+        matched: 2,
+        project: null,
+        fields: {},
+        new_fields: [],
+        priority: null,
+      }));
+
+      const result = await nl.entry('test@example.com', 'create a project');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('could not determine a project name');
+    });
+
+    it('should return failure when matched=2 and project creation fails', async () => {
+      const mockProjects = [
+        { project_name: 'WebApp', description: 'Main web app', archived: false },
+      ];
+
+      let projectsCallCount = 0;
+      supabase.from.mockImplementation((tableName) => {
+        if (tableName === 'projects') {
+          projectsCallCount++;
+          const isInsert = projectsCallCount > 1;
+          const chain = {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (isInsert) {
+              resolve({ data: null, error: { message: 'Duplicate project' } });
+            } else {
+              resolve({ data: mockProjects, error: null });
+            }
+          });
+          return chain;
+        }
+        if (tableName === 'fields') {
+          return createMockSupabaseClient({ fields: { data: [] } }).from(tableName);
+        }
+        return createMockSupabaseClient({}).from(tableName);
+      });
+
+      AI.mockResolvedValue(JSON.stringify({
+        matched: 2,
+        project: 'WebApp',
+        fields: {},
+        new_fields: [],
+        priority: null,
+      }));
+
+      const result = await nl.entry('test@example.com', 'create a project called WebApp');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Failed to create project');
+    });
+
+    it('should create project with fields when matched=2 and new_fields provided', async () => {
+      const mockProjects = [];
+
+      let projectInserted = false;
+      let fieldsInserted = [];
+      let entryInserted = false;
+      let projectsCallCount = 0;
+
+      supabase.from.mockImplementation((tableName) => {
+        if (tableName === 'projects') {
+          projectsCallCount++;
+          const isInsert = projectsCallCount > 1;
+          const chain = {
+            insert: jest.fn(function (data) { if (isInsert) { projectInserted = true; } return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (isInsert) {
+              resolve({ data: [{ id: 99 }], error: null });
+            } else {
+              resolve({ data: mockProjects, error: null });
+            }
+          });
+          return chain;
+        }
+        if (tableName === 'fields') {
+          const chain = {
+            insert: jest.fn(function (data) { chain._wasInserted = true; fieldsInserted.push(data); return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => {
+            if (chain._wasInserted) {
+              resolve({ data: [{ id: 100 + fieldsInserted.length }], error: null });
+            } else {
+              resolve({ data: [], error: null });
+            }
+          });
+          return chain;
+        }
+        if (tableName === 'entries') {
+          const chain = {
+            insert: jest.fn(function () { entryInserted = true; return chain; }),
+            select: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+          };
+          chain.then = jest.fn((resolve) => resolve({ data: [{ id: 200 }], error: null }));
+          return chain;
+        }
+        const chain = { insert: jest.fn(), select: jest.fn(), update: jest.fn(), delete: jest.fn(), eq: jest.fn(), or: jest.fn(), order: jest.fn() };
+        chain.then = jest.fn((resolve) => resolve({ data: [], error: null }));
+        return chain;
+      });
+
+      AI.mockResolvedValue(JSON.stringify({
+        matched: 2,
+        project: 'MobileApp',
+        fields: {},
+        new_fields: [
+          { field_name: 'platform', data_type: 'text', is_required: true },
+          { field_name: 'version', data_type: 'text', is_required: false },
+        ],
+        priority: null,
+        comment: 'Created MobileApp with platform and version fields!',
+      }));
+
+      const result = await nl.entry('test@example.com', 'make a new project for MobileApp with platform and version fields');
+
+      expect(result.success).toBe(true);
+      expect(result.project).toBe('MobileApp');
+      expect(result.project_only).toBe(true);
+      expect(result.created_new_project).toBe(true);
+      expect(result.new_fields).toHaveLength(2);
+      expect(projectInserted).toBe(true);
+      expect(fieldsInserted).toHaveLength(2);
+      expect(entryInserted).toBe(false); // No entry should be created
+    });
   });
 });

@@ -89,7 +89,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     (async () => {
       const tone = getToneInstruction();
       const result = await askAI(
-        `Generate a friendly instruction telling the user to speak a log entry or describe a new project. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their speaking skills, their voice, or how they talk to themselves. Be witty and entertaining. ${tone}`
+        `Generate a very short 1-sentence prompt telling the user to speak their log entry. Keep it brief and direct — no roasts, no fluff. ${tone}`
       );
       if (result.success && result.response) {
         setAiPrompt(parseAIResponse(result.response));
@@ -159,7 +159,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       // Generate AI error message
       const tone = getToneInstruction();
       const errorResult = await askAI(
-        `Generate an error message telling the user their entry couldn't be saved and to try again. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their tech skills, their internet connection, or their luck. Be witty and entertaining. ${tone}`
+        `Generate a very short 1-sentence error message telling the user their entry couldn't be saved and to try again. Keep it brief — no roasts, no fluff. ${tone}`
       );
       if (errorResult.success && errorResult.response) {
         setErrorMsg(parseAIResponse(errorResult.response));
