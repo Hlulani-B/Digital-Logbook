@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const app = express();
 const PORT = process.env.PORT || 5001;
 
 // Allowed origins for CORS
@@ -29,20 +28,33 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Apply CORS options globally
-app.use(cors(corsOptions));
+/**
+ * Create and configure the Express app.
+ * Exported as a factory so tests can mount routes before the error handler.
+ */
+function createApp() {
+  const app = express();
 
-// Safe preflight wildcard handler for Express 5 (regex instead of '*')
-app.options(/(.*)/, cors(corsOptions));
+  // Apply CORS options globally
+  app.use(cors(corsOptions));
 
-app.use(express.json());
+  // Safe preflight wildcard handler for Express 5 (regex instead of '*')
+  app.options(/(.*)/, cors(corsOptions));
 
-app.get('/', (req, res) => {
-  res.json({ service: 'auth-service', status: 'healthy' });
-});
+  app.use(express.json());
 
-// Global error handler - ensures CORS headers on errors
-app.use((err, req, res, next) => {
+  app.get('/', (req, res) => {
+    res.json({ service: 'auth-service', status: 'healthy' });
+  });
+
+  // Global error handler - ensures CORS headers on errors
+  app.use(errorHandler);
+
+  return app;
+}
+
+// Exported error handler so tests can mount it after test routes
+function errorHandler(err, req, res, next) {
   console.error('Unhandled error:', err);
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
@@ -50,8 +62,16 @@ app.use((err, req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
   res.status(500).json({ error: 'Internal server error', message: err.message });
-});
+}
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Auth Service running on port ${PORT}`);
-});
+const app = createApp();
+
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Auth Service running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
+module.exports.createApp = createApp;
+module.exports.errorHandler = errorHandler;

@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         service:
+          - auth-service
           - dashboard-service
           - profile-service
           - project-service
@@ -75,8 +76,8 @@ jobs:
 
       - name: Organise badges into badges/ directory
         run: |
-          mkdir -p badges/dashboard-service badges/profile-service badges/project-service
-          for svc in dashboard-service profile-service project-service; do
+          mkdir -p badges/auth-service badges/dashboard-service badges/profile-service badges/project-service
+          for svc in auth-service dashboard-service profile-service project-service; do
             if [ -d "/tmp/badges-raw/coverage-badge-$svc" ]; then
               cp /tmp/badges-raw/coverage-badge-$svc/*.svg badges/$svc/ 2>/dev/null || true
             fi
