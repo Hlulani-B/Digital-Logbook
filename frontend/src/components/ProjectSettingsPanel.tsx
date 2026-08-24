@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { editProjectName, deleteProject } from "@/functions/project/project.js";
 import { getFields, addField, editField } from "@/functions/project/fields.js";
-import { FiEdit2 } from "react-icons/fi";
+import { archiveProject } from "@/functions/project/archives.js";
+import { FiEdit2, FiArchive } from "react-icons/fi";
 
 interface ProjectSettingsPanelProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface ProjectSettingsPanelProps {
   onClose: () => void;
   onProjectUpdated?: () => void;
   onProjectDeleted?: () => void;
+  onProjectArchived?: () => void;
 }
 
 type FieldRecord = {
@@ -25,12 +27,15 @@ export function ProjectSettingsPanel({
   onClose,
   onProjectUpdated,
   onProjectDeleted,
+  onProjectArchived,
 }: ProjectSettingsPanelProps) {
   const [editName, setEditName] = useState(projectName);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
 
   // Fields management
   const [fields, setFields] = useState<FieldRecord[]>([]);
@@ -122,6 +127,21 @@ export function ProjectSettingsPanel({
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
+    }
+  };
+
+  const handleArchiveProject = async () => {
+    setArchiving(true);
+    setError(null);
+    try {
+      await archiveProject(userEmail, projectName);
+      onProjectArchived?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to archive project");
+    } finally {
+      setArchiving(false);
+      setConfirmArchive(false);
     }
   };
 
@@ -365,6 +385,52 @@ export function ProjectSettingsPanel({
                   </button>
                 </div>
               </>
+            )}
+          </div>
+
+          <hr className="divider" />
+
+          {/* ── Archive Project ── */}
+          <div className="panel-section">
+            <p className="panel-section-title">
+              <FiArchive size={14} style={{ marginRight: "0.35rem" }} />
+              Archive Project
+            </p>
+            {!confirmArchive ? (
+              <>
+                <p className="danger-desc" style={{ color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+                  Archive this project to hide it from the main view. Entries are preserved and you can unarchive anytime.
+                </p>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setConfirmArchive(true)}
+                  style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                >
+                  <FiArchive size={14} />
+                  Archive Project
+                </button>
+              </>
+            ) : (
+              <div className="confirm-box">
+                <p>Archive "{projectName}"? All entries are preserved. You can restore it later from the dashboard.</p>
+                <div className="confirm-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={handleArchiveProject}
+                    disabled={archiving}
+                    style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                  >
+                    <FiArchive size={14} />
+                    {archiving ? "Archiving..." : "Yes, Archive"}
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setConfirmArchive(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

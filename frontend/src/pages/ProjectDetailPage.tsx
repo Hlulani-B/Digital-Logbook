@@ -366,12 +366,12 @@ export function ProjectDetailPage() {
                 </svg>
               </button>
             )}
-            {/* Settings button — text, far right */}
+            {/* Project Settings button — text, far right */}
             <button
               className="btn-secondary project-settings-btn"
               onClick={() => setProjectSettingsOpen(true)}
             >
-              Settings
+              Project Settings
             </button>
             <div className="nav-user">
               <ProfileMenu
@@ -523,7 +523,7 @@ export function ProjectDetailPage() {
 
         {/* Combined entries: Due Soon at top, rest at bottom */}
         {!loading && !searchQuery && (
-          <div className="entries-feed">
+          <div className="project-content">
             {dueSoonEntries.length === 0 && otherEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
@@ -541,44 +541,48 @@ export function ProjectDetailPage() {
               <>
                 {/* Due Soon section */}
                 {dueSoonEntries.length > 0 && (
-                  <>
+                  <div className="project-section">
                     <div className="project-section-header">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                       Due Soon
                       <span className="project-section-count">{dueSoonEntries.length}</span>
                     </div>
-                    {dueSoonEntries.map((row, i) => (
-                      <EntryBox
-                        key={`due-${row.id || i}`}
-                        entry={row as any}
-                        onUpdated={() => loadEntries()}
-                        onPriorityChanged={handleSetPriority}
-                        onDelete={() => loadEntries()}
-                      />
-                    ))}
-                  </>
+                    <hr className="section-divider" />
+                    <div className="entries-grid">
+                      {dueSoonEntries.map((row, i) => (
+                        <EntryBox
+                          key={`due-${row.id || i}`}
+                          entry={row as any}
+                          onUpdated={() => loadEntries()}
+                          onPriorityChanged={handleSetPriority}
+                          onDelete={() => loadEntries()}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 {/* All other entries */}
                 {otherEntries.length > 0 && (
-                  <>
-                    {dueSoonEntries.length > 0 && (
-                      <div className="project-section-header">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        All Entries
-                        <span className="project-section-count">{otherEntries.length}</span>
-                      </div>
-                    )}
-                    {otherEntries.map((row, i) => (
-                      <EntryBox
-                        key={`entry-${row.id || i}`}
-                        entry={row as any}
-                        onUpdated={() => loadEntries()}
-                        onPriorityChanged={handleSetPriority}
-                        onDelete={() => loadEntries()}
-                      />
-                    ))}
-                  </>
+                  <div className="project-section">
+                    <div className="project-section-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      All Entries
+                      <span className="project-section-count">{otherEntries.length}</span>
+                    </div>
+                    <hr className="section-divider" />
+                    <div className="entries-grid">
+                      {otherEntries.map((row, i) => (
+                        <EntryBox
+                          key={`entry-${row.id || i}`}
+                          entry={row as any}
+                          onUpdated={() => loadEntries()}
+                          onPriorityChanged={handleSetPriority}
+                          onDelete={() => loadEntries()}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </>
             )}
@@ -647,6 +651,7 @@ export function ProjectDetailPage() {
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => { navigate("/dashboard"); }}
         onProjectDeleted={() => { navigate("/dashboard"); }}
+        onProjectArchived={() => { navigate("/dashboard"); }}
       />
     </div>
   );
