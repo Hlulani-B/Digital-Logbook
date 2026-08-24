@@ -145,7 +145,7 @@ SELECT cron.schedule('purge-deleted-users', '0 0 * * *', 'SELECT public.purge_de
 
 -- 5. Project statistics RPC
 --    Aggregates duration per project for a given user.
---    Uses the stored `duration` column (ended_at − started_at) for completed entries,
+--    Computes duration from timestamps (ended_at − started_at) for completed entries,
 --    and now() − started_at for in-progress entries.
 --    Returns project_name, entry count, total duration, and in-progress count.
 CREATE OR REPLACE FUNCTION get_project_stats(p_user_email TEXT)
@@ -165,8 +165,10 @@ BEGIN
     COUNT(*)::BIGINT AS entry_count,
     COALESCE(SUM(
       CASE
-        WHEN e.ended_at IS NOT NULL THEN e.duration
-        WHEN e.started_at IS NOT NULL THEN now() - e.started_at
+        WHEN e.ended_at IS NOT NULL AND e.started_at IS NOT NULL
+          THEN e.ended_at - e.started_at
+        WHEN e.started_at IS NOT NULL
+          THEN now() - e.started_at
         ELSE INTERVAL '0'
       END
     ), INTERVAL '0')::INTERVAL AS total_duration,

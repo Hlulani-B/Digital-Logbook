@@ -48,30 +48,44 @@ export function formatInterval(interval) {
 
 /**
  * Calculate the elapsed time in ms for a single entry.
- * - Completed entries (has ended_at): uses the stored `duration` column (ended_at − started_at).
- * - In-progress entries (started_at set, no ended_at): calculates live started_at → now.
- * - Returns 0 if neither is available.
+ * Computes purely from timestamps — does NOT rely on the (dropped) `duration` column.
+ * - Completed entries (ended_at + started_at): ended_at − started_at.
+ * - In-progress entries (started_at set, no ended_at): live started_at → now.
+ * - Fallback (ended_at + created_at, no started_at): ended_at − created_at.
+ * - Returns 0 if none of the above.
  */
 function entryDurationMs(entry, now) {
-  // Completed: use stored duration column directly
-  if (entry.duration && entry.ended_at) {
-    return durationToMs(entry.duration);
+  // Completed: ended_at − started_at (the actual work time)
+  if (entry.ended_at && entry.started_at) {
+    const end = new Date(entry.ended_at).getTime();
+    const start = new Date(entry.started_at).getTime();
+    if (!isNaN(end) && !isNaN(start)) {
+      return end - start;
+    }
   }
-  // In-progress: calculate live duration from started_at
+  // In-progress: live started_at → now
   if (entry.started_at && !entry.ended_at) {
     const start = new Date(entry.started_at).getTime();
     if (!isNaN(start)) {
       return now - start;
     }
   }
+  // Fallback: legacy entries that have ended_at but no started_at
+  if (entry.ended_at && entry.created_at) {
+    const end = new Date(entry.ended_at).getTime();
+    const start = new Date(entry.created_at).getTime();
+    if (!isNaN(end) && !isNaN(start)) {
+      return end - start;
+    }
+  }
   return 0;
 }
 
 /**
- * Calculate total time tracked from entries
- * - Completed entries (has ended_at): uses stored duration column
- * - In-progress entries (no ended_at): calculates live started_at → now
- * - Returns total time and count of in-progress tasks
+ * Calculate total time tracked from entries.
+ * - Completed entries (has ended_at): computes ended_at − started_at.
+ * - In-progress entries (no ended_at): calculates live started_at → now.
+ * - Returns total time and count of in-progress tasks.
  */
 export function calculateTotalTimeTracked(entries) {
   const now = Date.now();
@@ -82,7 +96,7 @@ export function calculateTotalTimeTracked(entries) {
     if (entry.started_at && !entry.ended_at) {
       totalMs += entryDurationMs(entry, now);
       inProgressCount++;
-    } else if (entry.duration && entry.ended_at) {
+    } else if (entry.ended_at) {
       totalMs += entryDurationMs(entry, now);
     }
   });
@@ -113,7 +127,7 @@ export function calculateProjectStats(entries) {
     if (entry.started_at && !entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
       stat.inProgressCount++;
-    } else if (entry.duration && entry.ended_at) {
+    } else if (entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
     }
   });
