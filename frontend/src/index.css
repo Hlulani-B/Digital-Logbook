@@ -1030,6 +1030,23 @@ h1, h2, h3, h4, h5, h6, p, span, li, a, label {
   min-width: 0;
 }
 
+.nav-home-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background 0.15s ease;
+}
+.nav-home-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+
 .nav-logo {
   width: 36px;
   height: 36px;
