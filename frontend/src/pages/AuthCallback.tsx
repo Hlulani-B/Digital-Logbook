@@ -2,21 +2,28 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "@/lib/supabase";
 import { checkUser } from "../functions/profile/login.js";
-import { useAuth } from "@/context/AuthContext";
 
 export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { restoreAccount } = useAuth();
 
-  /** Route after checking user status — auto-restores soft-deleted users */
+  /** Route after checking user status — soft-deleted users are sent to the restore prompt */
   const routeUser = async (email: string) => {
     try {
       const result = await checkUser(email);
       if (result.exists && result.deleted) {
-        // Soft-deleted user signing back in during grace period — auto-restore
-        try { await restoreAccount(); } catch { /* best effort */ }
-        navigate("/dashboard", { replace: true });
+        // Soft-deleted account: do NOT log in. Redirect to sign-in restore prompt.
+        try {
+          await getSupabase().auth.signOut();
+        } catch {
+          /* best effort */
+        }
+        const scheduled = result.deletion_scheduled_at || new Date().toISOString();
+        navigate(
+          `/signin?restore_email=${encodeURIComponent(email)}&restore_scheduled_at=${encodeURIComponent(scheduled)}`,
+          { replace: true }
+        );
+        return;
       } else if (result.exists) {
         navigate("/dashboard", { replace: true });
       } else {

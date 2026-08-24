@@ -20,24 +20,28 @@ field.
 | Column | Type | Notes |
 |---|---|---|
 | email | VARCHAR(255) | PK, NOT NULL, UNIQUE |
-| username | VARCHAR(50) | NOT NULL, UNIQUE |
-| name | VARCHAR(100) | NOT NULL |
-| avatar | TEXT | |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| deletion_scheduled_at | TIMESTAMPTZ | set when user soft-deletes their account |
-| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+| username | VARCHAR(50) | UNIQUE, nullable |
+| name | VARCHAR(100) | nullable |
+| avatar | TEXT | nullable |
+| created_at | TIMESTAMPTZ | default now() |
+| deletion_scheduled_at | TIMESTAMPTZ | set when the user schedules account deletion |
+| deleted | BOOLEAN | NOT NULL default false — soft-delete flag |
 
 ## projects
 
 | Column | Type | Notes |
 |---|---|---|
-| project_name | VARCHAR(150) | PK, NOT NULL |
+| id | BIGSERIAL | PK, auto-generated |
+| project_name | VARCHAR(255) | NOT NULL |
 | user_email | VARCHAR(255) | NOT NULL, FK → users(email) |
-| description | TEXT | optional project description |
-| unique_name | VARCHAR(150) | unique per-user project slug |
+| description | TEXT | nullable |
 | archived | BOOLEAN | default false |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+| deleted | BOOLEAN | NOT NULL default false — soft-delete flag |
+| created_at | TIMESTAMPTZ | default now() |
+
+The pair `(user_email, project_name)` is unique, so one user cannot have two
+projects with the same name. `description` was added after the initial schema
+to let users record a short project summary.
 
 ## fields
 
@@ -105,7 +109,9 @@ ADD COLUMN duration INTERVAL GENERATED ALWAYS AS (ended_at - started_at) STORED;
 |---|---|
 | `email` as PK on `users` | Supabase Auth already identifies sessions by email rather than an internal id, so making it the PK removes a redundant surrogate key and matches how other tables already reference users |
 | `id` as `UUID` on `fields`/`entries` | These rows get referenced from the frontend and possibly across services, so UUIDs avoid leaking a guessable sequential count and avoid collisions if entries are ever created offline before syncing |
-| `projects` has no surrogate `id` | Now that `users` is keyed by `email`, `projects` doesn't need its own auto-incrementing id either — `user_email` + `project_name` is enough to identify a project without carrying an extra unused key |
+| `projects` has a surrogate `id` plus a unique natural key | A `BIGSERIAL` `id` keeps internal references simple, while the `(user_email, project_name)` unique constraint enforces the business rule that one user cannot have two projects with the same name |
+| `(user_email, project_name)` unique on `projects` | Prevents duplicate project names per user and gives the frontend a stable, human-readable identifier |
+| `description` on `projects` | Added to support a short project summary shown on the dashboard and project page |
 | `user_email` FK with `ON DELETE CASCADE` on `projects` | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup |
 | `user_email` directly on `fields`/`entries` (not a FK) | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email |
 | `table_name` on `fields` | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one |

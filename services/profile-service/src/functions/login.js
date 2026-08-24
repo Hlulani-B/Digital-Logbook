@@ -3,31 +3,35 @@
  * Returns an object with:
  *   - exists: whether the user row was found (regardless of deleted status)
  *   - deleted: whether the user is currently soft-deleted (in 30-day grace period)
- * Frontend uses this to decide: active user → dashboard, deleted user → auto-restore, new user → create-profile
+ *   - deletion_scheduled_at: ISO timestamp when deletion was scheduled (null if not scheduled)
+ * Frontend uses this to decide: active user → dashboard, deleted user → restore prompt, new user → create-profile
  */
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 
 export class Login {
   async checkUser(email) {
     try {
-      if (!supabase) {
-        console.error('Supabase client not initialized');
+      if (!pool) {
+        console.error('Database pool not initialized');
         return { exists: false, deleted: false };
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('email, deleted')
-        .eq('email', email)
-        .single();
+      const { rows } = await pool.query(
+        `SELECT email, deleted, deletion_scheduled_at FROM users WHERE email = $1`,
+        [email]
+      );
 
-      if (error) {
-        console.error(error);
-        return { exists: false, deleted: false };
+      if (rows.length === 0) {
+        return { exists: false, deleted: false, deletion_scheduled_at: null };
       }
 
-      return { exists: !!data, deleted: data?.deleted === true };
+      const data = rows[0];
+      return {
+        exists: !!data,
+        deleted: data?.deleted === true,
+        deletion_scheduled_at: data?.deletion_scheduled_at || null,
+      };
     } catch (error) {
       console.error(error);
       return { exists: false, deleted: false };

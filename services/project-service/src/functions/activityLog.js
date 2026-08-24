@@ -1,4 +1,4 @@
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 /**
  * Activity log utility — records user actions to the activity_log table
@@ -20,18 +20,16 @@ export class ActivityLog {
    */
   static async log(user_email, action_type, entity_type, entity_name, details = {}) {
     try {
-      if (!supabase) {
-        console.warn('[activityLog] Supabase client not initialized — skipping log');
+      if (!pool) {
+        console.warn('[activityLog] Database pool not initialized — skipping log');
         return;
       }
 
-      const { error } = await supabase
-        .from('activity_log')
-        .insert({ user_email, action_type, entity_type, entity_name, details });
-
-      if (error) {
-        console.error('[activityLog] Failed to insert:', error.message);
-      }
+      await pool.query(
+        `INSERT INTO activity_log (user_email, action_type, entity_type, entity_name, details)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user_email, action_type, entity_type, entity_name, JSON.stringify(details)]
+      );
     } catch (err) {
       console.error('[activityLog] Exception:', err.message);
     }
@@ -46,19 +44,17 @@ export class ActivityLog {
    */
   async getActivities(user_email, limit = 50) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
+      if (!pool) throw new Error('Database pool not initialized');
 
-      const { data, error } = await supabase
-        .from('activity_log')
-        .select('*')
-        .eq('user_email', user_email)
-        .or('deleted.eq.false,deleted.is.null')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      const { rows } = await pool.query(
+        `SELECT * FROM activity_log
+         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [user_email, limit]
+      );
 
-      if (error) throw error;
-
-      return { success: true, data: data || [] };
+      return { success: true, data: rows || [] };
     } catch (error) {
       console.error('[activityLog] getActivities failed:', error.message);
       return { success: false, message: error.message, data: [] };

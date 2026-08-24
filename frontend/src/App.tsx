@@ -4,6 +4,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SignIn } from "@/pages/SignIn";
 import { AuthCallback } from "@/pages/AuthCallback";
+import { AuthRestore } from "@/pages/AuthRestore";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { UpdatePassword } from "@/pages/UpdatePassword";
 import { Dashboard } from "@/pages/Dashboard";
@@ -77,6 +78,7 @@ export function App() {
             }
           />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/restore" element={<AuthRestore />} />
           <Route
             path="/reset-password"
             element={

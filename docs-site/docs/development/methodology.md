@@ -126,6 +126,6 @@ criterion that this methodology supports:
 | Rubric Criterion | Evidence |
 |---|---|
 | Version Control (10%) | This repo — organised structure, CI pipeline, linting, coverage badges, all members committed |
-| Work Tracker (5%) | Trello board (team-private); tasks referenced in [Meeting 4](meetings.md#meeting-4-7-august-2026) |
+| Work Tracker (5%) | [Work Tracker](work-tracker.md) (public sprint backlog with task owners, status, and evidence); private Trello board used for daily coordination |
 | Git Methodology (5%) | This page (branching strategy, commit convention, PR workflow) |
-| Project Methodology (10%) | This page (Scrum), plus [User Stories](user-stories.md), [Meetings](meetings.md), [Development Log](log.md), [Decisions](decisions.md) |
+| Project Methodology (10%) | This page (Scrum), plus [User Stories](user-stories.md), [Meetings](meetings.md), [Development Log](log.md), [Decisions](decisions.md), [Work Tracker](work-tracker.md) |

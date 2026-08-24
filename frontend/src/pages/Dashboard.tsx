@@ -14,6 +14,7 @@ import { sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { getArchives } from "@/functions/project/archives.js";
 import { setPriority } from "@/functions/project/priority.js";
 import { getProfile } from "@/functions/profile/profile.js";
+import { checkUser } from "@/functions/profile/login.js";
 import { dueSoon } from "@/functions/dashboard.js";
 import { searchAll, searchProject, searchProjects } from "@/functions/dashboard/search.js";
 import { EntryBox } from "@/pages/NewEntry";
@@ -56,12 +57,10 @@ type DashboardProps = {
 };
 
 export function Dashboard({ defaultView = "all" }: DashboardProps) {
-  const { user, signOut, deleteAccount, restoreAccount, resetPassword } = useAuth();
+  const { user, signOut, deleteAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [restoring, setRestoring] = useState(false);
-  const [restoreError, setRestoreError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
   const navigate = useNavigate();
@@ -104,6 +103,32 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState("");
   const [showGreetingToast, setShowGreetingToast] = useState(false);
+
+  // Derived early so the deleted-account safety check can use it.
+  const email = user?.email || "";
+
+  // Safety check: soft-deleted accounts should not access the dashboard.
+  // They are redirected to the sign-in restore prompt.
+  useEffect(() => {
+    if (!email) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await checkUser(email);
+        if (!cancelled && result.exists && result.deleted) {
+          try { await signOut(); } catch { /* best effort */ }
+          const scheduled = result.deletion_scheduled_at || new Date().toISOString();
+          navigate(
+            `/signin?restore_email=${encodeURIComponent(email)}&restore_scheduled_at=${encodeURIComponent(scheduled)}`,
+            { replace: true }
+          );
+        }
+      } catch (err) {
+        console.error("Dashboard deleted-check failed:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [email, navigate, signOut]);
   const [aiEmptyMessage, setAiEmptyMessage] = useState("No entries to show right now.");
   const [aiPlaceholder, setAiPlaceholder] = useState("What are you working on?");
 
@@ -123,8 +148,6 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
-
-  const email = user?.email || "";
 
   // Load data — always fetch sorted to reflect current sortBy
   const loadData = useCallback(async () => {
@@ -220,10 +243,10 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     }
   }, [loading, projects, entries, dueSoonRows]);
 
-  // Auto-dismiss greeting toast after 15 seconds
+  // Auto-dismiss greeting toast after 30 seconds
   useEffect(() => {
     if (showGreetingToast) {
-      const t = setTimeout(() => setShowGreetingToast(false), 15000);
+      const t = setTimeout(() => setShowGreetingToast(false), 30000);
       return () => clearTimeout(t);
     }
   }, [showGreetingToast]);
@@ -409,22 +432,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
     setDeleteError(null);
     try {
       await deleteAccount();
-      navigate("/signin");
+      // deleteAccount now signs the user out; ProtectedRoute will redirect to /signin.
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
-      setDeleting(false);
-    }
-  };
-
-  const handleRestoreAccount = async () => {
-    setRestoring(true);
-    setRestoreError(null);
-    try {
-      await restoreAccount();
-    } catch (err) {
-      setRestoreError(err instanceof Error ? err.message : "Failed to restore account");
     } finally {
-      setRestoring(false);
+      setDeleting(false);
     }
   };
 
@@ -1208,12 +1220,9 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         provider={provider}
         onClose={() => setSettingsOpen(false)}
         onDeleteAccount={handleDeleteAccount}
-        onRestoreAccount={handleRestoreAccount}
         onResetPassword={resetPassword}
         deleting={deleting}
         deleteError={deleteError}
-        restoring={restoring}
-        restoreError={restoreError}
       />
 
       {/* Project Settings Panel */}

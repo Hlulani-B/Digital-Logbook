@@ -1,10 +1,12 @@
+import './config.js';
+
 import express from 'express';
 import cors from 'cors';
 
 import searchRouter from './Routes/search.js';
 
 const app = express();
-const PORT = process.env.PORT || 5003;
+const PORT = process.env.PORT || 5002;
 
 // Allowed origins for CORS
 const allowedOrigins = [

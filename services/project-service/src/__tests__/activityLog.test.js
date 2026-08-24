@@ -1,14 +1,13 @@
+import pool from '../db.js';
 import { ActivityLog, logActivity } from '../functions/activityLog.js';
-import { supabase } from '../supabase.js';
-import { createMockSupabaseClient } from '../__mocks__/supabaseMock.js';
 
-jest.mock('../supabase.js');
+jest.mock('../db.js');
 
 describe('ActivityLog', () => {
   beforeEach(() => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    supabase.from.mockReset();
+    pool.query.mockReset();
   });
 
   afterEach(() => {
@@ -19,43 +18,27 @@ describe('ActivityLog', () => {
 
   describe('log', () => {
     it('should insert an activity record successfully', async () => {
-      supabase.from.mockImplementation((tableName) =>
-        createMockSupabaseClient({ [tableName]: { data: [] } }).from(tableName)
-      );
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       await ActivityLog.log('a@b.com', 'PROJECT_CREATED', 'project', 'MyProject');
 
-      expect(supabase.from).toHaveBeenCalledWith('activity_log');
+      expect(pool.query).toHaveBeenCalled();
     });
 
     it('should pass details object to the insert', async () => {
-      supabase.from.mockImplementation((tableName) =>
-        createMockSupabaseClient({ [tableName]: { data: [] } }).from(tableName)
-      );
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       const details = { extra: 'info' };
       await ActivityLog.log('a@b.com', 'ENTRY_ADDED', 'entry', 'test-entry', details);
 
-      expect(supabase.from).toHaveBeenCalledWith('activity_log');
-    });
-
-    it('should log error message when insert returns an error', async () => {
-      supabase.from.mockImplementation((tableName) =>
-        createMockSupabaseClient({ [tableName]: { error: { message: 'insert failed' } } }).from(tableName)
-      );
-
-      // Should not throw — fire-and-forget
-      await ActivityLog.log('a@b.com', 'PROJECT_CREATED', 'project', 'MyProject');
-
-      expect(console.error).toHaveBeenCalledWith(
-        '[activityLog] Failed to insert:', 'insert failed'
-      );
+      expect(pool.query).toHaveBeenCalled();
+      // Verify the details are serialized as JSON
+      const call = pool.query.mock.calls[0];
+      expect(call[1][4]).toBe(JSON.stringify(details));
     });
 
     it('should catch and log unexpected exceptions', async () => {
-      supabase.from.mockImplementation(() => {
-        throw new Error('Network failure');
-      });
+      pool.query.mockRejectedValueOnce(new Error('Network failure'));
 
       // Should not throw
       await ActivityLog.log('a@b.com', 'PROJECT_CREATED', 'project', 'MyProject');
@@ -80,26 +63,16 @@ describe('ActivityLog', () => {
         { action_type: 'PROJECT_CREATED', entity_name: 'P1' },
         { action_type: 'ENTRY_ADDED', entity_name: 'E1' },
       ];
-
-      supabase.from.mockImplementation((tableName) => {
-        const chain = createMockSupabaseClient({ [tableName]: { data: mockActivities } }).from(tableName);
-        chain.limit = jest.fn().mockReturnThis();
-        return chain;
-      });
+      pool.query.mockResolvedValueOnce({ rows: mockActivities });
 
       const result = await activityLog.getActivities('a@b.com');
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(2);
-      expect(supabase.from).toHaveBeenCalledWith('activity_log');
     });
 
     it('should return empty array when no activities exist', async () => {
-      supabase.from.mockImplementation((tableName) => {
-        const chain = createMockSupabaseClient({ [tableName]: { data: [] } }).from(tableName);
-        chain.limit = jest.fn().mockReturnThis();
-        return chain;
-      });
+      pool.query.mockResolvedValueOnce({ rows: [] });
 
       const result = await activityLog.getActivities('a@b.com');
 
@@ -107,12 +80,8 @@ describe('ActivityLog', () => {
       expect(result.data).toHaveLength(0);
     });
 
-    it('should return failure when Supabase returns an error', async () => {
-      supabase.from.mockImplementation((tableName) => {
-        const chain = createMockSupabaseClient({ [tableName]: { error: { message: 'query failed' } } }).from(tableName);
-        chain.limit = jest.fn().mockReturnThis();
-        return chain;
-      });
+    it('should return failure when db returns an error', async () => {
+      pool.query.mockRejectedValueOnce(new Error('query failed'));
 
       const result = await activityLog.getActivities('a@b.com');
 
@@ -122,9 +91,7 @@ describe('ActivityLog', () => {
     });
 
     it('should handle unexpected thrown errors', async () => {
-      supabase.from.mockImplementation(() => {
-        throw new Error('Connection lost');
-      });
+      pool.query.mockRejectedValueOnce(new Error('Connection lost'));
 
       const result = await activityLog.getActivities('a@b.com');
 

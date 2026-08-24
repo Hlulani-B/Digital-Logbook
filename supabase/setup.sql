@@ -116,10 +116,10 @@ BEGIN
        AND deletion_scheduled_at < now() - INTERVAL '30 days'
   LOOP
     -- Clean up app tables
-    DELETE FROM public.activity_log WHERE user_email = rec.email;
-    DELETE FROM public.entries      WHERE user_email = rec.email;
-    DELETE FROM public.fields       WHERE user_email = rec.email;
-    DELETE FROM public.projects     WHERE user_email = rec.email;
+    DELETE FROM public.activity_log al WHERE al.user_email = rec.email;
+    DELETE FROM public.entries      e  WHERE e.user_email  = rec.email;
+    DELETE FROM public.fields       f  WHERE f.user_email  = rec.email;
+    DELETE FROM public.projects     p  WHERE p.user_email  = rec.email;
     DELETE FROM public.users        WHERE email = rec.email;
 
     -- Remove the auth account
@@ -145,7 +145,7 @@ SELECT cron.schedule('purge-deleted-users', '0 0 * * *', 'SELECT public.purge_de
 
 -- 5. Project statistics RPC
 --    Aggregates duration per project for a given user.
---    Uses the stored `duration` column (ended_at − started_at) for completed entries,
+--    Computes duration from timestamps (ended_at − started_at) for completed entries,
 --    and now() − started_at for in-progress entries.
 --    Returns project_name, entry count, total duration, and in-progress count.
 CREATE OR REPLACE FUNCTION get_project_stats(p_user_email TEXT)
@@ -165,8 +165,10 @@ BEGIN
     COUNT(*)::BIGINT AS entry_count,
     COALESCE(SUM(
       CASE
-        WHEN e.ended_at IS NOT NULL THEN e.duration
-        WHEN e.started_at IS NOT NULL THEN now() - e.started_at
+        WHEN e.ended_at IS NOT NULL AND e.started_at IS NOT NULL
+          THEN e.ended_at - e.started_at
+        WHEN e.started_at IS NOT NULL
+          THEN now() - e.started_at
         ELSE INTERVAL '0'
       END
     ), INTERVAL '0')::INTERVAL AS total_duration,

@@ -4410,7 +4410,7 @@ img { max-width: 100%; }
   font-size: 0.9rem;
   color: var(--text-secondary);
   text-align: center;
-  animation: toast-fade-in 0.4s ease, toast-fade-out 0.5s ease 5.5s forwards;
+  animation: toast-fade-in 0.4s ease, toast-fade-out 0.5s ease 29.5s forwards;
 }
 .ai-toast p {
   margin: 0;

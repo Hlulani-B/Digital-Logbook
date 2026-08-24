@@ -1,4 +1,4 @@
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Fields } from './field.js';
@@ -8,7 +8,7 @@ import leven from 'leven';
 export class Entries {
   async addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
+      if (!pool) throw new Error('Database pool not initialized');
 
       const insertData = { user_email, project_name, entries: entry_object };
       if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;
@@ -20,18 +20,21 @@ export class Entries {
 
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
 
-      const { data, error } = await supabase
-        .from('entries')
-        .insert(insertData)
-        .select();
+      const columns = Object.keys(insertData);
+      const values = Object.values(insertData).map(v =>
+        (v !== null && typeof v === 'object') ? JSON.stringify(v) : v
+      );
+      const placeholders = columns.map((_, i) => `$${i + 1}`);
 
-      if (error) {
-        console.error('[addEntry] Supabase error:', error.message, error.details || '');
-        throw error;
-      }
+      const { rows } = await pool.query(
+        `INSERT INTO entries (${columns.join(', ')})
+         VALUES (${placeholders.join(', ')})
+         RETURNING *`,
+        values
+      );
 
-      console.log('[addEntry] Success, id:', data?.[0]?.id);
-      return { success: true, message: 'Entry added successfully', data };
+      console.log('[addEntry] Success, id:', rows?.[0]?.id);
+      return { success: true, message: 'Entry added successfully', data: rows };
     } catch (error) {
       console.error('[addEntry] FAILED:', error.message);
       return { success: false, message: error.message };
@@ -40,7 +43,7 @@ export class Entries {
 
   async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
+      if (!pool) throw new Error('Database pool not initialized');
 
       const updateData = {};
 
@@ -59,26 +62,30 @@ export class Entries {
 
       console.log('[updateEntry] Updating entry_id:', entry_id, 'data:', JSON.stringify(updateData));
 
-      const { data, error } = await supabase
-        .from('entries')
-        .update(updateData)
-        .eq('id', entry_id)
-        .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .select();
-
-      if (error) {
-        console.error('[updateEntry] Supabase error:', error.message, error.details || '');
-        throw error;
+      const setClauses = [];
+      const params = [];
+      let idx = 1;
+      for (const [key, value] of Object.entries(updateData)) {
+        const val = (value !== null && typeof value === 'object') ? JSON.stringify(value) : value;
+        setClauses.push(`${key} = $${idx++}`);
+        params.push(val);
       }
+      params.push(entry_id, user_email, project_name);
 
-      if (!data || data.length === 0) {
+      const { rows } = await pool.query(
+        `UPDATE entries SET ${setClauses.join(', ')}
+         WHERE id = $${idx++} AND user_email = $${idx++} AND project_name = $${idx}
+         RETURNING *`,
+        params
+      );
+
+      if (!rows || rows.length === 0) {
         console.error('[updateEntry] No rows matched. id:', entry_id, 'user:', user_email, 'project:', project_name);
         return { success: false, message: 'Entry not found. Check that the entry exists and belongs to this user/project.' };
       }
 
-      console.log('[updateEntry] Success, id:', data[0].id);
-      return { success: true, message: 'Entry updated successfully', data };
+      console.log('[updateEntry] Success, id:', rows[0].id);
+      return { success: true, message: 'Entry updated successfully', data: rows };
     } catch (error) {
       console.error('[updateEntry] FAILED:', error.message);
       return { success: false, message: error.message };
@@ -87,19 +94,14 @@ export class Entries {
 
   async getEntries(user_email, project_name) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .eq('deleted', false);
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `SELECT * FROM entries
+         WHERE user_email = $1 AND project_name = $2 AND deleted = false`,
+        [user_email, project_name]
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      return { success: true, message: 'Entries retrieved successfully', data };
+      return { success: true, message: 'Entries retrieved successfully', data: rows };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };
@@ -108,19 +110,15 @@ export class Entries {
 
   async getAllEntries(user_email) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('deleted', false)
-        .order('created_at', { ascending: false });
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `SELECT * FROM entries
+         WHERE user_email = $1 AND deleted = false
+         ORDER BY created_at DESC`,
+        [user_email]
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      return { success: true, message: 'All entries retrieved successfully', data };
+      return { success: true, message: 'All entries retrieved successfully', data: rows };
     } catch (error) {
       console.log('getAllEntries error:', error);
       return { success: false, message: error.message };
@@ -129,21 +127,15 @@ export class Entries {
 
   async deleteEntry(user_email, project_name, entry) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase
-        .from('entries')
-        .update({ deleted: true })
-        .eq('user_email', user_email)
-        .eq('project_name', project_name)
-        .eq('entries', entry)
-        .eq('deleted', false)
-        .select();
+      if (!pool) throw new Error('Database pool not initialized');
+      const { rows } = await pool.query(
+        `UPDATE entries SET deleted = true
+         WHERE user_email = $1 AND project_name = $2 AND entries = $3 AND deleted = false
+         RETURNING *`,
+        [user_email, project_name, JSON.stringify(entry)]
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
+      if (!rows || rows.length === 0) {
         return { success: false, message: 'Entry not found. Something went wrong' };
       }
 
@@ -157,17 +149,12 @@ export class Entries {
 
   async deleteEntryById(user_email, entry_id) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { error } = await supabase
-        .from('entries')
-        .update({ deleted: true })
-        .eq('id', entry_id)
-        .eq('user_email', user_email)
-        .eq('deleted', false);
-
-      if (error) {
-        throw error;
-      }
+      if (!pool) throw new Error('Database pool not initialized');
+      await pool.query(
+        `UPDATE entries SET deleted = true
+         WHERE id = $1 AND user_email = $2 AND deleted = false`,
+        [entry_id, user_email]
+      );
 
       console.log('Entry soft-deleted by id:', entry_id);
       return { success: true, message: 'Entry deleted successfully' };
@@ -179,21 +166,20 @@ export class Entries {
 
   async sortUnarchivedEntries(user_email, project_name, sort_type) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      let query = supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('deleted', false)
-        .or('archived.eq.false,archived.is.null');
+      if (!pool) throw new Error('Database pool not initialized');
+
+      let query = `SELECT * FROM entries
+         WHERE user_email = $1 AND deleted = false AND (archived = false OR archived IS NULL)`;
+      const params = [user_email];
 
       if (project_name) {
-        query = query.eq('project_name', project_name);
+        params.push(project_name);
+        query += ` AND project_name = $${params.length}`;
       }
 
-      const { data, error } = await query.order('due_date', { ascending: true });
+      query += ` ORDER BY due_date ASC`;
 
-      if (error) throw error;
+      const { rows: data } = await pool.query(query, params);
 
       switch (sort_type) {
         case 0:
@@ -225,21 +211,20 @@ export class Entries {
 
   async sortArchivedEntries(user_email, project_name, sort_type) {
     try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      let query = supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', user_email)
-        .eq('deleted', false)
-        .eq('archived', true);
+      if (!pool) throw new Error('Database pool not initialized');
+
+      let query = `SELECT * FROM entries
+         WHERE user_email = $1 AND deleted = false AND archived = true`;
+      const params = [user_email];
 
       if (project_name) {
-        query = query.eq('project_name', project_name);
+        params.push(project_name);
+        query += ` AND project_name = $${params.length}`;
       }
 
-      const { data, error } = await query.order('due_date', { ascending: true });
+      query += ` ORDER BY due_date ASC`;
 
-      if (error) throw error;
+      const { rows: data } = await pool.query(query, params);
 
       switch (sort_type) {
         case 0:

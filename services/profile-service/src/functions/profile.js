@@ -1,4 +1,4 @@
-import { supabase } from '../supabase.js';
+import pool from '../db.js';
 
 /**
  * Handles username checks and updates.
@@ -7,27 +7,23 @@ import { supabase } from '../supabase.js';
 export class Username {
   async username(email, username) {
     try {
-      if (!supabase) {
+      if (!pool) {
         return { success: false, message: 'Database not connected' };
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username);
+      const { rows } = await pool.query(
+        `SELECT username FROM users WHERE username = $1`,
+        [username]
+      );
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
+      if (rows.length > 0) {
         return { success: false, message: 'Username not available' };
       }
 
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ username })
-        .eq('email', email);
-
-      if (updateError) throw updateError;
+      await pool.query(
+        `UPDATE users SET username = $1 WHERE email = $2`,
+        [username, email]
+      );
 
       return { success: true, message: 'Username updated successfully' };
     } catch (error) {
@@ -44,18 +40,17 @@ export class Username {
 export class Email {
   async email(email) {
     try {
-      if (!supabase) {
+      if (!pool) {
         return { success: false, message: 'Database not connected' };
       }
 
       // Generate a default username from the email prefix (before @)
       const defaultUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
 
-      const { error } = await supabase
-        .from('users')
-        .insert({ email, username: defaultUsername, name: defaultUsername });
-
-      if (error) throw error;
+      await pool.query(
+        `INSERT INTO users (email, username, name) VALUES ($1, $2, $3)`,
+        [email, defaultUsername, defaultUsername]
+      );
 
       return { success: true, message: 'Email added successfully' };
     } catch (error) {
@@ -71,16 +66,14 @@ export class Email {
 export class Name {
   async name(email, new_name) {
     try {
-      if (!supabase) {
+      if (!pool) {
         return { success: false, message: 'Database not connected' };
       }
 
-      const { error } = await supabase
-        .from('users')
-        .update({ name: new_name })
-        .eq('email', email);
-
-      if (error) throw error;
+      await pool.query(
+        `UPDATE users SET name = $1 WHERE email = $2`,
+        [new_name, email]
+      );
 
       return { success: true, message: 'Name updated successfully' };
     } catch (error) {
@@ -96,16 +89,14 @@ export class Name {
 export class Avatar {
   async avatar(email, url) {
     try {
-      if (!supabase) {
+      if (!pool) {
         return { success: false, message: 'Database not connected' };
       }
 
-      const { error } = await supabase
-        .from('users')
-        .update({ avatar: url })
-        .eq('email', email);
-
-      if (error) throw error;
+      await pool.query(
+        `UPDATE users SET avatar = $1 WHERE email = $2`,
+        [url, email]
+      );
 
       return { success: true, message: 'Avatar updated successfully' };
     } catch (error) {
@@ -121,20 +112,22 @@ export class Avatar {
 export class Profile {
   async getProfile(email) {
     try {
-      if (!supabase) {
+      if (!pool) {
         return { success: false, message: 'Database not connected' };
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .or('deleted.eq.false,deleted.is.null')
-        .single();
+      const { rows } = await pool.query(
+        `SELECT * FROM users
+         WHERE email = $1
+         LIMIT 1`,
+        [email]
+      );
 
-      if (error) throw error;
+      if (rows.length === 0) {
+        return { success: false, message: 'User not found' };
+      }
 
-      return { success: true, data };
+      return { success: true, data: rows[0] };
     } catch (error) {
       console.error(error);
       return { success: false, message: error.message };
@@ -142,37 +135,54 @@ export class Profile {
   }
 
   async deleteProfile(email) {
+    let client;
     try {
-      if (!supabase) {
+      if (!pool) {
         return { success: false, message: 'Database not connected' };
       }
 
-      let error;
+      client = await pool.connect();
+      await client.query('BEGIN');
 
       // Soft-delete all entries for this user
-      ({ error } = await supabase.from('entries').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
-      if (error) throw error;
+      await client.query(
+        `UPDATE entries SET deleted = true WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [email]
+      );
 
       // Soft-delete all fields for this user
-      ({ error } = await supabase.from('fields').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
-      if (error) throw error;
+      await client.query(
+        `UPDATE fields SET deleted = true WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [email]
+      );
 
       // Soft-delete all projects for this user
-      ({ error } = await supabase.from('projects').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
-      if (error) throw error;
+      await client.query(
+        `UPDATE projects SET deleted = true WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [email]
+      );
 
       // Soft-delete all activity logs for this user
-      ({ error } = await supabase.from('activity_log').update({ deleted: true }).eq('user_email', email).or('deleted.eq.false,deleted.is.null'));
-      if (error) throw error;
+      await client.query(
+        `UPDATE activity_log SET deleted = true WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [email]
+      );
 
       // Soft-delete the user account
-      ({ error } = await supabase.from('users').update({ deleted: true }).eq('email', email).or('deleted.eq.false,deleted.is.null'));
-      if (error) throw error;
+      await client.query(
+        `UPDATE users SET deleted = true WHERE email = $1 AND (deleted = false OR deleted IS NULL)`,
+        [email]
+      );
+
+      await client.query('COMMIT');
 
       return { success: true, message: 'Profile deleted successfully' };
     } catch (error) {
+      if (client) await client.query('ROLLBACK');
       console.error(error);
       return { success: false, message: error.message };
+    } finally {
+      if (client) client.release();
     }
   }
 }

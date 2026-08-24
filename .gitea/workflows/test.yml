@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         service:
+          - auth-service
           - dashboard-service
           - profile-service
           - project-service
@@ -33,9 +34,14 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: npm run test:coverage
 
-      - name: Generate coverage badge
+      - name: Generate coverage badges
         working-directory: services/${{ matrix.service }}
-        run: npx coverage-badges-cli --output ./badges
+        run: |
+          mkdir -p badges
+          npx coverage-badges-cli --label lines      --jsonPath total.lines.pct      --output ./badges/lines.svg
+          npx coverage-badges-cli --label statements --jsonPath total.statements.pct --output ./badges/statements.svg
+          npx coverage-badges-cli --label functions  --jsonPath total.functions.pct  --output ./badges/functions.svg
+          npx coverage-badges-cli --label branches   --jsonPath total.branches.pct   --output ./badges/branches.svg
 
       - name: Upload coverage report
         if: always()
@@ -70,8 +76,8 @@ jobs:
 
       - name: Organise badges into badges/ directory
         run: |
-          mkdir -p badges/dashboard-service badges/profile-service badges/project-service
-          for svc in dashboard-service profile-service project-service; do
+          mkdir -p badges/auth-service badges/dashboard-service badges/profile-service badges/project-service
+          for svc in auth-service dashboard-service profile-service project-service; do
             if [ -d "/tmp/badges-raw/coverage-badge-$svc" ]; then
               cp /tmp/badges-raw/coverage-badge-$svc/*.svg badges/$svc/ 2>/dev/null || true
             fi
@@ -87,5 +93,6 @@ jobs:
             echo "No badge changes to commit"
           else
             git commit -m "chore: update test coverage badges [skip ci]"
-            git push
+            git pull --rebase origin main || true
+            git push origin main
           fi
