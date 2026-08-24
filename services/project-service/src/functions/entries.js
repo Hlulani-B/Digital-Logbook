@@ -497,11 +497,12 @@ ${JSON.stringify(projectsWithFields)}
 Entry: "${cleanedText}"
 
 === STEP 0: UNDERSTAND THE INPUT (CRITICAL) ===
-Read the ENTIRE user input carefully. Do NOT truncate, cut off, or abbreviate any text.
-- Preserve the FULL meaning of what the user wrote. If they said "Make sure it's done and send the email to John", the task is "Make sure it's done and send the email to John" — NOT "Make sure it's" or "send email".
-- Use COMMON SENSE. Think about what the user actually means, not just keyword matching.
-- If the user writes casually (e.g., "gonna grab some food"), understand the intent (eating/lunch) — don't just extract random words.
-- Do NOT be lazy. Read every word and understand the full context before responding.
+Read the ENTIRE user input carefully. PARAPHRASE neatly into clear, well-written task descriptions.
+- Do NOT just extract random words or copy the raw text verbatim. REWRITE it as a clean, concise description that captures the full meaning.
+- If the user says "gonna grab some food real quick", write "Grabbed a quick meal" — NOT "gonna grab some food" (raw copy) and NOT "food" (too short).
+- If the user says "Make sure it's done and send the email to John", write "Ensure task is completed and send email to John" — NOT "Make sure it's" (truncated).
+- Use COMMON SENSE. Think about what the user actually means and express it clearly.
+- Do NOT be lazy. Read every word, understand the full context, then write a neat description.
 
 === STEP 1: REASONING (MANDATORY) ===
 Before responding, you MUST think step-by-step in your "comment" field. Show your reasoning:
@@ -542,14 +543,18 @@ HARD RULE: If two activities would naturally belong to DIFFERENT projects/catego
 - matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
 - matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
 
-=== STEP 5: FIELD VALUES — PRESERVE FULL TEXT ===
-When creating field values, you MUST preserve the COMPLETE task description. Do NOT truncate or abbreviate.
-- CORRECT: {"task": "Make sure it's done and send the email to John"}
-- WRONG: {"task": "Make sure it's"} ← TRUNCATED — this is a serious error
-- CORRECT: {"activity": "going to the gym and then making chips for dinner"}
-- WRONG: {"activity": "gym"} ← lost the full meaning
+=== STEP 5: FIELD VALUES — PARAPHRASE NEATLY (STRICT) ===
+When creating field values, you MUST write clean, well-phrased descriptions. This is NOT optional.
+- DO NOT just copy the user's raw words. DO NOT just extract keywords. REWRITE as a clear, neat description.
+- CORRECT: {"task": "Ensure the report is finished and email it to John"}
+- WRONG: {"task": "make sure its done and send the email to john"} ← raw copy, not paraphrased
+- WRONG: {"task": "send email"} ← lost meaning, too short
+- CORRECT: {"activity": "Gym session followed by preparing chips for dinner"}
+- WRONG: {"activity": "gym and chips"} ← too vague, lost context
+- CORRECT: {"task": "Review pull request and leave feedback for the team"}
+- WRONG: {"task": "review pull"} ← truncated nonsense
 
-The field value should capture the FULL intent of what the user wrote for that task.
+The field value must be a COMPLETE, WELL-WRITTEN sentence or phrase that someone reading it later will immediately understand.
 
 === STEP 6: HANDLING NONSENSE OR INCOMPLETE INPUT ===
 Sometimes the user's input may be incomplete, garbled, or nonsensical (e.g., "I need to go and.Make sure it's and then after that I have t" — a run-on sentence that cuts off mid-word).
