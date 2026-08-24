@@ -193,6 +193,16 @@ npm install
 npm run dev
 ```
 
+### Running Tests
+
+```bash
+npm test              # run Vitest once
+npm run test:watch    # run Vitest in watch mode
+npm run test:coverage # run with coverage report
+```
+
+Tests live next to the code they cover, e.g. [`src/context/__tests__/AuthContext.test.tsx`](src/context/__tests__/AuthContext.test.tsx).
+
 ### Environment Variables
 
 See `.env.example` for all required variables:
@@ -270,7 +280,8 @@ frontend/
 │   │   ├── ProtectedRoute.tsx   # Route guard component
 │   │   └── SettingsPanel.tsx    # Slide-out settings panel
 │   ├── context/
-│   │   └── AuthContext.tsx      # Auth state management
+│   │   ├── AuthContext.tsx      # Auth state management
+│   │   └── __tests__/           # AuthContext unit tests
 │   ├── functions/
 │   │   └── profile/
 │   │       └── login.js         # checkUser helper for post-auth routing
@@ -293,7 +304,9 @@ frontend/
 ├── index.html                   # HTML entry
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+├── vitest.config.ts             # Test configuration
+└── src/test/setup.ts            # Test setup (matchMedia mock, jest-dom)
 ```
 
 ---

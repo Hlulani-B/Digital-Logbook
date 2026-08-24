@@ -14,9 +14,10 @@ This project uses AI-assisted development for the frontend authentication module
 
 | Service | Lines | Statements | Functions | Branches |
 | :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](https://img.shields.io/badge/lines-77%25-yellow) | ![Statements](https://img.shields.io/badge/statements-74%25-yellow) | ![Functions](https://img.shields.io/badge/functions-67%25-yellow) | ![Branches](https://img.shields.io/badge/branches-65%25-yellow) |
-| **Profile Service** | ![Lines](https://img.shields.io/badge/lines-69%25-yellow) | ![Statements](https://img.shields.io/badge/statements-65%25-yellow) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-52%25-red) |
-| **Dashboard Service** | ![Lines](https://img.shields.io/badge/lines-100%25-green) | ![Statements](https://img.shields.io/badge/statements-100%25-green) | ![Functions](https://img.shields.io/badge/functions-100%25-green) | ![Branches](https://img.shields.io/badge/branches-100%25-green) |
+| **Auth Service** | ![Lines](badges/auth-service/lines.svg) | ![Statements](badges/auth-service/statements.svg) | ![Functions](badges/auth-service/functions.svg) | ![Branches](badges/auth-service/branches.svg) |
+| **Dashboard Service** | ![Lines](badges/dashboard-service/lines.svg) | ![Statements](badges/dashboard-service/statements.svg) | ![Functions](badges/dashboard-service/functions.svg) | ![Branches](badges/dashboard-service/branches.svg) |
+| **Profile Service** | ![Lines](badges/profile-service/lines.svg) | ![Statements](badges/profile-service/statements.svg) | ![Functions](badges/profile-service/functions.svg) | ![Branches](badges/profile-service/branches.svg) |
+| **Project Service** | ![Lines](badges/project-service/lines.svg) | ![Statements](badges/project-service/statements.svg) | ![Functions](badges/project-service/functions.svg) | ![Branches](badges/project-service/branches.svg) |
 
 
 ##  Deployed Live Services
@@ -369,11 +370,40 @@ frontend/
 ├── index.html                   # HTML entry
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+└── vitest.config.ts             # Test configuration
 ```
 
 
 
+
+## Running Tests
+
+Each service and the frontend have their own test suites.
+
+### Frontend
+
+```bash
+cd frontend
+npm test              # run Vitest once
+npm run test:watch    # run Vitest in watch mode
+npm run test:coverage # run with coverage report
+```
+
+### Backend services
+
+```bash
+cd services/auth-service      && npm test
+cd services/dashboard-service && npm test
+cd services/profile-service   && npm test
+cd services/project-service   && npm test
+```
+
+### CI
+
+The [`.gitea/workflows/ci.yml`](.gitea/workflows/ci.yml) pipeline runs lint, build, and tests for the frontend and all four services on every push and pull request. The [`.gitea/workflows/test.yml`](.gitea/workflows/test.yml) pipeline generates coverage badges and commits them to the `badges/` directory on `main`.
+
+---
 
 ## Branching Rules
 
@@ -400,21 +430,21 @@ Then open a pull request on Gitea into `main` (or `services` for backend-only wo
 
 ## Architecture Boundary
 
-**Frontend is presentation-only.** It renders UI and calls the Express API. It never:
-- Imports `@supabase/supabase-js` or any database client
-- Holds database credentials or Supabase keys
-- Contains business logic (validation, data shaping, access rules)
+**Frontend owns UI and auth orchestration.** It uses Supabase Auth directly for sign-in, sign-up, OAuth, password reset, and account restoration. It never:
+- Holds database credentials or service-specific secrets
+- Contains backend business logic (validation, data shaping, access rules)
+- Directly queries the database outside of Supabase Auth RPC calls
 
 **Backend owns all data access.** If the frontend needs new data or a new
-capability, the fix is always in `backend/`:
+capability, the fix is always in `services/`:
 - Missing endpoint → add a new route + service function in Express
 - Wrong response shape → change the service function, not the frontend
 - New feature needing data → build it as a backend service first, then
   call it from the frontend like everything else
 
 If you're editing frontend code and find yourself reaching for a database
-client, a `.env` credential, or writing a query — stop, that logic belongs
-in `backend/functions/`.
+client, a service secret, or writing a query — stop, that logic belongs
+in `services/`.
 
 
 ## Before Pushing to `main`
