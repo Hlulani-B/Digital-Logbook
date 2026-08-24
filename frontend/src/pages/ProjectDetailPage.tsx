@@ -9,6 +9,7 @@ import VoiceFeature from "@/pages/VoiceFeature";
 import { EntryBox } from "@/pages/NewEntry";
 import { sortUnarchivedEntries } from "@/functions/project/entries.js";
 import { setPriority } from "@/functions/project/priority.js";
+import { getProjectsByEmail } from "@/functions/project/project.js";
 import { getProfile } from "@/functions/profile/profile.js";
 import { searchEntriesInProject } from "@/functions/project/search.js";
 import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
@@ -53,6 +54,10 @@ export function ProjectDetailPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+
+  // Drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [allProjects, setAllProjects] = useState<{ project_name: string }[]>([]);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -106,6 +111,23 @@ export function ProjectDetailPage() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  // Load all projects for the drawer
+  useEffect(() => {
+    if (!email) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getProjectsByEmail(email);
+        if (!cancelled && result?.success) {
+          setAllProjects((result.projects || []).filter((p: Record<string, unknown>) => !p.archived));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [email]);
 
   // Load profile
   useEffect(() => {
@@ -323,7 +345,7 @@ export function ProjectDetailPage() {
       <nav className="navbar">
         <div className="navbar-inner">
           <div className="nav-left-group">
-            <button className="nav-hamburger" onClick={() => navigate("/dashboard")} aria-label="Back to dashboard">
+            <button className="nav-hamburger" onClick={() => setDrawerOpen(true)} aria-label="Open navigation">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
@@ -379,6 +401,64 @@ export function ProjectDetailPage() {
           </div>
         </div>
       </nav>
+
+      {/* Drawer Overlay */}
+      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
+
+      {/* Navigation Drawer */}
+      <aside className={`drawer ${drawerOpen ? "drawer-open" : ""}`}>
+        <div className="drawer-header">
+          <span className="drawer-title">Navigation</span>
+          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="drawer-section">
+          <p className="drawer-section-title">Views</p>
+          <button className="drawer-item" onClick={() => { navigate("/dashboard"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Home
+          </button>
+          <button className="drawer-item" onClick={() => { navigate("/dashboard/archives"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+            Archives
+          </button>
+          <button className="drawer-item" onClick={() => { navigate("/stats"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            My Stats
+          </button>
+          <button className="drawer-item" onClick={() => { navigate("/dashboard/activity"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Activity Log
+          </button>
+        </div>
+        <div className="drawer-section drawer-projects">
+          <p className="drawer-section-title">Projects</p>
+          <div className="drawer-project-list">
+            {allProjects.map((p) => (
+              <button
+                key={p.project_name}
+                className={`drawer-item ${p.project_name === projectName ? "active" : ""}`}
+                onClick={() => { navigate(`/project/${encodeURIComponent(p.project_name)}`); setDrawerOpen(false); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                {p.project_name}
+              </button>
+            ))}
+            {allProjects.length === 0 && (
+              <p className="drawer-empty">No projects found.</p>
+            )}
+          </div>
+        </div>
+        <div className="drawer-footer">
+          <button className="btn-primary drawer-new-btn" onClick={() => { navigate("/dashboard"); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Project
+          </button>
+        </div>
+      </aside>
 
       {/* Main Content */}
       <main className="dash-main">
