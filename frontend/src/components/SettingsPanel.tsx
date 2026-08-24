@@ -44,14 +44,10 @@ interface SettingsPanelProps {
   avatarUrl?: string;
   provider: string;
   onClose: () => void;
-  profileRefreshKey?: number;
   onDeleteAccount: () => void;
-  onRestoreAccount: () => Promise<void>;
   onResetPassword: (email: string) => Promise<void>;
   deleting: boolean;
   deleteError: string | null;
-  restoring: boolean;
-  restoreError: string | null;
 }
 
 const STORAGE_PREFIX = "dl_settings_";
@@ -173,14 +169,10 @@ export function SettingsPanel({
   avatarUrl,
   provider,
   onClose,
-  profileRefreshKey = 0,
   onDeleteAccount,
-  onRestoreAccount,
   onResetPassword,
   deleting,
   deleteError,
-  restoring,
-  restoreError,
 }: SettingsPanelProps) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [saved, setSaved] = useState(false);
@@ -312,7 +304,7 @@ export function SettingsPanel({
     })();
 
     return () => { cancelled = true; };
-  }, [open, email, profileRefreshKey]);
+  }, [open, email]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -833,62 +825,6 @@ export function SettingsPanel({
                 </div>
               </div>
 
-              {serverProfile?.deletion_scheduled_at && (
-                <>
-                  <hr className="divider" />
-                  <div className="panel-section">
-                    <p className="panel-section-title" style={{ color: "var(--danger-text)" }}>
-                      Account Scheduled for Deletion
-                    </p>
-                    <div
-                      style={{
-                        padding: "0.75rem 1rem",
-                        borderRadius: "var(--radius-xs)",
-                        background: isDark ? "rgba(239,68,68,0.1)" : "#fef2f2",
-                        border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#fecaca"}`,
-                        color: isDark ? "#fca5a5" : "#b91c1c",
-                        fontSize: "0.8125rem",
-                        lineHeight: 1.5,
-                        marginBottom: "0.75rem",
-                      }}
-                    >
-                      Your account is scheduled to be permanently deleted on{" "}
-                      <strong>
-                        {new Date(
-                          new Date(serverProfile.deletion_scheduled_at as string).getTime() +
-                            30 * 24 * 60 * 60 * 1000
-                        ).toLocaleDateString()}
-                      </strong>
-                      . You can restore it any time before then.
-                    </div>
-                    {restoreError && (
-                      <p style={{ marginBottom: "0.75rem", color: "var(--danger-text)" }}>
-                        {restoreError}
-                      </p>
-                    )}
-                    <button
-                      onClick={async () => {
-                        try {
-                          await onRestoreAccount();
-                          // Refresh profile so the scheduled-deletion banner disappears
-                          const fresh = await getProfile(email);
-                          const freshData = fresh?.data || fresh;
-                          setServerProfile(freshData);
-                          setName((freshData as Record<string, unknown>)?.name as string || "");
-                          setUsername((freshData as Record<string, unknown>)?.username as string || "");
-                        } catch {
-                          // Errors are surfaced via the restoreError prop
-                        }
-                      }}
-                      disabled={restoring}
-                      className="btn-primary"
-                    >
-                      {restoring ? "Restoring..." : "Restore Account"}
-                    </button>
-                  </div>
-                </>
-              )}
-
               <hr className="divider" />
 
               {/* Reset Password */}
@@ -904,9 +840,9 @@ export function SettingsPanel({
                   Danger Zone
                 </p>
                 <p className="danger-desc">
-                  {serverProfile?.deletion_scheduled_at
-                    ? "Your account is already scheduled for deletion. Restoring it will cancel the request."
-                    : "Deleting your account starts a 30-day grace period. During this time you can sign back in and restore your account. After 30 days, all data is permanently removed."}
+                  Deleting your account starts a 30-day grace period. You will be signed out
+                  immediately. To restore your account, sign back in and confirm via the email link
+                  we send you. After 30 days, all data is permanently removed.
                 </p>
 
                 {!serverProfile?.deletion_scheduled_at && (

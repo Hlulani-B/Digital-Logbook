@@ -147,12 +147,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = async () => {
     if (DEV_MODE) { console.log("[DEV MODE] deleteAccount skipped"); return; }
 
-    // Schedule the account for deletion (30-day grace period).
-    // The user stays signed in so they can see the scheduled-deletion banner and restore immediately.
+    // Schedule the account for deletion (30-day grace period), then sign the user out.
+    // Restoration can only happen by signing back in and confirming via the email link.
     const { error } = await getSupabase().rpc("delete_user");
     if (error) {
       throw new Error(error.message || "Could not schedule account deletion");
     }
+    await getSupabase().auth.signOut();
   };
 
   const restoreAccount = async () => {
