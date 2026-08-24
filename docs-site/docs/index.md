@@ -18,11 +18,14 @@ predetermined schema.
 
 ## Team
 
-| Role | Person |
+| Role / Primary focus | Person |
 |---|---|
-| Documentation | Siphesihle |
-| Fullstack | Hlulani Baloyi |
-| *(add remaining team members and roles here)* | |
+| Documentation & project creation | Siphesihle |
+| Frontend, UI/UX, fullstack & entry-side features | Hlulani-B (Hlulani Baloyi) |
+| Login / auth structure | Nasiphi (Missy) |
+| Statistics & dashboard summaries | Sicelo |
+| Activity logs | Zamokuhle (Zamo) |
+| Archive functionality | Lupa |
 
 ## Quick links
 
@@ -36,11 +39,11 @@ predetermined schema.
 ## Tech stack
 
 - **Frontend:** React (Vite), React Router, Supabase Auth
-- **Backend:** Node.js / Express, split into microservices (auth, profile, project, dashboard)
+- **Backend:** Node.js / Express, split into services (auth, dashboard, project, profile)
 - **Database:** PostgreSQL via Supabase (accessed only through our own API — never directly from the frontend)
-- **Version control:** Gitea (`sdp.ms.wits.ac.za`)
-- **CI/CD:** Gitea Actions workflow definition, mirrored to GitHub for deployment
-- **Hosting:** Render (backend services), Cloudflare Pages (this documentation site)
+- **Version control:** Gitea (`sdp.ms.wits.ac.za`) with a GitHub mirror for Render deployment
+- **CI/CD:** Gitea Actions workflow definition; Render deploys from the mirrored GitHub repo
+- **Hosting:** Render (frontend + all backend services); documentation built with MkDocs
 
 !!! note "Course requirement"
     Supabase is used only as a hosted Postgres database, accessed exclusively

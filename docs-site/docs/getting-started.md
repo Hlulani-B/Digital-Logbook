@@ -210,9 +210,29 @@ Contributors should check the board before starting work, move tasks as they
 progress, and ensure completed work is reflected on the board for Sprint 1
 evidence and tracking.
 
+The `auth-service` uses `SUPABASE_SERVICE_ROLE_KEY` instead of `SUPABASE_KEY`
+for privileged account operations.
+
+The frontend needs a `.env` file in `frontend/` with:
+
+```
+VITE_SUPABASE_URL=<same Supabase URL>
+VITE_SUPABASE_ANON_KEY=<Supabase anon key>
+VITE_PROJECT_SERVICE_URL=http://localhost:5003
+VITE_PROFILE_SERVICE_URL=http://localhost:5004
+```
+
+See each folder's `.env.example` for the exact variables that service expects.
+
 ## Branches
 
-- `main` — the current working branch. All new work targets `main`.
+- `main` — the default branch. All completed work is merged here.
+- Feature branches — create a branch off `main` for each feature or fix, then
+  open a merge request back into `main`.
+
+!!! tip
+    Keep feature branches short-lived and focused on one change. This makes
+    reviews easier and reduces merge conflicts.
 
 ## Project structure
 

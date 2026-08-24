@@ -8,7 +8,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 
 ## Meeting 1 — 27 July 2026
 
-**Venue:** Wartenweiler Library, Discussion Room 2
+**Venue:** Wartenweiler Library, Focus Room 2
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** First meeting as a group. No project had been assigned yet.
@@ -77,7 +77,7 @@ Auth/Firestore clarification and other confirmed decisions on the
 
 ## Meeting 4 — 7 August 2026
 
-**Venue:** Wartenweiler Library, Discussion Room 2
+**Venue:** Wartenweiler Library, Focus Room 2
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** Team now had a clear, shared understanding of project requirements.
@@ -108,7 +108,7 @@ approach, which surfaced later during initial implementation).
 
 ### Meeting 5 — 13 August 2026
 
-**Venue:** Wartenweiler Library, Discussion Room 2  
+**Venue:** Wartenweiler Library, Focus Room 2  
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
 
 **Context:** Authentication functionality had reached a working structure, including sign-up and login. The team met to discuss how to proceed with Sprint 1 implementation and establish a database design that would support the project requirements efficiently.
@@ -135,3 +135,83 @@ approach, which surfaced later during initial implementation).
 **Next step decided:**
 - Refine and finalise the database schema
 - Begin implementation of the dashboard and project-creation functionality once the schema has been agreed upon
+
+---
+
+## Meeting 6 — 17 August 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Missy (Nasiphi), Siphesihle, Hlulani, Sicelo, Zamo, Lupa (full team)
+
+**Context:** Sprint 1 implementation is underway. The team met to share progress updates and confirm who is doing what before the next tutor/client check-in.
+
+**What we did:**
+
+- Each member reported on their current Sprint 1 task:
+  - **Missy (Nasiphi):** Properly implemented the login structure.
+  - **Siphesihle:** Implemented the project/create-button functionality.
+  - **Hlulani:** Created the updated UI and implemented entry-side features.
+  - **Sicelo:** Committed to implementing the Stats feature.
+  - **Zamo:** Committed to implementing activity logs.
+  - **Lupa:** Was busy over the weekend; committed to completing the archive button before the tutor/client meeting.
+- Reviewed how the individual pieces fit together for the dashboard and entry flow.
+
+**Decisions made:**
+
+- Task ownership for the remaining Sprint 1 features confirmed as above.
+- Everyone agreed to have their assigned parts ready before the upcoming tutor/client session.
+
+**Open questions / disagreements:**
+
+- Frustration over local testing limitations because localhost was not working reliably. The team had to commit code they could not fully verify locally and rely on the deployed environment to confirm behaviour.
+
+**Next step decided:**
+
+- Lupa to finish the archive button before the tutor/client meeting.
+- Rest of the team to continue with their assigned features and be ready to demonstrate progress.
+
+**Proof of meeting:**
+
+![Team call screenshot showing all attendees](../assets/meetings/meeting-06-2026-08-17.png)
+
+---
+
+## Meeting 7 — 20 August 2026
+
+**Venue:** Wartenweiler Library, Focus room 2 (team in person; client/tutor JP joined online via Microsoft Teams)
+**Attendees:** Missy (Nasiphi), Siphesihle, Hlulani, Sicelo, Zamo, Lupa (full team) + JP (client/tutor)
+
+**Context:** Sprint 1 progress demonstration to the client/tutor. The team showed the current Digital Logbook build and collected feedback before continuing with the remaining Sprint 1 work.
+
+**What we did:**
+
+- Demonstrated the current progress on the Digital Logbook application.
+- Captured client feedback and requested changes:
+  - Add a voice feature.
+  - Show how many tasks are being completed / add task-completion visibility.
+  - Make the entry button more visible.
+  - Make the dashboard toggleable.
+  - Add a pin feature.
+  - Fix the entry card taking up half the space.
+- Discussed two competing ideas for the dashboard:
+  - One view: show projects/recent projects first, then drill into project entries.
+  - Alternative view: show entries directly on the dashboard with a clear project label for quick recording.
+- The client/tutor directed the team to use a bit of both approaches.
+
+**Decisions made:**
+
+- Dashboard will support both project-centric and entry-centric views (hybrid approach as suggested by the client).
+- Client feedback items (voice, stats/visibility, entry button, toggle, pin, entry-card sizing) were accepted as the next priorities.
+
+**Open questions / disagreements:**
+
+- Team members disagreed on what should appear on the dashboard by default. This was resolved by the client/tutor’s “bit of both” guidance.
+
+**Next step decided:**
+
+- Start implementing the client feedback items listed above.
+- Continue Sprint 1 work with the agreed dashboard direction.
+
+**Proof of meeting:**
+
+![Teams call screenshot showing the client/tutor JP and team members during the demo](../assets/meetings/meeting-07-2026-08-20.jpeg)

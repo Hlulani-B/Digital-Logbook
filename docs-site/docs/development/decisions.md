@@ -8,32 +8,34 @@ methodology for the Sprint 1 rubric (Stakeholder Interaction, Project Methodolog
 
 | Question | Answer | Source |
 |---|---|---|
-| Is Firebase Auth allowed? | Yes — it's an established auth library, exactly what the brief wants instead of a homemade auth system | Confirmed with lecturer |
-| Is Firestore allowed as our database? | No auto-generated API endpoints from Firestore/Supabase. Supabase is fine **only** as a hosted database accessed exclusively through our own hand-written API | Confirmed with lecturer |
+| Is Supabase Auth allowed? | Yes — the brief expects an established auth library rather than a homemade one, and Supabase Auth satisfies that | Confirmed with lecturer |
+| Is Firestore/Supabase allowed as our database? | No auto-generated API endpoints from Firestore/Supabase. Supabase is fine **only** as a hosted PostgreSQL database accessed exclusively through our own hand-written API | Confirmed with lecturer |
 | One active entry format per project (Sprint 1 scope) | Yes | Team consensus |
 | Duration/time spent as a built-in required field on every entry | Yes | Team consensus |
+| Are separate deployed microservices intentional? | Yes — four services (auth, dashboard, project, profile) are deployed independently on Render | Team consensus |
+| Where do entries and entry-formats live? | Inside `project-service`, alongside the projects they belong to | Code structure |
+| What is `dashboard-service` responsible for? | Cross-project summaries and aggregated data for the dashboard view | Team consensus |
+| Which basic field types are supported? | Text, number, date, and boolean for Sprint 1 | Implemented |
+| What should the `main` vs `services` branch structure be? | `main` is the default branch. Feature branches are created off `main` and merged back. The older `services` branch is no longer active | Team consensus |
 
 ## Open — needs a team decision
 
 | Question | Why it matters |
 |---|---|
-| Are we intentionally running **separate deployed microservices** (current reality per the deployment log), or should we consolidate to one backend app as originally planned for Sprint 1? | Real microservices means 3x the deployment/debugging surface area — bigger commitment than the team scoped. See [Architecture Overview](../architecture/overview.md#current-status-separate-deployed-microservices) |
-| Which basic field types are expected for Sprint 1 — text/number/date/duration only, or should dropdown be included early? | Affects scope of the entry-format builder |
-| Which external API integration counts as "relevant" for a Digital Logbook? | Required by the brief; not yet chosen |
-| What is `dashboard-service` actually responsible for — pulling data from other services, or its own logic? | Risk of duplicating statistics logic in two places |
-| Where do entries and entry-formats live — inside `project-service`, or as separate services? | Core to the app; not yet confirmed in the codebase |
-| What should the `main` vs `services` branch structure be going forward? | `origin/HEAD` currently points at `services`, which is unusual; needs a clear team convention |
+| Which external API integration counts as "relevant" for a Digital Logbook? | Required by the brief; not yet chosen. The client has asked for a voice feature, which may be the relevant integration, but the technical approach still needs to be decided |
+| Which dashboard layout best balances project-first and entry-first views? | The client asked for "a bit of both." We need to decide exactly how the two views are toggled and what each view shows by default |
+| Should the entry card always be compact, or should it expand to show more detail on interaction? | The client noted the entry card is taking up half the space; we need a concrete sizing/collapse design |
 
-## Questions for the tutor (from Sprint 1 planning)
+## Questions for the tutor / client (current)
 
-1. Is it acceptable that each project has exactly one active entry
-   format/template for the basic tier?
-2. Is it acceptable that duration/time spent is a built-in required field on
-   every entry?
-3. Which basic field types are expected for Sprint 1?
-4. ~~Is Firebase/Auth0/Clerk acceptable for authentication if our app logic
-   still goes through our hand-written API?~~ **Confirmed: yes.**
-5. Which external API integration would be considered relevant for a Digital Logbook?
-6. How much implementation is expected for Sprint 1 compared with design,
-   documentation, and setup evidence?
-7. What evidence should we show for quick capture in Sprint 1?
+These are the questions we still want to confirm or discuss:
+
+1. Which external API integration would be considered relevant for a Digital
+   Logbook? We are considering the voice feature the client requested, but we
+   want to confirm it satisfies this requirement.
+2. How should the "bit of both" dashboard direction be implemented — e.g., a
+   toggle, tabs, or a default view with a switch?
+3. What specific sizing or collapse behaviour should the entry card have to
+   address the "half the space" feedback?
+4. Should the pin feature pin projects, entries, or both, and where should
+   pinned items appear?
