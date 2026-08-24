@@ -3027,6 +3027,9 @@ img { max-width: 100%; }
   color: #fff;
   font-weight: 600;
 }
+[data-theme="dark"] .feed-view-btn.active {
+  color: var(--bg, #0a0a0a);
+}
 .feed-sort-group {
   display: flex;
   align-items: center;
