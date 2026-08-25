@@ -1,8 +1,8 @@
-import { useMemo, useState, useEffect } from "react";
-import { calculateTotalTimeTracked, calculateProjectStats } from "@/functions/dashboard/stats.js";
-import { useNow } from "@/hooks/useNow";
-import { askAI } from "@/functions/ai.js";
-import { getToneInstruction } from "@/functions/tone";
+import { useMemo, useState, useEffect } from 'react';
+import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
+import { useNow } from '@/hooks/useNow';
+import { askAI } from '@/functions/ai.js';
+import { getToneInstruction } from '@/functions/tone';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -109,10 +109,7 @@ Make it insightful and encouraging. ${tone}`;
   }, [statsOpen, reflection, activeProject, entries, projects]);
 
   // Detect in-progress entries so the live timer only ticks when needed.
-  const hasInProgress = useMemo(
-    () => entries.some((e) => e.started_at && !e.ended_at),
-    [entries]
-  );
+  const hasInProgress = useMemo(() => entries.some((e) => e.started_at && !e.ended_at), [entries]);
   // Ticking timestamp — re-renders every second while a task is running,
   // paused otherwise to avoid unnecessary work.
   const now = useNow(1000, hasInProgress);

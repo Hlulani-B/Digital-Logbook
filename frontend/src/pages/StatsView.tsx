@@ -8,8 +8,8 @@ import {
   calculateTotalTimeTracked,
   calculateProjectStats,
   formatDuration,
-} from "@/functions/dashboard/stats.js";
-import { useNow } from "@/hooks/useNow";
+} from '@/functions/dashboard/stats.js';
+import { useNow } from '@/hooks/useNow';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;

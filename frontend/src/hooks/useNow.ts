@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 /**
  * Returns a `now` timestamp (ms) that ticks every `intervalMs` milliseconds.

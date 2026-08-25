@@ -7,21 +7,21 @@ Logbook project, what it checks, and how it is enforced.
 
 ## Summary
 
-| Category | Tool | Scope | Enforced |
-|---|---|---|---|
-| Static types | TypeScript (strict) | Frontend | Build (`tsc -b`) |
-| Build & bundle | Vite | Frontend | CI on every push |
-| Unit tests | Vitest | Frontend | CI on every push |
-| Component tests | Testing Library | Frontend | CI on every push |
-| Coverage (frontend) | `@vitest/coverage-v8` | Frontend | CI badge |
-| Unit tests | Jest | Backend (3 services) | CI on every push |
-| Coverage (backend) | Jest `--coverage` | Backend (3 services) | CI badge |
-| Coverage badges | `coverage-badges-cli` | All services | Auto-committed after CI |
-| ESM compatibility | Babel (`babel-jest`) | Backend | Enables Jest + ESM |
-| Dev reload | nodemon | Backend (project-service) | Local dev only |
-| Commit format | Conventional Commits | All | Git workflow convention |
-| CI/CD | Gitea Actions | All | Every push to `main` |
-| Documentation | MkDocs Material | All | Built alongside code |
+| Category            | Tool                  | Scope                     | Enforced                |
+| ------------------- | --------------------- | ------------------------- | ----------------------- |
+| Static types        | TypeScript (strict)   | Frontend                  | Build (`tsc -b`)        |
+| Build & bundle      | Vite                  | Frontend                  | CI on every push        |
+| Unit tests          | Vitest                | Frontend                  | CI on every push        |
+| Component tests     | Testing Library       | Frontend                  | CI on every push        |
+| Coverage (frontend) | `@vitest/coverage-v8` | Frontend                  | CI badge                |
+| Unit tests          | Jest                  | Backend (3 services)      | CI on every push        |
+| Coverage (backend)  | Jest `--coverage`     | Backend (3 services)      | CI badge                |
+| Coverage badges     | `coverage-badges-cli` | All services              | Auto-committed after CI |
+| ESM compatibility   | Babel (`babel-jest`)  | Backend                   | Enables Jest + ESM      |
+| Dev reload          | nodemon               | Backend (project-service) | Local dev only          |
+| Commit format       | Conventional Commits  | All                       | Git workflow convention |
+| CI/CD               | Gitea Actions         | All                       | Every push to `main`    |
+| Documentation       | MkDocs Material       | All                       | Built alongside code    |
 
 ---
 
@@ -32,6 +32,7 @@ Logbook project, what it checks, and how it is enforced.
 **What**: Static type checker running as part of the Vite build pipeline.
 
 **Configuration** (`frontend/tsconfig.json`):
+
 - `"strict": true` — all strict checks enabled
 - `"noUnusedLocals": true` — flags unused variables
 - `"noUnusedParameters": true` — flags unused function parameters
@@ -46,6 +47,7 @@ Logbook project, what it checks, and how it is enforced.
 **What**: Build tool and dev server for the frontend.
 
 **Why it matters for quality**:
+
 - Production builds use Rollup under the hood — tree-shaking removes dead code
 - Native ES module dev server catches import errors immediately
 - HMR (Hot Module Replacement) surfaces runtime errors without full page reloads
@@ -55,11 +57,13 @@ Logbook project, what it checks, and how it is enforced.
 **What**: Unit testing framework for the frontend, configured with `jsdom` for DOM simulation.
 
 **Configuration** (`frontend/vitest.config.ts`):
+
 - Environment: `jsdom` — simulates a browser DOM in Node.js
 - Globals: `true` — `describe`, `it`, `expect` available without imports
 - Setup file: `src/test/setup.ts` — configures Testing Library matchers
 
 **Key dependencies**:
+
 - `@testing-library/react` — renders React components in tests
 - `@testing-library/jest-dom` — custom matchers (`toBeInTheDocument`, `toHaveTextContent`, etc.)
 - `@testing-library/user-event` — simulates user interactions (clicks, typing)
@@ -83,6 +87,7 @@ Logbook project, what it checks, and how it is enforced.
 **What**: Unit testing framework used across all three backend services (auth-service, project-service, dashboard-service).
 
 **Configuration**: Each service has a `jest` section in its `package.json`:
+
 - Babel transform (`babel-jest` with `@babel/preset-env`) — enables Jest to run ES module code
 - `collectCoverageFrom` — targets `src/functions/**/*.js`, excludes test and mock files
 - `moduleNameMapper` (project-service) — maps `date-fns` to its CJS build for compatibility
@@ -92,6 +97,7 @@ Logbook project, what it checks, and how it is enforced.
 **Run**: `npm test` in any service directory
 
 **Test suites** (project-service as example):
+
 - `entries.test.js` — CRUD operations for entries
 - `natural_language.test.js` — AI parsing and project matching
 - `project.test.js` — project creation, rename, archive
@@ -108,6 +114,7 @@ Logbook project, what it checks, and how it is enforced.
 **Run**: `npm run test:coverage` in any service directory
 
 **Output**:
+
 - `coverage/coverage-summary.json` — machine-readable coverage data
 - SVG badge generated and auto-committed with `[skip ci]` to prevent CI loops
 - Badges displayed in the project README
@@ -128,22 +135,23 @@ Logbook project, what it checks, and how it is enforced.
 
 **Format**: `<type>: <short description>`
 
-| Type | Meaning |
-|---|---|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `test` | Adding or updating tests |
-| `refactor` | Code restructuring |
-| `style` | Formatting, no logic change |
-| `ci` | CI/CD configuration |
-| `chore` | Maintenance tasks |
+| Type       | Meaning                     |
+| ---------- | --------------------------- |
+| `feat`     | New feature                 |
+| `fix`      | Bug fix                     |
+| `docs`     | Documentation only          |
+| `test`     | Adding or updating tests    |
+| `refactor` | Code restructuring          |
+| `style`    | Formatting, no logic change |
+| `ci`       | CI/CD configuration         |
+| `chore`    | Maintenance tasks           |
 
 ### Gitea Actions (CI/CD)
 
 **What**: CI pipeline running on every push to `main`.
 
 **Checks**:
+
 - Frontend build (`tsc -b && vite build`)
 - Backend tests (`npm test` in each service)
 - Coverage reporting
