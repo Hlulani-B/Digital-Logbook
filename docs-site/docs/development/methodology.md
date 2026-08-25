@@ -111,10 +111,13 @@ ci: add Gitea Actions workflow for frontend and microservices
 
 | Check | Tool | When |
 |---|---|---|
-| Linting | Oxlint (`.oxlintrc.json`) | Local + CI |
-| Unit tests | Jest (`npm test`) | Local + CI |
-| Coverage | Jest `--coverage` | Local (badges in README) |
+| Type checking | TypeScript strict mode (`tsc -b`) | Build + CI |
+| Unit tests (frontend) | Vitest (`npm test`) | Local + CI |
+| Unit tests (backend) | Jest (`npm test`) | Local + CI |
+| Coverage | Vitest / Jest `--coverage` | Local + CI (badges in README) |
 | Build | Vite (frontend) / Node (services) | CI on every push |
+
+See [Code Quality Tools](code-quality.md) for full details.
 
 ---
 
