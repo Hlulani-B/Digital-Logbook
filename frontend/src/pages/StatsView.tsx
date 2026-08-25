@@ -8,7 +8,8 @@ import {
   calculateTotalTimeTracked,
   calculateProjectStats,
   formatDuration,
-} from '@/functions/dashboard/stats.js';
+} from "@/functions/dashboard/stats.js";
+import { useNow } from "@/hooks/useNow";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -192,8 +193,12 @@ export function StatsView() {
     };
   }, [email]);
 
-  const totalTimeTracked = useMemo(() => calculateTotalTimeTracked(entries), [entries]);
-  const projectStats = useMemo(() => calculateProjectStats(entries), [entries]);
+  // Tick every second only while a task is running so in-progress totals stay live.
+  const hasInProgress = entries.some((e) => e.started_at && !e.ended_at);
+  const now = useNow(1000, hasInProgress);
+
+  const totalTimeTracked = useMemo(() => calculateTotalTimeTracked(entries, now), [entries, now]);
+  const projectStats = useMemo(() => calculateProjectStats(entries, now), [entries, now]);
   const totalMs = useMemo(
     () => projectStats.reduce((sum, ps) => sum + ps.totalMs, 0),
     [projectStats]

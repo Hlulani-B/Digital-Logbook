@@ -15,6 +15,8 @@ feature set.
 6. User views the saved entry in the project timeline.
 7. User sees basic project statistics update.
 8. User logs out.
+9. User archives projects.
+10. User is able to see recent activity logs.
 
 ## US1. Sign in to the system
 
@@ -106,7 +108,31 @@ feature set.
 **What:** I want to log out of the system
 **Why:** So that another person using the same device cannot access my logbook.
 
-| Test | Given                   | When                                       | Then                                                                 |
-| ---- | ----------------------- | ------------------------------------------ | -------------------------------------------------------------------- |
-| AT1  | The user is signed in   | The user selects log out                   | The system ends the session and redirects the user to the login page |
-| AT2  | The user has logged out | The user tries to open the dashboard again | The system prevents access and asks the user to sign in again        |
+| Test | Given | When | Then |
+|---|---|---|---|
+| AT1 | The user is signed in | The user selects log out | The system ends the session and redirects the user to the login page |
+| AT2 | The user has logged out | The user tries to open the dashboard again | The system prevents access and asks the user to sign in again |
+
+## US9. Archive functionality
+
+**Who:** As a registered user
+**What:** I want to archive old or completed logbook projects and entries
+**Why:** So that my main dashboard remains uncluttered while still keeping a historical record of my past work.
+
+| Test | Given | When | Then |
+|---|---|---|---|
+| AT1 | The user is on the main dashboard and has active logbook projects | The user clicks the "Archive" button on a specific project | The system removes it from the active view and flags it as archived in the database |
+| AT2 | The user wants to review past work | The user navigates to the "Archived" section | The system displays a list of all previously archived projects and entries |
+| AT3 | The user accidentally archived a project | The user clicks "Restore" on an archived item | The system removes the archive flag and moves the project back to the active dashboard view |
+
+## US10. Implement Activity Log
+
+**Who:** As a registered user
+**What:** I want to be able to access my Activity Log
+**Why:** So that I can see a trail of activities I've done before
+
+| Test | Given | When | Then |
+|---|---|---|---|
+| AT1 | The user is authenticated and logged into the system | The user navigates to the Activity Log page | The system displays a chronological list of all past activities, showing the date, time, and description of the action performed, and sorted with the most recent activity displayed first |
+
+<!-- AI Attribution: Formatting and table generation provided by Gemini (Model: Gemini 1.5 Pro). Purpose: Agile user story structuring and markdown formatting. -->

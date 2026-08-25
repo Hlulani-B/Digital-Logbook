@@ -1,7 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
-import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
-import { askAI } from '@/functions/ai.js';
-import { getToneInstruction } from '@/functions/tone';
+import { useMemo, useState, useEffect } from "react";
+import { calculateTotalTimeTracked, calculateProjectStats } from "@/functions/dashboard/stats.js";
+import { useNow } from "@/hooks/useNow";
+import { askAI } from "@/functions/ai.js";
+import { getToneInstruction } from "@/functions/tone";
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -107,15 +108,25 @@ Make it insightful and encouraging. ${tone}`;
     generateReflection();
   }, [statsOpen, reflection, activeProject, entries, projects]);
 
-  // Calculate total time tracked (including in-progress tasks)
+  // Detect in-progress entries so the live timer only ticks when needed.
+  const hasInProgress = useMemo(
+    () => entries.some((e) => e.started_at && !e.ended_at),
+    [entries]
+  );
+  // Ticking timestamp — re-renders every second while a task is running,
+  // paused otherwise to avoid unnecessary work.
+  const now = useNow(1000, hasInProgress);
+
+  // Calculate total time tracked (including in-progress tasks). Passes the
+  // ticking `now` so in-progress durations count up live.
   const totalTimeTracked = useMemo(() => {
-    return calculateTotalTimeTracked(entries);
-  }, [entries]);
+    return calculateTotalTimeTracked(entries, now);
+  }, [entries, now]);
 
   // Per-project breakdown
   const projectStats = useMemo(() => {
-    return calculateProjectStats(entries);
-  }, [entries]);
+    return calculateProjectStats(entries, now);
+  }, [entries, now]);
 
   // Stats scoped to the active project
   const activeProjectStats = useMemo(() => {

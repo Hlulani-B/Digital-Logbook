@@ -47,14 +47,29 @@ export function formatInterval(interval) {
 }
 
 /**
+ * Format milliseconds into a live timer string "HH:MM:SS" (always 2-digit padded).
+ * Used by ticking UIs that show a running in-progress timer.
+ */
+export function formatTimer(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/**
  * Calculate the elapsed time in ms for a single entry.
  * Computes purely from timestamps — does NOT rely on the (dropped) `duration` column.
  * - Completed entries (ended_at + started_at): ended_at − started_at.
  * - In-progress entries (started_at set, no ended_at): live started_at → now.
  * - Fallback (ended_at + created_at, no started_at): ended_at − created_at.
  * - Returns 0 if none of the above.
+ *
+ * `now` is accepted as a parameter so callers can pass a single shared timestamp
+ * (e.g. a ticking value) for consistent, live-updating in-progress durations.
  */
-function entryDurationMs(entry, now) {
+export function entryDurationMs(entry, now = Date.now()) {
   // Completed: ended_at − started_at (the actual work time)
   if (entry.ended_at && entry.started_at) {
     const end = new Date(entry.ended_at).getTime();
@@ -87,8 +102,7 @@ function entryDurationMs(entry, now) {
  * - In-progress entries (no ended_at): calculates live started_at → now.
  * - Returns total time and count of in-progress tasks.
  */
-export function calculateTotalTimeTracked(entries) {
-  const now = Date.now();
+export function calculateTotalTimeTracked(entries, now = Date.now()) {
   let totalMs = 0;
   let inProgressCount = 0;
 
@@ -112,8 +126,7 @@ export function calculateTotalTimeTracked(entries) {
  * Returns an array of { project_name, entryCount, totalMs, display, inProgressCount }
  * sorted by total time descending.
  */
-export function calculateProjectStats(entries) {
-  const now = Date.now();
+export function calculateProjectStats(entries, now = Date.now()) {
   const map = new Map();
 
   entries.forEach((entry) => {
