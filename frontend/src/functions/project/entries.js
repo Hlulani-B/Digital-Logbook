@@ -1,4 +1,4 @@
-import { request, PROJECT_URL } from "@/lib/api";
+import { request, PROJECT_URL } from '@/lib/api';
 
 export async function addEntry(
   user_email,
@@ -12,9 +12,9 @@ export async function addEntry(
   duration
 ) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "add",
+      function: 'add',
       values: {
         user_email,
         project_name,
@@ -43,9 +43,9 @@ export async function updateEntry(
   duration
 ) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "update",
+      function: 'update',
       values: {
         user_email,
         project_name,
@@ -64,9 +64,9 @@ export async function updateEntry(
 
 export async function getEntries(user_email, project_name) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "get",
+      function: 'get',
       values: { user_email, project_name },
     }),
   });
@@ -74,9 +74,9 @@ export async function getEntries(user_email, project_name) {
 
 export async function getAllEntries(user_email) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "getAll",
+      function: 'getAll',
       values: { user_email },
     }),
   });
@@ -84,9 +84,9 @@ export async function getAllEntries(user_email) {
 
 export async function deleteEntry(user_email, project_name, entry) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "delete",
+      function: 'delete',
       values: { user_email, project_name, entry },
     }),
   });
@@ -94,9 +94,9 @@ export async function deleteEntry(user_email, project_name, entry) {
 
 export async function deleteEntryById(user_email, entry_id) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "deleteById",
+      function: 'deleteById',
       values: { user_email, entry_id },
     }),
   });
@@ -104,9 +104,9 @@ export async function deleteEntryById(user_email, entry_id) {
 
 export async function sortUnarchivedEntries(user_email, project_name, sort_type) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "sortUnarchived",
+      function: 'sortUnarchived',
       values: { user_email, project_name, sort_type },
     }),
   });
@@ -114,9 +114,9 @@ export async function sortUnarchivedEntries(user_email, project_name, sort_type)
 
 export async function sortArchivedEntries(user_email, project_name, sort_type) {
   return request(`${PROJECT_URL}/service/entry`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "sortArchived",
+      function: 'sortArchived',
       values: { user_email, project_name, sort_type },
     }),
   });

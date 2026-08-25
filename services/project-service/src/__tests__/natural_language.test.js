@@ -54,19 +54,26 @@ describe('Natural_language', () => {
       // Q3: getFields for MobileApp
       pool.query.mockResolvedValueOnce({ rows: [] });
       // Q4: addEntry
-      pool.query.mockResolvedValueOnce({ rows: [{ id: 1, entries: { description: 'Fixed login bug' } }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ id: 1, entries: { description: 'Fixed login bug' } }],
+      });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 1,
-        project: 'WebApp',
-        fields: { description: 'Fixed login bug', status: 'in progress' },
-        new_fields: [],
-        priority: 0,
-        due_date: '2026-08-20',
-        comment: 'Nice work squashing that bug!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 1,
+          project: 'WebApp',
+          fields: { description: 'Fixed login bug', status: 'in progress' },
+          new_fields: [],
+          priority: 0,
+          due_date: '2026-08-20',
+          comment: 'Nice work squashing that bug!',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'Fixed login bug for WebApp, urgent, due Aug 20');
+      const result = await nl.entry(
+        'test@example.com',
+        'Fixed login bug for WebApp, urgent, due Aug 20'
+      );
 
       expect(result.success).toBe(true);
       expect(result.project).toBe('WebApp');
@@ -82,9 +89,7 @@ describe('Natural_language', () => {
         { project_name: 'WebApp', description: 'Main web application', archived: false },
       ];
 
-      const mockFields = [
-        { field_name: 'description', data_type: 'text', is_required: true },
-      ];
+      const mockFields = [{ field_name: 'description', data_type: 'text', is_required: true }];
 
       // Q1: getProjectsByEmail
       pool.query.mockResolvedValueOnce({ rows: mockProjects });
@@ -99,20 +104,25 @@ describe('Natural_language', () => {
       // Q6: addEntry
       pool.query.mockResolvedValueOnce({ rows: [{ id: 200 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 0,
-        project: 'DatabaseMigration',
-        fields: { description: 'Migrated user data', notes: 'Took 3 hours' },
-        new_fields: [
-          { field_name: 'description', data_type: 'text', is_required: true },
-          { field_name: 'notes', data_type: 'text', is_required: false },
-        ],
-        priority: 1,
-        due_date: null,
-        comment: 'Big migration done — brave work!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 0,
+          project: 'DatabaseMigration',
+          fields: { description: 'Migrated user data', notes: 'Took 3 hours' },
+          new_fields: [
+            { field_name: 'description', data_type: 'text', is_required: true },
+            { field_name: 'notes', data_type: 'text', is_required: false },
+          ],
+          priority: 1,
+          due_date: null,
+          comment: 'Big migration done — brave work!',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'Migrated all user data to the new database');
+      const result = await nl.entry(
+        'test@example.com',
+        'Migrated all user data to the new database'
+      );
 
       expect(result.success).toBe(true);
       expect(result.project).toBe('DatabaseMigration');
@@ -151,14 +161,16 @@ describe('Natural_language', () => {
       // Q2: getFields for WebApp
       pool.query.mockResolvedValueOnce({ rows: [] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 1,
-        project: 'NonExistentProject',
-        fields: { description: 'something' },
-        new_fields: [],
-        priority: null,
-        due_date: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 1,
+          project: 'NonExistentProject',
+          fields: { description: 'something' },
+          new_fields: [],
+          priority: null,
+          due_date: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'did something');
 
@@ -178,15 +190,17 @@ describe('Natural_language', () => {
       // Q3: addEntry
       pool.query.mockResolvedValueOnce({ rows: [{ id: 2 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 1,
-        project: 'WebApp',
-        fields: { description: 'Updated docs' },
-        new_fields: [],
-        priority: null,
-        due_date: null,
-        comment: 'Docs always need updating!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 1,
+          project: 'WebApp',
+          fields: { description: 'Updated docs' },
+          new_fields: [],
+          priority: null,
+          due_date: null,
+          comment: 'Docs always need updating!',
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'Updated some docs');
 
@@ -208,14 +222,16 @@ describe('Natural_language', () => {
       pool.query.mockResolvedValueOnce({ rows: [] });
 
       // AI tries to match OldProject which is archived, so matched=1 but project not in filtered list
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 1,
-        project: 'OldProject',
-        fields: { description: 'old stuff' },
-        new_fields: [],
-        priority: null,
-        due_date: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 1,
+          project: 'OldProject',
+          fields: { description: 'old stuff' },
+          new_fields: [],
+          priority: null,
+          due_date: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'did old stuff');
 
@@ -235,7 +251,9 @@ describe('Natural_language', () => {
       // Q3: addEntry
       pool.query.mockResolvedValueOnce({ rows: [{ id: 3 }] });
 
-      AI.mockResolvedValue('```json\n{"matched":1,"project":"WebApp","fields":{"description":"test"},"new_fields":[],"priority":null,"due_date":null,"comment":"nice"}\n```');
+      AI.mockResolvedValue(
+        '```json\n{"matched":1,"project":"WebApp","fields":{"description":"test"},"new_fields":[],"priority":null,"due_date":null,"comment":"nice"}\n```'
+      );
 
       const result = await nl.entry('test@example.com', 'did some stuff');
 
@@ -262,14 +280,16 @@ describe('Natural_language', () => {
       // Q2: getFields for WebApp
       pool.query.mockResolvedValueOnce({ rows: [] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 0,
-        project: null,
-        fields: {},
-        new_fields: [],
-        priority: null,
-        due_date: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 0,
+          project: null,
+          fields: {},
+          new_fields: [],
+          priority: null,
+          due_date: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'random stuff');
 
@@ -289,14 +309,16 @@ describe('Natural_language', () => {
       // Q3: addProject fails
       pool.query.mockRejectedValueOnce(new Error('Project already exists'));
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 0,
-        project: 'NewProject',
-        fields: { description: 'test' },
-        new_fields: [],
-        priority: null,
-        due_date: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 0,
+          project: 'NewProject',
+          fields: { description: 'test' },
+          new_fields: [],
+          priority: null,
+          due_date: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'test entry');
 
@@ -318,19 +340,21 @@ describe('Natural_language', () => {
       // Q5: addEntry
       pool.query.mockResolvedValueOnce({ rows: [{ id: 200 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 0,
-        project: 'NewProject',
-        fields: { description: 'test' },
-        new_fields: [
-          { field_name: 'description', data_type: 'text', is_required: true },
-          { data_type: 'text', is_required: false }, // missing field_name
-          { field_name: 'notes', data_type: 'text', is_required: false },
-        ],
-        priority: null,
-        due_date: null,
-        comment: 'Fresh start!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 0,
+          project: 'NewProject',
+          fields: { description: 'test' },
+          new_fields: [
+            { field_name: 'description', data_type: 'text', is_required: true },
+            { data_type: 'text', is_required: false }, // missing field_name
+            { field_name: 'notes', data_type: 'text', is_required: false },
+          ],
+          priority: null,
+          due_date: null,
+          comment: 'Fresh start!',
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'started a new project');
 
@@ -353,15 +377,17 @@ describe('Natural_language', () => {
       // Q3: addProject('WebsiteRedesign')
       pool.query.mockResolvedValueOnce({ rows: [{ id: 99 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 2,
-        project: 'WebsiteRedesign',
-        fields: {},
-        new_fields: [],
-        priority: null,
-        due_date: null,
-        comment: 'Created project WebsiteRedesign for you!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 2,
+          project: 'WebsiteRedesign',
+          fields: {},
+          new_fields: [],
+          priority: null,
+          due_date: null,
+          comment: 'Created project WebsiteRedesign for you!',
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'create a project called WebsiteRedesign');
 
@@ -387,13 +413,15 @@ describe('Natural_language', () => {
       // Q2: getFields for WebApp
       pool.query.mockResolvedValueOnce({ rows: [] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 2,
-        project: null,
-        fields: {},
-        new_fields: [],
-        priority: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 2,
+          project: null,
+          fields: {},
+          new_fields: [],
+          priority: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'create a project');
 
@@ -413,13 +441,15 @@ describe('Natural_language', () => {
       // Q3: addProject fails
       pool.query.mockRejectedValueOnce(new Error('Duplicate project'));
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 2,
-        project: 'WebApp',
-        fields: {},
-        new_fields: [],
-        priority: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 2,
+          project: 'WebApp',
+          fields: {},
+          new_fields: [],
+          priority: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'create a project called WebApp');
 
@@ -439,19 +469,24 @@ describe('Natural_language', () => {
       // Q4: addField version
       pool.query.mockResolvedValueOnce({ rows: [{ id: 102 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 2,
-        project: 'MobileApp',
-        fields: {},
-        new_fields: [
-          { field_name: 'platform', data_type: 'text', is_required: true },
-          { field_name: 'version', data_type: 'text', is_required: false },
-        ],
-        priority: null,
-        comment: 'Created MobileApp with platform and version fields!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 2,
+          project: 'MobileApp',
+          fields: {},
+          new_fields: [
+            { field_name: 'platform', data_type: 'text', is_required: true },
+            { field_name: 'version', data_type: 'text', is_required: false },
+          ],
+          priority: null,
+          comment: 'Created MobileApp with platform and version fields!',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'make a new project for MobileApp with platform and version fields');
+      const result = await nl.entry(
+        'test@example.com',
+        'make a new project for MobileApp with platform and version fields'
+      );
 
       expect(result.success).toBe(true);
       expect(result.project).toBe('MobileApp');
@@ -473,26 +508,35 @@ describe('Natural_language', () => {
       // Q1: getProjectsByEmail
       pool.query.mockResolvedValueOnce({ rows: mockProjects });
       // Q2: getFields for WebApp
-      pool.query.mockResolvedValueOnce({ rows: [{ field_name: 'description', data_type: 'text', is_required: true }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ field_name: 'description', data_type: 'text', is_required: true }],
+      });
       // Q3: getFields for MobileApp
-      pool.query.mockResolvedValueOnce({ rows: [{ field_name: 'description', data_type: 'text', is_required: true }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ field_name: 'description', data_type: 'text', is_required: true }],
+      });
       // Q4: addEntry to WebApp
       pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
       // Q5: addEntry to MobileApp
       pool.query.mockResolvedValueOnce({ rows: [{ id: 2 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 3,
-        old: [
-          { WebApp: { description: 'Fixed login bug' } },
-          { MobileApp: { description: 'Updated splash screen' } },
-        ],
-        new: [],
-        priority: null,
-        comment: 'Added entries to WebApp and MobileApp!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 3,
+          old: [
+            { WebApp: { description: 'Fixed login bug' } },
+            { MobileApp: { description: 'Updated splash screen' } },
+          ],
+          new: [],
+          priority: null,
+          comment: 'Added entries to WebApp and MobileApp!',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'add login bug fix to WebApp and splash screen update to MobileApp');
+      const result = await nl.entry(
+        'test@example.com',
+        'add login bug fix to WebApp and splash screen update to MobileApp'
+      );
 
       expect(result.success).toBe(true);
       expect(result.multi).toBe(true);
@@ -522,21 +566,26 @@ describe('Natural_language', () => {
       // Q5: addEntry to DevOps
       pool.query.mockResolvedValueOnce({ rows: [{ id: 200 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 3,
-        old: [],
-        new: [
-          {
-            project_name: 'DevOps',
-            fields: { description: 'Setup CI pipeline' },
-            new_fields: [{ field_name: 'tool', data_type: 'text', is_required: false }],
-          },
-        ],
-        priority: null,
-        comment: 'Created DevOps and added your first entry!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 3,
+          old: [],
+          new: [
+            {
+              project_name: 'DevOps',
+              fields: { description: 'Setup CI pipeline' },
+              new_fields: [{ field_name: 'tool', data_type: 'text', is_required: false }],
+            },
+          ],
+          priority: null,
+          comment: 'Created DevOps and added your first entry!',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'create a DevOps project and setup CI pipeline');
+      const result = await nl.entry(
+        'test@example.com',
+        'create a DevOps project and setup CI pipeline'
+      );
 
       expect(result.success).toBe(true);
       expect(result.multi).toBe(true);
@@ -556,7 +605,9 @@ describe('Natural_language', () => {
       // Q1: getProjectsByEmail
       pool.query.mockResolvedValueOnce({ rows: mockProjects });
       // Q2: getFields for WebApp
-      pool.query.mockResolvedValueOnce({ rows: [{ field_name: 'description', data_type: 'text', is_required: true }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ field_name: 'description', data_type: 'text', is_required: true }],
+      });
       // Q3: addEntry to WebApp (old)
       pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
       // Q4: addProject('Research') (new)
@@ -564,15 +615,22 @@ describe('Natural_language', () => {
       // Q5: addEntry to Research
       pool.query.mockResolvedValueOnce({ rows: [{ id: 2 }] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 3,
-        old: [{ WebApp: { description: 'Fixed login bug' } }],
-        new: [{ project_name: 'Research', fields: { description: 'Read 3 papers' }, new_fields: [] }],
-        priority: null,
-        comment: 'Added to WebApp and created Research for you!',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 3,
+          old: [{ WebApp: { description: 'Fixed login bug' } }],
+          new: [
+            { project_name: 'Research', fields: { description: 'Read 3 papers' }, new_fields: [] },
+          ],
+          priority: null,
+          comment: 'Added to WebApp and created Research for you!',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'add login bug fix to WebApp and start a Research project with paper reading notes');
+      const result = await nl.entry(
+        'test@example.com',
+        'add login bug fix to WebApp and start a Research project with paper reading notes'
+      );
 
       expect(result.success).toBe(true);
       expect(result.multi).toBe(true);
@@ -598,18 +656,23 @@ describe('Natural_language', () => {
       pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
       // NonExistent project is skipped (no query)
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 3,
-        old: [
-          { WebApp: { description: 'Fixed bug' } },
-          { NonExistent: { description: 'something' } },
-        ],
-        new: [],
-        priority: null,
-        comment: 'Added to WebApp.',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 3,
+          old: [
+            { WebApp: { description: 'Fixed bug' } },
+            { NonExistent: { description: 'something' } },
+          ],
+          new: [],
+          priority: null,
+          comment: 'Added to WebApp.',
+        })
+      );
 
-      const result = await nl.entry('test@example.com', 'add bug fix to WebApp and something to NonExistent');
+      const result = await nl.entry(
+        'test@example.com',
+        'add bug fix to WebApp and something to NonExistent'
+      );
 
       expect(result.success).toBe(true);
       expect(result.multi).toBe(true);
@@ -633,12 +696,14 @@ describe('Natural_language', () => {
       // Q4: addProject('DevOps') fails
       pool.query.mockRejectedValueOnce(new Error('Duplicate project'));
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 3,
-        old: [{ WebApp: { description: 'test' } }],
-        new: [{ project_name: 'DevOps', fields: { description: 'test' }, new_fields: [] }],
-        priority: null,
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 3,
+          old: [{ WebApp: { description: 'test' } }],
+          new: [{ project_name: 'DevOps', fields: { description: 'test' }, new_fields: [] }],
+          priority: null,
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'add stuff everywhere');
 
@@ -657,13 +722,15 @@ describe('Natural_language', () => {
       // Q2: getFields for WebApp
       pool.query.mockResolvedValueOnce({ rows: [] });
 
-      AI.mockResolvedValue(JSON.stringify({
-        matched: 3,
-        old: [],
-        new: [],
-        priority: null,
-        comment: 'Nothing to add.',
-      }));
+      AI.mockResolvedValue(
+        JSON.stringify({
+          matched: 3,
+          old: [],
+          new: [],
+          priority: null,
+          comment: 'Nothing to add.',
+        })
+      );
 
       const result = await nl.entry('test@example.com', 'add nothing');
 

@@ -84,10 +84,9 @@ describe('Search', () => {
 
       await search.searchAll('a@b.com', 'test');
 
-      expect(pool.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM entries'),
-        ['a@b.com']
-      );
+      expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM entries'), [
+        'a@b.com',
+      ]);
     });
   });
 
@@ -153,10 +152,10 @@ describe('Search', () => {
 
       await search.searchProject('a@b.com', 'ProjectA', 'test');
 
-      expect(pool.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM entries'),
-        ['a@b.com', 'ProjectA']
-      );
+      expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM entries'), [
+        'a@b.com',
+        'ProjectA',
+      ]);
     });
   });
 
@@ -171,7 +170,9 @@ describe('Search', () => {
       // Q1: get projects
       pool.query.mockResolvedValueOnce({ rows: mockProjects });
       // Q2: entries for Alpha Project
-      pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'Alpha task 1' } }, { entries: { title: 'Alpha task 2' } }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ entries: { title: 'Alpha task 1' } }, { entries: { title: 'Alpha task 2' } }],
+      });
       // Q3: entries for Beta Project
       pool.query.mockResolvedValueOnce({ rows: [{ entries: { title: 'Beta task 1' } }] });
 
@@ -183,10 +184,7 @@ describe('Search', () => {
     });
 
     it('16. should return empty array when no projects match keyword', async () => {
-      const mockProjects = [
-        { project_name: 'Alpha Project' },
-        { project_name: 'Beta Project' },
-      ];
+      const mockProjects = [{ project_name: 'Alpha Project' }, { project_name: 'Beta Project' }];
       pool.query.mockResolvedValueOnce({ rows: mockProjects });
 
       const result = await search.searchProjects('a@b.com', 'nonexistent');
@@ -246,8 +244,16 @@ describe('Search', () => {
       await search.searchProjects('a@b.com', 'test');
 
       expect(pool.query).toHaveBeenCalledTimes(2);
-      expect(pool.query).toHaveBeenNthCalledWith(1, expect.stringContaining('SELECT * FROM projects'), ['a@b.com']);
-      expect(pool.query).toHaveBeenNthCalledWith(2, expect.stringContaining('SELECT * FROM entries'), ['a@b.com', 'TestProject']);
+      expect(pool.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('SELECT * FROM projects'),
+        ['a@b.com']
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('SELECT * FROM entries'),
+        ['a@b.com', 'TestProject']
+      );
     });
   });
 });

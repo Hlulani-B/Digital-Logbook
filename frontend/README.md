@@ -6,14 +6,14 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 
 ## Tech Stack
 
-| Technology | Purpose |
-|---|---|
-| **React 19 + TypeScript** | UI framework with type safety |
-| **Vite 6** | Build tool and dev server |
-| **React Router v7** | Client-side routing |
-| **Supabase** | Authentication (Google OAuth, GitHub OAuth, Email/Password, magic links) |
-| **Brevo** | SMTP email delivery (confirmation, reset, and restore emails) |
-| **CSS (custom)** | Premium glassmorphism UI (no Tailwind dependency) |
+| Technology                | Purpose                                                                  |
+| ------------------------- | ------------------------------------------------------------------------ |
+| **React 19 + TypeScript** | UI framework with type safety                                            |
+| **Vite 6**                | Build tool and dev server                                                |
+| **React Router v7**       | Client-side routing                                                      |
+| **Supabase**              | Authentication (Google OAuth, GitHub OAuth, Email/Password, magic links) |
+| **Brevo**                 | SMTP email delivery (confirmation, reset, and restore emails)            |
+| **CSS (custom)**          | Premium glassmorphism UI (no Tailwind dependency)                        |
 
 ---
 
@@ -26,6 +26,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** The project specification requires users to sign up and sign in using established authentication libraries. Multiple providers give users flexibility while email/password supports the password reset flow end-to-end.
 
 **Layout:**
+
 - **Split-screen design** — left panel shows a looping video showcase of the app; right panel contains the sign-in/sign-up form
 - **Video background** — two videos alternate seamlessly for a continuous loop effect
 - **Post-auth routing** — after sign-in, the app checks if the user has a profile; new users are routed to `/create-profile`, returning users to `/dashboard`
@@ -33,13 +34,14 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 
 **Three Authentication Methods:**
 
-| Method | Flow | Notes |
-|---|---|---|
-| **Google OAuth** | One-click sign-in via Google accounts | Account created automatically on first sign-in; no separate sign-up step |
-| **GitHub OAuth** | One-click sign-in via GitHub accounts | Same as Google — instant account creation |
-| **Email / Password** | Sign-up with confirmation email → sign in with credentials | Supports full password reset flow |
+| Method               | Flow                                                       | Notes                                                                    |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Google OAuth**     | One-click sign-in via Google accounts                      | Account created automatically on first sign-in; no separate sign-up step |
+| **GitHub OAuth**     | One-click sign-in via GitHub accounts                      | Same as Google — instant account creation                                |
+| **Email / Password** | Sign-up with confirmation email → sign in with credentials | Supports full password reset flow                                        |
 
 **How Email/Password Works (End-to-End):**
+
 1. User clicks "Create one" to switch to sign-up mode
 2. Enters email, password, and confirm password (must match)
 3. Clicks "Create Account" — Supabase creates the user and sends a confirmation email via Brevo SMTP
@@ -49,6 +51,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 7. App checks if user profile exists → routes to dashboard or create-profile page
 
 **Password Reset Flow:**
+
 1. User clicks "Forgot password?" on the sign-in page
 2. Enters their email
 3. Receives a reset link via email (expires in 1 hour)
@@ -56,10 +59,12 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 5. Redirected to dashboard on success
 
 **Important edge cases:**
+
 - If an email is already registered (e.g., from a previous Google OAuth sign-in), Supabase returns success silently but does not send a duplicate confirmation email. The user should use "Forgot password?" to set a password for that account.
 - OAuth users who want email/password access can use the password reset flow to link both methods.
 
 **Key details:**
+
 - **Confirm password field** — appears only in sign-up mode to prevent typos
 - **"Forgot password?" link** — accessible entry point to the password reset flow
 - **Account restore flow** — soft-deleted accounts are blocked from signing in until they confirm restoration via a magic link sent to their email
@@ -77,6 +82,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** Provides users with an immediate overview of their logbook activity and fast access to common actions.
 
 **Key details:**
+
 - **Smart greeting** — displays "Welcome" for first-time users and "Welcome back" for returning users, tracked per-user in `localStorage`
 - **Stats cards** — Total Entries, This Week, and Projects with animated entrance and hover effects
 - **Quick actions** — New Entry, View All Entries, Export Data buttons
@@ -89,6 +95,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** Keeps the navbar clean while providing instant access to account management without navigating away from the current page.
 
 **Key details:**
+
 - Shows user's name and email at the top
 - **Manage Profile** — opens the Profile tab in the settings panel
 - **Settings** — opens the Preferences tab
@@ -102,12 +109,14 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** Allows users to personalise their logbook experience without leaving the dashboard, making the app easier to use over time.
 
 #### Profile Tab
+
 - **Preferred Name** — customise how the app greets you (overrides the Google/GitHub name on the dashboard)
 - **Role** — Student, Lecturer, Tutor, or Professional
 - **Student Number** — for Wits student identification
 - **Bio / Notes** — private notes visible only to the user
 
 #### Preferences Tab
+
 - **Default View** — choose where you land after sign-in (Dashboard, Entries, Projects, Calendar)
 - **Week Starts On** — Monday, Sunday, or Saturday
 - **Time Format** — 24-hour or 12-hour clock
@@ -117,6 +126,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 - **Weekly log reminder** — toggle Friday nudges to log hours
 
 #### Account Tab
+
 - **Account information** — email and sign-in method (Google/GitHub/email)
 - **Password reset** — send a reset link to your email (sets up email-based auth alongside OAuth)
 - **Danger Zone** — schedule account deletion (starts a 30-day grace period); restore is handled via the sign-in page email-link flow
@@ -128,6 +138,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** The project specification requires password reset functionality. This serves users who need email-based authentication alongside their OAuth provider.
 
 **Key details:**
+
 - Accessible from the sign-in page ("Forgot password?") and the Settings panel Account tab
 - Reset link expires in 1 hour
 - Success confirmation shows which email received the link
@@ -139,6 +150,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** Provides a secure, user-friendly password update experience with visual guidance.
 
 **Key details:**
+
 - **Password strength meter** — 4-bar indicator (Weak → Fair → Good → Strong) with colour coding
 - **Live validation** — real-time "Passwords do not match" / "Passwords match" indicators
 - Submit button disables until passwords match and meet minimum length
@@ -157,6 +169,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 **Why:** The project specification requires account deletion capability. The grace period gives users a chance to recover accidentally deleted accounts, and the email confirmation step protects against unauthorized restoration.
 
 **Key details:**
+
 - Clicking **"Delete Account"** immediately signs the user out
 - Attempting to sign in during the grace period shows a restore prompt instead of logging the user in
 - Restoring requires clicking a confirmation link sent to the account email
@@ -180,6 +193,7 @@ A modern, premium frontend for the **Digital Logbook** application built as part
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - A Supabase project with Google and GitHub OAuth providers enabled
 
@@ -206,12 +220,12 @@ Tests live next to the code they cover, e.g. [`src/context/__tests__/AuthContext
 ### Environment Variables
 
 See `.env.example` for all required variables:
+
 - `VITE_SUPABASE_URL` — your Supabase project URL
 - `VITE_SUPABASE_ANON_KEY` — your Supabase anonymous key
 - `VITE_AUTH_SERVICE_URL` — auth microservice URL
 - `VITE_DASHBOARD_SERVICE_URL` — dashboard microservice URL
 - `VITE_PROJECT_SERVICE_URL` — project microservice URL
-
 
 ### Supabase Configuration
 
@@ -226,6 +240,7 @@ See `.env.example` for all required variables:
 ### External Services Configuration
 
 #### Google Cloud Console (OAuth)
+
 Google OAuth is required for the Google sign-in button. Configure it before enabling the Google provider in Supabase.
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or use an existing one)
@@ -241,6 +256,7 @@ Google OAuth is required for the Google sign-in button. Configure it before enab
 8. Paste them into **Supabase → Authentication → Providers → Google**
 
 #### Brevo SMTP (Email Delivery)
+
 Brevo sends transactional emails on behalf of Supabase: account confirmation emails on sign-up and password reset links.
 
 1. Create a [Brevo account](https://app.brevo.com/) (free tier: 300 emails/day)
@@ -314,21 +330,25 @@ frontend/
 ## Troubles Encountered
 
 ### 1. Email Confirmation Emails Not Sending
+
 **Problem:** After sign-up, no confirmation email arrived. Resend (initial SMTP provider) logs were completely empty.
 **Root cause:** Supabase's custom SMTP was not being used because either the "Enable custom SMTP" toggle was off, or the SMTP credentials were misconfigured.
 **Fix:** Switched to Brevo as the SMTP provider. Configured Supabase SMTP settings with Brevo credentials (`smtp-relay.brevo.com`, port 587, username `ab9b48001@smtp-brevo.com`, and the Brevo SMTP key as password). Verified the sender email in Brevo before configuring Supabase.
 
 ### 2. Existing Users Not Receiving Confirmation Emails
+
 **Problem:** After fixing SMTP, sign-up returned "Account created!" success but no email was sent for previously-used email addresses.
 **Root cause:** Supabase's `signUp` endpoint returns HTTP 200 for already-registered emails (security measure to prevent email enumeration), but silently skips sending the confirmation email.
 **Fix:** Delete the old user from Supabase → Authentication → Users and sign up fresh, or use "Forgot password?" to set a password for existing accounts.
 
 ### 3. Vite Config Precedence Issue
+
 **Problem:** The `@/` path alias was not resolving, causing module not found errors.
 **Root cause:** A duplicate `vite.config.js` existed alongside `vite.config.ts`. Vite loads `.js` before `.ts`, so the alias configuration in `.ts` was ignored.
 **Fix:** Deleted the duplicate `vite.config.js` so Vite uses `vite.config.ts` with the correct path alias.
 
 ### 4. Duplicate Files After Git Merge
+
 **Problem:** After merging the Authentication branch into main (which had unrelated histories), duplicate files (`App.jsx`, `main.jsx`) were left behind, causing Vite to resolve the wrong entry points.
 **Fix:** Deleted the duplicate `.jsx` files and kept the `.tsx` versions from the Authentication branch.
 
@@ -339,6 +359,7 @@ frontend/
 This frontend was developed with significant AI assistance using **Qoder** (an AI coding assistant integrated with VS Code). A full AI usage declaration is available in [`AI_DECLARATION.md`](./AI_DECLARATION.md).
 
 **Summary of AI involvement:**
+
 - **Human-directed:** All feature requirements, design decisions, authentication provider choices, and deployment strategy were decided by the student (Nasiphi Ntontela)
 - **AI-assisted:** Code generation, UI styling, debugging guidance, and configuration instructions were provided by the AI under the student's direct supervision
 - **Human-configured:** All external services (Supabase OAuth, Google Cloud Console, Brevo SMTP, Gitea) were configured manually by the student

@@ -1,8 +1,8 @@
 /**
  * add-lazy-entries.js — Add 10 casual, human-like test entries via curl
- * 
+ *
  * Uses Supabase REST API with service-role key to insert directly.
- * 
+ *
  * Run:  node add-lazy-entries.js
  */
 
@@ -96,14 +96,21 @@ function curlInsert(entry) {
 
     const args = [
       '-s',
-      '-w', '\n%{http_code}',
-      '-X', 'POST',
+      '-w',
+      '\n%{http_code}',
+      '-X',
+      'POST',
       `${SUPABASE_URL}/rest/v1/entries`,
-      '-H', `apikey: ${SERVICE_KEY}`,
-      '-H', `Authorization: Bearer ${SERVICE_KEY}`,
-      '-H', 'Content-Type: application/json',
-      '-H', 'Prefer: return=representation',
-      '-d', body,
+      '-H',
+      `apikey: ${SERVICE_KEY}`,
+      '-H',
+      `Authorization: Bearer ${SERVICE_KEY}`,
+      '-H',
+      'Content-Type: application/json',
+      '-H',
+      'Prefer: return=representation',
+      '-d',
+      body,
     ];
 
     execFile('curl', args, { timeout: 10000 }, (err, stdout) => {
@@ -124,14 +131,18 @@ async function main() {
   for (let i = 0; i < lazyEntries.length; i++) {
     const entry = lazyEntries[i];
     const num = String(i + 1).padStart(2, ' ');
-    
+
     try {
       const res = await curlInsert(entry);
       if (res.httpCode === 201) {
-        console.log(`  [${num}] ✅  ${entry.project_name} — ${JSON.stringify(entry.entries).slice(0, 50)}...`);
+        console.log(
+          `  [${num}] ✅  ${entry.project_name} — ${JSON.stringify(entry.entries).slice(0, 50)}...`
+        );
         success++;
       } else {
-        console.log(`  [${num}] ❌  ${entry.project_name} — HTTP ${res.httpCode}: ${res.body.slice(0, 100)}`);
+        console.log(
+          `  [${num}] ❌  ${entry.project_name} — HTTP ${res.httpCode}: ${res.body.slice(0, 100)}`
+        );
         failed++;
       }
     } catch (err) {

@@ -36,7 +36,7 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 **What we did:**
 
 - First deep read of the Digital Logbook project-specific brief
-- Discussed what "the owner can customise the format of their logbook" 
+- Discussed what "the owner can customise the format of their logbook"
   actually requires in practice
 
 **Decisions made:** None finalised — surfaced disagreement rather than resolved it.
@@ -67,13 +67,14 @@ rubric's Stakeholder Interaction (10%) and Project Methodology (10%) lines.
 - Consolidated the team's understanding of the project based on the tutor's answers
 
 **Decisions made:**
+
 - The team agreed to use **Supabase** as the primary backend platform instead of Firebase.
 - Supabase would provide authentication and PostgreSQL database hosting for the project.
 - The team confirmed that application logic would still be implemented through our own backend services rather than relying directly on auto-generated database APIs.
 - This decision simplified the technology stack by combining authentication and database management within a single platform.
 - The team's future database schema and backend implementation would therefore be designed around Supabase.
 
-**Open questions:** *(carry forward anything not resolved)*
+**Open questions:** _(carry forward anything not resolved)_
 
 ---
 
@@ -104,9 +105,9 @@ approach, which surfaced later during initial implementation).
 ---
 
 !!! note "Keeping this current"
-    Add a new entry after every future meeting — attendees, what was
-    discussed, decisions made, and anything left open. Even a few lines per
-    meeting is enough to count as evidence.
+Add a new entry after every future meeting — attendees, what was
+discussed, decisions made, and anything left open. Even a few lines per
+meeting is enough to count as evidence.
 
 ### Meeting 5 — 13 August 2026
 
@@ -116,6 +117,7 @@ approach, which surfaced later during initial implementation).
 **Context:** Authentication functionality had reached a working structure, including sign-up and login. The team met to discuss how to proceed with Sprint 1 implementation and establish a database design that would support the project requirements efficiently.
 
 **What we did:**
+
 - Reviewed progress on the sign-up and login implementation
 - Discussed the next development priorities for Sprint 1
 - Analysed the project brief and user stories to determine what data needed to be stored
@@ -124,17 +126,20 @@ approach, which surfaced later during initial implementation).
 - Considered how to support customisable logbook formats while keeping the design efficient and maintainable
 
 **Decisions made:**
+
 - Database design would be treated as a priority before implementing additional features
 - The schema should be driven by the project brief and user story acceptance criteria rather than by assumptions about future features
 - The dashboard and project-management functionality would be built around the core entities required for Sprint 1
 
 **Open questions:**
+
 - Whether project records should be linked to users via Supabase Auth UUIDs rather than email addresses
 - How dynamic/custom fields should be represented in the database
 - Whether projects should use a dedicated UUID primary key instead of relying on project names
 - Final review and approval of the proposed schema before implementation begins
 
 **Next step decided:**
+
 - Refine and finalise the database schema
 - Begin implementation of the dashboard and project-creation functionality once the schema has been agreed upon
 
@@ -228,6 +233,7 @@ approach, which surfaced later during initial implementation).
 **Context:** Final Sprint 1 team meeting before the Sprint Review scheduled for 25 August 2026. The purpose of the meeting was to verify that all Sprint 1 commitments had been completed, review completed work against the user stories and acceptance tests, and identify any remaining tasks that needed attention before the review.
 
 **What we did:**
+
 - Reviewed the Sprint 1 backlog and Trello board to confirm progress on all assigned tasks.
 - Checked completed work against the Sprint 1 user stories and acceptance criteria.
 - Verified the status of implemented features, including authentication, dashboard functionality, project creation, entries, statistics, activity logs, and archive-related functionality.
@@ -237,15 +243,18 @@ approach, which surfaced later during initial implementation).
 - Discussed how the Sprint 1 demonstration would be presented during the review session.
 
 **Decisions made:**
+
 - Sprint 1 work was considered substantially complete and ready for final testing and review.
 - Team members were assigned responsibility for resolving any remaining minor issues before the Sprint Review.
 - Existing documentation, meeting logs, and development evidence would be updated and finalised before submission.
 
 **Open questions / disagreements:**
+
 - Minor discussion remained around dashboard behaviour and the presentation of certain features, but no major architectural or implementation disagreements remained.
 - Any outstanding issues would be prioritised based on Sprint 1 acceptance criteria rather than additional feature requests.
 
 **Next step decided:**
+
 - Complete final testing and bug checks.
 - Update remaining documentation where required.
 - Prepare for the Sprint Review and demonstration on 25 August 2026.

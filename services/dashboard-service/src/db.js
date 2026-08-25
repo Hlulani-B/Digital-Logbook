@@ -22,7 +22,8 @@ if (process.env.DATABASE_URL) {
 
 // Verify the connection on startup
 if (pool) {
-  pool.query('SELECT 1')
+  pool
+    .query('SELECT 1')
     .then(() => console.log('PostgreSQL pool connected successfully'))
     .catch((err) => console.error('PostgreSQL pool connection failed:', err.message));
 }

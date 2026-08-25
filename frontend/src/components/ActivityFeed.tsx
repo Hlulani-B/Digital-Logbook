@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, type ReactNode } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { getActivities } from "@/functions/activity.js";
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { getActivities } from '@/functions/activity.js';
 
 type Activity = {
   id: number;
@@ -13,15 +13,21 @@ type Activity = {
 };
 
 // Maps each action_type to an SVG icon + verb phrase
-const ACTION_CONFIG: Record<
-  string,
-  { icon: ReactNode; verb: string; entityLabel: string }
-> = {
+const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel: string }> = {
   PROJECT_CREATED: {
-    verb: "created",
-    entityLabel: "project",
+    verb: 'created',
+    entityLabel: 'project',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         <line x1="12" y1="11" x2="12" y2="17" />
         <line x1="9" y1="14" x2="15" y2="14" />
@@ -29,30 +35,57 @@ const ACTION_CONFIG: Record<
     ),
   },
   PROJECT_RENAMED: {
-    verb: "renamed",
-    entityLabel: "project",
+    verb: 'renamed',
+    entityLabel: 'project',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
       </svg>
     ),
   },
   PROJECT_DELETED: {
-    verb: "deleted",
-    entityLabel: "project",
+    verb: 'deleted',
+    entityLabel: 'project',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         <line x1="9" y1="14" x2="15" y2="14" />
       </svg>
     ),
   },
   PROJECT_ARCHIVED: {
-    verb: "archived",
-    entityLabel: "project",
+    verb: 'archived',
+    entityLabel: 'project',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="21 8 21 21 3 21 3 8" />
         <rect x="1" y="3" width="22" height="5" />
         <line x1="10" y1="12" x2="14" y2="12" />
@@ -60,10 +93,19 @@ const ACTION_CONFIG: Record<
     ),
   },
   PROJECT_UNARCHIVED: {
-    verb: "unarchived",
-    entityLabel: "project",
+    verb: 'unarchived',
+    entityLabel: 'project',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="21 8 21 21 3 21 3 8" />
         <rect x="1" y="3" width="22" height="5" />
         <line x1="10" y1="12" x2="14" y2="12" />
@@ -71,10 +113,19 @@ const ACTION_CONFIG: Record<
     ),
   },
   ENTRY_ADDED: {
-    verb: "added",
-    entityLabel: "entry",
+    verb: 'added',
+    entityLabel: 'entry',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="12" y1="11" x2="12" y2="17" />
@@ -83,10 +134,19 @@ const ACTION_CONFIG: Record<
     ),
   },
   ENTRY_UPDATED: {
-    verb: "updated",
-    entityLabel: "entry",
+    verb: 'updated',
+    entityLabel: 'entry',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <path d="M12 18v-6" />
@@ -95,10 +155,19 @@ const ACTION_CONFIG: Record<
     ),
   },
   ENTRY_DELETED: {
-    verb: "deleted",
-    entityLabel: "entry",
+    verb: 'deleted',
+    entityLabel: 'entry',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="9" y1="14" x2="15" y2="14" />
@@ -106,30 +175,57 @@ const ACTION_CONFIG: Record<
     ),
   },
   ENTRY_ARCHIVED: {
-    verb: "archived",
-    entityLabel: "entry",
+    verb: 'archived',
+    entityLabel: 'entry',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="21 8 21 21 3 21 3 8" />
         <rect x="1" y="3" width="22" height="5" />
       </svg>
     ),
   },
   ENTRY_UNARCHIVED: {
-    verb: "unarchived",
-    entityLabel: "entry",
+    verb: 'unarchived',
+    entityLabel: 'entry',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="21 8 21 21 3 21 3 8" />
         <rect x="1" y="3" width="22" height="5" />
       </svg>
     ),
   },
   FIELD_ADDED: {
-    verb: "added",
-    entityLabel: "field",
+    verb: 'added',
+    entityLabel: 'field',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
         <line x1="12" y1="11" x2="12" y2="17" />
         <line x1="9" y1="14" x2="15" y2="14" />
@@ -137,20 +233,38 @@ const ACTION_CONFIG: Record<
     ),
   },
   FIELD_EDITED: {
-    verb: "edited",
-    entityLabel: "field",
+    verb: 'edited',
+    entityLabel: 'field',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
       </svg>
     ),
   },
   PRIORITY_SET: {
-    verb: "set priority on",
-    entityLabel: "entry",
+    verb: 'set priority on',
+    entityLabel: 'entry',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <line x1="18" y1="20" x2="18" y2="10" />
         <line x1="12" y1="20" x2="12" y2="4" />
         <line x1="6" y1="20" x2="6" y2="14" />
@@ -160,10 +274,19 @@ const ACTION_CONFIG: Record<
 };
 
 const FALLBACK_CONFIG = {
-  verb: "performed action on",
-  entityLabel: "item",
+  verb: 'performed action on',
+  entityLabel: 'item',
   icon: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
     </svg>
@@ -172,34 +295,35 @@ const FALLBACK_CONFIG = {
 
 // Priority numeric value → label
 const PRIORITY_LABELS: Record<string, string> = {
-  "0": "Urgent and important",
-  "1": "Urgent but not important",
-  "2": "Not urgent, not important",
+  '0': 'Urgent and important',
+  '1': 'Urgent but not important',
+  '2': 'Not urgent, not important',
 };
 
 // Human-readable labels for detail keys
 const DETAIL_LABELS: Record<string, string> = {
-  project_name: "Project",
-  old_project_name: "Old name",
-  new_project_name: "New name",
-  description: "Description",
-  due_date: "Due date",
-  priority: "Priority",
-  entry_id: "Entry ID",
-  source: "Source",
-  field_name: "Field",
-  data_type: "Type",
-  is_required: "Required",
+  project_name: 'Project',
+  old_project_name: 'Old name',
+  new_project_name: 'New name',
+  description: 'Description',
+  due_date: 'Due date',
+  priority: 'Priority',
+  entry_id: 'Entry ID',
+  source: 'Source',
+  field_name: 'Field',
+  data_type: 'Type',
+  is_required: 'Required',
 };
 
 function formatDetailValue(key: string, value: unknown): string {
-  if (value == null) return "—";
-  if (key === "priority") return PRIORITY_LABELS[String(value)] || String(value);
-  if (key === "is_required") return value ? "Yes" : "No";
-  if (key === "source") return value === "natural-language" ? "Quick Add (AI)" : String(value);
-  if (key === "due_date" && value) {
+  if (value == null) return '—';
+  if (key === 'priority') return PRIORITY_LABELS[String(value)] || String(value);
+  if (key === 'is_required') return value ? 'Yes' : 'No';
+  if (key === 'source') return value === 'natural-language' ? 'Quick Add (AI)' : String(value);
+  if (key === 'due_date' && value) {
     const d = new Date(String(value));
-    if (!isNaN(d.getTime())) return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    if (!isNaN(d.getTime()))
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }
   return String(value);
 }
@@ -213,32 +337,36 @@ function formatRelativeTime(dateStr: string): string {
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  if (diffSec < 60) return "just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? "s" : ""} ago`;
-  if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? "s" : ""} ago`;
-  if (diffDay === 1) return "yesterday";
+  if (diffSec < 60) return 'just now';
+  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+  if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? 's' : ''} ago`;
+  if (diffDay === 1) return 'yesterday';
   if (diffDay < 7) return `${diffDay} days ago`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: date.getFullYear() === now.getFullYear() ? undefined : "numeric" });
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  });
 }
 
 /** Truncate only very long project/entity display names; entry text is shown in full. */
 function truncateName(name: string | null | undefined, max = 120): string {
-  if (!name) return "";
-  return name.length > max ? name.slice(0, max) + "\u2026" : name;
+  if (!name) return '';
+  return name.length > max ? name.slice(0, max) + '\u2026' : name;
 }
 
 /** If entity_name is a JSON string like {"field":"Buy bedding"}, extract the value. */
 function parseEntityName(name: string | null | undefined): string {
-  if (!name) return "";
+  if (!name) return '';
   try {
     const parsed = JSON.parse(name);
-    if (typeof parsed === "object" && parsed !== null) {
+    if (typeof parsed === 'object' && parsed !== null) {
       // Return the first string value found
       for (const val of Object.values(parsed)) {
-        if (typeof val === "string") return val;
+        if (typeof val === 'string') return val;
       }
     }
-    if (typeof parsed === "string") return parsed;
+    if (typeof parsed === 'string') return parsed;
   } catch {
     // Not JSON, return as-is
   }
@@ -252,7 +380,7 @@ interface ActivityFeedProps {
 
 export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const { user } = useAuth();
-  const email = user?.email || "";
+  const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -264,7 +392,7 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
       const result = await getActivities(email, 50);
       setActivities(result?.data || []);
     } catch (err) {
-      console.error("[ActivityFeed] Failed to load activities:", err);
+      console.error('[ActivityFeed] Failed to load activities:', err);
     } finally {
       setLoading(false);
       onLoadingChange?.(false);
@@ -283,9 +411,9 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
           style={{
             width: 24,
             height: 24,
-            borderRadius: "50%",
-            border: "3px solid var(--border)",
-            borderTopColor: "var(--accent)",
+            borderRadius: '50%',
+            border: '3px solid var(--border)',
+            borderTopColor: 'var(--accent)',
           }}
         />
         <p>Loading activity...</p>
@@ -297,14 +425,24 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     return (
       <div className="empty-state animate-in">
         <div className="empty-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
         </div>
         <h2 className="empty-title">No activity yet</h2>
         <p className="empty-desc">
-          Your recent actions — creating projects, adding entries, archiving, and more — will appear here.
+          Your recent actions — creating projects, adding entries, archiving, and more — will appear
+          here.
         </p>
       </div>
     );
@@ -317,28 +455,37 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
         const entityName = truncateName(parseEntityName(activity.entity_name));
         const details = activity.details || {};
         const detailEntries = Object.entries(details).filter(
-          ([key, val]) => val != null && val !== "" && key !== "old_project_name" && key !== "new_project_name" && key !== "entry_id"
+          ([key, val]) =>
+            val != null &&
+            val !== '' &&
+            key !== 'old_project_name' &&
+            key !== 'new_project_name' &&
+            key !== 'entry_id'
         );
-        const isRename = activity.action_type === "PROJECT_RENAMED";
-        const oldName = String(details.old_project_name ?? "");
-        const newName = String(details.new_project_name ?? "");
+        const isRename = activity.action_type === 'PROJECT_RENAMED';
+        const oldName = String(details.old_project_name ?? '');
+        const newName = String(details.new_project_name ?? '');
 
         return (
-          <div key={activity.id || i} className="activity-item animate-in" style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}>
+          <div
+            key={activity.id || i}
+            className="activity-item animate-in"
+            style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
+          >
             <div className="activity-icon">{config.icon}</div>
             <div className="activity-body">
               <p className="activity-text">
-                <span className="activity-verb">{config.verb}</span>{" "}
+                <span className="activity-verb">{config.verb}</span>{' '}
                 <span className="activity-entity-label">{config.entityLabel}</span>
                 {entityName && (
                   <>
-                    {" "}
+                    {' '}
                     <span className="activity-entity-name">"{entityName}"</span>
                   </>
                 )}
                 {isRename && oldName && newName && (
                   <>
-                    {" "}
+                    {' '}
                     <span className="activity-detail">
                       from "{truncateName(oldName)}" to "{truncateName(newName)}"
                     </span>
@@ -351,7 +498,9 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
                 <div className="activity-details">
                   {detailEntries.map(([key, val]) => (
                     <div key={key} className="activity-detail-row">
-                      <span className="activity-detail-key">{DETAIL_LABELS[key] || key.replace(/_/g, " ")}</span>
+                      <span className="activity-detail-key">
+                        {DETAIL_LABELS[key] || key.replace(/_/g, ' ')}
+                      </span>
                       <span className="activity-detail-value">{formatDetailValue(key, val)}</span>
                     </div>
                   ))}

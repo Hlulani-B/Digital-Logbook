@@ -18,14 +18,14 @@ predetermined schema.
 
 ## Team
 
-| Role / Primary focus | Person |
-|---|---|
-| Documentation & project creation | Siphesihle |
+| Role / Primary focus                             | Person                     |
+| ------------------------------------------------ | -------------------------- |
+| Documentation & project creation                 | Siphesihle                 |
 | Frontend, UI/UX, fullstack & entry-side features | Hlulani-B (Hlulani Baloyi) |
-| Login / auth structure | Nasiphi (Missy) |
-| Statistics & dashboard summaries | Sicelo |
-| Activity logs | Zamokuhle (Zamo) |
-| Archive functionality | Lupa |
+| Login / auth structure                           | Nasiphi (Missy)            |
+| Statistics & dashboard summaries                 | Sicelo                     |
+| Activity logs                                    | Zamokuhle (Zamo)           |
+| Archive functionality                            | Lupa                       |
 
 ## Quick links
 
@@ -46,8 +46,8 @@ predetermined schema.
 - **Hosting:** Render (frontend + all backend services); documentation built with MkDocs
 
 !!! note "Course requirement"
-    Supabase is used only as a hosted Postgres database, accessed exclusively
-    through our own hand-written Express API. The frontend never queries
-    Supabase directly — this satisfies the brief's "hand-written API" requirement,
-    which explicitly disallows auto-generated backend endpoints (e.g. querying
-    Firestore or Supabase directly from the client).
+Supabase is used only as a hosted Postgres database, accessed exclusively
+through our own hand-written Express API. The frontend never queries
+Supabase directly — this satisfies the brief's "hand-written API" requirement,
+which explicitly disallows auto-generated backend endpoints (e.g. querying
+Firestore or Supabase directly from the client).

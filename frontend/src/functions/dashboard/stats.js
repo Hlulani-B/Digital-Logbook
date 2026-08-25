@@ -17,13 +17,13 @@ function durationToMs(duration) {
 
   const parts = str.split(':').map(Number);
   let ms = 0;
-  if (parts.length === 3 && parts.every(p => !isNaN(p))) {
-    ms = (parts[0] * 3600000) + (parts[1] * 60000) + (parts[2] * 1000);
-  } else if (parts.length === 2 && parts.every(p => !isNaN(p))) {
-    ms = (parts[0] * 60000) + (parts[1] * 1000);
+  if (parts.length === 3 && parts.every((p) => !isNaN(p))) {
+    ms = parts[0] * 3600000 + parts[1] * 60000 + parts[2] * 1000;
+  } else if (parts.length === 2 && parts.every((p) => !isNaN(p))) {
+    ms = parts[0] * 60000 + parts[1] * 1000;
   }
 
-  return ms + (days * 86400000);
+  return ms + days * 86400000;
 }
 
 /**

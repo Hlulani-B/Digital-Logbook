@@ -13,7 +13,7 @@ const allowedOrigins = [
   'https://digital-logbook-bxgv.onrender.com',
   'https://digital-logbook-hlulani.onrender.com',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:3000',
 ];
 
 // CORS configuration with dynamic origin checking
@@ -29,7 +29,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // Apply CORS options globally

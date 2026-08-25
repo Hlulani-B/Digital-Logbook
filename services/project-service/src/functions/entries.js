@@ -6,7 +6,17 @@ import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 import leven from 'leven';
 
 export class Entries {
-  async addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration) {
+  async addEntry(
+    user_email,
+    project_name,
+    entry_object,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration
+  ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
 
@@ -21,8 +31,8 @@ export class Entries {
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
 
       const columns = Object.keys(insertData);
-      const values = Object.values(insertData).map(v =>
-        (v !== null && typeof v === 'object') ? JSON.stringify(v) : v
+      const values = Object.values(insertData).map((v) =>
+        v !== null && typeof v === 'object' ? JSON.stringify(v) : v
       );
       const placeholders = columns.map((_, i) => `$${i + 1}`);
 
@@ -41,7 +51,18 @@ export class Entries {
     }
   }
 
-  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration) {
+  async updateEntry(
+    user_email,
+    project_name,
+    entry_id,
+    new_entry,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration
+  ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
 
@@ -60,13 +81,18 @@ export class Entries {
         return { success: true, message: 'No changes to update' };
       }
 
-      console.log('[updateEntry] Updating entry_id:', entry_id, 'data:', JSON.stringify(updateData));
+      console.log(
+        '[updateEntry] Updating entry_id:',
+        entry_id,
+        'data:',
+        JSON.stringify(updateData)
+      );
 
       const setClauses = [];
       const params = [];
       let idx = 1;
       for (const [key, value] of Object.entries(updateData)) {
-        const val = (value !== null && typeof value === 'object') ? JSON.stringify(value) : value;
+        const val = value !== null && typeof value === 'object' ? JSON.stringify(value) : value;
         setClauses.push(`${key} = $${idx++}`);
         params.push(val);
       }
@@ -80,8 +106,18 @@ export class Entries {
       );
 
       if (!rows || rows.length === 0) {
-        console.error('[updateEntry] No rows matched. id:', entry_id, 'user:', user_email, 'project:', project_name);
-        return { success: false, message: 'Entry not found. Check that the entry exists and belongs to this user/project.' };
+        console.error(
+          '[updateEntry] No rows matched. id:',
+          entry_id,
+          'user:',
+          user_email,
+          'project:',
+          project_name
+        );
+        return {
+          success: false,
+          message: 'Entry not found. Check that the entry exists and belongs to this user/project.',
+        };
       }
 
       console.log('[updateEntry] Success, id:', rows[0].id);
@@ -198,7 +234,11 @@ export class Entries {
               }
             });
           });
-          return { success: true, message: 'Unarchived entries sorted successfully', data: results };
+          return {
+            success: true,
+            message: 'Unarchived entries sorted successfully',
+            data: results,
+          };
         }
         default:
           return { success: true, message: 'Unarchived entries sorted successfully', data };
@@ -273,15 +313,31 @@ const PRIORITY_LABELS = {
 // This way we NEVER rely on the AI for date math — we calculate it ourselves.
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const MONTH_NAMES = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
 
 // All known date keywords — used as the dictionary for fuzzy matching
 const DATE_KEYWORDS = [
-  'today', 'tomorrow', 'yesterday',
-  'week', 'month',
+  'today',
+  'tomorrow',
+  'yesterday',
+  'week',
+  'month',
   ...DAY_NAMES,
   ...MONTH_NAMES,
-  ...MONTH_NAMES.map(m => m.substring(0, 3)), // short month names: jan, feb, mar, etc.
+  ...MONTH_NAMES.map((m) => m.substring(0, 3)), // short month names: jan, feb, mar, etc.
 ];
 
 /**
@@ -292,31 +348,33 @@ const DATE_KEYWORDS = [
  */
 function correctDateKeywords(text) {
   const words = text.split(/(\s+)/);
-  return words.map(word => {
-    const alpha = word.replace(/[^a-z]/g, '');
-    if (!alpha || alpha.length < 4) return word; // skip short words (too many false positives)
-    // If it's already an exact keyword, keep as-is
-    if (DATE_KEYWORDS.includes(alpha)) return word;
-    
-    // Find the closest keyword match using Levenshtein distance
-    let bestMatch = null;
-    let bestDistance = Infinity;
-    const maxDistance = Math.floor(alpha.length * 0.4); // Allow up to 40% edit distance (1 for 4-char, 2 for 5-7-char, 3 for 8+)
-    
-    for (const keyword of DATE_KEYWORDS) {
-      const distance = leven(alpha, keyword);
-      if (distance <= maxDistance && distance < bestDistance) {
-        bestDistance = distance;
-        bestMatch = keyword;
+  return words
+    .map((word) => {
+      const alpha = word.replace(/[^a-z]/g, '');
+      if (!alpha || alpha.length < 4) return word; // skip short words (too many false positives)
+      // If it's already an exact keyword, keep as-is
+      if (DATE_KEYWORDS.includes(alpha)) return word;
+
+      // Find the closest keyword match using Levenshtein distance
+      let bestMatch = null;
+      let bestDistance = Infinity;
+      const maxDistance = Math.floor(alpha.length * 0.4); // Allow up to 40% edit distance (1 for 4-char, 2 for 5-7-char, 3 for 8+)
+
+      for (const keyword of DATE_KEYWORDS) {
+        const distance = leven(alpha, keyword);
+        if (distance <= maxDistance && distance < bestDistance) {
+          bestDistance = distance;
+          bestMatch = keyword;
+        }
       }
-    }
-    
-    if (bestMatch) {
-      // Replace only the alpha part, preserve surrounding punctuation
-      return word.replace(alpha, bestMatch);
-    }
-    return word;
-  }).join('');
+
+      if (bestMatch) {
+        // Replace only the alpha part, preserve surrounding punctuation
+        return word.replace(alpha, bestMatch);
+      }
+      return word;
+    })
+    .join('');
 }
 
 function toISODate(date) {
@@ -466,7 +524,7 @@ export class Natural_language {
         return { success: false, message: 'Could not fetch projects: ' + projectsResult.message };
       }
 
-      const projectList = (projectsResult.projects || []).filter(p => !p.archived);
+      const projectList = (projectsResult.projects || []).filter((p) => !p.archived);
 
       // 2. Get fields for every existing project
       const projectsWithFields = [];
@@ -599,7 +657,11 @@ Respond with ONLY this JSON, nothing else:`;
       const aiResponse = await AI(prompt);
 
       if (!aiResponse || aiResponse.trim() === '') {
-        return { success: false, message: 'All AI providers failed. Please check that API keys are configured and try again.' };
+        return {
+          success: false,
+          message:
+            'All AI providers failed. Please check that API keys are configured and try again.',
+        };
       }
 
       let parsed;
@@ -611,18 +673,28 @@ Respond with ONLY this JSON, nothing else:`;
       }
 
       console.log('[Natural_language] AI response parsed:', JSON.stringify(parsed, null, 2));
-      console.log('[Natural_language] matched =', parsed.matched, '(type:', typeof parsed.matched + ')');
+      console.log(
+        '[Natural_language] matched =',
+        parsed.matched,
+        '(type:',
+        typeof parsed.matched + ')'
+      );
 
-      const priorityLabel = parsed.priority !== null && parsed.priority !== undefined
-        ? PRIORITY_LABELS[parsed.priority]
-        : null;
+      const priorityLabel =
+        parsed.priority !== null && parsed.priority !== undefined
+          ? PRIORITY_LABELS[parsed.priority]
+          : null;
 
       // ── Case: matched an existing project ──
       if (parsed.matched === 1) {
         console.log('[Natural_language] Taking matched=1 branch');
-        const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
+        const matchedProject = projectsWithFields.find((p) => p.project_name === parsed.project);
         if (!matchedProject) {
-          return { success: false, message: 'AI claimed a match but the project was not found.', suggestion: parsed };
+          return {
+            success: false,
+            message: 'AI claimed a match but the project was not found.',
+            suggestion: parsed,
+          };
         }
 
         const addResult = await entries.addEntry(
@@ -630,7 +702,7 @@ Respond with ONLY this JSON, nothing else:`;
           parsed.project,
           parsed.fields,
           calculatedDate || null,
-          priorityLabel,
+          priorityLabel
         );
 
         return {
@@ -651,14 +723,21 @@ Respond with ONLY this JSON, nothing else:`;
         console.log('[Natural_language] Taking matched=2 (create project only) branch');
         const newProjectName = parsed.project;
         if (!newProjectName) {
-          return { success: false, message: 'AI could not determine a project name.', suggestion: parsed };
+          return {
+            success: false,
+            message: 'AI could not determine a project name.',
+            suggestion: parsed,
+          };
         }
 
         console.log('[Natural_language] Creating project only:', newProjectName);
         const createProjectResult = await project.addProject(email, newProjectName, null);
         console.log('[Natural_language] Create project result:', createProjectResult);
         if (!createProjectResult.success) {
-          return { success: false, message: 'Failed to create project: ' + createProjectResult.message };
+          return {
+            success: false,
+            message: 'Failed to create project: ' + createProjectResult.message,
+          };
         }
 
         const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
@@ -670,7 +749,7 @@ Respond with ONLY this JSON, nothing else:`;
             newProjectName,
             f.field_name,
             f.data_type || 'text',
-            !!f.is_required,
+            !!f.is_required
           );
           console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
         }
@@ -716,7 +795,7 @@ Respond with ONLY this JSON, nothing else:`;
             fieldValues = item[projName] || {};
           }
 
-          const matchedProject = projectsWithFields.find(p => p.project_name === projName);
+          const matchedProject = projectsWithFields.find((p) => p.project_name === projName);
           if (!matchedProject) {
             results.errors.push(`Project "${projName}" not found, skipping.`);
             continue;
@@ -727,7 +806,7 @@ Respond with ONLY this JSON, nothing else:`;
               projName,
               fieldValues,
               calculatedDate || null,
-              priorityLabel,
+              priorityLabel
             );
             if (addResult.success) {
               results.old.push({ project_name: projName, fields: fieldValues });
@@ -751,7 +830,7 @@ Respond with ONLY this JSON, nothing else:`;
 
           try {
             // Check if project already exists — if so, add entry to existing project instead
-            const existingProject = projectsWithFields.find(p => p.project_name === projName);
+            const existingProject = projectsWithFields.find((p) => p.project_name === projName);
             if (existingProject) {
               // Project already exists, just add the entry
               const addResult = await entries.addEntry(
@@ -759,12 +838,14 @@ Respond with ONLY this JSON, nothing else:`;
                 projName,
                 fieldValues,
                 calculatedDate || null,
-                priorityLabel,
+                priorityLabel
               );
               if (addResult.success) {
                 results.old.push({ project_name: projName, fields: fieldValues });
               } else {
-                results.errors.push(`Project "${projName}" already exists but failed to add entry: ${addResult.message}`);
+                results.errors.push(
+                  `Project "${projName}" already exists but failed to add entry: ${addResult.message}`
+                );
               }
               continue;
             }
@@ -772,7 +853,9 @@ Respond with ONLY this JSON, nothing else:`;
             // Create the new project
             const createProjectResult = await project.addProject(email, projName, null);
             if (!createProjectResult.success) {
-              results.errors.push(`Failed to create project "${projName}": ${createProjectResult.message}`);
+              results.errors.push(
+                `Failed to create project "${projName}": ${createProjectResult.message}`
+              );
               continue;
             }
 
@@ -784,7 +867,7 @@ Respond with ONLY this JSON, nothing else:`;
                 projName,
                 f.field_name,
                 f.data_type || 'text',
-                !!f.is_required,
+                !!f.is_required
               );
             }
 
@@ -794,12 +877,18 @@ Respond with ONLY this JSON, nothing else:`;
               projName,
               fieldValues,
               calculatedDate || null,
-              priorityLabel,
+              priorityLabel
             );
             if (addResult.success) {
-              results.new.push({ project_name: projName, fields: fieldValues, new_fields: newFields });
+              results.new.push({
+                project_name: projName,
+                fields: fieldValues,
+                new_fields: newFields,
+              });
             } else {
-              results.errors.push(`Created project "${projName}" but failed to add entry: ${addResult.message}`);
+              results.errors.push(
+                `Created project "${projName}" but failed to add entry: ${addResult.message}`
+              );
             }
           } catch (err) {
             results.errors.push(`Error processing "${projName}": ${err.message}`);
@@ -830,14 +919,21 @@ Respond with ONLY this JSON, nothing else:`;
       console.log('[Natural_language] Taking matched=0 (create new project) branch');
       const newProjectName = parsed.project;
       if (!newProjectName) {
-        return { success: false, message: 'AI could not determine a project for this entry.', suggestion: parsed };
+        return {
+          success: false,
+          message: 'AI could not determine a project for this entry.',
+          suggestion: parsed,
+        };
       }
 
       console.log('[Natural_language] Creating new project:', newProjectName);
       const createProjectResult = await project.addProject(email, newProjectName, null);
       console.log('[Natural_language] Create project result:', createProjectResult);
       if (!createProjectResult.success) {
-        return { success: false, message: 'Failed to create new project: ' + createProjectResult.message };
+        return {
+          success: false,
+          message: 'Failed to create new project: ' + createProjectResult.message,
+        };
       }
 
       const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
@@ -849,7 +945,7 @@ Respond with ONLY this JSON, nothing else:`;
           newProjectName,
           f.field_name,
           f.data_type || 'text',
-          !!f.is_required,
+          !!f.is_required
         );
         console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
       }
@@ -859,7 +955,7 @@ Respond with ONLY this JSON, nothing else:`;
         newProjectName,
         parsed.fields,
         calculatedDate || null,
-        priorityLabel,
+        priorityLabel
       );
 
       return {

@@ -2,22 +2,22 @@
 
 ## Student Details
 
-| Field | Value |
-|---|---|
-| **Name** | Nasiphi Ntontela |
-| **Student Number** | 2673619 |
-| **Project** | Codacaine — Digital Logbook |
-| **Date** | 13 August 2026 (updated 24 August 2026) |
+| Field              | Value                                   |
+| ------------------ | --------------------------------------- |
+| **Name**           | Nasiphi Ntontela                        |
+| **Student Number** | 2673619                                 |
+| **Project**        | Codacaine — Digital Logbook             |
+| **Date**           | 13 August 2026 (updated 24 August 2026) |
 
 ---
 
 ## AI Tool Used
 
-| Field | Value |
-|---|---|
-| **Tool** | Qoder (AI Coding Assistant integrated with VS Code) |
-| **Underlying Model** | Not disclosed by the tool |
-| **Access Method** | VS Code extension (Qoder IDE) |
+| Field                | Value                                                                         |
+| -------------------- | ----------------------------------------------------------------------------- |
+| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                           |
+| **Underlying Model** | Not disclosed by the tool                                                     |
+| **Access Method**    | VS Code extension (Qoder IDE)                                                 |
 | **Session Duration** | 12–13 August 2026, continued 20–23 August 2026 (extended multi-turn sessions) |
 
 ---
@@ -56,28 +56,28 @@ I am the sole person responsible for the frontend authentication work. All featu
 
 The AI generated the following code based on my instructions:
 
-| File | Description | AI Contribution |
-|---|---|---|
-| `src/pages/SignIn.tsx` | Sign-in page with Google/GitHub OAuth, email/password, and original video background | AI generated from my requirements |
-| `src/pages/Dashboard.tsx` | Dashboard with stats, greeting, quick actions | AI generated from my requirements |
-| `src/pages/AuthCallback.tsx` | OAuth redirect handler | AI generated |
-| `src/pages/ResetPassword.tsx` | Password reset request page | AI generated |
-| `src/pages/UpdatePassword.tsx` | New password form with strength meter | AI generated |
-| `src/pages/AuthRestore.tsx` | Email-link account restoration handler | AI generated |
-| `src/components/ProfileMenu.tsx` | Avatar dropdown menu | AI generated from my requirements |
-| `src/components/SettingsPanel.tsx` | Slide-out settings panel (3 tabs) | AI generated from my requirements |
-| `src/components/ProtectedRoute.tsx` | Route guard for authenticated pages | AI generated |
-| `src/components/ParticleField.tsx` | Interactive particle field login background concept | AI generated from my direction |
-| `src/components/AuroraRibbons.tsx` | Flowing aurora ribbons login background concept | AI generated from my direction |
-| `src/context/AuthContext.tsx` | Auth state management + Supabase integration | AI generated |
-| `src/lib/supabase.ts` | Supabase client initialisation with `getSupabase()` helper | AI generated |
-| `src/lib/api.ts` | Backend API helper with auth token | AI generated |
-| `src/App.tsx` | Router configuration with all routes | AI generated |
-| `src/index.css` | Complete premium UI stylesheet | AI generated from my design direction |
-| `index.html` | HTML entry with favicon and meta tags | AI generated |
-| `supabase/setup.sql` | SQL for delete_user/restore_user/purge_deleted_users RPC functions | AI generated |
-| `supabase/migrations/004_account_deletion_grace_period.sql` | Migration for 30-day deletion grace period | AI generated |
-| `.env.example` | Environment variable template | AI generated |
+| File                                                        | Description                                                                          | AI Contribution                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------- |
+| `src/pages/SignIn.tsx`                                      | Sign-in page with Google/GitHub OAuth, email/password, and original video background | AI generated from my requirements     |
+| `src/pages/Dashboard.tsx`                                   | Dashboard with stats, greeting, quick actions                                        | AI generated from my requirements     |
+| `src/pages/AuthCallback.tsx`                                | OAuth redirect handler                                                               | AI generated                          |
+| `src/pages/ResetPassword.tsx`                               | Password reset request page                                                          | AI generated                          |
+| `src/pages/UpdatePassword.tsx`                              | New password form with strength meter                                                | AI generated                          |
+| `src/pages/AuthRestore.tsx`                                 | Email-link account restoration handler                                               | AI generated                          |
+| `src/components/ProfileMenu.tsx`                            | Avatar dropdown menu                                                                 | AI generated from my requirements     |
+| `src/components/SettingsPanel.tsx`                          | Slide-out settings panel (3 tabs)                                                    | AI generated from my requirements     |
+| `src/components/ProtectedRoute.tsx`                         | Route guard for authenticated pages                                                  | AI generated                          |
+| `src/components/ParticleField.tsx`                          | Interactive particle field login background concept                                  | AI generated from my direction        |
+| `src/components/AuroraRibbons.tsx`                          | Flowing aurora ribbons login background concept                                      | AI generated from my direction        |
+| `src/context/AuthContext.tsx`                               | Auth state management + Supabase integration                                         | AI generated                          |
+| `src/lib/supabase.ts`                                       | Supabase client initialisation with `getSupabase()` helper                           | AI generated                          |
+| `src/lib/api.ts`                                            | Backend API helper with auth token                                                   | AI generated                          |
+| `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
+| `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
+| `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |
+| `supabase/setup.sql`                                        | SQL for delete_user/restore_user/purge_deleted_users RPC functions                   | AI generated                          |
+| `supabase/migrations/004_account_deletion_grace_period.sql` | Migration for 30-day deletion grace period                                           | AI generated                          |
+| `.env.example`                                              | Environment variable template                                                        | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
 
@@ -92,20 +92,20 @@ I made all configuration decisions and directed the AI to execute the following:
 
 ### 4. Debugging and Fixes (Collaborative)
 
-| Issue | Who Identified | Who Fixed |
-|---|---|---|
-| "Welcome back" showing for new users | Me (student) | AI (changed from useEffect to useMemo for synchronous check) |
-| Supabase permissions (couldn't edit redirect URLs) | Me (student) | AI (advised asking project admin or creating own Supabase project) |
-| Google Cloud Console redirect URIs | Me (student, asked) | AI (provided correct values) |
-| GitHub provider addition | Me (student, requested) | AI (added signInWithGitHub to AuthContext and SignIn page) |
-| Email/password auth addition | Me (student, requested) | AI (added signInWithEmail and signUpWithEmail forms to SignIn page) |
-| Reset password inaccessible from UI | Me (student, identified) | AI (added "Trouble signing in?" link and settings panel option) |
-| Profile details displayed as raw JSON/code | Me (student) | AI (redesigned into a clean profile summary card) |
-| User ID visible in Account tab | Me (student) | AI (removed the User ID row) |
-| Account deletion had no grace period | Me (student, requested) | AI (implemented 30-day grace period with schedule/restore/purge) |
-| Ambiguous `user_email` in `delete_user()` RPC | Me (student, observed 400 error) | AI (renamed variable to `v_email`, qualified column references) |
-| Soft-deleted users could not sign back in cleanly | Me (student, requested) | AI (added auto-restore on sign-in in SignIn.tsx) |
-| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified) | AI (changed `deleteAccount` to sign out, moved restore to email-link flow) |
+| Issue                                                           | Who Identified                   | Who Fixed                                                                  |
+| --------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- |
+| "Welcome back" showing for new users                            | Me (student)                     | AI (changed from useEffect to useMemo for synchronous check)               |
+| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                     | AI (advised asking project admin or creating own Supabase project)         |
+| Google Cloud Console redirect URIs                              | Me (student, asked)              | AI (provided correct values)                                               |
+| GitHub provider addition                                        | Me (student, requested)          | AI (added signInWithGitHub to AuthContext and SignIn page)                 |
+| Email/password auth addition                                    | Me (student, requested)          | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)        |
+| Reset password inaccessible from UI                             | Me (student, identified)         | AI (added "Trouble signing in?" link and settings panel option)            |
+| Profile details displayed as raw JSON/code                      | Me (student)                     | AI (redesigned into a clean profile summary card)                          |
+| User ID visible in Account tab                                  | Me (student)                     | AI (removed the User ID row)                                               |
+| Account deletion had no grace period                            | Me (student, requested)          | AI (implemented 30-day grace period with schedule/restore/purge)           |
+| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error) | AI (renamed variable to `v_email`, qualified column references)            |
+| Soft-deleted users could not sign back in cleanly               | Me (student, requested)          | AI (added auto-restore on sign-in in SignIn.tsx)                           |
+| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)         | AI (changed `deleteAccount` to sign out, moved restore to email-link flow) |
 
 ---
 

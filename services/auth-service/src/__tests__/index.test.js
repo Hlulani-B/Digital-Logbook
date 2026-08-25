@@ -11,9 +11,7 @@ describe('Auth Service', () => {
 
   describe('GET /', () => {
     it('should return service health status', async () => {
-      const response = await request(app)
-        .get('/')
-        .expect(200);
+      const response = await request(app).get('/').expect(200);
 
       expect(response.body).toEqual({
         service: 'auth-service',
@@ -32,10 +30,7 @@ describe('Auth Service', () => {
       ];
 
       for (const origin of origins) {
-        const response = await request(app)
-          .get('/')
-          .set('Origin', origin)
-          .expect(200);
+        const response = await request(app).get('/').set('Origin', origin).expect(200);
 
         expect(response.headers['access-control-allow-origin']).toBe(origin);
         expect(response.headers['access-control-allow-credentials']).toBe('true');

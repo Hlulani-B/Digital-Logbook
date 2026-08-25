@@ -8,7 +8,6 @@
  */
 import pool from '../db.js';
 
-
 export class Login {
   async checkUser(email) {
     try {

@@ -74,7 +74,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
@@ -211,18 +211,18 @@ Entries created from phrases like "i want to wash my clothes today" were getting
 
 **Fix:** Added a `getDate(text)` helper in `entries.js` that resolves dates server-side before the AI is called, using keyword matching:
 
-| Input | Result |
-|---|---|
-| `"today"` | Today's date |
-| `"tomorrow"` | Today + 1 |
-| `"yesterday"` | Today − 1 |
-| `"next week"` | Today + 7 |
-| `"in 3 days"` / `"in 2 weeks"` | Today + 3 / Today + 14 |
-| `"next wednesday"` | Next Wednesday |
-| `"monday"` / `"friday"` | Next occurrence of that day |
-| `"end of month"` | Last day of current month |
-| `"august 25"` / `"25 dec"` | Explicit month + day dates |
-| No date keyword found | `null` |
+| Input                          | Result                      |
+| ------------------------------ | --------------------------- |
+| `"today"`                      | Today's date                |
+| `"tomorrow"`                   | Today + 1                   |
+| `"yesterday"`                  | Today − 1                   |
+| `"next week"`                  | Today + 7                   |
+| `"in 3 days"` / `"in 2 weeks"` | Today + 3 / Today + 14      |
+| `"next wednesday"`             | Next Wednesday              |
+| `"monday"` / `"friday"`        | Next occurrence of that day |
+| `"end of month"`               | Last day of current month   |
+| `"august 25"` / `"25 dec"`     | Explicit month + day dates  |
+| No date keyword found          | `null`                      |
 
 `getDate()` also returns the input text with date keywords stripped out, so the AI never sees "today"/"tomorrow" and can't copy them into unrelated fields. Fuzzy matching corrects common misspellings (e.g., "tommorow" → "tomorrow", "wendsday" → "wednesday") before keyword matching runs.
 
@@ -246,13 +246,13 @@ The `didyoumean` library (v1.2.2) was initially used for fuzzy matching of missp
 2. Computes `leven(input, keyword)` against all known date keywords
 3. Accepts a match only if the distance is ≤ 40% of the input word's length
 
-| Input | Distance | Target | Threshold (40%) | Result |
-|---|---|---|---|---|
-| `"todya"` (5) | 2 | `"today"` | 2 | Match |
-| `"wendsday"` (8) | 2 | `"wednesday"` | 3 | Match |
-| `"weak"` (4) | 1 | `"week"` | 1 | Match |
-| `"days"` (4) | 2 | `"may"` | 1 | No match (correct) |
-| `"want"` (4) | 2 | `"jan"` | 1 | No match (correct) |
+| Input            | Distance | Target        | Threshold (40%) | Result             |
+| ---------------- | -------- | ------------- | --------------- | ------------------ |
+| `"todya"` (5)    | 2        | `"today"`     | 2               | Match              |
+| `"wendsday"` (8) | 2        | `"wednesday"` | 3               | Match              |
+| `"weak"` (4)     | 1        | `"week"`      | 1               | Match              |
+| `"days"` (4)     | 2        | `"may"`       | 1               | No match (correct) |
+| `"want"` (4)     | 2        | `"jan"`       | 1               | No match (correct) |
 
 All 33 unit tests pass, including 8 misspelling test cases and edge cases like "in 1 day" and "i want to wash my clothes today".
 
@@ -287,6 +287,7 @@ When the AI put an existing project in the `new` array (instead of `old`), the b
 The AI was copying the user's raw speech verbatim (e.g., "gonna grab some food") or extracting just keywords (e.g., "food") instead of writing clean, well-phrased descriptions.
 
 **Fix:** Updated the AI prompt (Steps 0 and 5) to enforce strict paraphrasing:
+
 - Step 0: "PARAPHRASE neatly into clear, well-written task descriptions" with explicit correct/wrong examples
 - Step 5: Renamed from "PRESERVE FULL TEXT" to "PARAPHRASE NEATLY (STRICT)" — the AI must rewrite casual speech into clean descriptions, not copy raw text or extract keywords
 
@@ -309,6 +310,7 @@ The voice feature was making extra AI calls for spoken prompts, confirmation mes
 Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscellaneous Tasks" card and others to be cut off at the viewport edge instead of wrapping or shrinking.
 
 **Root cause:** Multiple CSS issues:
+
 1. `.entries-feed` grid used `1fr` instead of `minmax(0, 1fr)` — `1fr` allows grid blowout where content wider than the column forces it open
 2. `<table>` elements inside cards have intrinsic minimum width that resists shrinking
 3. `.entry-box__field-key` had `white-space: nowrap` forcing field labels to never wrap
@@ -316,6 +318,7 @@ Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscel
 5. `.entry-box__project` had no overflow handling — long project names forced the card wider
 
 **Fix:**
+
 - `.entries-feed`: Changed all `1fr` to `minmax(0, 1fr)` across all breakpoints
 - `.entry-box`: Added `overflow: hidden` + `max-width: 100%`
 - `.entry-box__table`: Added `table-layout: fixed`

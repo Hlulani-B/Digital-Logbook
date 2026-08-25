@@ -1,4 +1,4 @@
-import { getUnarchived } from "./project/archives.js";
+import { getUnarchived } from './project/archives.js';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -12,8 +12,8 @@ export async function dueSoon(user_email, project_name) {
   try {
     result = await getUnarchived(user_email, project_name);
   } catch (err) {
-    console.error("[dueSoon] Failed to fetch entries:", err);
-    return { success: false, message: err.message || "Failed to fetch entries", data: [] };
+    console.error('[dueSoon] Failed to fetch entries:', err);
+    return { success: false, message: err.message || 'Failed to fetch entries', data: [] };
   }
 
   const data = result?.data || [];

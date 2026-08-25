@@ -11,19 +11,15 @@ export class Username {
         return { success: false, message: 'Database not connected' };
       }
 
-      const { rows } = await pool.query(
-        `SELECT username FROM users WHERE username = $1`,
-        [username]
-      );
+      const { rows } = await pool.query(`SELECT username FROM users WHERE username = $1`, [
+        username,
+      ]);
 
       if (rows.length > 0) {
         return { success: false, message: 'Username not available' };
       }
 
-      await pool.query(
-        `UPDATE users SET username = $1 WHERE email = $2`,
-        [username, email]
-      );
+      await pool.query(`UPDATE users SET username = $1 WHERE email = $2`, [username, email]);
 
       return { success: true, message: 'Username updated successfully' };
     } catch (error) {
@@ -45,12 +41,16 @@ export class Email {
       }
 
       // Generate a default username from the email prefix (before @)
-      const defaultUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const defaultUsername = email
+        .split('@')[0]
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_');
 
-      await pool.query(
-        `INSERT INTO users (email, username, name) VALUES ($1, $2, $3)`,
-        [email, defaultUsername, defaultUsername]
-      );
+      await pool.query(`INSERT INTO users (email, username, name) VALUES ($1, $2, $3)`, [
+        email,
+        defaultUsername,
+        defaultUsername,
+      ]);
 
       return { success: true, message: 'Email added successfully' };
     } catch (error) {
@@ -70,10 +70,7 @@ export class Name {
         return { success: false, message: 'Database not connected' };
       }
 
-      await pool.query(
-        `UPDATE users SET name = $1 WHERE email = $2`,
-        [new_name, email]
-      );
+      await pool.query(`UPDATE users SET name = $1 WHERE email = $2`, [new_name, email]);
 
       return { success: true, message: 'Name updated successfully' };
     } catch (error) {
@@ -93,10 +90,7 @@ export class Avatar {
         return { success: false, message: 'Database not connected' };
       }
 
-      await pool.query(
-        `UPDATE users SET avatar = $1 WHERE email = $2`,
-        [url, email]
-      );
+      await pool.query(`UPDATE users SET avatar = $1 WHERE email = $2`, [url, email]);
 
       return { success: true, message: 'Avatar updated successfully' };
     } catch (error) {

@@ -48,12 +48,8 @@ function TestConsumer() {
     <div>
       <span data-testid="loading">{String(auth.loading)}</span>
       <span data-testid="user">{auth.user ? auth.user.email : 'no-user'}</span>
-      <button onClick={() => auth.signInWithEmail('test@example.com', 'password')}>
-        Sign In
-      </button>
-      <button onClick={() => auth.signUpWithEmail('test@example.com', 'password')}>
-        Sign Up
-      </button>
+      <button onClick={() => auth.signInWithEmail('test@example.com', 'password')}>Sign In</button>
+      <button onClick={() => auth.signUpWithEmail('test@example.com', 'password')}>Sign Up</button>
       <button onClick={() => auth.signOut()}>Sign Out</button>
       <button onClick={() => auth.resetPassword('test@example.com')}>Reset Password</button>
       <button onClick={() => auth.updatePassword('newpassword')}>Update Password</button>

@@ -20,7 +20,12 @@ describe('Entries', () => {
   // ─── addEntry ────────────────────────────────────────────────
   describe('addEntry', () => {
     it('should add a new entry successfully', async () => {
-      const insertedRow = { id: 1, entries: 'new-entry', user_email: 'a@b.com', project_name: 'P1' };
+      const insertedRow = {
+        id: 1,
+        entries: 'new-entry',
+        user_email: 'a@b.com',
+        project_name: 'P1',
+      };
       pool.query.mockResolvedValueOnce({ rows: [insertedRow] });
 
       const result = await entries.addEntry('a@b.com', 'P1', 'new-entry', '2026-08-20T00:00:00Z');
@@ -31,12 +36,21 @@ describe('Entries', () => {
     });
 
     it('should add entry and return inserted data', async () => {
-      const insertedData = { id: 2, entries: 'new-entry', user_email: 'a@b.com', project_name: 'P1' };
+      const insertedData = {
+        id: 2,
+        entries: 'new-entry',
+        user_email: 'a@b.com',
+        project_name: 'P1',
+      };
       pool.query.mockResolvedValueOnce({ rows: [insertedData] });
 
       const result = await entries.addEntry('a@b.com', 'P1', 'new-entry', null);
 
-      expect(result).toEqual({ success: true, message: 'Entry added successfully', data: [insertedData] });
+      expect(result).toEqual({
+        success: true,
+        message: 'Entry added successfully',
+        data: [insertedData],
+      });
     });
 
     it('should return failure when db returns an error', async () => {
@@ -100,7 +114,12 @@ describe('Entries', () => {
   // ─── getAllEntries ───────────────────────────────────────────
   describe('getAllEntries', () => {
     it('should retrieve all entries for a user', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ id: 1, entries: 'entry-1' }, { id: 2, entries: 'entry-2' }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          { id: 1, entries: 'entry-1' },
+          { id: 2, entries: 'entry-2' },
+        ],
+      });
 
       const result = await entries.getAllEntries('a@b.com');
 
@@ -147,7 +166,9 @@ describe('Entries', () => {
   // ─── sortEntries ─────────────────────────────────────────────
   describe('sortEntries', () => {
     it('should sort by due date ascending (sort_type 0)', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ due_date: '2026-08-10' }, { due_date: '2026-08-01' }] });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ due_date: '2026-08-10' }, { due_date: '2026-08-01' }],
+      });
 
       const result = await entries.sortEntries('a@b.com', 'P1', 0);
 

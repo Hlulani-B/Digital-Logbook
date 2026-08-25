@@ -2,9 +2,9 @@ name: Continuous Integration (CI) Pipeline
 
 on:
   push:
-    branches: [ main, hlulani ]
+    branches: [main, hlulani]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -18,6 +18,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Check Code Formatting
+        run: npm run format:check
 
       # 1. Frontend
       - name: Install Frontend

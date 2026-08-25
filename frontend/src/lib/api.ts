@@ -1,20 +1,22 @@
 export const AUTH_URL = import.meta.env.VITE_AUTH_SERVICE_URL;
 export const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_SERVICE_URL;
 export const PROJECT_URL =
-  import.meta.env.VITE_PROJECT_SERVICE_URL || "https://project-service-96ml.onrender.com";
+  import.meta.env.VITE_PROJECT_SERVICE_URL || 'https://project-service-96ml.onrender.com';
 export const PROFILE_URL =
-  import.meta.env.VITE_PROFILE_SERVICE_URL || "https://profile-service-0zk7.onrender.com";
+  import.meta.env.VITE_PROFILE_SERVICE_URL || 'https://profile-service-0zk7.onrender.com';
 
 export async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const { getSupabase } = await import("./supabase");
-  const { data: { session } } = await getSupabase().auth.getSession();
-  const token = session?.access_token || "";
+  const { getSupabase } = await import('./supabase');
+  const {
+    data: { session },
+  } = await getSupabase().auth.getSession();
+  const token = session?.access_token || '';
 
   const res = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
       ...options?.headers,
     },
   });
@@ -32,11 +34,9 @@ export const api = {
     health: () => request<{ service: string; status: string }>(`${AUTH_URL}`),
   },
   dashboard: {
-    health: () =>
-      request<{ service: string; status: string }>(`${DASHBOARD_URL}`),
+    health: () => request<{ service: string; status: string }>(`${DASHBOARD_URL}`),
   },
   projects: {
-    health: () =>
-      request<{ service: string; status: string }>(`${PROJECT_URL}`),
+    health: () => request<{ service: string; status: string }>(`${PROJECT_URL}`),
   },
 };

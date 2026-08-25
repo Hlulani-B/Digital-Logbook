@@ -32,12 +32,12 @@ profile, project, and dashboard concerns isolated.
 
 ## Services
 
-| Service | Responsibility | Port | Live URL |
-|---|---|---|---|
-| `auth-service` | Token verification and account deletion via Supabase Auth | 5001 | `https://auth-service-hl52.onrender.com` |
-| `dashboard-service` | Cross-project summaries for the dashboard view | 5002 | `https://dashboard-service-bpc5.onrender.com` |
-| `project-service` | Create/read/update/archive projects; project entry formats and entries | 5003 | `https://project-service-96ml.onrender.com` |
-| `profile-service` | Login and profile management | 5004 | `https://profile-service-0zk7.onrender.com` |
+| Service             | Responsibility                                                         | Port | Live URL                                      |
+| ------------------- | ---------------------------------------------------------------------- | ---- | --------------------------------------------- |
+| `auth-service`      | Token verification and account deletion via Supabase Auth              | 5001 | `https://auth-service-hl52.onrender.com`      |
+| `dashboard-service` | Cross-project summaries for the dashboard view                         | 5002 | `https://dashboard-service-bpc5.onrender.com` |
+| `project-service`   | Create/read/update/archive projects; project entry formats and entries | 5003 | `https://project-service-96ml.onrender.com`   |
+| `profile-service`   | Login and profile management                                           | 5004 | `https://profile-service-0zk7.onrender.com`   |
 
 Entry formats and entries live inside `project-service`, alongside the
 projects they belong to. The `profile-service` owns sign-in and user-profile

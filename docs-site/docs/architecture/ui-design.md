@@ -3,6 +3,7 @@
 ## Design Philosophy
 
 The Digital Logbook follows a **vintage notebook aesthetic** with modern usability patterns. The design emphasizes:
+
 - Warm, earth-tone color palettes
 - Readable typography with accessibility focus
 - Intuitive navigation via drawer menu
@@ -11,6 +12,7 @@ The Digital Logbook follows a **vintage notebook aesthetic** with modern usabili
 ## Color System
 
 ### Theme Structure
+
 The app uses CSS custom properties for theming, defined in `index.css`:
 
 ```css
@@ -24,6 +26,7 @@ The app uses CSS custom properties for theming, defined in `index.css`:
 ```
 
 ### Available Themes
+
 1. **Light (Default)** - Warm ivory background with brown text
 2. **Dark** - Pure black/white/grey for low-light environments
 3. **Pastel Vintage** - Softer pastel palettes (ivory, blush, powder blue, pale lilac, sage mist, soft tan)
@@ -35,8 +38,9 @@ The app uses CSS custom properties for theming, defined in `index.css`:
 Users can preview and select themes during onboarding (ThemeSetup page) or change them at any time in Settings.
 
 ### Dark Theme
+
 ```css
-[data-theme="dark"] {
+[data-theme='dark'] {
   --bg: #000000;
   --text: #ffffff;
   --accent: #e0e0e0;
@@ -49,6 +53,7 @@ Users can preview and select themes during onboarding (ThemeSetup page) or chang
 ## Typography
 
 ### Font Stack
+
 - **Primary**: Lora (serif) - Default font for readability
 - **Alternatives**: Playfair Display, Crimson Text, EB Garamond, Plus Jakarta Sans
 - **UI**: Plus Jakarta Sans (sans-serif) for interface elements
@@ -56,12 +61,15 @@ Users can preview and select themes during onboarding (ThemeSetup page) or chang
 Users can preview each font with a live "The quick brown fox" sample during onboarding (ThemeSetup page) or change in Settings.
 
 ### Base Sizes
+
 - **Desktop**: 18px base (112.5%)
 - **Mobile**: 17px base (106.25%)
 - **Line height**: 1.65 for body text
 
 ### Accessibility
+
 Font sizes are increased from browser defaults for better readability:
+
 ```css
 html {
   font-size: 112.5%; /* 18px base */
@@ -77,6 +85,7 @@ html {
 ## Layout Patterns
 
 ### Split-Screen Sign-In
+
 ```
 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 â”‚                 â”‚                 â”‚
@@ -89,6 +98,7 @@ html {
 **Mobile**: Video panel reduces to 22vh, form panel becomes scrollable.
 
 ### Dashboard Layout
+
 ```
 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 â”‚  Header (Stats, Search, Settings)   â”‚
@@ -103,7 +113,9 @@ html {
 ```
 
 ### Quick Entry Bar
+
 Fixed at top of dashboard for rapid log entry:
+
 ```
 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 â”‚ âœï¸ Quick add: "Fixed login bug..." âž¤ â”‚
@@ -137,13 +149,17 @@ Dashboard
 ```
 
 ### Theme Setup Page
+
 Visual onboarding page where users pick:
+
 - **Theme**: 7 colour swatches (light, dark, blush, powder blue, pale lilac, sage mist, soft tan, etc.)
 - **Font**: 5 options with live "The quick brown fox" preview in each
 - **Corner Style**: 3 options (rounded, soft, sharp) with visual box previews
 
 ### Frequency Setup Page
+
 Lets users choose how often the logbook nudges them:
+
 - **Silent** — Never nudge, I'll check in myself
 - **Gentle** — Once a week, soft reminder
 - **Daily** — Daily nudge at a time I choose
@@ -156,6 +172,7 @@ Stored in `localStorage` as `dl_nudge_frequency`. The actual nudge engine is a f
 ### Buttons
 
 #### Primary Button
+
 ```css
 .btn-primary {
   background: #3b2f1e;
@@ -166,6 +183,7 @@ Stored in `localStorage` as `dl_nudge_frequency`. The actual nudge engine is a f
 ```
 
 #### Save Button
+
 ```css
 .btn-save {
   background: var(--accent);
@@ -174,15 +192,18 @@ Stored in `localStorage` as `dl_nudge_frequency`. The actual nudge engine is a f
 ```
 
 #### Dark Theme Overrides
+
 ```css
-[data-theme="dark"] .btn-primary {
+[data-theme='dark'] .btn-primary {
   background: var(--accent);
   color: #000000; /* Black text on light background */
 }
 ```
 
 ### Entry Box
+
 Notion-style card with:
+
 - Bold project title
 - Colored priority/status tags
 - Table layout for fields
@@ -201,23 +222,29 @@ Notion-style card with:
 ```
 
 ### Drawer Menu
+
 Slide-out navigation with:
+
 - View filters (All, Recent, Drafts, Activity)
 - Project list with entry counts
 - Archive section (placeholder)
 
 ### Settings Panel
+
 Slide-out panel with tabs:
+
 - **Profile**: Username, avatar
 - **Preferences**: Theme, font, corner style, time format, week start, nudge frequency
 - **Account**: Password reset, delete account
 
 ### Toast Notifications
+
 Pretty toast for AI comments:
+
 ```css
 .quick-entry-toast {
-  background: linear-gradient(135deg, rgba(139,115,85,0.08), rgba(166,139,107,0.12));
-  border: 1px solid rgba(139,115,85,0.18);
+  background: linear-gradient(135deg, rgba(139, 115, 85, 0.08), rgba(166, 139, 107, 0.12));
+  border: 1px solid rgba(139, 115, 85, 0.18);
   border-radius: var(--radius-sm);
   animation: toast-slide-in 0.35s ease-out;
 }
@@ -226,28 +253,33 @@ Pretty toast for AI comments:
 ## Responsive Design
 
 ### Breakpoints
+
 - **Mobile**: â‰¤768px
 - **Tablet**: 769px - 1024px
 - **Desktop**: >1024px
 
 ### Mobile Adaptations
+
 1. **Sign-in**: Video panel shrinks, form scrolls
 2. **Dashboard**: Drawer becomes overlay, FAB moves to bottom-right
 3. **Entry boxes**: Stack vertically, reduce padding
 4. **Fonts**: Slightly smaller base size for space efficiency
 
 ### Touch Targets
+
 All interactive elements meet minimum 44x44px touch target size.
 
 ## Visual Hierarchy
 
 ### Priority Colors
+
 - **Urgent & Important** (0): Red tag
 - **Urgent** (1): Orange tag
 - **Not Urgent** (2): Yellow tag
 - **None**: Grey tag
 
 ### Status Indicators
+
 - **Active**: Green dot
 - **Archived**: Grey dot, reduced opacity
 - **Due Soon**: Orange highlight
@@ -256,11 +288,13 @@ All interactive elements meet minimum 44x44px touch target size.
 ## Corner Styles
 
 Users can choose corner rounding:
+
 - **Rounded**: `border-radius: 12px`
 - **Soft**: `border-radius: 6px`
 - **Sharp**: `border-radius: 0`
 
 Applied globally via CSS custom property:
+
 ```css
 :root {
   --radius-sm: 6px;
@@ -271,11 +305,13 @@ Applied globally via CSS custom property:
 ## Iconography
 
 ### Icon Library
+
 - **Feather Icons** via React Icons
 - Consistent 16x16px size in UI
 - Stroke-based for scalability
 
 ### Common Icons
+
 - âœï¸ Edit/Entry
 - ðŸ“ Project
 - âš™ï¸ Settings
@@ -286,11 +322,13 @@ Applied globally via CSS custom property:
 ## Animation
 
 ### Transitions
+
 - **Panel slides**: 0.3s ease-in-out
 - **Button hovers**: 0.2s ease
 - **Toast notifications**: 0.35s slide-in
 
 ### Loading States
+
 - Spinner for async operations
 - Skeleton screens (planned)
 - Disabled buttons during submission
@@ -298,16 +336,20 @@ Applied globally via CSS custom property:
 ## Accessibility
 
 ### Color Contrast
+
 All text meets WCAG AA standards:
+
 - Normal text: 4.5:1 contrast ratio
 - Large text: 3:1 contrast ratio
 
 ### Keyboard Navigation
+
 - All interactive elements focusable
 - Visible focus indicators
 - Logical tab order
 
 ### Screen Readers
+
 - Semantic HTML (nav, main, section, article)
 - ARIA labels on icon buttons
 - Alt text on images
@@ -315,6 +357,7 @@ All text meets WCAG AA standards:
 ## Future Enhancements
 
 ### Sprint 2 Candidates
+
 - Dark mode auto-detection (prefers-color-scheme)
 - High contrast theme option
 - Reduced motion preferences
@@ -358,10 +401,11 @@ A grid of pre-made avatar icons lets the user pick a profile picture without nee
 ![Main Dashboard - Empty State](../assets/ui-images/Screenshot_19-8-2026_124214_digital-logbook-bxgv.onrender.com.jpeg)
 
 The core screen of the app. Top navigation bar has a menu toggle, app logo/name, search, and user account dropdown. Below that:
+
 - **Filter entries** search bar
 - **Due Soon / All Entries** toggle tabs
 - **Sort** controls (Date / Priority)
-- **Quick add** bar with natural-language placeholder text (e.g. *"Fixed login bug for ProjectX, urgent, due tomorrow"*)
+- **Quick add** bar with natural-language placeholder text (e.g. _"Fixed login bug for ProjectX, urgent, due tomorrow"_)
 - Empty state illustration with a clock icon and "Nothing due soon" messaging when there's nothing due in the next 3 days
 - Floating **+** action button (bottom left) for creating new entries/projects
 
@@ -372,6 +416,7 @@ The core screen of the app. Top navigation bar has a menu toggle, app logo/name,
 ![Navigation Sidebar](../assets/ui-images/Screenshot_19-8-2026_124325_digital-logbook-bxgv.onrender.com.jpeg)
 
 Slide-out panel triggered by the menu icon. Organized into:
+
 - **Views:** All Entries, Recent, Drafts, My Stats (each with entry counts)
 - **Archive:** Archived Projects
 - **Projects:** user-created projects (e.g. Software Design Project, Meal Plan, Workout), each with entry counts
@@ -390,6 +435,7 @@ Tapping the **+** button expands into two options: **New Entry** and **New Proje
 ![New Project - Empty Form](../assets/ui-images/Screenshot_19-8-2026_124531_digital-logbook-bxgv.onrender.com.jpeg)
 
 Form for creating a project with:
+
 - Project name field
 - Optional description textarea
 - **Project Fields** section — starts empty with a message ("No fields defined...") and an **Add Another Project Field** button
@@ -425,6 +471,7 @@ When creating a new entry, the user first selects which project it belongs to fr
 ![New Entry - Empty Form](../assets/ui-images/Screenshot_19-8-2026_125226_digital-logbook-bxgv.onrender.com.jpeg)
 
 Once a project is selected, the entry form dynamically renders the fields defined for that project (Lunch, Breakfast, Supper, Snack for "Meal Plan"), plus common fields:
+
 - **Due Date** (date/time picker)
 - **Priority** dropdown (e.g. "No priority")
 - **Status** dropdown (e.g. "Up Next")
@@ -466,6 +513,7 @@ Dropdown from the top-right user badge showing: display name, email, **Manage Pr
 ![Settings - Preferences](../assets/ui-images/Screenshot_19-8-2026_123958_digital-logbook-bxgv.onrender.com.jpeg)
 
 Settings modal with **Profile / Preferences / Account** tabs. Preferences tab covers:
+
 - **Time Format** (e.g. 24-hour)
 - **Theme** dropdown (e.g. Soft Tan)
 - **Font** dropdown (e.g. Crimson Text)
@@ -560,6 +608,3 @@ Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing in
 - **Dynamic forms:** both Projects and Entries are schema-driven â€” fields are user-defined per project and rendered dynamically on entry creation
 - **Time tracking:** entries support a "Start Task" action tied to time-tracking functionality
 - **Natural language input:** quick-add bar for fast entry creation without the full form
-
-
-

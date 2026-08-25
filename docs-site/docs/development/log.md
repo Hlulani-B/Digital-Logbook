@@ -9,7 +9,7 @@ working end result.
 ## Repository & authentication setup
 
 **Issue:** Pushing to the Gitea remote failed with an authentication error.
-The token *label* ("hlulani") was mistaken for the actual secret token —
+The token _label_ ("hlulani") was mistaken for the actual secret token —
 Gitea only shows the real generated token once, at creation.
 
 **Fix:** Generated a new access token under **Gitea → Applications**, then
@@ -141,7 +141,7 @@ health-check habits become even more important. A containerised local setup
 
 **Fix:** Added `position: relative` to `.entry-box__menu-wrap`.
 
-**Takeaway:** `position: absolute` resolves against the nearest *positioned* ancestor — if a wrapper has no `position`, the absolute child skips past it.
+**Takeaway:** `position: absolute` resolves against the nearest _positioned_ ancestor — if a wrapper has no `position`, the absolute child skips past it.
 
 ## Raw Postgres interval displayed in UI
 

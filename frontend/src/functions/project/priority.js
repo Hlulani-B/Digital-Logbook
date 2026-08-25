@@ -1,10 +1,10 @@
-import { request, PROJECT_URL } from "@/lib/api";
+import { request, PROJECT_URL } from '@/lib/api';
 
 export async function setPriority(user_email, priorityValue, project_name, entry_id) {
   return request(`${PROJECT_URL}/service/priority`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "set",
+      function: 'set',
       values: { user_email, priorityValue, project_name, entry_id },
     }),
   });

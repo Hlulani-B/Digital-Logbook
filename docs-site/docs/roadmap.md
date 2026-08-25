@@ -7,6 +7,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 ### Commit History
 
 #### Infrastructure & Deployment
+
 - `088cf84` - initial backend services setup
 - `cb1aab7` - add README with setup instructions and project structure
 - `0dfb300` - Initial setup
@@ -35,6 +36,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `91d2661` - chore: remove Zone.Identifier files
 
 #### Backend Services Setup
+
 - `e3965e5` - feat(services): add Express server setup and health routes to index.js
 - `8c61030` - fix: add start script to microservice package.json files
 - `fdd93e1` - feat(services): add Express server setup and health routes to index.js
@@ -47,6 +49,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `15a00e7` - style: polish sign-in page UI
 
 #### Database Schema
+
 - `fccffab` - added users and projects table
 - `61f7b20` - Added fields and entries table
 - `44c4d8b` - Added due date column on entries table
@@ -56,6 +59,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `352a5b1` - Fix delete_user RPC: cascade delete entries, fields, projects before user deletion
 
 #### Authentication System
+
 - `ba20871` - feat: Digital Logbook frontend with auth, dashboard, settings and CAPTCHA
 - `b9d5671` - feat: add reset password access from sign-in page and settings panel
 - `130e5c5` - docs: add frontend README and AI declaration document
@@ -75,6 +79,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `f1e3d4e` - fix: load dotenv before imports, connect project/entry/priority/field routes, add SUPABASE_KEY fallback
 
 #### CORS & Security
+
 - `1d2eec4` - fix: explicit CORS config on all 4 backend services (origin, methods, allowedHeaders + OPTIONS preflight)
 - `cb181c3` - fix: remove app.options('*', cors()) — Express 5 path-to-regexp doesn't support bare wildcard
 - `5074223` - fix: replace cors() package with manual CORS middleware for Express 5 compatibility
@@ -82,11 +87,12 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `9f8aa39` - fix: use cors() package with specific origin and credentials for all services
 - `1ac877e` - fix: on checkUser error, default to dashboard instead of create-profile
 - `a118b05` - fix: dynamic CORS origin checking + global error handler with CORS headers on all services
-- `7ef7f31` - fix: add Express 5 safe preflight wildcard handler using regex /(.*)/ instead of '*'
+- `7ef7f31` - fix: add Express 5 safe preflight wildcard handler using regex /(._)/ instead of '_'
 - `9279eb3` - fix: add robust error handling to all route handlers across all services (try/catch, safe instantiation, parameter validation, JSON error responses)
 - `ab3fe21` - fix: remove throw in supabase.js that crashed services on startup - use null client + warnings instead
 
 #### Profile Service
+
 - `8f7f457` - feat: complete profile-service with routes, tests, and frontend functions
 - `600e8d1` - feat: integrate profile service into settings, add AvatarPicker, fix SignIn useEffect
 - `d576704` - fix: convert CreateProfile to tsx, fix Avatar page, add routing for /create-profile and /avatar
@@ -105,6 +111,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `2e5cec0` - fix: CreateProfile now inserts user row before updating name/username
 
 #### UI/UX - Themes & Styling
+
 - `ed654de` - feat: add video background to SignIn + font picker in Settings (Playfair, Lora, Crimson Text, EB Garamond)
 - `6edb5e6` - feat: split-screen SignIn layout — video left panel, form right panel
 - `6795305` - feat: add brown vintage theme + corner style picker (rounded/soft/sharp)
@@ -132,6 +139,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `3df6376` - fix: correct profile-service URL in frontend (was pointing to non-existent domain) + add to README
 
 #### Archive Feature
+
 - `9f88146` - feat: archive support end-to-end (backend, route, frontend, tests, schema)
 - `6321d94` - docs+fix: sync schema with Supabase, use is_archived for projects
 - `3000025` - Merge branch 'main' of https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook
@@ -146,6 +154,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `cc12325` - align AddEntry + EntryBox with entries table schema
 
 #### Dashboard & Entries
+
 - `f0a2d9e` - refactor: split dashboard into Due Soon and Up Next sections
 - `4d2e00e` - feat: wire dashboard.js and EntryBox into Dashboard
 - `4245903` - Use provided functions: search, sort, archives + fix sections visibility
@@ -159,6 +168,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `ded1da5` - feat: wire up archive functions across backend and frontend
 
 #### Testing & Verification
+
 - `940ecf6` - Add test-entries.js verification script with curl and Supabase fallback
 - `1c52ace` - Update test-entries.js to use curl with Supabase service-role key
 - `5b681d5` - Add test-entries.js verification script with curl and Supabase fallback
@@ -171,6 +181,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `fc65db7` - Sign out user after successful account deletion
 
 #### Bug Fixes & Improvements
+
 - `e11fd64` - Fix priority.js imports: AI named export and field.js filename
 - `431e9c6` - Fix Dashboard.tsx: remove duplicated trailing code causing build failure
 - `634db8f` - Remove unused sortArchivedEntries import
@@ -179,6 +190,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `07b08b4` - Add nodemon as dev dependency to project-service
 
 #### AI Integration
+
 - `783bc76` - Fix natural language prompt: shorter, stricter JSON-only response with better cleaning
 - `42e2e11` - Fixes: avatar sync, username display, NL prompt, priority wiring, AI.js updates
 - `c8e5beb` - Fix supabase import in ai.js: use named import
@@ -189,10 +201,12 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `4c6db91` - Add auto-create project feature to natural language entry + updated tests
 
 #### Activity Logging
+
 - `25909a8` - feat: add activity log to track user actions
 - `f221369` - Merge pull request 'feat: add activity log to track user actions' (#4) from feature/activity-log into main
 
 #### Accessibility & Mobile
+
 - `b0a9938` - Increase base font size for accessibility: 18px desktop, 20px mobile
 - `27d7c21` - Merge branch 'hlulani'
 - `79fc70f` - Reduce mobile font size: 17px instead of 20px
@@ -201,6 +215,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `f680f2b` - Merge branch 'hlulani'
 
 #### UI Polish
+
 - `a05b73f` - Fix dark theme button text color + close settings on save
 - `ccae9cf` - Merge branch 'hlulani'
 - `f074f5b` - Add AI comment to natural language entry + pretty toast notification
@@ -209,9 +224,11 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - `883b9d5` - Merge branch 'main' of https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook
 
 #### Testing Infrastructure
+
 - `158465e` - Add test workflow with coverage badges + install coverage-badges-cli
 
 #### Archive Feature Removal
+
 - `8b7eaa4` - Remove archive feature from frontend, leave placeholders
 - `3c7e1f2` - Fix TypeScript errors: remove archive references
 
@@ -220,6 +237,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 **Total Commits**: 200+
 
 **Key Achievements**:
+
 1. ✅ Full-stack monorepo architecture with 4 microservices
 2. ✅ Supabase authentication with email/password and OAuth
 3. ✅ Project and entry management with custom fields
@@ -232,6 +250,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 10. ✅ Testing infrastructure with coverage badges
 
 **Technologies Used**:
+
 - Frontend: React, TypeScript, Vite
 - Backend: Node.js, Express
 - Database: Supabase (PostgreSQL)
@@ -240,6 +259,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Documentation: MkDocs
 
 **Live Services**:
+
 - Frontend: `https://digital-logbook-bxgv.onrender.com`
 - Auth Service: `https://auth-service-hl52.onrender.com`
 - Project Service: `https://project-service-96ml.onrender.com`
@@ -250,18 +270,21 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 ### Completed Features
 
 #### Soft-Delete & Account Recovery
+
 - `005_add_soft_delete_column.sql` — migration adding `deleted` column to all tables, `delete_user()` and `restore_user()` RPC functions
 - `checkUser` now returns `{ exists, deleted }` instead of boolean
 - Frontend auto-restores soft-deleted users on sign-in (SignIn.tsx, AuthCallback.tsx)
 - Fixed PL/pgSQL variable ambiguity: renamed `user_email` → `v_email` in `delete_user()` and `restore_user()` to prevent "column reference is ambiguous" Postgres error
 
 #### Onboarding Enhancements
+
 - Theme Setup page — 7 colour themes, 5 fonts, 3 corner styles with live preview
 - Frequency Setup page — nudge frequency picker (silent / gentle / daily / active)
 - Tone Setup now navigates to ThemeSetup instead of dashboard
 - Full onboarding flow: CreateProfile → Avatar → ToneSetup → ThemeSetup → FrequencySetup → Dashboard
 
 #### Bug Fixes
+
 - Entry card dropdown positioning — added `position: relative` to `.entry-box__menu-wrap`
 - Duration formatting — `durationToMs()` now parses Postgres interval format (e.g. "2 days 06:27:39.557")
 - Natural language AI prompt — added rule to never create `due_date`, `priority`, or `status` as custom fields
@@ -270,6 +293,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - AuthCallback TypeScript build error — added null guard for `email` parameter
 
 ### Planned Features
+
 - Server-side caching (Redis)
 - Rate limiting middleware
 - API versioning
@@ -280,6 +304,7 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Drag-and-drop entry reordering
 
 ### Technical Debt
+
 - Consolidate archive feature (currently placeholder)
 - Add comprehensive frontend tests
 - Implement API rate limiting

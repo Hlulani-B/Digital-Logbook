@@ -37,27 +37,82 @@ router.post('/entry', async (req, res) => {
     }
 
     switch (func) {
-      case "add": {
-        const { project_name, entry_object, due_date, priority, status, started_at, ended_at, duration } = values;
+      case 'add': {
+        const {
+          project_name,
+          entry_object,
+          due_date,
+          priority,
+          status,
+          started_at,
+          ended_at,
+          duration,
+        } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await entries.addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration);
+        const result = await entries.addEntry(
+          user_email,
+          project_name,
+          entry_object,
+          due_date,
+          priority,
+          status,
+          started_at,
+          ended_at,
+          duration
+        );
         if (result.success) {
-          const entrySummary = typeof entry_object === 'string' ? entry_object.slice(0, 100) : JSON.stringify(entry_object).slice(0, 100);
-          await logActivity(user_email, 'ENTRY_ADDED', 'entry', entrySummary, { project_name, due_date, priority });
+          const entrySummary =
+            typeof entry_object === 'string'
+              ? entry_object.slice(0, 100)
+              : JSON.stringify(entry_object).slice(0, 100);
+          await logActivity(user_email, 'ENTRY_ADDED', 'entry', entrySummary, {
+            project_name,
+            due_date,
+            priority,
+          });
         }
         return res.json(result);
       }
-      case "update": {
-        const { project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration } = values;
-        if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await entries.updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration);
+      case 'update': {
+        const {
+          project_name,
+          entry_id,
+          new_entry,
+          due_date,
+          priority,
+          status,
+          started_at,
+          ended_at,
+          duration,
+        } = values;
+        if (!project_name || !entry_id)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await entries.updateEntry(
+          user_email,
+          project_name,
+          entry_id,
+          new_entry,
+          due_date,
+          priority,
+          status,
+          started_at,
+          ended_at,
+          duration
+        );
         if (result.success) {
-          const entrySummary = new_entry ? (typeof new_entry === 'string' ? new_entry.slice(0, 100) : JSON.stringify(new_entry).slice(0, 100)) : project_name;
-          await logActivity(user_email, 'ENTRY_UPDATED', 'entry', entrySummary, { project_name, entry_id });
+          const entrySummary = new_entry
+            ? typeof new_entry === 'string'
+              ? new_entry.slice(0, 100)
+              : JSON.stringify(new_entry).slice(0, 100)
+            : project_name;
+          await logActivity(user_email, 'ENTRY_UPDATED', 'entry', entrySummary, {
+            project_name,
+            entry_id,
+          });
         }
         return res.json(result);
       }
-      case "delete": {
+      case 'delete': {
         const { project_name, entry } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.deleteEntry(user_email, project_name, entry);
@@ -67,7 +122,7 @@ router.post('/entry', async (req, res) => {
         }
         return res.json(result);
       }
-      case "deleteById": {
+      case 'deleteById': {
         const { entry_id } = values;
         if (!entry_id) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.deleteEntryById(user_email, entry_id);
@@ -76,24 +131,32 @@ router.post('/entry', async (req, res) => {
         }
         return res.json(result);
       }
-      case "get": {
+      case 'get': {
         const { project_name } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.getEntries(user_email, project_name);
         return res.json(result);
       }
-      case "getAll": {
+      case 'getAll': {
         const result = await entries.getAllEntries(user_email);
         return res.json(result);
       }
-      case "sortUnarchived": {
+      case 'sortUnarchived': {
         const { project_name, sort_type } = values;
-        const result = await entries.sortUnarchivedEntries(user_email, project_name || null, sort_type);
+        const result = await entries.sortUnarchivedEntries(
+          user_email,
+          project_name || null,
+          sort_type
+        );
         return res.json(result);
       }
-      case "sortArchived": {
+      case 'sortArchived': {
         const { project_name, sort_type } = values;
-        const result = await entries.sortArchivedEntries(user_email, project_name || null, sort_type);
+        const result = await entries.sortArchivedEntries(
+          user_email,
+          project_name || null,
+          sort_type
+        );
         return res.json(result);
       }
       default:
@@ -101,10 +164,10 @@ router.post('/entry', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/entry:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: 'Internal Server Error', 
-      message: error.message 
+      error: 'Internal Server Error',
+      message: error.message,
     });
   }
 });
@@ -117,7 +180,9 @@ router.post('/entry', async (req, res) => {
 router.post('/natural-language-entry', async (req, res) => {
   try {
     if (!nlEntry) {
-      return res.status(500).json({ success: false, error: 'Natural language handler uninitialized' });
+      return res
+        .status(500)
+        .json({ success: false, error: 'Natural language handler uninitialized' });
     }
 
     const user_email = req.userEmail;
@@ -135,14 +200,30 @@ router.post('/natural-language-entry', async (req, res) => {
       if (result.multi) {
         // matched=3: log each entry separately
         const allEntries = [
-          ...(result.results.old || []).map(e => ({ project_name: e.project_name, fields: e.fields })),
-          ...(result.results.new || []).map(e => ({ project_name: e.project_name, fields: e.fields })),
+          ...(result.results.old || []).map((e) => ({
+            project_name: e.project_name,
+            fields: e.fields,
+          })),
+          ...(result.results.new || []).map((e) => ({
+            project_name: e.project_name,
+            fields: e.fields,
+          })),
         ];
         for (const e of allEntries) {
-          await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), { project_name: e.project_name, source: 'natural-language', priority: result.priority, due_date: result.due_date });
+          await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), {
+            project_name: e.project_name,
+            source: 'natural-language',
+            priority: result.priority,
+            due_date: result.due_date,
+          });
         }
       } else {
-        await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), { project_name: result.project, source: 'natural-language', priority: result.priority, due_date: result.due_date });
+        await logActivity(user_email, 'ENTRY_ADDED', 'entry', text.slice(0, 100), {
+          project_name: result.project,
+          source: 'natural-language',
+          priority: result.priority,
+          due_date: result.due_date,
+        });
       }
     }
     return res.json(result);

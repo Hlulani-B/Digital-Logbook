@@ -1,34 +1,34 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { ProfileMenu } from "@/components/ProfileMenu";
-import { SettingsPanel } from "@/components/SettingsPanel";
-import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
-import { AddEntry } from "@/pages/AddEntry";
-import VoiceFeature from "@/pages/VoiceFeature";
-import { EntryBox } from "@/pages/NewEntry";
-import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { setPriority } from "@/functions/project/priority.js";
-import { getProjectsByEmail } from "@/functions/project/project.js";
-import { getProfile } from "@/functions/profile/profile.js";
-import { searchEntriesInProject } from "@/functions/project/search.js";
-import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
-import { archiveProject } from "@/functions/project/archives.js";
-import { getToneInstruction } from "@/functions/tone";
-import { askAI } from "@/functions/ai.js";
-import { FiMic, FiArchive } from "react-icons/fi";
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { ProfileMenu } from '@/components/ProfileMenu';
+import { SettingsPanel } from '@/components/SettingsPanel';
+import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
+import { AddEntry } from '@/pages/AddEntry';
+import VoiceFeature from '@/pages/VoiceFeature';
+import { EntryBox } from '@/pages/NewEntry';
+import { sortUnarchivedEntries } from '@/functions/project/entries.js';
+import { setPriority } from '@/functions/project/priority.js';
+import { getProjectsByEmail } from '@/functions/project/project.js';
+import { getProfile } from '@/functions/profile/profile.js';
+import { searchEntriesInProject } from '@/functions/project/search.js';
+import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
+import { archiveProject } from '@/functions/project/archives.js';
+import { getToneInstruction } from '@/functions/tone';
+import { askAI } from '@/functions/ai.js';
+import { FiMic, FiArchive } from 'react-icons/fi';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
-    if (typeof parsed === "string") return parsed;
-    if (typeof parsed === "object" && parsed !== null) {
-      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
-        if (typeof parsed[key] === "string") return parsed[key];
+    if (typeof parsed === 'string') return parsed;
+    if (typeof parsed === 'object' && parsed !== null) {
+      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
+        if (typeof parsed[key] === 'string') return parsed[key];
       }
       for (const val of Object.values(parsed)) {
-        if (typeof val === "string") return val;
+        if (typeof val === 'string') return val;
       }
     }
     return response;
@@ -40,20 +40,20 @@ function parseAIResponse(response: string): string {
 type Entry = Record<string, unknown>;
 
 const PRIORITY_LABELS: Record<string, string> = {
-  "0": "Urgent and important",
-  "1": "Urgent but not important",
-  "2": "Not urgent, not important",
+  '0': 'Urgent and important',
+  '1': 'Urgent but not important',
+  '2': 'Not urgent, not important',
 };
 
 export function ProjectDetailPage() {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
   const { user, signOut, resetPassword } = useAuth();
-  const email = user?.email || "";
+  const email = user?.email || '';
 
   // Settings
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"profile" | "preferences" | "account">("profile");
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
   // Drawer
@@ -68,20 +68,20 @@ export function ProjectDetailPage() {
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // Sort
-  const [sortBy, setSortBy] = useState<"priority" | "date">("date");
+  const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
 
   // Search
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [_searching, setSearching] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Quick entry
-  const [quickText, setQuickText] = useState("");
+  const [quickText, setQuickText] = useState('');
   const [quickLoading, setQuickLoading] = useState(false);
-  const [quickMessage, setQuickMessage] = useState("");
-  const [quickMessageType, setQuickMessageType] = useState<"success" | "error">("success");
+  const [quickMessage, setQuickMessage] = useState('');
+  const [quickMessageType, setQuickMessageType] = useState<'success' | 'error'>('success');
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -90,21 +90,25 @@ export function ProjectDetailPage() {
   const [voiceOpen, setVoiceOpen] = useState(false);
 
   // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState("Type what you worked on — we'll log it automatically...");
+  const [aiPlaceholder, setAiPlaceholder] = useState(
+    "Type what you worked on — we'll log it automatically..."
+  );
 
   // AI empty message
-  const [aiEmptyMessage, setAiEmptyMessage] = useState("No entries to show yet. Add your first entry above!");
+  const [aiEmptyMessage, setAiEmptyMessage] = useState(
+    'No entries to show yet. Add your first entry above!'
+  );
 
   // Load entries for this project
   const loadEntries = useCallback(async () => {
     if (!email || !projectName) return;
     setLoading(true);
     try {
-      const sortType = sortBy === "priority" ? 1 : 0;
+      const sortType = sortBy === 'priority' ? 1 : 0;
       const result = await sortUnarchivedEntries(email, projectName, sortType);
       setEntries(result?.data || []);
     } catch (err) {
-      console.error("[ProjectDetail] Failed to load entries:", err);
+      console.error('[ProjectDetail] Failed to load entries:', err);
     } finally {
       setLoading(false);
     }
@@ -122,13 +126,17 @@ export function ProjectDetailPage() {
       try {
         const result = await getProjectsByEmail(email);
         if (!cancelled && result?.success) {
-          setAllProjects((result.projects || []).filter((p: Record<string, unknown>) => !p.archived));
+          setAllProjects(
+            (result.projects || []).filter((p: Record<string, unknown>) => !p.archived)
+          );
         }
       } catch {
         // ignore
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [email]);
 
   // Load profile
@@ -147,7 +155,9 @@ export function ProjectDetailPage() {
         }
       } catch {}
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [email]);
 
   // AI-generated placeholder that describes what quick add is
@@ -157,7 +167,9 @@ export function ProjectDetailPage() {
         `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log entry for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
       );
       if (result.success && result.response) {
-        const msg = parseAIResponse(result.response).replace(/^["']|["']$/g, '').trim();
+        const msg = parseAIResponse(result.response)
+          .replace(/^["']|["']$/g, '')
+          .trim();
         if (msg && msg.length <= 80) {
           setAiPlaceholder(msg);
         }
@@ -195,7 +207,9 @@ export function ProjectDetailPage() {
         setSearching(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [searchQuery, email, projectName]);
 
   // Focus search input when opened
@@ -208,13 +222,13 @@ export function ProjectDetailPage() {
   // Close on escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setNewEntryOpen(false);
         setSearchOpen(false);
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Split entries: due soon (within 3 days) at top, rest at bottom
@@ -240,25 +254,28 @@ export function ProjectDetailPage() {
     return { dueSoonEntries: dueSoon, otherEntries: other };
   }, [entries, searchResults]);
 
-  const filteredEntries = searchResults !== null ? searchResults : [...dueSoonEntries, ...otherEntries];
+  const filteredEntries =
+    searchResults !== null ? searchResults : [...dueSoonEntries, ...otherEntries];
 
   // Priority handler
-  const handleSetPriority = async (entryId: string, _projectName: string, priorityValue: string) => {
+  const handleSetPriority = async (
+    entryId: string,
+    _projectName: string,
+    priorityValue: string
+  ) => {
     if (!email) return;
     try {
-      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
+      const priorityLabel = priorityValue === '3' ? null : PRIORITY_LABELS[priorityValue];
       const result = await setPriority(email, priorityValue, projectName!, entryId);
       if (result?.success === false) {
-        console.error("Failed to set priority:", result.message);
+        console.error('Failed to set priority:', result.message);
         return;
       }
       setEntries((prev: Entry[]) =>
-        prev.map((e: Entry) =>
-          e.id === entryId ? { ...e, priority: priorityLabel } : e
-        )
+        prev.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
       );
     } catch (err) {
-      console.error("Failed to set priority:", err);
+      console.error('Failed to set priority:', err);
     }
   };
 
@@ -268,7 +285,7 @@ export function ProjectDetailPage() {
     if (!quickText.trim() || quickLoading || !projectName) return;
 
     setQuickLoading(true);
-    setQuickMessage("");
+    setQuickMessage('');
 
     // Concatenate project context so the NLP engine knows which project
     const enrichedText = `${quickText.trim()} — this entry belongs to project ${projectName}`;
@@ -277,24 +294,24 @@ export function ProjectDetailPage() {
     setQuickLoading(false);
 
     if (result.success) {
-      setQuickText("");
+      setQuickText('');
       const isProjectOnly = (result.data as Record<string, unknown>)?.project_only === true;
       if (isProjectOnly) {
-        const projName = (result.data as Record<string, unknown>)?.project as string || "";
+        const projName = ((result.data as Record<string, unknown>)?.project as string) || '';
         setQuickMessage(`Project "${projName}" created!`);
       } else {
-        setQuickMessage("Entry created!");
+        setQuickMessage('Entry created!');
       }
-      setQuickMessageType("success");
+      setQuickMessageType('success');
       await loadEntries();
     } else {
-      setQuickMessage(result.message || "Failed to create entry");
-      setQuickMessageType("error");
+      setQuickMessage(result.message || 'Failed to create entry');
+      setQuickMessageType('error');
     }
   };
 
   const handleQuickKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleQuickSubmit(e);
     }
@@ -303,13 +320,14 @@ export function ProjectDetailPage() {
   // Auto-dismiss quick message
   useEffect(() => {
     if (quickMessage) {
-      const t = setTimeout(() => setQuickMessage(""), 15000);
+      const t = setTimeout(() => setQuickMessage(''), 15000);
       return () => clearTimeout(t);
     }
   }, [quickMessage]);
 
   // User info
-  const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "User";
+  const fullDisplayName =
+    user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
   const preferredName = (() => {
     if (profileUsername?.trim()) return profileUsername.trim();
     if (!user?.id) return fullDisplayName;
@@ -323,7 +341,7 @@ export function ProjectDetailPage() {
     return fullDisplayName;
   })();
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
-  const provider = user?.app_metadata?.provider || "email";
+  const provider = user?.app_metadata?.provider || 'email';
 
   // Archive project — uses localStorage (DB UPDATE blocked by RLS)
   const handleArchiveProject = async (projName: string) => {
@@ -333,7 +351,7 @@ export function ProjectDetailPage() {
     try {
       await archiveProject(email, projName);
     } catch (err) {
-      console.error("Failed to archive project:", err);
+      console.error('Failed to archive project:', err);
     }
   };
 
@@ -341,15 +359,15 @@ export function ProjectDetailPage() {
     setLoggingOut(true);
     try {
       await signOut();
-      navigate("/signin");
+      navigate('/signin');
     } catch (err) {
-      console.error("Logout error:", err);
+      console.error('Logout error:', err);
     } finally {
       setLoggingOut(false);
     }
   };
 
-  const openSettings = (tab: "profile" | "preferences" | "account") => {
+  const openSettings = (tab: 'profile' | 'preferences' | 'account') => {
     setSettingsTab(tab);
     setSettingsOpen(true);
   };
@@ -362,16 +380,42 @@ export function ProjectDetailPage() {
       <nav className="navbar">
         <div className="navbar-inner">
           <div className="nav-left-group">
-            <button className="nav-hamburger" onClick={() => setDrawerOpen(!drawerOpen)} aria-label="Toggle menu">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              className="nav-hamburger"
+              onClick={() => setDrawerOpen(!drawerOpen)}
+              aria-label="Toggle menu"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <button className="nav-home-btn" onClick={() => navigate("/dashboard")} aria-label="Go to dashboard">
+            <button
+              className="nav-home-btn"
+              onClick={() => navigate('/dashboard')}
+              aria-label="Go to dashboard"
+            >
               <div className="nav-logo">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
                   <path d="M8 7h6" />
                   <path d="M8 11h4" />
@@ -392,15 +436,42 @@ export function ProjectDetailPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="nav-search-input"
                 />
-                <button className="nav-search-close" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                <button
+                  className="nav-search-close"
+                  onClick={() => {
+                    setSearchOpen(false);
+                    setSearchQuery('');
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
               </div>
             ) : (
-              <button className="nav-icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <button
+                className="nav-icon-btn"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
@@ -409,10 +480,10 @@ export function ProjectDetailPage() {
             <div className="nav-user">
               <ProfileMenu
                 displayName={preferredName}
-                email={user?.email || ""}
+                email={user?.email || ''}
                 avatarUrl={avatarUrl}
-                onManageProfile={() => openSettings("profile")}
-                onSettings={() => openSettings("preferences")}
+                onManageProfile={() => openSettings('profile')}
+                onSettings={() => openSettings('preferences')}
                 onSignOut={handleLogout}
                 signingOut={loggingOut}
               />
@@ -425,31 +496,103 @@ export function ProjectDetailPage() {
       {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
 
       {/* Navigation Drawer */}
-      <aside className={`drawer ${drawerOpen ? "drawer-open" : ""}`}>
+      <aside className={`drawer ${drawerOpen ? 'drawer-open' : ''}`}>
         <div className="drawer-header">
           <span className="drawer-title">Navigation</span>
           <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
-          <button className="drawer-item" onClick={() => { navigate("/dashboard"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/dashboard');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
             Home
           </button>
-          <button className="drawer-item" onClick={() => { navigate("/dashboard/archives"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/dashboard/archives');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
+            </svg>
             Archives
           </button>
-          <button className="drawer-item" onClick={() => { navigate("/stats"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/stats');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
             My Stats
           </button>
-          <button className="drawer-item" onClick={() => { navigate("/dashboard/activity"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/dashboard/activity');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
             Activity Log
           </button>
         </div>
@@ -462,15 +605,36 @@ export function ProjectDetailPage() {
               return (
                 <div
                   key={name}
-                  className={`drawer-item ${name === projectName ? "active" : ""}`}
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                  className={`drawer-item ${name === projectName ? 'active' : ''}`}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
                   <button
                     type="button"
-                    onClick={() => { navigate(`/project/${encodeURIComponent(name)}`); setDrawerOpen(false); }}
-                    style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+                    onClick={() => {
+                      navigate(`/project/${encodeURIComponent(name)}`);
+                      setDrawerOpen(false);
+                    }}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      background: 'none',
+                      border: 'none',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                    }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
                     {name}
                     <span className="drawer-badge">{count}</span>
                   </button>
@@ -479,16 +643,16 @@ export function ProjectDetailPage() {
                     onClick={() => handleArchiveProject(name)}
                     title="Archive project"
                     style={{
-                      background: "transparent",
-                      border: "1px solid rgba(139, 115, 85, 0.3)",
-                      color: "var(--text-secondary, #6b7280)",
-                      borderRadius: "0.4rem",
-                      padding: "0.2rem 0.5rem",
-                      fontSize: "0.7rem",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
+                      background: 'transparent',
+                      border: '1px solid rgba(139, 115, 85, 0.3)',
+                      color: 'var(--text-secondary, #6b7280)',
+                      borderRadius: '0.4rem',
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
                     }}
                   >
                     <FiArchive size={12} />
@@ -497,17 +661,38 @@ export function ProjectDetailPage() {
                 </div>
               );
             })}
-            {allProjects.length === 0 && (
-              <p className="drawer-empty">No projects found.</p>
-            )}
+            {allProjects.length === 0 && <p className="drawer-empty">No projects found.</p>}
           </div>
         </div>
         <div className="drawer-footer">
-          <button className="btn-primary drawer-new-btn" onClick={() => { navigate("/dashboard"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <button
+            className="btn-primary drawer-new-btn"
+            onClick={() => {
+              navigate('/dashboard');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             New Project
           </button>
-          <button className="btn-secondary" onClick={() => { navigate("/projects"); setDrawerOpen(false); }} style={{ marginTop: "0.5rem", width: "100%" }}>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              navigate('/projects');
+              setDrawerOpen(false);
+            }}
+            style={{ marginTop: '0.5rem', width: '100%' }}
+          >
             Manage Projects
           </button>
         </div>
@@ -528,14 +713,25 @@ export function ProjectDetailPage() {
           </div>
           {searchQuery && (
             <p className="feed-subtitle">
-              {filteredEntries.length} result{filteredEntries.length !== 1 ? "s" : ""} for "{searchQuery}"
+              {filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''} for "
+              {searchQuery}"
             </p>
           )}
         </div>
 
         {/* Search bar inline for mobile */}
         <div className="feed-search-bar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
           <input
             type="text"
             placeholder={`Search in ${projectName}...`}
@@ -550,17 +746,40 @@ export function ProjectDetailPage() {
           <div className="feed-sort-group">
             <span className="feed-sort-label">Sort:</span>
             <button
-              className={`sort-btn ${sortBy === "date" ? "active" : ""}`}
-              onClick={() => setSortBy("date")}
+              className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`}
+              onClick={() => setSortBy('date')}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
               Date
             </button>
             <button
-              className={`sort-btn ${sortBy === "priority" ? "active" : ""}`}
-              onClick={() => setSortBy("priority")}
+              className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`}
+              onClick={() => setSortBy('priority')}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
               Priority
             </button>
           </div>
@@ -570,8 +789,19 @@ export function ProjectDetailPage() {
         <div className="quick-entry-bar">
           <form className="quick-entry-form" onSubmit={handleQuickSubmit}>
             <div className="quick-entry-input-wrap">
-              <svg className="quick-entry-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              <svg
+                className="quick-entry-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
               </svg>
               <input
                 type="text"
@@ -597,28 +827,54 @@ export function ProjectDetailPage() {
                 disabled={quickLoading || !quickText.trim()}
               >
                 {quickLoading ? (
-                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" /><path d="M12 2a10 10 0 0 1 10 10" />
+                  <svg
+                    className="animate-spin"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 0 1 10 10" />
                   </svg>
                 ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 )}
               </button>
             </div>
           </form>
           {quickMessage && (
-            <div className={`quick-entry-message ${quickMessageType}`}>
-              {quickMessage}
-            </div>
+            <div className={`quick-entry-message ${quickMessageType}`}>{quickMessage}</div>
           )}
         </div>
 
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
-            <div className="animate-spin" style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--accent)" }} />
+            <div
+              className="animate-spin"
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--accent)',
+              }}
+            />
             <p>Loading entries...</p>
           </div>
         )}
@@ -629,12 +885,24 @@ export function ProjectDetailPage() {
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                 </div>
                 <h2 className="empty-title">No results found</h2>
-                <p className="empty-desc">No entries in {projectName} match "{searchQuery}".</p>
+                <p className="empty-desc">
+                  No entries in {projectName} match "{searchQuery}".
+                </p>
               </div>
             ) : (
               <div className="entries-feed">
@@ -658,7 +926,16 @@ export function ProjectDetailPage() {
             {entries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                     <line x1="12" y1="11" x2="12" y2="17" />
@@ -687,12 +964,17 @@ export function ProjectDetailPage() {
 
       {/* FAB — only New Entry (project is already known) */}
       <div className="fab-container">
-        <button
-          className="fab"
-          onClick={() => setNewEntryOpen(true)}
-          aria-label="New entry"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <button className="fab" onClick={() => setNewEntryOpen(true)} aria-label="New entry">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
@@ -707,7 +989,10 @@ export function ProjectDetailPage() {
             <AddEntry
               user_email={email}
               project_name={projectName!}
-              onAdded={() => { setNewEntryOpen(false); loadEntries(); }}
+              onAdded={() => {
+                setNewEntryOpen(false);
+                loadEntries();
+              }}
               onCancel={() => setNewEntryOpen(false)}
             />
           </div>
@@ -718,7 +1003,10 @@ export function ProjectDetailPage() {
       {voiceOpen && (
         <VoiceFeature
           onClose={() => setVoiceOpen(false)}
-          onEntryCreated={() => { setVoiceOpen(false); loadEntries(); }}
+          onEntryCreated={() => {
+            setVoiceOpen(false);
+            loadEntries();
+          }}
         />
       )}
 
@@ -726,9 +1014,9 @@ export function ProjectDetailPage() {
       <SettingsPanel
         open={settingsOpen}
         initialTab={settingsTab}
-        userId={user?.id || ""}
+        userId={user?.id || ''}
         displayName={fullDisplayName}
-        email={user?.email || ""}
+        email={user?.email || ''}
         avatarUrl={avatarUrl}
         provider={provider}
         onClose={() => setSettingsOpen(false)}
@@ -744,9 +1032,15 @@ export function ProjectDetailPage() {
         projectName={projectName!}
         userEmail={email}
         onClose={() => setProjectSettingsOpen(false)}
-        onProjectUpdated={() => { navigate("/dashboard"); }}
-        onProjectDeleted={() => { navigate("/dashboard"); }}
-        onProjectArchived={() => { navigate("/dashboard"); }}
+        onProjectUpdated={() => {
+          navigate('/dashboard');
+        }}
+        onProjectDeleted={() => {
+          navigate('/dashboard');
+        }}
+        onProjectArchived={() => {
+          navigate('/dashboard');
+        }}
       />
     </div>
   );

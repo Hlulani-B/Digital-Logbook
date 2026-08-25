@@ -2,42 +2,33 @@
 
 https://digital-logbook-documentation-site.onrender.com
 
-
 ## AI Usage
 
 This project uses AI-assisted development for the frontend authentication module. See [`AI_USAGE.md`](AI_USAGE.md) for a summary and [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md) for the full declaration.
-
 
 ## Test Coverage
 
 > Badges are auto-updated by CI on every push to `main`.
 
-| Service | Lines | Statements | Functions | Branches |
-| :--- | :---: | :---: | :---: | :---: |
-| **Auth Service** | ![Lines](badges/auth-service/lines.svg) | ![Statements](badges/auth-service/statements.svg) | ![Functions](badges/auth-service/functions.svg) | ![Branches](badges/auth-service/branches.svg) |
+| Service               |                    Lines                     |                       Statements                       |                      Functions                       |                      Branches                      |
+| :-------------------- | :------------------------------------------: | :----------------------------------------------------: | :--------------------------------------------------: | :------------------------------------------------: |
+| **Auth Service**      |   ![Lines](badges/auth-service/lines.svg)    |   ![Statements](badges/auth-service/statements.svg)    |   ![Functions](badges/auth-service/functions.svg)    |   ![Branches](badges/auth-service/branches.svg)    |
 | **Dashboard Service** | ![Lines](badges/dashboard-service/lines.svg) | ![Statements](badges/dashboard-service/statements.svg) | ![Functions](badges/dashboard-service/functions.svg) | ![Branches](badges/dashboard-service/branches.svg) |
-| **Profile Service** | ![Lines](badges/profile-service/lines.svg) | ![Statements](badges/profile-service/statements.svg) | ![Functions](badges/profile-service/functions.svg) | ![Branches](badges/profile-service/branches.svg) |
-| **Project Service** | ![Lines](badges/project-service/lines.svg) | ![Statements](badges/project-service/statements.svg) | ![Functions](badges/project-service/functions.svg) | ![Branches](badges/project-service/branches.svg) |
+| **Profile Service**   |  ![Lines](badges/profile-service/lines.svg)  |  ![Statements](badges/profile-service/statements.svg)  |  ![Functions](badges/profile-service/functions.svg)  |  ![Branches](badges/profile-service/branches.svg)  |
+| **Project Service**   |  ![Lines](badges/project-service/lines.svg)  |  ![Statements](badges/project-service/statements.svg)  |  ![Functions](badges/project-service/functions.svg)  |  ![Branches](badges/project-service/branches.svg)  |
 
-
-##  Deployed Live Services
+## Deployed Live Services
 
 The backend microservices are deployed on Render:
 
-| Service | Environment / Type | Live URL |
-| :--- | :--- | :--- |
-| **Auth Service** | Backend API | [https://auth-service-hl52.onrender.com](https://auth-service-hl52.onrender.com) |
-| **Dashboard Service** | Backend API | [https://dashboard-service-bpc5.onrender.com](https://dashboard-service-bpc5.onrender.com) |
-| **Project Service** | Backend API | [https://project-service-96ml.onrender.com](https://project-service-96ml.onrender.com) |
-| **Profile Service** | Backend API | [https://profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com) |
-
+| Service               | Environment / Type | Live URL                                                                                   |
+| :-------------------- | :----------------- | :----------------------------------------------------------------------------------------- |
+| **Auth Service**      | Backend API        | [https://auth-service-hl52.onrender.com](https://auth-service-hl52.onrender.com)           |
+| **Dashboard Service** | Backend API        | [https://dashboard-service-bpc5.onrender.com](https://dashboard-service-bpc5.onrender.com) |
+| **Project Service**   | Backend API        | [https://project-service-96ml.onrender.com](https://project-service-96ml.onrender.com)     |
+| **Profile Service**   | Backend API        | [https://profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com)     |
 
 test: https://digital-logbook-hlulani.onrender.com
-
-
-
-
-
 
 # Backend
 
@@ -49,35 +40,36 @@ A microservices-based digital logbook app built with React (frontend) and Node.j
 ## Architecture
 
 This is a monorepo containing independent backend services and a React frontend. Each service runs as its own process on its own port.
-
 ```
+
 codacaine/
-├── frontend/                  # React app (Vite)
-│   └── src/
+├── frontend/ # React app (Vite)
+│ └── src/
 ├── services/
-│   ├── auth-service/          # Handles login/signup via Supabase Auth (port 5001)
-│   │   ├── src/index.js
-│   │   ├── package.json
-│   │   └── .env
-│   ├── dashboard-service/     # Cross-project summaries & search (port 5002)
-│   │   ├── src/index.js
-│   │   ├── package.json
-│   │   └── .env
-│   ├── project-service/       # Project entries, timeline, search, stats, AI (port 5003)
-│   │   ├── src/index.js
-│   │   ├── package.json
-│   │   └── .env
-│   └── profile-service/       # User profiles, avatars, preferences (port 5004)
-│       ├── src/index.js
-│       ├── package.json
-│       └── .env
-├── badges/                    # Auto-generated coverage badge SVGs
-├── scripts/                   # Utility scripts (badge generation, etc.)
-├── render.yaml                # Render deployment manifest
+│ ├── auth-service/ # Handles login/signup via Supabase Auth (port 5001)
+│ │ ├── src/index.js
+│ │ ├── package.json
+│ │ └── .env
+│ ├── dashboard-service/ # Cross-project summaries & search (port 5002)
+│ │ ├── src/index.js
+│ │ ├── package.json
+│ │ └── .env
+│ ├── project-service/ # Project entries, timeline, search, stats, AI (port 5003)
+│ │ ├── src/index.js
+│ │ ├── package.json
+│ │ └── .env
+│ └── profile-service/ # User profiles, avatars, preferences (port 5004)
+│ ├── src/index.js
+│ ├── package.json
+│ └── .env
+├── badges/ # Auto-generated coverage badge SVGs
+├── scripts/ # Utility scripts (badge generation, etc.)
+├── render.yaml # Render deployment manifest
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md
-```
+
+````
 
 ## Prerequisites
 
@@ -94,7 +86,7 @@ codacaine/
 ```powershell
 git clone https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook.git
 cd Digital-Logbook
-```
+````
 
 ### 2. Install dependencies for each service
 
@@ -175,16 +167,16 @@ VITE_PROJECT_SERVICE_URL=http://localhost:5003
 VITE_PROFILE_SERVICE_URL=http://localhost:5004
 ```
 
-| Variable | Purpose |
-|---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL (used by the frontend Supabase client) |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key (used for auth operations) |
-| `VITE_SUPABASE_ANON_JWT` | Supabase anon JWT (used for direct REST calls) |
-| `VITE_AUTH_SERVICE_URL` | Auth microservice URL |
-| `VITE_DASHBOARD_SERVICE_URL` | Dashboard microservice URL |
-| `VITE_PROJECT_SERVICE_URL` | Project microservice URL (falls back to deployed URL if not set) |
-| `VITE_PROFILE_SERVICE_URL` | Profile microservice URL (falls back to deployed URL if not set) |
-| `VITE_DEV_BYPASS` | (Optional) Set to `"true"` in dev to bypass auth for testing |
+| Variable                     | Purpose                                                          |
+| ---------------------------- | ---------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`          | Supabase project URL (used by the frontend Supabase client)      |
+| `VITE_SUPABASE_ANON_KEY`     | Supabase anonymous key (used for auth operations)                |
+| `VITE_SUPABASE_ANON_JWT`     | Supabase anon JWT (used for direct REST calls)                   |
+| `VITE_AUTH_SERVICE_URL`      | Auth microservice URL                                            |
+| `VITE_DASHBOARD_SERVICE_URL` | Dashboard microservice URL                                       |
+| `VITE_PROJECT_SERVICE_URL`   | Project microservice URL (falls back to deployed URL if not set) |
+| `VITE_PROFILE_SERVICE_URL`   | Profile microservice URL (falls back to deployed URL if not set) |
+| `VITE_DEV_BYPASS`            | (Optional) Set to `"true"` in dev to bypass auth for testing     |
 
 ### Backend services — all services (`services/*/\.env`)
 
@@ -194,10 +186,10 @@ Every backend service shares the same database connection:
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
-| Variable | Used by | Purpose |
-|---|---|---|
+| Variable       | Used by      | Purpose                                                          |
+| -------------- | ------------ | ---------------------------------------------------------------- |
 | `DATABASE_URL` | All services | PostgreSQL connection string (Supabase Postgres or any Postgres) |
-| `PORT` | All services | Port the service listens on (defaults: 5001–5004) |
+| `PORT`         | All services | Port the service listens on (defaults: 5001–5004)                |
 
 ### Auth Service (`services/auth-service/.env`)
 
@@ -230,14 +222,14 @@ CEREBRAS_API_KEY=
 GROQ_API_KEY=
 ```
 
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_JWKS_URL` | (Optional) Supabase JWKS endpoint for JWT verification. Auto-fetched if not set. |
-| `OPENROUTER_API_KEY` | OpenRouter API key — primary AI provider for natural-language parsing |
-| `HF_API_KEY` | HuggingFace inference API key (fallback AI provider) |
-| `GEMINI_API_KEY` | Google Gemini API key (fallback AI provider) |
-| `CEREBRAS_API_KEY` | Cerebras API key (fallback AI provider) |
-| `GROQ_API_KEY` | Groq API key (fallback AI provider) |
+| Variable             | Purpose                                                                          |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `SUPABASE_JWKS_URL`  | (Optional) Supabase JWKS endpoint for JWT verification. Auto-fetched if not set. |
+| `OPENROUTER_API_KEY` | OpenRouter API key — primary AI provider for natural-language parsing            |
+| `HF_API_KEY`         | HuggingFace inference API key (fallback AI provider)                             |
+| `GEMINI_API_KEY`     | Google Gemini API key (fallback AI provider)                                     |
+| `CEREBRAS_API_KEY`   | Cerebras API key (fallback AI provider)                                          |
+| `GROQ_API_KEY`       | Groq API key (fallback AI provider)                                              |
 
 ### Profile Service (`services/profile-service/.env`)
 
@@ -248,18 +240,15 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 ### Port Summary
 
-| Service | Default Port |
-|---|---|
-| auth-service | 5001 |
-| dashboard-service | 5002 |
-| project-service | 5003 |
-| profile-service | 5004 |
-| frontend (Vite dev server) | 3000 |
+| Service                    | Default Port |
+| -------------------------- | ------------ |
+| auth-service               | 5001         |
+| dashboard-service          | 5002         |
+| project-service            | 5003         |
+| profile-service            | 5004         |
+| frontend (Vite dev server) | 3000         |
 
 Get the Supabase URL, keys, and database connection string from the team lead or Supabase project settings — **do not commit these values to the repo**.
-
-
-
 
 ## Running Tests
 

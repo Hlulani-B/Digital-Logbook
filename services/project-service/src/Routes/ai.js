@@ -12,12 +12,16 @@ router.post('/ai', async (req, res) => {
   try {
     const user_email = req.userEmail;
     if (!user_email) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: verified email not available' });
+      return res
+        .status(401)
+        .json({ success: false, error: 'Unauthorized: verified email not available' });
     }
 
     const { prompt } = req.body;
     if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ success: false, error: 'Prompt is required and must be a string' });
+      return res
+        .status(400)
+        .json({ success: false, error: 'Prompt is required and must be a string' });
     }
 
     console.log(`[/ai] Prompt from ${user_email}: ${prompt.slice(0, 80)}...`);

@@ -6,12 +6,12 @@ This repository uses AI-assisted development for the frontend authentication mod
 
 ## Quick Reference
 
-| Item | Location |
-|---|---|
-| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md) |
-| **Student** | Nasiphi Ntontela (2673619) |
-| **AI tool** | Qoder (AI Coding Assistant for VS Code) |
-| **Scope of AI use** | Frontend authentication, profile/settings UI, Supabase auth integration |
+| Item                        | Location                                                                |
+| --------------------------- | ----------------------------------------------------------------------- |
+| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)              |
+| **Student**                 | Nasiphi Ntontela (2673619)                                              |
+| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                 |
+| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration |
 
 ---
 
@@ -49,6 +49,7 @@ The following frontend features were implemented with AI acting as a code-genera
 The project initially used **Resend** for SMTP email delivery (account confirmation and password reset emails). This was later switched to **Brevo** because Resend logs showed no email activity and emails were not being delivered.
 
 Current setup:
+
 - **Provider:** Brevo SMTP
 - **Host:** `smtp-relay.brevo.com`
 - **Port:** `587`

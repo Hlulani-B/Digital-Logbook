@@ -111,9 +111,7 @@ describe('Natural_language (priority)', () => {
   });
 
   it('should return failure when AI returns invalid JSON', async () => {
-    const mockProjects = [
-      { project_name: 'WebApp', description: 'Main app', archived: false },
-    ];
+    const mockProjects = [{ project_name: 'WebApp', description: 'Main app', archived: false }];
     pool.query.mockResolvedValueOnce({ rows: mockProjects });
     pool.query.mockResolvedValueOnce({ rows: [] }); // fields for WebApp
 
@@ -126,16 +124,16 @@ describe('Natural_language (priority)', () => {
   });
 
   it('should return failure when AI claims a project not in the list', async () => {
-    const mockProjects = [
-      { project_name: 'WebApp', description: 'Main app', archived: false },
-    ];
+    const mockProjects = [{ project_name: 'WebApp', description: 'Main app', archived: false }];
     pool.query.mockResolvedValueOnce({ rows: mockProjects });
     pool.query.mockResolvedValueOnce({ rows: [] }); // fields
 
-    AI.mockResolvedValue(JSON.stringify({
-      project: 'NonExistent',
-      fields: { description: 'test' },
-    }));
+    AI.mockResolvedValue(
+      JSON.stringify({
+        project: 'NonExistent',
+        fields: { description: 'test' },
+      })
+    );
 
     const result = await nl.entry('test@example.com', 'did something');
 
@@ -144,17 +142,17 @@ describe('Natural_language (priority)', () => {
   });
 
   it('should successfully match a project and create an entry', async () => {
-    const mockProjects = [
-      { project_name: 'WebApp', description: 'Main app', archived: false },
-    ];
+    const mockProjects = [{ project_name: 'WebApp', description: 'Main app', archived: false }];
     pool.query.mockResolvedValueOnce({ rows: mockProjects });
     pool.query.mockResolvedValueOnce({ rows: [] }); // fields
     pool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // insert entry
 
-    AI.mockResolvedValue(JSON.stringify({
-      project: 'WebApp',
-      fields: { description: 'Fixed login bug' },
-    }));
+    AI.mockResolvedValue(
+      JSON.stringify({
+        project: 'WebApp',
+        fields: { description: 'Fixed login bug' },
+      })
+    );
 
     const result = await nl.entry('test@example.com', 'Fixed login bug in WebApp');
 

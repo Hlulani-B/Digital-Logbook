@@ -46,6 +46,7 @@ style: |
 ---
 
 <!-- _class: lead -->
+
 # Authentication & Profile Management
 
 ## Sprint 1 Presentation
@@ -71,12 +72,12 @@ From the Sprint 1 backlog and project brief:
 
 # Authentication providers
 
-| Provider | Flow |
-| --- | --- |
-| **Google OAuth** | One-click sign-in; account auto-created |
-| **GitHub OAuth** | One-click sign-in; account auto-created |
-| **Email / Password** | Sign-up → confirmation email → sign-in |
-| **Magic link** | Used for account restoration after soft delete |
+| Provider             | Flow                                           |
+| -------------------- | ---------------------------------------------- |
+| **Google OAuth**     | One-click sign-in; account auto-created        |
+| **GitHub OAuth**     | One-click sign-in; account auto-created        |
+| **Email / Password** | Sign-up → confirmation email → sign-in         |
+| **Magic link**       | Used for account restoration after soft delete |
 
 **Tech stack:** Supabase Auth + Brevo SMTP
 
@@ -128,12 +129,14 @@ From the Sprint 1 backlog and project brief:
 # Profile menu & settings
 
 **Avatar dropdown gives quick access to:**
+
 - Name / email display
 - Manage Profile
 - Settings
 - Sign out
 
 **Settings panel has three tabs:**
+
 1. **Profile** — preferred name, role, student number, bio
 2. **Preferences** — default view, week start, time format, auto-save, compact mode, notifications
 3. **Account** — email, sign-in method, password reset, delete account
@@ -154,18 +157,20 @@ From the Sprint 1 backlog and project brief:
 
 # Architecture & code quality
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 19 + TypeScript + Vite |
-| Auth | Supabase Auth |
-| Backend service | `auth-service` (Express) |
-| SMTP | Brevo |
+| Layer           | Technology                   |
+| --------------- | ---------------------------- |
+| Frontend        | React 19 + TypeScript + Vite |
+| Auth            | Supabase Auth                |
+| Backend service | `auth-service` (Express)     |
+| SMTP            | Brevo                        |
 
 **Tests added in Sprint 1:**
+
 - `auth-service` routes — Jest + Supertest
 - `AuthContext` — Vitest + React Testing Library
 
 **CI/CD:**
+
 - Gitea Actions runs lint, build, and tests on every push
 - Coverage badges auto-generated
 
@@ -183,6 +188,7 @@ From the Sprint 1 backlog and project brief:
 ---
 
 <!-- _class: lead -->
+
 # Questions?
 
 ## Thank you
