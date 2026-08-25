@@ -1,30 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useReactMediaRecorder } from "react-media-recorder";
 import { FiMic, FiStopCircle, FiRefreshCw, FiSkipBack, FiSend, FiX } from "react-icons/fi";
-import { askAI } from "@/functions/ai.js";
-import { createTranscriber, quickAdd } from "@/functions/voicefeature.js";
-import { getToneInstruction } from "@/functions/tone";
-
-/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
-function parseAIResponse(response) {
-  try {
-    const parsed = JSON.parse(response);
-    if (typeof parsed === "string") return parsed;
-    // Extract first string value from object (handles message, instruction, response, text, etc.)
-    if (typeof parsed === "object" && parsed !== null) {
-      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
-        if (typeof parsed[key] === "string") return parsed[key];
-      }
-      // Fallback: return first string value found
-      for (const val of Object.values(parsed)) {
-        if (typeof val === "string") return val;
-      }
-    }
-    return response;
-  } catch {
-    return response;
-  }
-}
+import { createTranscriber } from "@/functions/voicefeature.js";
+import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
 
 /**
  * VoiceFeature — full-screen voice recorder modal.
@@ -36,7 +14,6 @@ function parseAIResponse(response) {
  */
 export default function VoiceFeature({ onClose, onEntryCreated }) {
   const [status, setStatus] = useState("idle"); // idle | recording | recorded | sending | done | error
-  const [aiPrompt, setAiPrompt] = useState("Say a log entry or describe a new project...");
   const [transcript, setTranscript] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [aiConfirmation, setAiConfirmation] = useState("");
@@ -84,18 +61,8 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Ask AI for a spoken prompt on mount
-  useEffect(() => {
-    (async () => {
-      const tone = getToneInstruction();
-      const result = await askAI(
-        `Generate a very short 1-sentence prompt telling the user to speak their log entry. Keep it brief and direct — no roasts, no fluff. ${tone}`
-      );
-      if (result.success && result.response) {
-        setAiPrompt(parseAIResponse(result.response));
-      }
-    })();
-  }, []);
+  // Static prompt — no AI call needed
+  const aiPrompt = "Say a log entry or describe a new project...";
 
   // Elapsed timer — removed, using circle animation only
 
@@ -142,30 +109,32 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   const handleSend = async () => {
     if (!transcript.trim()) return;
     setStatus("sending");
-    const result = await quickAdd(transcript.trim());
+
+    // Send transcript to natural language entry — same as quick add
+    const result = await addNaturalLanguageEntry(transcript.trim());
+
     if (result.success) {
-      // Generate AI confirmation
-      const tone = getToneInstruction();
-      const confirmResult = await askAI(
-        `Generate a confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about what they said, how they said it, or the content of their entry. Be witty and entertaining. ${tone}`
-      );
-      if (confirmResult.success && confirmResult.response) {
-        setAiConfirmation(parseAIResponse(confirmResult.response));
+      const data = result.data || {};
+      const isProjectOnly = data.project_only === true;
+      const isMulti = data.multi === true;
+
+      // Build confirmation message
+      let confirmMsg = "Entry created!";
+      if (isMulti) {
+        const oldCount = data.results?.old?.length || 0;
+        const newCount = data.results?.new?.length || 0;
+        confirmMsg = `Added ${oldCount + newCount} ${oldCount + newCount === 1 ? 'entry' : 'entries'}!`;
+      } else if (isProjectOnly) {
+        confirmMsg = `Project "${data.project}" created!`;
       }
+      setAiConfirmation(confirmMsg);
       setStatus("done");
       if (onEntryCreated) onEntryCreated();
-      setTimeout(onClose, 15000);
+      setTimeout(onClose, 4000);
     } else {
-      // Generate AI error message
-      const tone = getToneInstruction();
-      const errorResult = await askAI(
-        `Generate a very short 1-sentence error message telling the user their entry couldn't be saved and to try again. Keep it brief — no roasts, no fluff. ${tone}`
-      );
-      if (errorResult.success && errorResult.response) {
-        setErrorMsg(parseAIResponse(errorResult.response));
-      } else {
-        setErrorMsg(result.message || "Failed to create entry. Please try again.");
-      }
+      const actualError = result.message || "Failed to create entry. Please try again.";
+      console.error("[VoiceFeature] Entry failed:", actualError);
+      setErrorMsg(actualError);
       setStatus("error");
     }
   };

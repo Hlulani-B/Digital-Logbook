@@ -265,3 +265,73 @@ All 33 unit tests pass, including 8 misspelling test cases and edge cases like "
 4 backend functions (`setPriority`, `deleteProfile`, `searchProjects`, `getArchives`) were never connected to the frontend.
 
 **Fix:** Wired up the functions to their respective frontend pages and components.
+
+---
+
+## Natural Language Entry Parsing
+
+### Issue 24: AI Returning `old` Entries in Wrong Format for matched=3
+
+The backend expected `old` entries as `[{"ProjectName": {field: value}}]` (key = project name), but the AI returned `[{"project_name": "...", "fields": {...}}]`. This caused errors like `Project "project_name" not found, skipping.` and `Project "fields" not found, skipping.`.
+
+**Fix:** Updated the backend to detect and handle both formats. If the item has a `project_name` key with a `fields` property, it uses that format. Otherwise, it falls back to the original key-as-project-name format.
+
+### Issue 25: "Project Already Exists" Error When AI Places Existing Project in `new` Array
+
+When the AI put an existing project in the `new` array (instead of `old`), the backend tried to create it and failed with: `Failed to create project "Social Activities": A project with this name already exists for your account.`
+
+**Fix:** Before creating a new project, the backend now checks if the project already exists. If it does, it adds the entry to the existing project instead of failing.
+
+### Issue 26: AI Extracting Raw Words Instead of Paraphrasing
+
+The AI was copying the user's raw speech verbatim (e.g., "gonna grab some food") or extracting just keywords (e.g., "food") instead of writing clean, well-phrased descriptions.
+
+**Fix:** Updated the AI prompt (Steps 0 and 5) to enforce strict paraphrasing:
+- Step 0: "PARAPHRASE neatly into clear, well-written task descriptions" with explicit correct/wrong examples
+- Step 5: Renamed from "PRESERVE FULL TEXT" to "PARAPHRASE NEATLY (STRICT)" — the AI must rewrite casual speech into clean descriptions, not copy raw text or extract keywords
+
+---
+
+## Voice Feature
+
+### Issue 27: Voice Feature Using Unnecessary AI Calls
+
+The voice feature was making extra AI calls for spoken prompts, confirmation messages, and error messages. These calls were slow, unnecessary, and could fail if AI providers were unavailable.
+
+**Fix:** Stripped the voice feature down to the essentials — record audio, get transcript, send to `addNaturalLanguageEntry()` (same function as quick add). Removed all `askAI` calls. Confirmation messages are now built directly from the response data.
+
+---
+
+## UI & Layout
+
+### Issue 28: Entry Cards Overflowing Grid — Cards Cut Off at Viewport Edge
+
+Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscellaneous Tasks" card and others to be cut off at the viewport edge instead of wrapping or shrinking.
+
+**Root cause:** Multiple CSS issues:
+1. `.entries-feed` grid used `1fr` instead of `minmax(0, 1fr)` — `1fr` allows grid blowout where content wider than the column forces it open
+2. `<table>` elements inside cards have intrinsic minimum width that resists shrinking
+3. `.entry-box__field-key` had `white-space: nowrap` forcing field labels to never wrap
+4. `.entry-box__header-right` had `flex-shrink: 0` preventing the project name area from shrinking
+5. `.entry-box__project` had no overflow handling — long project names forced the card wider
+
+**Fix:**
+- `.entries-feed`: Changed all `1fr` to `minmax(0, 1fr)` across all breakpoints
+- `.entry-box`: Added `overflow: hidden` + `max-width: 100%`
+- `.entry-box__table`: Added `table-layout: fixed`
+- `.entry-box__field-key`: Removed `white-space: nowrap`, replaced with `overflow-wrap: break-word`
+- `.entry-box__header-right`: Changed `flex-shrink: 0` to `flex-shrink: 1` + `min-width: 0`
+- `.entry-box__project`: Added `text-overflow: ellipsis` + `overflow: hidden` — long names truncate with "..."
+- `.entry-box__meta`: Added `min-width: 0` + `overflow: hidden`
+
+### Issue 29: Hamburger Menu on Project Page Navigating to Dashboard Instead of Opening Drawer
+
+The hamburger icon on the project detail page navigated to the dashboard/home instead of opening the navigation drawer.
+
+**Fix:** Added a full navigation drawer to `ProjectDetailPage` (matching the Dashboard drawer) with projects list, views, entry count badges, archive buttons per project, and a "Manage Projects" button. Fixed the hamburger to toggle (`!drawerOpen`) instead of always opening.
+
+### Issue 30: Activity Log Truncating Entry Text at 60 Characters
+
+Entries in the Activity Log were cut off with "..." at 60 characters, so the full text of what was actually typed was never visible.
+
+**Fix:** Increased the `truncateName` limit from 60 to 120 characters in `ActivityFeed.tsx`. Added `overflow-wrap: break-word` to `.activity-text` and `.activity-entity-name` CSS classes.

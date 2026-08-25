@@ -17,6 +17,7 @@ import { ToneSetup } from "@/pages/ToneSetup";
 import { ThemeSetup } from "@/pages/ThemeSetup";
 import { FrequencySetup } from "@/pages/FrequencySetup";
 import { ProjectsPage } from "@/pages/Project";
+import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
 import { StatsView } from "@/pages/StatsView";
 import { StreakView } from "@/pages/StreakView";
 
@@ -171,6 +172,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/:projectName"
+            element={
+              <ProtectedRoute>
+                <ProjectDetailPage />
               </ProtectedRoute>
             }
           />

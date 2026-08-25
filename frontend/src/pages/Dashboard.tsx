@@ -633,14 +633,16 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <div className="nav-logo">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                <path d="M8 7h6" />
-                <path d="M8 11h4" />
-              </svg>
-            </div>
-            <span className="nav-title">Digital Logbook</span>
+            <button className="nav-home-btn" onClick={() => navigate("/dashboard")} aria-label="Go to dashboard">
+              <div className="nav-logo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                  <path d="M8 7h6" />
+                  <path d="M8 11h4" />
+                </svg>
+              </div>
+              <span className="nav-title">Digital Logbook</span>
+            </button>
           </div>
 
           <div className="nav-right-group">
@@ -700,8 +702,8 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
           <button className={`drawer-item ${activeView === "all" ? "active" : ""}`} onClick={() => { navigate("/dashboard/all"); setDrawerOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            All Entries
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Home
             <span className="drawer-badge">{entries.length}</span>
           </button>
           <button className={`drawer-item ${activeView === "archives" ? "active" : ""}`} onClick={() => { setActiveView("archives"); setDrawerOpen(false); }}>
@@ -732,7 +734,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
                 >
                   <button
                     type="button"
-                    onClick={() => { setActiveView(name); setDrawerOpen(false); }}
+                    onClick={() => { navigate(`/project/${encodeURIComponent(name)}`); setDrawerOpen(false); }}
                     style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
@@ -793,7 +795,7 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <h1 className="feed-title">
-                {activeView === "all" ? "All Entries" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
+                {activeView === "all" ? "Dashboard" : activeView === "recent" ? "Recent" : activeView === "drafts" ? "Drafts" : activeView === "archives" ? "Archives" : activeView === "activity" ? "Activity Log" : activeView}
               </h1>
               {/* Project settings three-dots menu - only show for specific projects */}
               {activeView !== "all" && activeView !== "recent" && activeView !== "drafts" && activeView !== "archives" && activeView !== "activity" && (
@@ -1038,10 +1040,11 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
           </div>
         )}
         <button className={`fab ${fabOpen ? "fab-open" : ""}`} onClick={() => setFabOpen(!fabOpen)} aria-label="Quick actions">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
+          <span className="fab-label">New</span>
         </button>
       </div>
 

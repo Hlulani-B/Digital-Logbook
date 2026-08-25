@@ -43,11 +43,25 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
 
     if (result.success) {
       setText("");
-      setMessage("Entry created!");
+      const data = result.data as Record<string, unknown>;
+      const isProjectOnly = data?.project_only === true;
+      const isMulti = data?.multi === true;
+      if (isMulti) {
+        const results = data.results as Record<string, unknown[]> | undefined;
+        const oldCount = results?.old?.length || 0;
+        const newCount = results?.new?.length || 0;
+        const total = oldCount + newCount;
+        setMessage(`Added ${total} ${total === 1 ? 'entry' : 'entries'} across ${total} ${total === 1 ? 'project' : 'projects'}!`);
+      } else if (isProjectOnly) {
+        const projName = data?.project as string || "";
+        setMessage(`Project "${projName}" created!`);
+      } else {
+        setMessage("Entry created!");
+      }
       setMessageType("success");
-      const comment = result.data?.comment || result.data?.data?.comment;
+      const comment = data?.comment || (data?.data as Record<string, unknown>)?.comment;
       if (comment) {
-        setToast(comment);
+        setToast(comment as string);
       }
       if (onEntryCreated) onEntryCreated();
     } else {

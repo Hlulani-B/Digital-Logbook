@@ -66,6 +66,20 @@ function formatFieldValue(value: unknown): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "object") return JSON.stringify(value);
+  // If it's a string that looks like JSON, try to parse and format it
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "object" && parsed !== null) {
+        // It's a JSON object, format each key-value pair
+        return Object.entries(parsed)
+          .map(([k, v]) => `${formatFieldKey(k)}: ${formatFieldValue(v)}`)
+          .join(", ");
+      }
+    } catch {
+      // Not valid JSON, return as-is
+    }
+  }
   return String(value);
 }
 
@@ -114,6 +128,19 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     status = "up_next",
   } = entry;
 
+  // Parse entries if they come as a JSON string from the database
+  const parsedEntries = (() => {
+    if (!entries) return {};
+    if (typeof entries === "string") {
+      try {
+        return JSON.parse(entries);
+      } catch {
+        return {};
+      }
+    }
+    return entries;
+  })();
+
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -146,7 +173,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
 
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
+      Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
     )
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
@@ -171,7 +198,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
-  const entryFields = Object.entries(entries || {});
+  const entryFields = Object.entries(parsedEntries || {});
   const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
   const startedLabel = formatDate(started_at);
@@ -186,7 +213,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
   const handleCancel = () => {
     setDraftFields(
       Object.fromEntries(
-        Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
+        Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
       )
     );
     setDraftDueDate(toInputDate(due_date));
@@ -465,6 +492,42 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
 
   return (
     <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
+      <div className="entry-box__top-row">
+        <div className="entry-box__menu-wrap" ref={menuRef}>
+          <button
+            type="button"
+            className="entry-box__menu-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Entry options"
+            aria-expanded={menuOpen}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div className="entry-box__menu">
+              <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item entry-box__menu-item--danger"
+                onClick={handleToggleArchive}
+                disabled={archiving}
+              >
+                {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item entry-box__menu-item--danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="entry-box__header">
         <div className="entry-box__tags">
           {onPriorityChanged ? (
@@ -500,41 +563,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
           )}
         </div>
         <span className="entry-box__project">{project_name}</span>
-      </div>
-
-      <div className="entry-box__menu-wrap" ref={menuRef}>
-        <button
-          type="button"
-          className="entry-box__menu-btn"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Entry options"
-          aria-expanded={menuOpen}
-        >
-          ⋯
-        </button>
-        {menuOpen && (
-          <div className="entry-box__menu">
-            <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-              Edit
-            </button>
-            <button
-              type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleToggleArchive}
-              disabled={archiving}
-            >
-              {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
-            </button>
-            <button
-              type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete"}
-            </button>
-          </div>
-        )}
       </div>
 
       {entryFields.length > 0 && (
