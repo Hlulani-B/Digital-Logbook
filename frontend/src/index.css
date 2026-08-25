@@ -3108,6 +3108,60 @@ img { max-width: 100%; }
   background: var(--accent-glow);
 }
 
+/* ========== DASHBOARD LIVE TIMER BANNER ========== */
+.dash-timer-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius);
+  background: var(--accent-glow, rgba(99, 102, 241, 0.08));
+  border: 1px solid var(--accent, #6366f1);
+  font-family: var(--font-body, "Lora", serif);
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.dash-timer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #6366f1);
+  flex-shrink: 0;
+  animation: dash-timer-pulse 1.6s ease-in-out infinite;
+}
+@keyframes dash-timer-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.75); }
+}
+.dash-timer-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.dash-timer-project {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 14rem;
+}
+.dash-timer-elapsed {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: var(--accent, #6366f1);
+}
+.dash-timer-extra {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* ========== FEED STATS PANEL ========== */
 .feed-stats-panel {
   background: var(--surface);

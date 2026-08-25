@@ -22,6 +22,8 @@ import { AddEntry } from "@/pages/AddEntry";
 import VoiceFeature from "@/pages/VoiceFeature";
 import { askAI } from "@/functions/ai.js";
 import { getToneInstruction } from "@/functions/tone";
+import { entryDurationMs, formatTimer } from "@/functions/dashboard/stats.js";
+import { useNow } from "@/hooks/useNow";
 import { FiArchive, FiX } from "react-icons/fi";
 
 /** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
@@ -325,6 +327,23 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
 
     return filtered;
   }, [entries, activeView, searchResults, viewMode]);
+
+  // In-progress entries (started but not ended). Drives the live dashboard timer.
+  const inProgressEntries = useMemo(
+    () => entries.filter((e) => e.started_at && !e.ended_at),
+    [entries]
+  );
+  // Tick every second only while a task is running.
+  const liveNow = useNow(1000, inProgressEntries.length > 0);
+  const primaryTimer = useMemo(() => {
+    if (inProgressEntries.length === 0) return null;
+    const first = inProgressEntries[0];
+    return {
+      projectName: (first.project_name as string) || "Unknown",
+      elapsed: formatTimer(entryDurationMs(first, liveNow)),
+      extraCount: inProgressEntries.length - 1,
+    };
+  }, [inProgressEntries, liveNow]);
 
   // AI-generated empty state message
   useEffect(() => {
@@ -840,6 +859,19 @@ export function Dashboard({ defaultView = "all" }: DashboardProps) {
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
+
+        {/* Live running-timer banner — shows when a task is in progress */}
+        {primaryTimer && activeView !== "activity" && activeView !== "archives" && (
+          <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
+            <span className="dash-timer-dot" />
+            <span className="dash-timer-label">Timer running</span>
+            <span className="dash-timer-project">{primaryTimer.projectName}</span>
+            <span className="dash-timer-elapsed">{primaryTimer.elapsed}</span>
+            {primaryTimer.extraCount > 0 && (
+              <span className="dash-timer-extra">+{primaryTimer.extraCount} more</span>
+            )}
+          </div>
+        )}
 
         {/* Search bar inline for mobile */}
         {activeView === "activity" ? (
