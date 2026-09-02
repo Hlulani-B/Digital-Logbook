@@ -77,4 +77,6 @@ nav:
       - Stakeholder Interaction: development/stakeholder-interaction.md
       - Open Questions & Decisions: development/decisions.md
       - Issues & Troubleshooting: development/issues.md
+      - Code Quality Tools: development/code-quality.md
+      - Testing & User Feedback: development/testing.md
       - AI Attribution: development/ai-attribution.md
