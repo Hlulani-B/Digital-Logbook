@@ -424,3 +424,79 @@ After submitting a natural language entry, the user had to wait for the full rou
 5. Backend continues with DB writes and activity logging (POST response arrives later)
 
 **Result:** UI updates in 1–2s (after AI parsing) instead of 3–5s (full round-trip).
+
+---
+
+## Keep-Alive & Free-Tier Inactivity
+
+### Issue 34: Render Free Tier Sleeps After 15 Minutes — In-Process Daemon Never Fires
+
+The `dashboard-service` had a `setInterval` daemon that was supposed to ping Supabase every 12 hours to prevent database pausing. However, Render's free tier sleeps the entire service container after 15 minutes of inactivity. When the container is asleep, `setInterval` is suspended — the daemon never fires, and Supabase still gets paused.
+
+**Root cause:** Render free tier does not support long-running background processes. The container is put to sleep when no HTTP traffic arrives. Node.js `setInterval` is paused along with everything else.
+
+**Fix:** Replaced the passive daemon with an active external trigger. A GitHub Actions workflow (`.github/workflows/keep-alive.yml`) sends `curl` to `GET /service/health-ping` every 10 minutes. This endpoint:
+1. Wakes the Render container (prevents Render sleep)
+2. Calls `ping()` which writes "hello hlulani" to Supabase (prevents Supabase pause)
+
+The internal `setInterval` daemon is kept as a fallback in case GitHub Actions has an outage.
+
+**Takeaway:** Free-tier PaaS platforms (Render, Railway, Fly.io) do not guarantee persistent process execution. Background daemons that rely on `setInterval` or `cron` within the process are unreliable. Use an external trigger (GitHub Actions, cron-job.org, UptimeRobot) to periodically hit an HTTP endpoint instead.
+
+### Issue 35: EventSource API Cannot Send Custom Headers (JWT)
+
+The SSE implementation used the browser's `EventSource` API to listen for real-time entry updates. However, `EventSource` does not support setting custom HTTP headers — meaning the JWT token could not be sent via the standard `Authorization: Bearer <token>` header.
+
+**Root cause:** The `EventSource` constructor only accepts a URL string. There is no way to pass a `headers` option. This is a known limitation of the EventSource API specification.
+
+**Fix:** Added query parameter support to the auth middleware (`services/project-service/src/middleware/auth.js`). The middleware now checks for the token in two places:
+
+```javascript
+let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+if (!token && req.query?.token) { token = req.query.token; }
+```
+
+The frontend SSE manager constructs the URL as:
+```javascript
+const url = `${PROJECT_URL}/service/nl-stream?token=${encodeURIComponent(token)}`;
+```
+
+**Takeaway:** When using SSE with authenticated endpoints, either use cookies (which EventSource sends automatically) or pass the token as a URL query parameter. The query param approach requires the auth middleware to check both the `Authorization` header and `req.query.token`.
+
+### Issue 36: Jest Module Caching Causes Test State to Leak Between Tests
+
+The SSE registry tests (14 tests) failed because the module-level `Map` that stores connections accumulated state across tests. Jest does not reset modules between tests by default, so connections registered in test 1 were still present in test 2.
+
+**Root cause:** `sseRegistry.js` uses a module-level `const connections = new Map()`. When Jest imports the module once and runs all tests against it, the Map persists across the entire test suite.
+
+**Fix:** Added a `_resetRegistry()` export to `sseRegistry.js` that clears the Map. Tests call this in `beforeEach()`:
+
+```javascript
+// sseRegistry.js
+export function _resetRegistry() { connections.clear(); }
+
+// sseRegistry.test.js
+beforeEach(() => { _resetRegistry(); });
+```
+
+The underscore prefix signals this is test-only and should not be used in production code.
+
+**Takeaway:** Any module that uses module-level mutable state (Maps, Sets, arrays) needs a reset mechanism for test isolation. Without it, tests become order-dependent and flaky.
+
+### Issue 37: Vitest Fake Timers Don't Flush Async Operations
+
+The frontend SSE reconnection tests used `vi.advanceTimersByTime()` to simulate the passage of time for exponential backoff. However, `connectSSE()` is an async function (it uses `await import()` for the Supabase module), and `advanceTimersByTime()` only advances synchronous timers — it does not flush pending microtasks/promises.
+
+**Root cause:** `vi.advanceTimersByTime()` is synchronous. It advances the clock but does not await any pending promises. If the code under test has `await` expressions, the microtask queue is not drained.
+
+**Fix:** Replaced `vi.advanceTimersByTime()` with `vi.advanceTimersByTimeAsync()` which both advances the clock AND flushes the microtask queue:
+
+```javascript
+// Before (fails — async operations not flushed)
+vi.advanceTimersByTime(1000);
+
+// After (works — async operations complete)
+await vi.advanceTimersByTimeAsync(1000);
+```
+
+**Takeaway:** When testing async code with fake timers in Vitest, always use `vi.advanceTimersByTimeAsync()` instead of `vi.advanceTimersByTime()`. The synchronous version is only safe for purely synchronous code.
