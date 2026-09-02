@@ -390,3 +390,37 @@ After implementing IndexedDB caching, a user's cached data (projects, entries, p
 **Root cause:** The `signOut` and `deleteAccount` functions in `AuthContext.tsx` did not clear the IndexedDB cache.
 
 **Fix:** Added `clearUserCache(email)` calls to both `signOut` and `deleteAccount` in `AuthContext.tsx`. The cache is now wiped for the current user before the Supabase sign-out completes, ensuring no stale data leaks between sessions.
+
+---
+
+## SSE Real-Time Entry Updates
+
+### Issue 33: Slow UI Update After Natural Language Entry Submission
+
+After submitting a natural language entry, the user had to wait for the full round-trip (AI parsing + DB writes + activity logging + POST response) before the UI updated. This took 3–5 seconds, even though the AI parsing itself only took 1–2 seconds.
+
+**Root cause:** The frontend only updated the UI when the POST response arrived. The POST response was delayed by database writes and activity logging that happened after AI parsing.
+
+**Fix:** Implemented **Server-Sent Events (SSE)** to push parsed data to the frontend the moment AI parsing completes, before DB writes finish.
+
+**Implementation:**
+
+| Component | File | Purpose |
+|---|---|---|
+| SSE Registry | `services/project-service/src/functions/sseRegistry.js` | Manages per-user SSE connections |
+| SSE Endpoint | `GET /service/nl-stream` | Persistent SSE stream for each user |
+| SSE Push | `POST /service/natural-language-entry` | Pushes parsed data via SSE after AI returns |
+| Auth Middleware | `services/project-service/src/middleware/auth.js` | Accepts JWT via query param for SSE |
+| SSE Manager | `frontend/src/lib/sse.js` | Frontend SSE connection with auto-reconnect |
+| React Hook | `frontend/src/hooks/useSSEEntries.ts` | Connects SSE events to IndexedDB + UI |
+| AuthContext | `frontend/src/context/AuthContext.tsx` | Disconnects SSE on sign-out |
+
+**Flow:**
+
+1. User submits natural language text
+2. Frontend sends POST + listens on SSE stream
+3. Backend AI parses text → pushes structured data via SSE immediately
+4. Frontend receives SSE event → invalidates IndexedDB cache → reloads UI
+5. Backend continues with DB writes and activity logging (POST response arrives later)
+
+**Result:** UI updates in 1–2s (after AI parsing) instead of 3–5s (full round-trip).

@@ -1,6 +1,7 @@
 import express from 'express';
 import { Entries, Natural_language } from '../functions/entries.js';
 import { logActivity } from '../functions/activityLog.js';
+import { registerConnection, removeConnection, sendToUser } from '../functions/sseRegistry.js';
 
 const router = express.Router();
 
@@ -173,9 +174,54 @@ router.post('/entry', async (req, res) => {
 });
 
 /**
+ * SSE endpoint for real-time natural language entry updates.
+ * GET /service/nl-stream
+ * The frontend opens this as an EventSource. When the backend finishes
+ * parsing a natural language input, it pushes the structured data here
+ * immediately — before the full POST response cycle completes.
+ */
+router.get('/nl-stream', async (req, res) => {
+  const user_email = req.userEmail;
+  if (!user_email) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  res.flushHeaders();
+
+  // Send initial connection confirmation
+  res.write(`event: connected\ndata: ${JSON.stringify({ message: 'SSE stream established' })}\n\n`);
+
+  // Register this connection
+  registerConnection(user_email, res);
+
+  // Keep-alive ping every 30 seconds to prevent timeout
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(`: ping\n\n`);
+    } catch {
+      clearInterval(keepAlive);
+    }
+  }, 30000);
+
+  // Clean up on disconnect
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    removeConnection(user_email, res);
+  });
+});
+
+/**
  * Natural language entry endpoint.
  * POST /service/natural-language-entry
  * Body: { "text": "Fixed login bug for WebApp, urgent, due tomorrow" }
+ *
+ * After AI parsing completes, the structured data is pushed to the
+ * frontend via SSE immediately (before DB writes finish).
  */
 router.post('/natural-language-entry', async (req, res) => {
   try {
@@ -196,6 +242,25 @@ router.post('/natural-language-entry', async (req, res) => {
     }
 
     const result = await nlEntry.entry(user_email, text);
+
+    // ── SSE: Push parsed data immediately so frontend can update UI ──
+    // This happens BEFORE activity logging and the POST response,
+    // so the frontend sees the entry as soon as parsing completes.
+    if (result.success) {
+      sendToUser(user_email, 'entry_parsed', {
+        success: true,
+        project: result.project,
+        fields: result.fields,
+        priority: result.priority,
+        due_date: result.due_date,
+        comment: result.comment,
+        multi: result.multi,
+        results: result.results,
+        created_new_project: result.created_new_project,
+        project_only: result.project_only,
+      });
+    }
+
     if (result.success) {
       if (result.multi) {
         // matched=3: log each entry separately
@@ -229,6 +294,13 @@ router.post('/natural-language-entry', async (req, res) => {
     return res.json(result);
   } catch (error) {
     console.error('Error in /natural-language-entry:', error);
+    // Push error via SSE so frontend can update immediately
+    if (req.userEmail) {
+      sendToUser(req.userEmail, 'entry_error', {
+        success: false,
+        error: error.message,
+      });
+    }
     return res.status(500).json({ success: false, error: error.message });
   }
 });

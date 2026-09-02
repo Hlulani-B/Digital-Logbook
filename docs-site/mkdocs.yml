@@ -69,6 +69,7 @@ nav:
       - UI Design: architecture/ui-design.md
       - Voice Recording: architecture/voice-feature.md
       - IndexedDB Caching: architecture/caching.md
+      - SSE Real-Time Updates: architecture/sse.md
   - Roadmap: roadmap.md
   - Development:
       - Development Log: development/log.md

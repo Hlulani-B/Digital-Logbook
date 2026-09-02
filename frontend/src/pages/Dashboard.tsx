@@ -24,6 +24,7 @@ import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
+import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { FiArchive, FiX } from 'react-icons/fi';
 
 /** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
@@ -214,6 +215,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       setLoading(false);
     }
   }, [email, sortBy, activeView]);
+
+  // SSE: Listen for real-time entry updates from backend
+  // When the backend finishes parsing a natural language entry, it pushes
+  // the data via SSE. We invalidate IndexedDB cache and reload the UI.
+  useSSEEntries({
+    onEntry: () => {
+      loadData();
+    },
+  });
 
   useEffect(() => {
     loadData();
