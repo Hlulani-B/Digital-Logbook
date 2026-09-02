@@ -3,7 +3,10 @@ node_modules/
 
 # Environment variables (contains secrets)
 .env
-frontend/.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
 .env*:Zone.Identifier
 
 # Build output
