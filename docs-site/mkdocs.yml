@@ -70,7 +70,7 @@ nav:
       - Voice Recording: architecture/voice-feature.md
       - IndexedDB Caching: architecture/caching.md
       - SSE Real-Time Updates: architecture/sse.md
-      - Supabase Keep-Alive Daemon: architecture/daemon.md
+      - Keep-Alive Daemons: architecture/daemon.md
   - Roadmap: roadmap.md
   - Development:
       - Development Log: development/log.md

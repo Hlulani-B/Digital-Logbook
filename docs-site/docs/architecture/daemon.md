@@ -1,10 +1,26 @@
-# Supabase Keep-Alive Daemon
+# Keep-Alive Daemons (Supabase + Render)
 
 ## Problem
 
-Supabase free-tier projects are **paused after 7 days of inactivity**. When the database is paused, all API calls fail and the application appears down. This is problematic for a demo/portfolio project that needs to be available at all times.
+Two free-tier services need protection from inactivity pauses:
 
-## Solution
+| Service | Inactivity Policy | Consequence |
+|---------|-------------------|-------------|
+| **Supabase** | Pauses after **7 days** of no DB activity | All API calls fail, app appears down |
+| **Render** | Sleeps after **15 minutes** of no HTTP traffic | Cold starts take ~30s, service appears offline |
+
+Both need a keep-alive mechanism to stay warm for a demo/portfolio project that must be available at all times.
+
+## Solution Overview
+
+Two complementary daemons handle each problem:
+
+1. **Supabase Keep-Alive Daemon** — runs inside `dashboard-service` every 12 hours, pings the `health_ping` table to prevent Supabase from pausing.
+2. **Render Keep-Alive Workflow** — a GitHub Actions cron job that pings the Render service URL every 10 minutes via `curl`, preventing Render's sleep timer from triggering.
+
+## Part 1: Supabase Keep-Alive Daemon
+
+### How It Works
 
 A lightweight daemon runs inside the `dashboard-service` process. Every **12 hours** it:
 
@@ -14,7 +30,7 @@ A lightweight daemon runs inside the `dashboard-service` process. Every **12 hou
 
 This single INSERT + DELETE cycle is enough to register as database activity and prevent Supabase from pausing the project.
 
-## Architecture
+### Architecture
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -129,13 +145,91 @@ cd services/dashboard-service
 npx jest src/__tests__/daemon.test.js
 ```
 
-## Why This Approach?
+## Part 2: Render Keep-Alive Workflow (GitHub Actions)
+
+### The Problem
+
+Render free-tier services **sleep after 15 minutes** of inactivity. When a service is asleep, the first request takes ~30 seconds to cold-start. Worse, the in-process Supabase daemon can't run if the service is asleep in the first place.
+
+### The Solution
+
+A GitHub Actions workflow runs on GitHub's servers (not Render) and pings the Render URL every 10 minutes. Because GitHub runs the trigger, the service never hits the 15-minute inactivity window.
+
+### File: `.github/workflows/keep-alive.yml`
+
+```yaml
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # Every 10 minutes
+  workflow_dispatch:          # Manual trigger from GitHub UI
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send HTTP request to Render
+        env:
+          RENDER_URL: ${{ secrets.RENDER_URL }}
+        run: |
+          curl -f "$RENDER_URL" || echo "Ping failed, but workflow continues"
+```
+
+### Architecture
+
+```
+┌─────────────────────┐       curl every 10min      ┌──────────────────┐
+│   GitHub Actions     │ ──────────────────────────► │  Render Service   │
+│   (keep-alive.yml)   │                             │  (dashboard-svc)  │
+│                      │                             │                    │
+│   cron: */10 * * * * │                             │  ┌──────────────┐  │
+│                      │                             │  │ Supabase     │  │
+└─────────────────────┘                              │  │ Daemon (12h) │  │
+                                                     │  └──────┬───────┘  │
+                                                     └─────────┼──────────┘
+                                                               │ ping DB
+                                                               ▼
+                                                      ┌────────────────┐
+                                                      │   Supabase DB   │
+                                                      └────────────────┘
+```
+
+### Setup Steps
+
+1. **Create the workflow file** at `.github/workflows/keep-alive.yml` (already done).
+2. **Add the Render URL secret:**
+   - Go to GitHub repo → **Settings** → **Secrets and variables** → **Actions**
+   - Click **New repository secret**
+   - Name: `RENDER_URL`
+   - Value: your live Render web service URL (e.g. `https://digital-logbook.onrender.com`)
+3. **Push to `hlulani`** — GitHub Actions picks up the cron schedule automatically.
+
+### Cost
+
+| Resource | Free Allowance | Usage | Cost |
+|----------|---------------|-------|------|
+| GitHub Actions minutes | 2,000/month | ~43 min/month (144 pings/day × 0.3 min) | **$0** |
+| Render bandwidth | Included | ~1 request/10 min | **$0** |
+
+### Manual Trigger
+
+The workflow supports `workflow_dispatch`, so you can manually trigger it from the GitHub Actions tab without waiting for the cron schedule. This is useful for immediately waking the service after a deploy.
+
+## Why Two Daemons?
 
 | Alternative                  | Why Not                                       |
 |------------------------------|-----------------------------------------------|
 | Cron job (external service)  | Adds infrastructure complexity, costs money   |
 | Pinging from frontend        | Unreliable (users may not visit for days)     |
 | Supabase Edge Functions      | Separate deployment, extra cost               |
-| **Daemon in existing service** | **Zero extra infra, runs wherever the service runs** |
+| Only the in-process daemon   | Render free tier sleeps after 15 min — daemon never runs |
+| Only the GitHub Actions ping | Keeps Render warm but doesn't ping Supabase DB |
+| **Both daemons together**    | **GitHub keeps Render awake → daemon keeps Supabase alive** |
 
-The daemon piggybacks on the existing `dashboard-service` process — no additional servers, cron jobs, or external services needed. Since the service is already deployed on Render, the daemon runs for free as part of the existing deployment.
+The two daemons are complementary:
+
+- **GitHub Actions** solves the Render sleep problem — it runs on GitHub's servers, so it works even when Render is asleep. Every 10 minutes it sends an HTTP request to wake/keep the Render instance.
+- **In-process daemon** solves the Supabase pause problem — once Render is awake and the service is running, the daemon periodically pings the database to prevent Supabase from pausing.
+
+Neither daemon alone is sufficient. Together they cost nothing and keep the entire stack live.
