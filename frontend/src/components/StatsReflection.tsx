@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { getProjectsByEmail } from "@/functions/project/project.js";
-import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { askAI } from "@/functions/ai.js";
-import { getToneInstruction } from "@/functions/tone";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { getProjectsByEmail } from '@/functions/project/project.js';
+import { sortUnarchivedEntries } from '@/functions/project/entries.js';
+import { askAI } from '@/functions/ai.js';
+import { getToneInstruction } from '@/functions/tone';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -12,13 +12,13 @@ type Project = Record<string, unknown>;
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
-    if (typeof parsed === "string") return parsed;
-    if (typeof parsed === "object" && parsed !== null) {
-      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
-        if (typeof parsed[key] === "string") return parsed[key];
+    if (typeof parsed === 'string') return parsed;
+    if (typeof parsed === 'object' && parsed !== null) {
+      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
+        if (typeof parsed[key] === 'string') return parsed[key];
       }
       for (const val of Object.values(parsed)) {
-        if (typeof val === "string") return val;
+        if (typeof val === 'string') return val;
       }
     }
     return response;
@@ -33,8 +33,8 @@ function parseAIResponse(response: string): string {
  */
 export function StatsReflection() {
   const { user } = useAuth();
-  const email = user?.email || "";
-  const [reflection, setReflection] = useState("");
+  const email = user?.email || '';
+  const [reflection, setReflection] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,11 +50,13 @@ export function StatsReflection() {
           sortUnarchivedEntries(email, null, 0),
         ]);
 
-        const projects: Project[] = projectsRes.status === "fulfilled" ? (projectsRes.value?.projects || []) : [];
-        const entries: Entry[] = entriesRes.status === "fulfilled" ? (entriesRes.value?.data || []) : [];
+        const projects: Project[] =
+          projectsRes.status === 'fulfilled' ? projectsRes.value?.projects || [] : [];
+        const entries: Entry[] =
+          entriesRes.status === 'fulfilled' ? entriesRes.value?.data || [] : [];
 
         if (entries.length === 0 && projects.length === 0) {
-          setReflection("No activity yet — start by creating your first project!");
+          setReflection('No activity yet — start by creating your first project!');
           return;
         }
 
@@ -82,17 +84,18 @@ export function StatsReflection() {
 - ${totalEntries} total entries
 - ${weekEntries} entries in the past week
 - ${projects.length} projects
-${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[1]} entries)` : ""}
+${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[1]} entries)` : ''}
 
 Make it insightful and encouraging. ${tone}`;
 
         const aiResult = await askAI(prompt);
         if (!cancelled) {
-          const msg = aiResult.success && aiResult.response ? parseAIResponse(aiResult.response) : "";
+          const msg =
+            aiResult.success && aiResult.response ? parseAIResponse(aiResult.response) : '';
           setReflection(msg || "Here's a quick look at your progress.");
         }
       } catch (err) {
-        console.error("[StatsReflection] Error:", err);
+        console.error('[StatsReflection] Error:', err);
         if (!cancelled) setReflection("Here's a quick look at your progress.");
       } finally {
         if (!cancelled) setLoading(false);

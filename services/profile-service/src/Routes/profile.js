@@ -31,8 +31,9 @@ router.post('/profile', async (req, res) => {
     switch (func) {
       case 'username': {
         const { email: userEmail, username: userName } = values;
-        if (!userEmail || !userName) return res.status(400).json({ error: 'Missing required parameters' });
-        
+        if (!userEmail || !userName)
+          return res.status(400).json({ error: 'Missing required parameters' });
+
         const result = await username.username(userEmail, userName);
         return res.json(result);
       }
@@ -45,14 +46,16 @@ router.post('/profile', async (req, res) => {
       }
       case 'name': {
         const { email: userEmail, new_name } = values;
-        if (!userEmail || !new_name) return res.status(400).json({ error: 'Missing required parameters' });
+        if (!userEmail || !new_name)
+          return res.status(400).json({ error: 'Missing required parameters' });
 
         const result = await name.name(userEmail, new_name);
         return res.json(result);
       }
       case 'avatar': {
         const { email: userEmail, url } = values;
-        if (!userEmail || !url) return res.status(400).json({ error: 'Missing required parameters' });
+        if (!userEmail || !url)
+          return res.status(400).json({ error: 'Missing required parameters' });
 
         const result = await avatar.avatar(userEmail, url);
         return res.json(result);
@@ -76,9 +79,9 @@ router.post('/profile', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/profile:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

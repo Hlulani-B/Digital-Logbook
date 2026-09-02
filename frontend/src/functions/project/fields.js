@@ -1,10 +1,10 @@
-import { request, PROJECT_URL } from "@/lib/api";
+import { request, PROJECT_URL } from '@/lib/api';
 
 export async function addField(user_email, table_name, field_name, data_type, is_required) {
   return request(`${PROJECT_URL}/service/field`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "add",
+      function: 'add',
       values: { user_email, table_name, field_name, data_type, is_required },
     }),
   });
@@ -12,9 +12,9 @@ export async function addField(user_email, table_name, field_name, data_type, is
 
 export async function editField(user_email, table_name, field_name, data_type, is_required) {
   return request(`${PROJECT_URL}/service/field`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "edit",
+      function: 'edit',
       values: { user_email, table_name, field_name, data_type, is_required },
     }),
   });
@@ -22,9 +22,9 @@ export async function editField(user_email, table_name, field_name, data_type, i
 
 export async function getFields(user_email, table_name) {
   return request(`${PROJECT_URL}/service/field`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "get",
+      function: 'get',
       values: { user_email, table_name },
     }),
   });

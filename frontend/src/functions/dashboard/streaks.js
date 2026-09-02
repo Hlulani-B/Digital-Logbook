@@ -19,7 +19,7 @@ function uniqueDays(entries) {
     const d = new Date(e.created_at);
     if (isNaN(d.getTime())) continue;
     // Normalise to YYYY-MM-DD in local time
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     set.add(key);
   }
   return Array.from(set).sort();
@@ -29,7 +29,7 @@ function uniqueDays(entries) {
  * Convert a YYYY-MM-DD string to a Date at midnight local time.
  */
 function parseDay(key) {
-  const [y, m, d] = key.split("-").map(Number);
+  const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
@@ -37,7 +37,7 @@ function parseDay(key) {
  * Format a Date as YYYY-MM-DD in local time.
  */
 function formatDay(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -103,7 +103,7 @@ export function calculateStreaks(entries) {
  * @returns {string}
  */
 export function streakLabel(streak) {
-  if (streak === 0) return "No active streak";
-  if (streak === 1) return "1 day streak";
+  if (streak === 0) return 'No active streak';
+  if (streak === 1) return '1 day streak';
   return `${streak} day streak`;
 }

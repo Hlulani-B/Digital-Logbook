@@ -1,4 +1,4 @@
-import pool from "../db.js";
+import pool from '../db.js';
 import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Entries } from './entries.js';
@@ -60,7 +60,7 @@ export class Natural_language {
         return { success: false, message: 'Could not fetch projects: ' + projectsResult.message };
       }
 
-      const projectList = (projectsResult.projects || []).filter(p => !p.archived);
+      const projectList = (projectsResult.projects || []).filter((p) => !p.archived);
       if (projectList.length === 0) {
         return { success: false, message: 'No projects found. Create a project first.' };
       }
@@ -108,17 +108,17 @@ Return ONLY valid JSON, no markdown, no explanation, in this exact shape:
         return { success: false, message: 'AI returned invalid JSON: ' + aiResponse };
       }
 
-      const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
+      const matchedProject = projectsWithFields.find((p) => p.project_name === parsed.project);
       if (!matchedProject) {
-        return { success: false, message: 'AI could not match a valid project.', suggestion: parsed };
+        return {
+          success: false,
+          message: 'AI could not match a valid project.',
+          suggestion: parsed,
+        };
       }
 
       // 4. Add the entry using AI's field values as the entries object
-      const addResult = await entries.addEntry(
-        email,
-        parsed.project,
-        parsed.fields
-      );
+      const addResult = await entries.addEntry(email, parsed.project, parsed.fields);
 
       return {
         success: addResult.success,

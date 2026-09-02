@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { getActivities } from "@/functions/activity.js";
-import { askAI } from "@/functions/ai.js";
-import { getToneInstruction } from "@/functions/tone";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { getActivities } from '@/functions/activity.js';
+import { askAI } from '@/functions/ai.js';
+import { getToneInstruction } from '@/functions/tone';
 
 type Activity = {
   id: number;
@@ -17,13 +17,13 @@ type Activity = {
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
-    if (typeof parsed === "string") return parsed;
-    if (typeof parsed === "object" && parsed !== null) {
-      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
-        if (typeof parsed[key] === "string") return parsed[key];
+    if (typeof parsed === 'string') return parsed;
+    if (typeof parsed === 'object' && parsed !== null) {
+      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
+        if (typeof parsed[key] === 'string') return parsed[key];
       }
       for (const val of Object.values(parsed)) {
-        if (typeof val === "string") return val;
+        if (typeof val === 'string') return val;
       }
     }
     return response;
@@ -38,8 +38,8 @@ function parseAIResponse(response: string): string {
  */
 export function ActivitySummary() {
   const { user } = useAuth();
-  const email = user?.email || "";
-  const [summary, setSummary] = useState("");
+  const email = user?.email || '';
+  const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function ActivitySummary() {
         const activities: Activity[] = result?.data || [];
 
         if (activities.length === 0) {
-          setSummary("No activity yet — start creating projects and logging entries!");
+          setSummary('No activity yet — start creating projects and logging entries!');
           return;
         }
 
@@ -69,25 +69,28 @@ export function ActivitySummary() {
 
         const actionSummary = Object.entries(actionCounts)
           .map(([action, count]) => `${action}: ${count}`)
-          .join(", ");
+          .join(', ');
 
         const tone = getToneInstruction();
-        const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent items: ${recentEntities.join(", ")}. ${tone}`;
+        const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent items: ${recentEntities.join(', ')}. ${tone}`;
 
         const aiResult = await askAI(prompt);
         if (!cancelled) {
-          const msg = aiResult.success && aiResult.response ? parseAIResponse(aiResult.response) : "";
+          const msg =
+            aiResult.success && aiResult.response ? parseAIResponse(aiResult.response) : '';
           setSummary(msg || "Here's what you've been up to recently.");
         }
       } catch (err) {
-        console.error("[ActivitySummary] Error:", err);
+        console.error('[ActivitySummary] Error:', err);
         if (!cancelled) setSummary("Here's what you've been up to recently.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [email]);
 
   if (loading || !summary) return null;

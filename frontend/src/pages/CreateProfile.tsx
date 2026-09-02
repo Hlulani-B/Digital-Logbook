@@ -1,14 +1,14 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { addEmail, updateName, updateUsername } from "../functions/profile/profile.js";
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { addEmail, updateName, updateUsername } from '../functions/profile/profile.js';
 
 export function CreateProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const email = user?.email || null;
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,11 +29,12 @@ export function CreateProfile() {
       if (!nameResult?.success) throw new Error(nameResult?.message || 'Failed to update name');
 
       const usernameResult = await updateUsername(email, username.trim());
-      if (!usernameResult?.success) throw new Error(usernameResult?.message || 'Failed to update username');
+      if (!usernameResult?.success)
+        throw new Error(usernameResult?.message || 'Failed to update username');
 
-      navigate("/avatar", { replace: true });
+      navigate('/avatar', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your profile");
+      setError(err instanceof Error ? err.message : 'Could not save your profile');
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,11 @@ export function CreateProfile() {
       <div className="auth-container">
         <div className="glass auth-card animate-in">
           <div className="auth-logo">
-            <img src="/notebook.jpeg" alt="Digital Logbook" style={{ width: 48, height: 48, borderRadius: "14px", objectFit: "cover" }} />
+            <img
+              src="/notebook.jpeg"
+              alt="Digital Logbook"
+              style={{ width: 48, height: 48, borderRadius: '14px', objectFit: 'cover' }}
+            />
           </div>
           <h1 className="auth-title">Set up your profile</h1>
           <p className="auth-subtitle">Tell us what to call you</p>
@@ -58,7 +63,7 @@ export function CreateProfile() {
 
           <form
             onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}
           >
             <div className="field-group">
               <label className="field-label">Email</label>
@@ -67,7 +72,7 @@ export function CreateProfile() {
                 value={email}
                 disabled
                 className="field-input"
-                style={{ opacity: 0.6, cursor: "not-allowed" }}
+                style={{ opacity: 0.6, cursor: 'not-allowed' }}
               />
             </div>
 
@@ -98,15 +103,13 @@ export function CreateProfile() {
                 minLength={3}
                 value={username}
                 onChange={(e) =>
-                  setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+                  setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))
                 }
                 className="field-input"
                 placeholder="hlulani_b"
                 autoComplete="off"
               />
-              <p className="field-hint">
-                Lowercase letters, numbers, and underscores only.
-              </p>
+              <p className="field-hint">Lowercase letters, numbers, and underscores only.</p>
             </div>
 
             <button
@@ -114,7 +117,7 @@ export function CreateProfile() {
               disabled={loading || !name.trim() || username.trim().length < 3}
               className="btn-primary auth-submit"
             >
-              {loading ? "Saving..." : "Continue"}
+              {loading ? 'Saving...' : 'Continue'}
             </button>
           </form>
         </div>

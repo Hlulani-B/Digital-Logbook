@@ -26,19 +26,20 @@ router.post('/search', async (req, res) => {
     if (!func) return res.status(400).json({ error: 'Function not provided' });
 
     switch (func) {
-      case "searchAll": {
+      case 'searchAll': {
         const { user_email, keyword } = values;
         if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
         const result = await search.searchAll(user_email, keyword);
         return res.json(result);
       }
-      case "searchProject": {
+      case 'searchProject': {
         const { user_email, project_name, keyword } = values;
-        if (!user_email || !project_name) return res.status(400).json({ error: 'Missing required parameters' });
+        if (!user_email || !project_name)
+          return res.status(400).json({ error: 'Missing required parameters' });
         const result = await search.searchProject(user_email, project_name, keyword);
         return res.json(result);
       }
-      case "searchProjects": {
+      case 'searchProjects': {
         const { user_email, keyword } = values;
         if (!user_email) return res.status(400).json({ error: 'Missing user_email' });
         const result = await search.searchProjects(user_email, keyword);
@@ -49,9 +50,9 @@ router.post('/search', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/search:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

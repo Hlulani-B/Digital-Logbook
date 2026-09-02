@@ -33,27 +33,37 @@ router.post('/project', async (req, res) => {
     }
 
     switch (func) {
-      case "add": {
+      case 'add': {
         const { project_name, description } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await project.addProject(user_email, project_name, description);
         if (!result.success) {
-          const clientError = /already exists|foreign key|violates check/i.test(result.message || '');
+          const clientError = /already exists|foreign key|violates check/i.test(
+            result.message || ''
+          );
           return res.status(clientError ? 400 : 500).json(result);
         }
         await logActivity(user_email, 'PROJECT_CREATED', 'project', project_name, { description });
         return res.json(result);
       }
-      case "edit": {
+      case 'edit': {
         const { new_project_name, old_project_name } = values;
-        if (!new_project_name || !old_project_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await project.editProjectName(user_email, new_project_name, old_project_name);
+        if (!new_project_name || !old_project_name)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await project.editProjectName(
+          user_email,
+          new_project_name,
+          old_project_name
+        );
         if (result.success) {
-          await logActivity(user_email, 'PROJECT_RENAMED', 'project', new_project_name, { old_project_name, new_project_name });
+          await logActivity(user_email, 'PROJECT_RENAMED', 'project', new_project_name, {
+            old_project_name,
+            new_project_name,
+          });
         }
         return res.json(result);
       }
-      case "delete": {
+      case 'delete': {
         const { project_name } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await project.deleteProject(user_email, project_name);
@@ -62,7 +72,7 @@ router.post('/project', async (req, res) => {
         }
         return res.json(result);
       }
-      case "getProjects": {
+      case 'getProjects': {
         const result = await project.getProjectsByEmail(user_email);
         return res.json(result);
       }
@@ -71,9 +81,9 @@ router.post('/project', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/project:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

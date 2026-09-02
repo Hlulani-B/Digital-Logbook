@@ -17,13 +17,13 @@ function durationToMs(duration) {
 
   const parts = str.split(':').map(Number);
   let ms = 0;
-  if (parts.length === 3 && parts.every(p => !isNaN(p))) {
-    ms = (parts[0] * 3600000) + (parts[1] * 60000) + (parts[2] * 1000);
-  } else if (parts.length === 2 && parts.every(p => !isNaN(p))) {
-    ms = (parts[0] * 60000) + (parts[1] * 1000);
+  if (parts.length === 3 && parts.every((p) => !isNaN(p))) {
+    ms = parts[0] * 3600000 + parts[1] * 60000 + parts[2] * 1000;
+  } else if (parts.length === 2 && parts.every((p) => !isNaN(p))) {
+    ms = parts[0] * 60000 + parts[1] * 1000;
   }
 
-  return ms + (days * 86400000);
+  return ms + days * 86400000;
 }
 
 /**
@@ -47,34 +47,62 @@ export function formatInterval(interval) {
 }
 
 /**
- * Calculate the elapsed time in ms for a single entry.
- * - Completed entries (has ended_at): uses the stored `duration` column (ended_at − started_at).
- * - In-progress entries (started_at set, no ended_at): calculates live started_at → now.
- * - Returns 0 if neither is available.
+ * Format milliseconds into a live timer string "HH:MM:SS" (always 2-digit padded).
+ * Used by ticking UIs that show a running in-progress timer.
  */
-function entryDurationMs(entry, now) {
-  // Completed: use stored duration column directly
-  if (entry.duration && entry.ended_at) {
-    return durationToMs(entry.duration);
+export function formatTimer(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Calculate the elapsed time in ms for a single entry.
+ * Computes purely from timestamps — does NOT rely on the (dropped) `duration` column.
+ * - Completed entries (ended_at + started_at): ended_at − started_at.
+ * - In-progress entries (started_at set, no ended_at): live started_at → now.
+ * - Fallback (ended_at + created_at, no started_at): ended_at − created_at.
+ * - Returns 0 if none of the above.
+ *
+ * `now` is accepted as a parameter so callers can pass a single shared timestamp
+ * (e.g. a ticking value) for consistent, live-updating in-progress durations.
+ */
+export function entryDurationMs(entry, now = Date.now()) {
+  // Completed: ended_at − started_at (the actual work time)
+  if (entry.ended_at && entry.started_at) {
+    const end = new Date(entry.ended_at).getTime();
+    const start = new Date(entry.started_at).getTime();
+    if (!isNaN(end) && !isNaN(start)) {
+      return end - start;
+    }
   }
-  // In-progress: calculate live duration from started_at
+  // In-progress: live started_at → now
   if (entry.started_at && !entry.ended_at) {
     const start = new Date(entry.started_at).getTime();
     if (!isNaN(start)) {
       return now - start;
     }
   }
+  // Fallback: legacy entries that have ended_at but no started_at
+  if (entry.ended_at && entry.created_at) {
+    const end = new Date(entry.ended_at).getTime();
+    const start = new Date(entry.created_at).getTime();
+    if (!isNaN(end) && !isNaN(start)) {
+      return end - start;
+    }
+  }
   return 0;
 }
 
 /**
- * Calculate total time tracked from entries
- * - Completed entries (has ended_at): uses stored duration column
- * - In-progress entries (no ended_at): calculates live started_at → now
- * - Returns total time and count of in-progress tasks
+ * Calculate total time tracked from entries.
+ * - Completed entries (has ended_at): computes ended_at − started_at.
+ * - In-progress entries (no ended_at): calculates live started_at → now.
+ * - Returns total time and count of in-progress tasks.
  */
-export function calculateTotalTimeTracked(entries) {
-  const now = Date.now();
+export function calculateTotalTimeTracked(entries, now = Date.now()) {
   let totalMs = 0;
   let inProgressCount = 0;
 
@@ -82,7 +110,7 @@ export function calculateTotalTimeTracked(entries) {
     if (entry.started_at && !entry.ended_at) {
       totalMs += entryDurationMs(entry, now);
       inProgressCount++;
-    } else if (entry.duration && entry.ended_at) {
+    } else if (entry.ended_at) {
       totalMs += entryDurationMs(entry, now);
     }
   });
@@ -98,8 +126,7 @@ export function calculateTotalTimeTracked(entries) {
  * Returns an array of { project_name, entryCount, totalMs, display, inProgressCount }
  * sorted by total time descending.
  */
-export function calculateProjectStats(entries) {
-  const now = Date.now();
+export function calculateProjectStats(entries, now = Date.now()) {
   const map = new Map();
 
   entries.forEach((entry) => {
@@ -113,7 +140,7 @@ export function calculateProjectStats(entries) {
     if (entry.started_at && !entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
       stat.inProgressCount++;
-    } else if (entry.duration && entry.ended_at) {
+    } else if (entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
     }
   });

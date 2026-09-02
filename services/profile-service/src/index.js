@@ -14,7 +14,7 @@ const allowedOrigins = [
   'https://digital-logbook-bxgv.onrender.com',
   'https://digital-logbook-hlulani.onrender.com',
   'http://localhost:5173', // for local development
-  'http://localhost:3000'
+  'http://localhost:3000',
 ];
 
 // CORS configuration with dynamic origin checking
@@ -22,7 +22,7 @@ const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -32,7 +32,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // Apply CORS options globally
@@ -53,17 +53,17 @@ app.use('/service', profileRoutes);
 // Global error handler - ensures CORS headers are sent even on errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  
+
   // Ensure CORS headers are present on error responses
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
   }
-  
-  res.status(500).json({ 
+
+  res.status(500).json({
     error: 'Internal server error',
-    message: err.message 
+    message: err.message,
   });
 });
 

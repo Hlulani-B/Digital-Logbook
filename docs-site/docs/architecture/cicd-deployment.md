@@ -32,9 +32,12 @@ Local commit → Wits Gitea (source of truth) → Push Mirror → GitHub → Ren
   push-triggered sync already fires in real time.
 - **Render is connected to the mirrored GitHub repo**, not Gitea, since
   that's the only route Render can actually reach.
-- **Only one team member needs a GitHub account/PAT.** Everyone else only
-  ever interacts with Gitea. Commit authorship (names, emails) is preserved
-  through the mirror, so individual contribution is still attributable on GitHub.
+- **Fallback to manual push.** If the mirror stalls or a deploy is urgent,
+  any team member can add GitHub as a second remote and push directly:
+  `git remote add github https://github.com/Hlulani-B/Digital-Logbook.git`
+  then `git push github main`.
+- Commit authorship (names, emails) is preserved through the mirror, so
+  individual contribution is still attributable on GitHub.
 
 ## CI pipeline definition
 
@@ -46,9 +49,9 @@ name: Continuous Integration (CI) Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -85,18 +88,24 @@ jobs:
           cd services/project-service
           npm install
           npm test --if-present
+
+      - name: Install & Test Profile Service
+        run: |
+          cd services/profile-service
+          npm install
+          npm test --if-present
 ```
 
 ### Why each part exists
 
-| Part | Reason |
-|---|---|
-| `on: push` / `pull_request` | Runs both when code lands on `main` and when a PR targets it, catching broken code before merge, not just after |
-| `runs-on: ubuntu-latest` | A clean, disposable VM per run, so results aren't polluted by any local machine's installed packages or state |
-| `actions/checkout@v4` | Pulls a fresh copy of the repo onto the VM — without it there's no code to test |
-| `actions/setup-node@v4`, `node-version: '20'` | Installs the JS runtime, pinned to the version the services are built for |
-| Four separate install-and-test steps | One per service, since the repo is a monorepo of independently deployable services — testing them as one blob would hide which specific service broke |
-| `npm test --if-present` | Prevents the pipeline from failing just because a service doesn't yet have a test script defined; it only fails on an actual failing test |
+| Part                                          | Reason                                                                                                                                                |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `on: push` / `pull_request`                   | Runs both when code lands on `main` and when a PR targets it, catching broken code before merge, not just after                                       |
+| `runs-on: ubuntu-latest`                      | A clean, disposable VM per run, so results aren't polluted by any local machine's installed packages or state                                         |
+| `actions/checkout@v4`                         | Pulls a fresh copy of the repo onto the VM — without it there's no code to test                                                                       |
+| `actions/setup-node@v4`, `node-version: '20'` | Installs the JS runtime, pinned to the version the services are built for                                                                             |
+| Four separate install-and-test steps          | One per service, since the repo is a monorepo of independently deployable services — testing them as one blob would hide which specific service broke |
+| `npm test --if-present`                       | Prevents the pipeline from failing just because a service doesn't yet have a test script defined; it only fails on an actual failing test             |
 
 ## Deploying with `render.yaml`
 
@@ -120,7 +129,9 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
-  # ...same pattern for dashboard-service (5002) and project-service (5003)
+  # ...same pattern for dashboard-service (5002), project-service (5003),
+  # and profile-service (5004). A separate static site service is also
+  # defined for the React frontend.
 ```
 
 - **`plan: free`** is set explicitly — Render defaults new services to a paid
@@ -131,21 +142,23 @@ services:
 
 ## Problems hit during deployment (and fixes)
 
-| Problem | Cause | Fix |
-|---|---|---|
+| Problem                                                    | Cause                                                                                                      | Fix                                                                                                                  |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `Root directory 'services/project-service' does not exist` | An earlier push had accidentally created a nested duplicate folder (`project-service/project-service/...`) | Renamed/restructured the top-level folder cleanly under `services/`, rather than encoding the mistake into `rootDir` |
-| `Missing script: "start"` | Each service's `package.json` had no `"start"` entry, which Render calls by default after building | Added `"scripts": { "start": "node index.js" }` |
-| `Cannot find module '.../services/auth-service/index.js'` | Each service's real entry file lived at `src/index.js`, not at the folder root | Corrected `package.json`: `"main": "src/index.js"`, `"scripts": { "start": "node src/index.js" }` |
+| `Missing script: "start"`                                  | Each service's `package.json` had no `"start"` entry, which Render calls by default after building         | Added `"scripts": { "start": "node index.js" }`                                                                      |
+| `Cannot find module '.../services/auth-service/index.js'`  | Each service's real entry file lived at `src/index.js`, not at the folder root                             | Corrected `package.json`: `"main": "src/index.js"`, `"scripts": { "start": "node src/index.js" }`                    |
 
 !!! note "Lesson learned"
-    `render.yaml`'s `rootDir` only tells Render which folder to run commands
-    in — it knows nothing about the internal file layout inside that folder.
-    The `package.json` inside each service is what has to be accurate.
+`render.yaml`'s `rootDir` only tells Render which folder to run commands
+in — it knows nothing about the internal file layout inside that folder.
+The `package.json` inside each service is what has to be accurate.
 
 ## Live services
 
-| Service | URL |
-|---|---|
-| auth-service | [auth-service-hl52.onrender.com](https://auth-service-hl52.onrender.com) |
+| Service           | URL                                                                                |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| Frontend          | [digital-logbook-bxgv.onrender.com](https://digital-logbook-bxgv.onrender.com)     |
+| auth-service      | [auth-service-hl52.onrender.com](https://auth-service-hl52.onrender.com)           |
 | dashboard-service | [dashboard-service-bpc5.onrender.com](https://dashboard-service-bpc5.onrender.com) |
-| project-service | [project-service-96ml.onrender.com](https://project-service-96ml.onrender.com) |
+| project-service   | [project-service-96ml.onrender.com](https://project-service-96ml.onrender.com)     |
+| profile-service   | [profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com)     |

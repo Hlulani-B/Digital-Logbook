@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
-import type { ReactNode } from "react";
+import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import type { ReactNode } from 'react';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,21 +30,19 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       <>
         <div className="bg-mesh" />
         <div className="auth-container">
-          <div className="glass auth-card" style={{ textAlign: "center" }}>
+          <div className="glass auth-card" style={{ textAlign: 'center' }}>
             <div
               className="animate-spin"
               style={{
                 width: 32,
                 height: 32,
-                margin: "0 auto 1rem",
-                borderRadius: "50%",
-                border: "3px solid var(--border)",
-                borderTopColor: "var(--accent)",
+                margin: '0 auto 1rem',
+                borderRadius: '50%',
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--accent)',
               }}
             />
-            <p style={{ fontSize: "0.875rem", color: "var(--text-dim)" }}>
-              Loading...
-            </p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-dim)' }}>Loading...</p>
           </div>
         </div>
       </>
@@ -58,21 +56,19 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
         <>
           <div className="bg-mesh" />
           <div className="auth-container">
-            <div className="glass auth-card" style={{ textAlign: "center" }}>
+            <div className="glass auth-card" style={{ textAlign: 'center' }}>
               <div
                 className="animate-spin"
                 style={{
                   width: 32,
                   height: 32,
-                  margin: "0 auto 1rem",
-                  borderRadius: "50%",
-                  border: "3px solid var(--border)",
-                  borderTopColor: "var(--accent)",
+                  margin: '0 auto 1rem',
+                  borderRadius: '50%',
+                  border: '3px solid var(--border)',
+                  borderTopColor: 'var(--accent)',
                 }}
               />
-              <p style={{ fontSize: "0.875rem", color: "var(--text-dim)" }}>
-                Loading...
-              </p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-dim)' }}>Loading...</p>
             </div>
           </div>
         </>

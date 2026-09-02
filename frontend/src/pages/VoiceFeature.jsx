@@ -1,30 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useReactMediaRecorder } from "react-media-recorder";
-import { FiMic, FiStopCircle, FiRefreshCw, FiSkipBack, FiSend, FiX } from "react-icons/fi";
-import { askAI } from "@/functions/ai.js";
-import { createTranscriber, quickAdd } from "@/functions/voicefeature.js";
-import { getToneInstruction } from "@/functions/tone";
-
-/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
-function parseAIResponse(response) {
-  try {
-    const parsed = JSON.parse(response);
-    if (typeof parsed === "string") return parsed;
-    // Extract first string value from object (handles message, instruction, response, text, etc.)
-    if (typeof parsed === "object" && parsed !== null) {
-      for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
-        if (typeof parsed[key] === "string") return parsed[key];
-      }
-      // Fallback: return first string value found
-      for (const val of Object.values(parsed)) {
-        if (typeof val === "string") return val;
-      }
-    }
-    return response;
-  } catch {
-    return response;
-  }
-}
+import { useState, useEffect, useRef } from 'react';
+import { useReactMediaRecorder } from 'react-media-recorder';
+import { FiMic, FiStopCircle, FiRefreshCw, FiSkipBack, FiSend, FiX } from 'react-icons/fi';
+import { createTranscriber } from '@/functions/voicefeature.js';
+import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 
 /**
  * VoiceFeature — full-screen voice recorder modal.
@@ -35,11 +13,10 @@ function parseAIResponse(response) {
  * @param {{ onClose: () => void, onEntryCreated?: () => void }} props
  */
 export default function VoiceFeature({ onClose, onEntryCreated }) {
-  const [status, setStatus] = useState("idle"); // idle | recording | recorded | sending | done | error
-  const [aiPrompt, setAiPrompt] = useState("Say a log entry or describe a new project...");
-  const [transcript, setTranscript] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [aiConfirmation, setAiConfirmation] = useState("");
+  const [status, setStatus] = useState('idle'); // idle | recording | recorded | sending | done | error
+  const [transcript, setTranscript] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [aiConfirmation, setAiConfirmation] = useState('');
   const timerRef = useRef(null);
   const transcriberRef = useRef(null);
   const unsupported = useRef(false);
@@ -51,7 +28,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     clearBlobUrl,
   } = useReactMediaRecorder({
     audio: true,
-    blobType: "webm",
+    blobType: 'webm',
   });
 
   // Auto-start recording + speech recognition on mount
@@ -68,15 +45,15 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
 
         // Start audio recording
         await startRecording();
-        setStatus("recording");
+        setStatus('recording');
       } catch (err) {
-        console.error("Startup error:", err);
-        if (err.message?.includes("Speech recognition")) {
+        console.error('Startup error:', err);
+        if (err.message?.includes('Speech recognition')) {
           unsupported.current = true;
           setErrorMsg(err.message);
         } else {
-          setStatus("error");
-          setErrorMsg("Microphone access denied. Please allow mic permissions.");
+          setStatus('error');
+          setErrorMsg('Microphone access denied. Please allow mic permissions.');
         }
       }
     };
@@ -84,18 +61,8 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Ask AI for a spoken prompt on mount
-  useEffect(() => {
-    (async () => {
-      const tone = getToneInstruction();
-      const result = await askAI(
-        `Generate a very short 1-sentence prompt telling the user to speak their log entry. Keep it brief and direct — no roasts, no fluff. ${tone}`
-      );
-      if (result.success && result.response) {
-        setAiPrompt(parseAIResponse(result.response));
-      }
-    })();
-  }, []);
+  // Static prompt — no AI call needed
+  const aiPrompt = 'Say a log entry or describe a new project...';
 
   // Elapsed timer — removed, using circle animation only
 
@@ -108,13 +75,13 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
     }
     // Stop audio recording
     stopRecording();
-    setStatus("recorded");
+    setStatus('recorded');
   };
 
   const handleRetry = async () => {
     clearBlobUrl();
-    setTranscript("");
-    setErrorMsg("");
+    setTranscript('');
+    setErrorMsg('');
     try {
       // Restart speech recognition
       const transcriber = createTranscriber();
@@ -125,48 +92,50 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       transcriberRef.current = transcriber;
 
       await startRecording();
-      setStatus("recording");
+      setStatus('recording');
     } catch {
-      setStatus("error");
-      setErrorMsg("Could not restart recording.");
+      setStatus('error');
+      setErrorMsg('Could not restart recording.');
     }
   };
 
   const handleRetake = () => {
     clearBlobUrl();
-    setTranscript("");
-    setErrorMsg("");
+    setTranscript('');
+    setErrorMsg('');
     handleRetry();
   };
 
   const handleSend = async () => {
     if (!transcript.trim()) return;
-    setStatus("sending");
-    const result = await quickAdd(transcript.trim());
+    setStatus('sending');
+
+    // Send transcript to natural language entry — same as quick add
+    const result = await addNaturalLanguageEntry(transcript.trim());
+
     if (result.success) {
-      // Generate AI confirmation
-      const tone = getToneInstruction();
-      const confirmResult = await askAI(
-        `Generate a confirmation that the entry "${transcript.trim().substring(0, 50)}" was logged. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about what they said, how they said it, or the content of their entry. Be witty and entertaining. ${tone}`
-      );
-      if (confirmResult.success && confirmResult.response) {
-        setAiConfirmation(parseAIResponse(confirmResult.response));
+      const data = result.data || {};
+      const isProjectOnly = data.project_only === true;
+      const isMulti = data.multi === true;
+
+      // Build confirmation message
+      let confirmMsg = 'Entry created!';
+      if (isMulti) {
+        const oldCount = data.results?.old?.length || 0;
+        const newCount = data.results?.new?.length || 0;
+        confirmMsg = `Added ${oldCount + newCount} ${oldCount + newCount === 1 ? 'entry' : 'entries'}!`;
+      } else if (isProjectOnly) {
+        confirmMsg = `Project "${data.project}" created!`;
       }
-      setStatus("done");
+      setAiConfirmation(confirmMsg);
+      setStatus('done');
       if (onEntryCreated) onEntryCreated();
-      setTimeout(onClose, 15000);
+      setTimeout(onClose, 4000);
     } else {
-      // Generate AI error message
-      const tone = getToneInstruction();
-      const errorResult = await askAI(
-        `Generate a very short 1-sentence error message telling the user their entry couldn't be saved and to try again. Keep it brief — no roasts, no fluff. ${tone}`
-      );
-      if (errorResult.success && errorResult.response) {
-        setErrorMsg(parseAIResponse(errorResult.response));
-      } else {
-        setErrorMsg(result.message || "Failed to create entry. Please try again.");
-      }
-      setStatus("error");
+      const actualError = result.message || 'Failed to create entry. Please try again.';
+      console.error('[VoiceFeature] Entry failed:', actualError);
+      setErrorMsg(actualError);
+      setStatus('error');
     }
   };
 
@@ -174,7 +143,9 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   useEffect(() => {
     return () => {
       if (transcriberRef.current) {
-        try { transcriberRef.current.stop(); } catch {}
+        try {
+          transcriberRef.current.stop();
+        } catch {}
       }
     };
   }, []);
@@ -182,7 +153,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
-    return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+    return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
   // Unsupported browser screen
@@ -226,7 +197,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
 
         {/* Recording animation area */}
         <div className="voice-visual">
-          {status === "recording" && (
+          {status === 'recording' && (
             <div className="voice-rings">
               <div className="voice-ring voice-ring-1" />
               <div className="voice-ring voice-ring-2" />
@@ -237,7 +208,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
             </div>
           )}
 
-          {status !== "recording" && (
+          {status !== 'recording' && (
             <div className="voice-static-icon">
               <FiMic size={40} />
             </div>
@@ -246,18 +217,18 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
 
         {/* Status text */}
         <div className="voice-status-text">
-          {status === "recording" && "Listening..."}
-          {status === "recorded" && !transcript && "No speech detected — try again"}
-          {status === "sending" && "Creating entry..."}
-          {status === "done" && (aiConfirmation || "Entry created!")}
-          {status === "error" && errorMsg}
+          {status === 'recording' && 'Listening...'}
+          {status === 'recorded' && !transcript && 'No speech detected — try again'}
+          {status === 'sending' && 'Creating entry...'}
+          {status === 'done' && (aiConfirmation || 'Entry created!')}
+          {status === 'error' && errorMsg}
         </div>
 
         {/* Live transcript preview */}
-        {transcript && status !== "sending" && status !== "done" && (
+        {transcript && status !== 'sending' && status !== 'done' && (
           <div className="voice-transcript-box">
             <p className="voice-transcript-label">
-              {status === "recording" ? "Live transcript:" : "Transcript:"}
+              {status === 'recording' ? 'Live transcript:' : 'Transcript:'}
             </p>
             <p className="voice-transcript-text">{transcript}</p>
           </div>
@@ -265,40 +236,60 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
 
         {/* Action buttons */}
         <div className="voice-actions">
-          {status === "recording" && (
-            <button className="voice-btn voice-btn-stop" onClick={handleStop} aria-label="Stop recording">
+          {status === 'recording' && (
+            <button
+              className="voice-btn voice-btn-stop"
+              onClick={handleStop}
+              aria-label="Stop recording"
+            >
               <FiStopCircle size={22} />
               <span>Stop</span>
             </button>
           )}
 
-          {status === "recorded" && transcript && (
+          {status === 'recorded' && transcript && (
             <>
-              <button className="voice-btn voice-btn-secondary" onClick={handleRetake} aria-label="Retake recording">
+              <button
+                className="voice-btn voice-btn-secondary"
+                onClick={handleRetake}
+                aria-label="Retake recording"
+              >
                 <FiSkipBack size={18} />
                 <span>Retake</span>
               </button>
-              <button className="voice-btn voice-btn-primary" onClick={handleSend} aria-label="Send entry">
+              <button
+                className="voice-btn voice-btn-primary"
+                onClick={handleSend}
+                aria-label="Send entry"
+              >
                 <FiSend size={18} />
                 <span>Send</span>
               </button>
             </>
           )}
 
-          {status === "error" && (
+          {status === 'error' && (
             <>
-              <button className="voice-btn voice-btn-secondary" onClick={handleRetry} aria-label="Retry recording">
+              <button
+                className="voice-btn voice-btn-secondary"
+                onClick={handleRetry}
+                aria-label="Retry recording"
+              >
                 <FiRefreshCw size={18} />
                 <span>Retry</span>
               </button>
-              <button className="voice-btn voice-btn-secondary" onClick={handleRetake} aria-label="Retake recording">
+              <button
+                className="voice-btn voice-btn-secondary"
+                onClick={handleRetake}
+                aria-label="Retake recording"
+              >
                 <FiSkipBack size={18} />
                 <span>Retake</span>
               </button>
             </>
           )}
 
-          {status === "sending" && (
+          {status === 'sending' && (
             <div className="voice-spinner">
               <div className="voice-spinner-ring" />
             </div>

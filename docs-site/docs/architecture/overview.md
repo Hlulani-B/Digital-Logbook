@@ -9,8 +9,9 @@ Frontend (React + Vite)
         v
 Backend services (Node/Express)
   - auth-service       (port 5001)
-  - dashboard-service   (port 5002)
-  - project-service     (port 5003)
+  - dashboard-service  (port 5002)
+  - project-service    (port 5003)
+  - profile-service    (port 5004)
         |
         v
 Supabase (PostgreSQL)
@@ -23,33 +24,28 @@ database, not as an auto-generating API layer.
 
 ## Current status: separate deployed microservices
 
-!!! warning "Team decision needed"
-    Each service above is deployed **independently** on Render, with its own
-    port, its own `package.json`, and its own live URL (see
-    [CI/CD & Deployment](cicd-deployment.md)). This is a genuine microservices
-    architecture, not the "microservices-inspired but deployed as one backend
-    app" approach the team originally scoped for Sprint 1 to avoid extra
-    deployment complexity. This is real, working infrastructure — but it's a
-    bigger commitment (three services to keep running, debug, and keep in sync)
-    than originally planned, and should be confirmed as an intentional team
-    decision rather than something that happened by default.
+The architecture is intentionally split into four independent Node/Express
+services, each deployed separately on Render with its own port, `package.json`,
+and live URL (see [CI/CD & Deployment](cicd-deployment.md)). This is a genuine
+microservices layout rather than a single shared backend, which keeps auth,
+profile, project, and dashboard concerns isolated.
 
 ## Services
 
-| Service | Responsibility | Port | Live URL |
-|---|---|---|---|
-| `auth-service` | Token verification, sign-in/sign-up integration via Firebase Auth | 5001 | `https://auth-service-hl52.onrender.com` |
-| `dashboard-service` | Cross-project summaries for the dashboard view | 5002 | `https://dashboard-service-bpc5.onrender.com` |
-| `project-service` | Create/read/update/archive projects; project entry formats and entries | 5003 | `https://project-service-96ml.onrender.com` |
+| Service             | Responsibility                                                         | Port | Live URL                                      |
+| ------------------- | ---------------------------------------------------------------------- | ---- | --------------------------------------------- |
+| `auth-service`      | Token verification and account deletion via Supabase Auth              | 5001 | `https://auth-service-hl52.onrender.com`      |
+| `dashboard-service` | Cross-project summaries for the dashboard view                         | 5002 | `https://dashboard-service-bpc5.onrender.com` |
+| `project-service`   | Create/read/update/archive projects; project entry formats and entries | 5003 | `https://project-service-96ml.onrender.com`   |
+| `profile-service`   | Login and profile management                                           | 5004 | `https://profile-service-0zk7.onrender.com`   |
 
-!!! note "Not yet clarified"
-    Entry and entry-format logic is currently expected to live inside
-    `project-service`. This should be confirmed — see
-    [Open Questions & Decisions](../development/decisions.md).
+Entry formats and entries live inside `project-service`, alongside the
+projects they belong to. The `profile-service` owns sign-in and user-profile
+updates, while `auth-service` handles token verification and account deletion.
 
 ## Why this split
 
-- **auth-service** isolates all authentication concerns behind Firebase Auth,
+- **auth-service** isolates Supabase token verification and account deletion,
   so no other service needs to know how login/signup actually works — they
   only need to verify a token.
 - **project-service** owns projects, entry formats, and entries — the actual

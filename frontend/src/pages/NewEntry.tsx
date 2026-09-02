@@ -1,40 +1,40 @@
-import { useState, useRef, useEffect } from "react";
-import { updateEntry, deleteEntryById } from "../functions/project/entries.js";
-import { archiveEntry, unarchiveEntry } from "../functions/project/archives.js";
-import { isOverdue, getOverdueText } from "../functions/dashboard/overdue.js";
-import { formatInterval } from "../functions/dashboard/stats.js";
+import { useState, useRef, useEffect } from 'react';
+import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
+import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
+import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
+import { formatInterval } from '../functions/dashboard/stats.js';
 
-type EntryStatus = "up_next" | "in_motion" | "done_and_dusted";
+type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
 const PRIORITY_LABELS: Record<string, string> = {
-  "0": "Urgent and important",
-  "1": "Urgent but not important",
-  "2": "Not urgent, not important",
-  "3": "No priority",
+  '0': 'Urgent and important',
+  '1': 'Urgent but not important',
+  '2': 'Not urgent, not important',
+  '3': 'No priority',
 };
 
 const PRIORITY_TO_VALUE: Record<string, string> = {
-  "Urgent and important": "0",
-  "Urgent but not important": "1",
-  "Not urgent, not important": "2",
+  'Urgent and important': '0',
+  'Urgent but not important': '1',
+  'Not urgent, not important': '2',
 };
 
 const STATUS_LABELS: Record<EntryStatus, string> = {
-  up_next: "Up Next",
-  in_motion: "In Motion",
-  done_and_dusted: "Done & Dusted",
+  up_next: 'Up Next',
+  in_motion: 'In Motion',
+  done_and_dusted: 'Done & Dusted',
 };
 
 const STATUS_CLASS: Record<EntryStatus, string> = {
-  up_next: "status-up-next",
-  in_motion: "status-in-motion",
-  done_and_dusted: "status-done",
+  up_next: 'status-up-next',
+  in_motion: 'status-in-motion',
+  done_and_dusted: 'status-done',
 };
 
 const PRIORITY_CLASS: Record<string, string> = {
-  "Urgent and important": "priority-urgent-important",
-  "Urgent but not important": "priority-urgent",
-  "Not urgent, not important": "priority-low",
+  'Urgent and important': 'priority-urgent-important',
+  'Urgent but not important': 'priority-urgent',
+  'Not urgent, not important': 'priority-low',
 };
 
 function formatDate(value?: string | null): string | null {
@@ -42,36 +42,50 @@ function formatDate(value?: string | null): string | null {
   const date = new Date(value);
   if (isNaN(date.getTime())) return null;
   return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 }
 
 function toInputDate(value?: string | null): string {
-  if (!value) return "";
+  if (!value) return '';
   const date = new Date(value);
-  if (isNaN(date.getTime())) return "";
+  if (isNaN(date.getTime())) return '';
   // Return YYYY-MM-DDTHH:MM for datetime-local inputs
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatFieldKey(key: string): string {
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  // If it's a string that looks like JSON, try to parse and format it
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === 'object' && parsed !== null) {
+        // It's a JSON object, format each key-value pair
+        return Object.entries(parsed)
+          .map(([k, v]) => `${formatFieldKey(k)}: ${formatFieldValue(v)}`)
+          .join(', ');
+      }
+    } catch {
+      // Not valid JSON, return as-is
+    }
+  }
   return String(value);
 }
 
 function stringifyForInput(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 
@@ -98,7 +112,13 @@ interface EntryBoxProps {
   onDelete?: (entryId: string) => void;
 }
 
-export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged, onDelete }: EntryBoxProps) {
+export function EntryBox({
+  entry,
+  onUpdated,
+  onArchiveToggled,
+  onPriorityChanged,
+  onDelete,
+}: EntryBoxProps) {
   const {
     id,
     user_email,
@@ -111,8 +131,21 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     started_at,
     ended_at,
     duration,
-    status = "up_next",
+    status = 'up_next',
   } = entry;
+
+  // Parse entries if they come as a JSON string from the database
+  const parsedEntries = (() => {
+    if (!entries) return {};
+    if (typeof entries === 'string') {
+      try {
+        return JSON.parse(entries);
+      } catch {
+        return {};
+      }
+    }
+    return entries;
+  })();
 
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -123,10 +156,10 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Live elapsed time for in-progress tasks
-  const [elapsed, setElapsed] = useState<string>("");
+  const [elapsed, setElapsed] = useState<string>('');
   useEffect(() => {
     if (!started_at || ended_at) {
-      setElapsed("");
+      setElapsed('');
       return;
     }
     const start = new Date(started_at).getTime();
@@ -136,7 +169,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setElapsed(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       );
     };
     tick();
@@ -146,17 +179,15 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
 
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
+      Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
     )
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
   const [draftStartedAt, setDraftStartedAt] = useState(toInputDate(started_at));
   const [draftEndedAt, setDraftEndedAt] = useState(toInputDate(ended_at));
-  const [draftDuration, setDraftDuration] = useState(duration || "");
+  const [draftDuration, setDraftDuration] = useState(duration || '');
   const [draftPriorityValue, setDraftPriorityValue] = useState(
-    priority && PRIORITY_TO_VALUE[priority] !== undefined
-      ? PRIORITY_TO_VALUE[priority]
-      : "3"
+    priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
   );
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
 
@@ -167,17 +198,17 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
         setMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  const entryFields = Object.entries(entries || {});
+  const entryFields = Object.entries(parsedEntries || {});
   const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
   const startedLabel = formatDate(started_at);
   const endedLabel = formatDate(ended_at);
 
-  const priorityClass = priority ? (PRIORITY_CLASS[priority] || "priority-neutral") : "";
+  const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
 
   const handleFieldChange = (key: string, newValue: string) => {
     setDraftFields((prev) => ({ ...prev, [key]: newValue }));
@@ -186,17 +217,15 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
   const handleCancel = () => {
     setDraftFields(
       Object.fromEntries(
-        Object.entries(entry.entries || {}).map(([k, v]) => [k, stringifyForInput(v)])
+        Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
       )
     );
     setDraftDueDate(toInputDate(due_date));
     setDraftStartedAt(toInputDate(started_at));
     setDraftEndedAt(toInputDate(ended_at));
-    setDraftDuration(duration || "");
+    setDraftDuration(duration || '');
     setDraftPriorityValue(
-      priority && PRIORITY_TO_VALUE[priority] !== undefined
-        ? PRIORITY_TO_VALUE[priority]
-        : "3"
+      priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
     );
     setDraftStatus(status);
     setIsEditing(false);
@@ -224,19 +253,12 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       }
 
       // Convert priority index to label string (or null for "No priority")
-      const newPriorityLabel = draftPriorityValue === "3"
-        ? null
-        : PRIORITY_LABELS[draftPriorityValue];
+      const newPriorityLabel =
+        draftPriorityValue === '3' ? null : PRIORITY_LABELS[draftPriorityValue];
 
-      const newDueDate = draftDueDate
-        ? new Date(draftDueDate).toISOString()
-        : null;
-      const newStartedAt = draftStartedAt
-        ? new Date(draftStartedAt).toISOString()
-        : null;
-      const newEndedAt = draftEndedAt
-        ? new Date(draftEndedAt).toISOString()
-        : null;
+      const newDueDate = draftDueDate ? new Date(draftDueDate).toISOString() : null;
+      const newStartedAt = draftStartedAt ? new Date(draftStartedAt).toISOString() : null;
+      const newEndedAt = draftEndedAt ? new Date(draftEndedAt).toISOString() : null;
       const newDuration = draftDuration || null;
 
       const updatedEntry: EntryRow = {
@@ -251,10 +273,21 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       };
 
       // Single update call with all schema columns
-      const result = await updateEntry(user_email, project_name, id, newEntryObject, newDueDate, newPriorityLabel, draftStatus, newStartedAt, newEndedAt, newDuration);
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        newEntryObject,
+        newDueDate,
+        newPriorityLabel,
+        draftStatus,
+        newStartedAt,
+        newEndedAt,
+        newDuration
+      );
 
       if (result?.success === false) {
-        setError(result.message || "Failed to save changes");
+        setError(result.message || 'Failed to save changes');
         return;
       }
       if (result?.error) {
@@ -266,7 +299,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       onUpdated?.(updatedEntry);
       setIsEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save changes");
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
       setSaving(false);
     }
@@ -282,11 +315,12 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
         ? await unarchiveEntry(user_email, project_name, id)
         : await archiveEntry(user_email, project_name, id);
 
-      if (result?.success === false) throw new Error(result.message || "Failed to update archive state");
+      if (result?.success === false)
+        throw new Error(result.message || 'Failed to update archive state');
 
       onArchiveToggled?.(id, !archived);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update archive state");
+      setError(err instanceof Error ? err.message : 'Failed to update archive state');
     } finally {
       setArchiving(false);
     }
@@ -294,16 +328,16 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
 
   const handleDelete = async () => {
     if (!user_email || deleting) return;
-    if (!window.confirm("Delete this entry? You can recover it later.")) return;
+    if (!window.confirm('Delete this entry? You can recover it later.')) return;
     setDeleting(true);
     setError(null);
     setMenuOpen(false);
     try {
       const result = await deleteEntryById(user_email, id);
-      if (result?.success === false) throw new Error(result.message || "Failed to delete entry");
+      if (result?.success === false) throw new Error(result.message || 'Failed to delete entry');
       onDelete?.(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete entry");
+      setError(err instanceof Error ? err.message : 'Failed to delete entry');
     } finally {
       setDeleting(false);
     }
@@ -315,12 +349,25 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     setError(null);
     try {
       // If moving to done_and_dusted, auto-set ended_at
-      const newEndedAt = newStatus === "done_and_dusted" && !ended_at ? new Date().toISOString() : ended_at;
+      const newEndedAt =
+        newStatus === 'done_and_dusted' && !ended_at ? new Date().toISOString() : ended_at;
       // If moving to in_motion and not started yet, auto-set started_at
-      const newStartedAt = newStatus === "in_motion" && !started_at ? new Date().toISOString() : started_at;
-      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, newStatus, newStartedAt, newEndedAt, duration);
+      const newStartedAt =
+        newStatus === 'in_motion' && !started_at ? new Date().toISOString() : started_at;
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        entries,
+        due_date,
+        priority,
+        newStatus,
+        newStartedAt,
+        newEndedAt,
+        duration
+      );
       if (result?.success === false) {
-        setError(result.message || "Failed to update status");
+        setError(result.message || 'Failed to update status');
         return;
       }
       if (result?.error) {
@@ -329,7 +376,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       }
       onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update status");
+      setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setSaving(false);
     }
@@ -341,9 +388,20 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     setError(null);
     try {
       const now = new Date().toISOString();
-      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, status, now, null, null);
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        entries,
+        due_date,
+        priority,
+        status,
+        now,
+        null,
+        null
+      );
       if (result?.success === false) {
-        setError(result.message || "Failed to start task");
+        setError(result.message || 'Failed to start task');
         return;
       }
       if (result?.error) {
@@ -353,7 +411,7 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
       // Always reload from database to show actual state
       onUpdated?.({ ...entry, started_at: now });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start task");
+      setError(err instanceof Error ? err.message : 'Failed to start task');
     } finally {
       setSaving(false);
     }
@@ -365,9 +423,20 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
     setError(null);
     try {
       const now = new Date().toISOString();
-      const result = await updateEntry(user_email, project_name, id, entries, due_date, priority, "done_and_dusted", started_at, now, null);
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        entries,
+        due_date,
+        priority,
+        'done_and_dusted',
+        started_at,
+        now,
+        null
+      );
       if (result?.success === false) {
-        setError(result.message || "Failed to end task");
+        setError(result.message || 'Failed to end task');
         return;
       }
       if (result?.error) {
@@ -375,9 +444,9 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
         return;
       }
       // Always reload from database to show actual state
-      onUpdated?.({ ...entry, ended_at: now, status: "done_and_dusted" });
+      onUpdated?.({ ...entry, ended_at: now, status: 'done_and_dusted' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to end task");
+      setError(err instanceof Error ? err.message : 'Failed to end task');
     } finally {
       setSaving(false);
     }
@@ -395,7 +464,9 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
               disabled={saving}
             >
               {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
             <select
@@ -405,7 +476,9 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
               disabled={saving}
             >
               {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
           </div>
@@ -452,11 +525,21 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
         </div>
 
         <div className="entry-box__edit-actions">
-          <button type="button" className="entry-box__btn entry-box__btn--cancel" onClick={handleCancel} disabled={saving}>
+          <button
+            type="button"
+            className="entry-box__btn entry-box__btn--cancel"
+            onClick={handleCancel}
+            disabled={saving}
+          >
             Cancel
           </button>
-          <button type="button" className="entry-box__btn entry-box__btn--save" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Changes"}
+          <button
+            type="button"
+            className="entry-box__btn entry-box__btn--save"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>
@@ -464,13 +547,59 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
   }
 
   return (
-    <div className={`entry-box ${archived ? "entry-box--archived" : ""}`}>
+    <div className={`entry-box ${archived ? 'entry-box--archived' : ''}`}>
+      <div className="entry-box__top-row">
+        <div className="entry-box__menu-wrap" ref={menuRef}>
+          <button
+            type="button"
+            className="entry-box__menu-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Entry options"
+            aria-expanded={menuOpen}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div className="entry-box__menu">
+              <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item entry-box__menu-item--danger"
+                onClick={handleToggleArchive}
+                disabled={archiving}
+              >
+                {archiving
+                  ? archived
+                    ? 'Unarchiving...'
+                    : 'Archiving...'
+                  : archived
+                    ? 'Unarchive'
+                    : 'Archive'}
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item entry-box__menu-item--danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="entry-box__header">
         <div className="entry-box__tags">
           {onPriorityChanged ? (
             <select
               className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
-              value={priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : "3"}
+              value={
+                priority && PRIORITY_TO_VALUE[priority] !== undefined
+                  ? PRIORITY_TO_VALUE[priority]
+                  : '3'
+              }
               onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
               onClick={(e) => e.stopPropagation()}
             >
@@ -490,7 +619,9 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
             disabled={saving || archived}
           >
             {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
           </select>
           {isOverdue(due_date ?? null, status) && (
@@ -500,41 +631,6 @@ export function EntryBox({ entry, onUpdated, onArchiveToggled, onPriorityChanged
           )}
         </div>
         <span className="entry-box__project">{project_name}</span>
-      </div>
-
-      <div className="entry-box__menu-wrap" ref={menuRef}>
-        <button
-          type="button"
-          className="entry-box__menu-btn"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Entry options"
-          aria-expanded={menuOpen}
-        >
-          ⋯
-        </button>
-        {menuOpen && (
-          <div className="entry-box__menu">
-            <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-              Edit
-            </button>
-            <button
-              type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleToggleArchive}
-              disabled={archiving}
-            >
-              {archiving ? (archived ? "Unarchiving..." : "Archiving...") : archived ? "Unarchive" : "Archive"}
-            </button>
-            <button
-              type="button"
-              className="entry-box__menu-item entry-box__menu-item--danger"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete"}
-            </button>
-          </div>
-        )}
       </div>
 
       {entryFields.length > 0 && (

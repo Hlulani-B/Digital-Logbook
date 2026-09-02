@@ -74,7 +74,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
@@ -211,18 +211,18 @@ Entries created from phrases like "i want to wash my clothes today" were getting
 
 **Fix:** Added a `getDate(text)` helper in `entries.js` that resolves dates server-side before the AI is called, using keyword matching:
 
-| Input | Result |
-|---|---|
-| `"today"` | Today's date |
-| `"tomorrow"` | Today + 1 |
-| `"yesterday"` | Today − 1 |
-| `"next week"` | Today + 7 |
-| `"in 3 days"` / `"in 2 weeks"` | Today + 3 / Today + 14 |
-| `"next wednesday"` | Next Wednesday |
-| `"monday"` / `"friday"` | Next occurrence of that day |
-| `"end of month"` | Last day of current month |
-| `"august 25"` / `"25 dec"` | Explicit month + day dates |
-| No date keyword found | `null` |
+| Input                          | Result                      |
+| ------------------------------ | --------------------------- |
+| `"today"`                      | Today's date                |
+| `"tomorrow"`                   | Today + 1                   |
+| `"yesterday"`                  | Today − 1                   |
+| `"next week"`                  | Today + 7                   |
+| `"in 3 days"` / `"in 2 weeks"` | Today + 3 / Today + 14      |
+| `"next wednesday"`             | Next Wednesday              |
+| `"monday"` / `"friday"`        | Next occurrence of that day |
+| `"end of month"`               | Last day of current month   |
+| `"august 25"` / `"25 dec"`     | Explicit month + day dates  |
+| No date keyword found          | `null`                      |
 
 `getDate()` also returns the input text with date keywords stripped out, so the AI never sees "today"/"tomorrow" and can't copy them into unrelated fields. Fuzzy matching corrects common misspellings (e.g., "tommorow" → "tomorrow", "wendsday" → "wednesday") before keyword matching runs.
 
@@ -246,13 +246,13 @@ The `didyoumean` library (v1.2.2) was initially used for fuzzy matching of missp
 2. Computes `leven(input, keyword)` against all known date keywords
 3. Accepts a match only if the distance is ≤ 40% of the input word's length
 
-| Input | Distance | Target | Threshold (40%) | Result |
-|---|---|---|---|---|
-| `"todya"` (5) | 2 | `"today"` | 2 | Match |
-| `"wendsday"` (8) | 2 | `"wednesday"` | 3 | Match |
-| `"weak"` (4) | 1 | `"week"` | 1 | Match |
-| `"days"` (4) | 2 | `"may"` | 1 | No match (correct) |
-| `"want"` (4) | 2 | `"jan"` | 1 | No match (correct) |
+| Input            | Distance | Target        | Threshold (40%) | Result             |
+| ---------------- | -------- | ------------- | --------------- | ------------------ |
+| `"todya"` (5)    | 2        | `"today"`     | 2               | Match              |
+| `"wendsday"` (8) | 2        | `"wednesday"` | 3               | Match              |
+| `"weak"` (4)     | 1        | `"week"`      | 1               | Match              |
+| `"days"` (4)     | 2        | `"may"`       | 1               | No match (correct) |
+| `"want"` (4)     | 2        | `"jan"`       | 1               | No match (correct) |
 
 All 33 unit tests pass, including 8 misspelling test cases and edge cases like "in 1 day" and "i want to wash my clothes today".
 

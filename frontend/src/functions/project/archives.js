@@ -1,10 +1,10 @@
-import { request, PROJECT_URL } from "@/lib/api";
+import { request, PROJECT_URL } from '@/lib/api';
 
 export async function archiveProject(user_email, project_name) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "archive_project",
+      function: 'archive_project',
       values: { user_email, project_name },
     }),
   });
@@ -12,9 +12,9 @@ export async function archiveProject(user_email, project_name) {
 
 export async function unarchiveProject(user_email, project_name) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "unarchive_project",
+      function: 'unarchive_project',
       values: { user_email, project_name },
     }),
   });
@@ -22,9 +22,9 @@ export async function unarchiveProject(user_email, project_name) {
 
 export async function archiveEntry(user_email, project_name, entry_id) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "archive_entry",
+      function: 'archive_entry',
       values: { user_email, project_name, entry_id },
     }),
   });
@@ -32,9 +32,9 @@ export async function archiveEntry(user_email, project_name, entry_id) {
 
 export async function unarchiveEntry(user_email, project_name, entry_id) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "unarchive_entry",
+      function: 'unarchive_entry',
       values: { user_email, project_name, entry_id },
     }),
   });
@@ -42,9 +42,9 @@ export async function unarchiveEntry(user_email, project_name, entry_id) {
 
 export async function getArchives(user_email, project_name) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "getArchives",
+      function: 'getArchives',
       values: { user_email, project_name: project_name || null },
     }),
   });
@@ -52,9 +52,9 @@ export async function getArchives(user_email, project_name) {
 
 export async function getUnarchived(user_email, project_name) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "getUnarchived",
+      function: 'getUnarchived',
       values: { user_email, project_name: project_name || null },
     }),
   });
@@ -62,9 +62,9 @@ export async function getUnarchived(user_email, project_name) {
 
 export async function getArchivedProjects(user_email) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "getArchivedProjects",
+      function: 'getArchivedProjects',
       values: { user_email },
     }),
   });
@@ -72,9 +72,9 @@ export async function getArchivedProjects(user_email) {
 
 export async function getUnarchivedProjects(user_email) {
   return request(`${PROJECT_URL}/service/archive`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
-      function: "getUnarchivedProjects",
+      function: 'getUnarchivedProjects',
       values: { user_email },
     }),
   });

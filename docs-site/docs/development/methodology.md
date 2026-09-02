@@ -13,38 +13,38 @@ team working in two-week sprints.
 
 ### Why Scrum?
 
-| Factor | Why Scrum fits |
-|---|---|
-| Team size (6) | Small enough for daily standups and quick consensus, large enough that work needs explicit ownership |
-| Sprint length (2 weeks) | Short feedback loops let us adjust scope if requirements change or a task takes longer than expected |
-| Academic context | Scrum artifacts (user stories, backlog, sprint review) double as the evidence the rubric requires |
-| Iterative delivery | The Digital Logbook has many interconnected features — Scrum lets us ship a vertical slice each sprint rather than building everything horizontally |
+| Factor                  | Why Scrum fits                                                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Team size (6)           | Small enough for daily standups and quick consensus, large enough that work needs explicit ownership                                                |
+| Sprint length (2 weeks) | Short feedback loops let us adjust scope if requirements change or a task takes longer than expected                                                |
+| Academic context        | Scrum artifacts (user stories, backlog, sprint review) double as the evidence the rubric requires                                                   |
+| Iterative delivery      | The Digital Logbook has many interconnected features — Scrum lets us ship a vertical slice each sprint rather than building everything horizontally |
 
 ### Scrum Artifacts
 
-| Artifact | Where it lives | Purpose |
-|---|---|---|
-| **Product Backlog** | [User Stories](user-stories.md) | All known requirements, prioritised by sprint |
-| **Sprint Backlog** | Trello board (team-private) | Tasks selected for the current sprint, assigned to owners |
-| **Increment** | Deployed services on Render + live frontend | Working software at the end of each sprint |
-| **Sprint Review** | This documentation site | Demonstrable output: docs, tests, deployed URLs |
+| Artifact            | Where it lives                              | Purpose                                                   |
+| ------------------- | ------------------------------------------- | --------------------------------------------------------- |
+| **Product Backlog** | [User Stories](user-stories.md)             | All known requirements, prioritised by sprint             |
+| **Sprint Backlog**  | Trello board (team-private)                 | Tasks selected for the current sprint, assigned to owners |
+| **Increment**       | Deployed services on Render + live frontend | Working software at the end of each sprint                |
+| **Sprint Review**   | This documentation site                     | Demonstrable output: docs, tests, deployed URLs           |
 
 ### Scrum Events
 
-| Event | Cadence | Evidence |
-|---|---|---|
-| **Sprint Planning** | Start of each sprint | User stories written with Given/When/Then acceptance criteria |
-| **Daily Standup** | Informal / async via WhatsApp | Meeting notes capture progress and blockers |
-| **Sprint Review** | End of each sprint | Commit history on [Roadmap](../roadmap.md), deployed demo |
-| **Sprint Retrospective** | End of each sprint | Entries in the [Development Log](log.md) documenting what went well and what to improve |
+| Event                    | Cadence                       | Evidence                                                                                |
+| ------------------------ | ----------------------------- | --------------------------------------------------------------------------------------- |
+| **Sprint Planning**      | Start of each sprint          | User stories written with Given/When/Then acceptance criteria                           |
+| **Daily Standup**        | Informal / async via WhatsApp | Meeting notes capture progress and blockers                                             |
+| **Sprint Review**        | End of each sprint            | Commit history on [Roadmap](../roadmap.md), deployed demo                               |
+| **Sprint Retrospective** | End of each sprint            | Entries in the [Development Log](log.md) documenting what went well and what to improve |
 
 ### Roles
 
-| Role | Who | Responsibility |
-|---|---|---|
-| Product Owner | Team (shared) | Prioritise backlog, clarify requirements with tutor |
-| Scrum Master | Rotating per sprint | Unblock the team, facilitate standups |
-| Development Team | All 6 members | Implement, test, review, deploy |
+| Role             | Who                 | Responsibility                                      |
+| ---------------- | ------------------- | --------------------------------------------------- |
+| Product Owner    | Team (shared)       | Prioritise backlog, clarify requirements with tutor |
+| Scrum Master     | Rotating per sprint | Unblock the team, facilitate standups               |
+| Development Team | All 6 members       | Implement, test, review, deploy                     |
 
 ---
 
@@ -76,16 +76,16 @@ Every commit message follows the [Conventional Commits](https://www.conventional
 <type>: <short description>
 ```
 
-| Type | Meaning |
-|---|---|
-| `feat` | New feature or user story implementation |
-| `fix` | Bug fix |
-| `docs` | Documentation only (no code change) |
-| `test` | Adding or updating tests |
+| Type       | Meaning                                                 |
+| ---------- | ------------------------------------------------------- |
+| `feat`     | New feature or user story implementation                |
+| `fix`      | Bug fix                                                 |
+| `docs`     | Documentation only (no code change)                     |
+| `test`     | Adding or updating tests                                |
 | `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `style` | Formatting, whitespace, linting — no logic change |
-| `ci` | CI/CD pipeline configuration |
-| `chore` | Maintenance tasks (dependency updates, config changes) |
+| `style`    | Formatting, whitespace, linting — no logic change       |
+| `ci`       | CI/CD pipeline configuration                            |
+| `chore`    | Maintenance tasks (dependency updates, config changes)  |
 
 Examples from our commit history:
 
@@ -119,6 +119,8 @@ ci: add Gitea Actions workflow for frontend and microservices
 
 See [Code Quality Tools](code-quality.md) for full details.
 
+See [Code Quality Tools](code-quality.md) for full details.
+
 ---
 
 ## Evidence Map
@@ -126,9 +128,9 @@ See [Code Quality Tools](code-quality.md) for full details.
 The table below shows where a marker can find evidence for each rubric
 criterion that this methodology supports:
 
-| Rubric Criterion | Evidence |
-|---|---|
-| Version Control (10%) | This repo — organised structure, CI pipeline, linting, coverage badges, all members committed |
-| Work Tracker (5%) | Trello board (team-private); tasks referenced in [Meeting 4](meetings.md#meeting-4-7-august-2026) |
-| Git Methodology (5%) | This page (branching strategy, commit convention, PR workflow) |
-| Project Methodology (10%) | This page (Scrum), plus [User Stories](user-stories.md), [Meetings](meetings.md), [Development Log](log.md), [Decisions](decisions.md) |
+| Rubric Criterion          | Evidence                                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Version Control (10%)     | This repo — organised structure, CI pipeline, linting, coverage badges, all members committed                                                                           |
+| Work Tracker (5%)         | [Work Tracker](work-tracker.md) (public sprint backlog with task owners, status, and evidence); private Trello board used for daily coordination                        |
+| Git Methodology (5%)      | This page (branching strategy, commit convention, PR workflow)                                                                                                          |
+| Project Methodology (10%) | This page (Scrum), plus [User Stories](user-stories.md), [Meetings](meetings.md), [Development Log](log.md), [Decisions](decisions.md), [Work Tracker](work-tracker.md) |

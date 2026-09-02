@@ -1,0 +1,13 @@
+node_modules/
+frontend/dist/
+frontend/node_modules/
+services/*/node_modules/
+services/*/coverage/
+coverage/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.min.js
+*.min.css
+badges/
+docs-site/site/

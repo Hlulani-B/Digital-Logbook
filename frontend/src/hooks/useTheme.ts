@@ -1,23 +1,23 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
-export type Theme = "light" | "dark" | "pink" | "blue" | "purple" | "green" | "brown";
+export type Theme = 'light' | 'dark' | 'pink' | 'blue' | 'purple' | 'green' | 'brown';
 
-const VALID_THEMES: Theme[] = ["light", "dark", "pink", "blue", "purple", "green", "brown"];
-const STORAGE_KEY = "dl_theme";
+const VALID_THEMES: Theme[] = ['light', 'dark', 'pink', 'blue', 'purple', 'green', 'brown'];
+const STORAGE_KEY = 'dl_theme';
 
 function getInitialTheme(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && VALID_THEMES.includes(stored as Theme)) return stored as Theme;
   } catch {}
-  return "light";
+  return 'light';
 }
 
 function applyTheme(theme: Theme) {
-  if (theme === "light") {
-    document.documentElement.removeAttribute("data-theme");
+  if (theme === 'light') {
+    document.documentElement.removeAttribute('data-theme');
   } else {
-    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.setAttribute('data-theme', theme);
   }
 }
 
@@ -35,10 +35,13 @@ export function useTheme() {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme(theme === "light" ? "dark" : "light");
+    setTheme(theme === 'light' ? 'dark' : 'light');
   }, [theme, setTheme]);
 
-  const isDark = theme === "dark";
+  const isDark = theme === 'dark';
 
-  return useMemo(() => ({ theme, setTheme, toggleTheme, isDark }), [theme, setTheme, toggleTheme, isDark]);
+  return useMemo(
+    () => ({ theme, setTheme, toggleTheme, isDark }),
+    [theme, setTheme, toggleTheme, isDark]
+  );
 }
