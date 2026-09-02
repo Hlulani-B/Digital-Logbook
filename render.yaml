@@ -2,7 +2,6 @@ services:
   - type: web
     name: digital-logbook
     env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -91,7 +90,6 @@ services:
   - type: web
     name: docs-site
     env: static
-    plan: free
     rootDir: docs-site
     buildCommand: pip install -r requirements.txt && mkdocs build
     staticPublishPath: site
