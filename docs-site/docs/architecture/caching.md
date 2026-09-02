@@ -1,10 +1,22 @@
-# IndexedDB Caching & Offline-First Architecture
+# Client-Side Persistent Caching (IndexedDB)
 
 ## Overview
 
-The Digital Logbook frontend implements a **stale-while-revalidate** caching pattern using IndexedDB as a local data store. This provides instant UI updates by serving cached data immediately while fetching fresh data in the background.
+The Digital Logbook frontend implements **client-side persistent caching using IndexedDB, following a stale-while-revalidate pattern**. This is a specific type of web caching where data is stored in the browser's IndexedDB — a local mini-database — so it survives page refreshes and can serve instant reads on subsequent visits.
 
-This pattern is also known as **local-first** or **offline-first** architecture — the application reads from a local mirror first, then reconciles with the server.
+"Web caching" is the umbrella term for storing data closer to where it's used instead of fetching it fresh every time. IndexedDB caching is one legitimate branch of web caching:
+
+| Type | Persists across reloads? | Handles structured data? | Use case |
+|---|---|---|---|
+| In-memory (e.g. React Query) | No | Limited | Fast but ephemeral |
+| LocalStorage | Yes | No (key-value only) | Simple flags/tokens |
+| **IndexedDB** | **Yes** | **Yes (mini local database)** | **Structured/relational data** |
+| Server-side (Express) | N/A | N/A | Backend API response caching |
+| HTTP/browser (cache headers) | Varies | N/A | Low-level resource caching |
+
+IndexedDB caching is arguably stronger than in-memory caching because it survives refreshes and can support offline behaviour too.
+
+The pattern is also known as **local-first** or **offline-first** architecture — the application reads from a local mirror first, then reconciles with the server.
 
 ## Why Caching?
 
@@ -157,6 +169,27 @@ The cache uses **write-through invalidation**:
 | Delete project | `projects:{email}`, `entries:{email}:{project}`, `all-entries:{email}` |
 | Update profile | `profile:{email}` |
 | Delete profile | `profile:{email}`, `projects:{email}`, `all-entries:{email}` |
+| **Sign out** | **All stores for user's email** |
+| **Delete account** | **All stores for user's email** |
+
+### Authentication & Cache Clearing
+
+The `signOut` and `deleteAccount` functions in `AuthContext.tsx` call `clearUserCache(email)` before the Supabase sign-out completes. This ensures:
+
+- No stale data leaks between sessions on the same browser
+- A different user signing in won't see the previous user's cached projects/entries/profile
+- Account deletion fully wipes all local data
+
+```javascript
+// In AuthContext.tsx
+const signOut = async () => {
+  const email = state.user?.email;
+  if (email) {
+    await clearUserCache(email);  // Wipe IndexedDB first
+  }
+  await getSupabase().auth.signOut();
+};
+```
 
 ## Performance Impact
 
