@@ -28,7 +28,7 @@ The backend microservices are deployed on Render:
 | **Project Service**   | Backend API        | [https://project-service-96ml.onrender.com](https://project-service-96ml.onrender.com)     |
 | **Profile Service**   | Backend API        | [https://profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com)     |
 
-test: https://digital-logbook-hlulani.onrender.com
+test: https://digital-logbook-bjev.onrender.com
 
 # Backend
 
