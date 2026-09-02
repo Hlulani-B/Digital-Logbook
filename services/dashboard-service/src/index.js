@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 
 import searchRouter from './Routes/search.js';
+import { startDaemon } from './functions/daemon.js';
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -59,6 +60,8 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`dashboard-service running on port ${PORT}`);
+  // Start the Supabase keep-alive daemon
+  startDaemon();
 });
 
 export default app;
