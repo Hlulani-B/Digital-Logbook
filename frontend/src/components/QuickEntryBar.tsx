@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 import { FiMic } from 'react-icons/fi';
 import { addNaturalLanguageEntry } from '../functions/project/natural_language.js';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 
 interface QuickEntryBarProps {
   onEntryCreated?: () => void;
@@ -62,7 +63,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       }
       setMessageType('success');
       const comment = data?.comment || (data?.data as Record<string, unknown>)?.comment;
-      if (comment) {
+      if (comment && getAiMessagesEnabled()) {
         setToast(comment as string);
       }
       if (onEntryCreated) onEntryCreated();

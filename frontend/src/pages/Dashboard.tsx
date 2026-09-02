@@ -22,6 +22,7 @@ import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
@@ -244,8 +245,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     })();
   }, [activeView, email]);
 
-  // AI-generated greeting — shown as a toast
+  // AI-generated greeting — shown as a toast (respects AI messages preference)
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     if (!loading && projects.length > 0) {
       const hour = new Date().getHours();
       const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';

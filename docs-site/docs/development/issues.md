@@ -500,3 +500,22 @@ await vi.advanceTimersByTimeAsync(1000);
 ```
 
 **Takeaway:** When testing async code with fake timers in Vitest, always use `vi.advanceTimersByTimeAsync()` instead of `vi.advanceTimersByTime()`. The synchronous version is only safe for purely synchronous code.
+
+---
+
+## AI Messages & User Preferences
+
+### Issue 38: No Option to Disable AI Toasts and Popup Messages
+
+The application showed AI-generated toasts (greeting on dashboard load, entry comments after quick-add) with no way to disable them. Users who did not want AI-generated messages had no opt-out mechanism.
+
+**Root cause:** The AI greeting toast in `Dashboard.tsx` and the AI comment toast in `QuickEntryBar.tsx` fired unconditionally. No preference flag existed in localStorage or the settings panel.
+
+**Fix:**
+1. Created `frontend/src/functions/aiMessages.ts` — a `getAiMessagesEnabled()` / `setAiMessagesEnabled()` pair backed by `localStorage` key `dl_ai_messages` (default: `true`).
+2. Added an **AI messages** toggle to `SettingsPanel.tsx` under Notifications section.
+3. Added an **AI messages** toggle to `FrequencySetup.tsx` onboarding page so new users can opt out during signup.
+4. Guarded the Dashboard greeting `useEffect` with `if (!getAiMessagesEnabled()) return;`.
+5. Guarded the QuickEntryBar AI comment toast with `if (comment && getAiMessagesEnabled())`.
+
+The preference persists across sessions via localStorage and takes effect immediately on all AI-generated messages.
