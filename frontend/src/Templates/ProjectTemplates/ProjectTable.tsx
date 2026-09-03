@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getAllEntries, updateEntry } from "@/functions/project/entries";
-import { useAuth } from "@/context/AuthContext";
 import './ProjectTable.css';
+
+const PREVIEW_EMAIL = "hlulanibaloyi@khanyisaeducentre.co.za";
 
 /*
   ProjectTaskTable
@@ -400,15 +401,13 @@ export function ProjectTablePreview({
 }: {
   onProjectNameClick?: (projectName: string) => void;
 } = {}) {
-  const { user } = useAuth();
-  const email = user?.email || "";
+  const email = PREVIEW_EMAIL;
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"entry" | "summary">("entry");
 
   useEffect(() => {
-    if (!email) return;
     async function fetchData() {
       setLoading(true);
       try {
