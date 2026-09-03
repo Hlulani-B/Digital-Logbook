@@ -143,32 +143,34 @@ function customFieldsFor(projectName: string, fields: any[]) {
 
 // Derive columns directly from the entries jsonb keys
 function entryFieldNames(rows: any[]): string[] {
+  const SKIP = new Set(["started_at", "description"]);
   const keys = new Set<string>();
   for (const row of rows) {
     const obj = row.entries;
     if (obj && typeof obj === "object" && !Array.isArray(obj)) {
       for (const key of Object.keys(obj)) {
-        keys.add(key);
+        if (!SKIP.has(key)) keys.add(key);
       }
     }
   }
   return Array.from(keys);
 }
 
-// Grid: Status | Due | Priority | content columns
-// Priority wider for long labels that wrap, others compact
-const BASE_COLS = "110px 80px 150px";
+// Grid: content columns | Priority | Due | Status (far right)
+const TRAILING_COLS = "150px 90px 110px";
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
-  let template = BASE_COLS;
+  let template = "";
   if (viewMode === "summary") {
-    template += " minmax(200px, 3fr)"; // single summary column
+    template = "minmax(200px, 3fr)";
   } else {
+    const parts = [];
     for (let i = 0; i < customFieldCount; i++) {
-      template += " minmax(80px, 1fr)";
+      parts.push("minmax(80px, 1fr)");
     }
+    template = parts.join(" ");
   }
-  return template;
+  return template + " " + TRAILING_COLS;
 }
 
 // ── Inline editable text cell ──────────────────────────────
@@ -304,41 +306,7 @@ function TaskRow({
       data-priority={friendlyPriority(entry.priority)}
       style={{ gridTemplateColumns: gridTemplate }}
     >
-      {/* Status — dropdown */}
-      <div className="ptt-cell ptt-cell-status">
-        <select
-          className="ptt-select ptt-select-status"
-          value={entry.status || STATUSES[0]}
-          onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{friendlyStatus(s)}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Due date — editable date */}
-      <div className="ptt-cell ptt-cell-due">
-        <EditableDate
-          value={entry.due_date}
-          onSave={(val) => onUpdate(entry.id, { due_date: val })}
-        />
-      </div>
-
-      {/* Priority — dropdown */}
-      <div className="ptt-cell ptt-cell-priority">
-        <select
-          className="ptt-select ptt-select-priority"
-          value={entry.priority || PRIORITIES[3]}
-          onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
-        >
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>{friendlyPriority(p)}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Content columns depend on view mode */}
+      {/* Content columns — left side */}
       {viewMode === "summary" ? (
         <div className="ptt-cell ptt-cell-summary">
           <EditableText
@@ -360,6 +328,40 @@ function TaskRow({
           );
         })
       )}
+
+      {/* Priority — dropdown */}
+      <div className="ptt-cell ptt-cell-priority">
+        <select
+          className="ptt-select ptt-select-priority"
+          value={entry.priority || PRIORITIES[3]}
+          onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
+        >
+          {PRIORITIES.map((p) => (
+            <option key={p} value={p}>{friendlyPriority(p)}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Due date — editable date */}
+      <div className="ptt-cell ptt-cell-due">
+        <EditableDate
+          value={entry.due_date}
+          onSave={(val) => onUpdate(entry.id, { due_date: val })}
+        />
+      </div>
+
+      {/* Status — dropdown (far right) */}
+      <div className="ptt-cell ptt-cell-status">
+        <select
+          className="ptt-select ptt-select-status"
+          value={entry.status || STATUSES[0]}
+          onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>{friendlyStatus(s)}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
@@ -400,9 +402,6 @@ function ProjectGroup({
       {open && (
         <div className="ptt-table">
           <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
-            <div className="ptt-col">Status</div>
-            <div className="ptt-col">Due</div>
-            <div className="ptt-col">Priority</div>
             {viewMode === "summary" ? (
               <div className="ptt-col ptt-col-summary">Summary</div>
             ) : (
@@ -412,6 +411,9 @@ function ProjectGroup({
                 </div>
               ))
             )}
+            <div className="ptt-col">Priority</div>
+            <div className="ptt-col">Due</div>
+            <div className="ptt-col">Status</div>
           </div>
 
           <div className="ptt-rows">
