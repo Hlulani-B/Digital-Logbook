@@ -5,41 +5,11 @@ import './ProjectTable.css';
 /*
   ProjectTaskTable
   -----------------
-  Renders rows straight from the `entries` table, grouped by `project_name`,
-  matching the "Projects & Tasks" layout. No assignee column, since that
-  field doesn't exist in the schema.
-
-  Expects data shaped exactly like what Supabase returns:
-
-  entries table columns used:
-    id            uuid
-    project_name  varchar
-    entries       jsonb   -> custom field values, keyed by field_name
-    due_date      timestamptz
-    priority      enum
-    status        enum (default 'up_next')
-    summary       text
-    archived      boolean
-    deleted       boolean
-
-  fields table columns used (per project_name, defines what shows up
-  from the entries.entries jsonb blob as extra columns):
-    table_name    varchar   -> matches project_name
-    field_name    varchar
-    data_type     varchar
-    is_required   boolean
-
-  Props:
-    rows: entries[]      -- flat array straight from `select * from entries`
-    fields: fields[]     -- flat array straight from `select * from fields`
-                             (used to know which custom columns to render
-                             per project, and in what order)
-
-  No colors/spacing are hardcoded beyond bare structural classes, styling
-  is left to be layered on separately (Qoder / CSS).
+  Renders rows from the `entries` table, grouped by `project_name`.
+  Custom fields from the `fields` table get their own columns per project.
 */
 
-// Dummy data for preview - using hlulanibaloyi@khanyisaeducentre's projects
+// Dummy data for preview
 const DUMMY_ROWS = [
   {
     id: "1",
@@ -116,54 +86,12 @@ const DUMMY_ROWS = [
 ];
 
 const DUMMY_FIELDS = [
-  {
-    id: "1",
-    table_name: "Digital Logbook",
-    field_name: "task",
-    data_type: "text",
-    is_required: true,
-    deleted: false,
-  },
-  {
-    id: "2",
-    table_name: "Digital Logbook",
-    field_name: "hours",
-    data_type: "number",
-    is_required: false,
-    deleted: false,
-  },
-  {
-    id: "3",
-    table_name: "Khanyisa MVP",
-    field_name: "task",
-    data_type: "text",
-    is_required: true,
-    deleted: false,
-  },
-  {
-    id: "4",
-    table_name: "Khanyisa MVP",
-    field_name: "hours",
-    data_type: "number",
-    is_required: false,
-    deleted: false,
-  },
-  {
-    id: "5",
-    table_name: "Personal",
-    field_name: "task",
-    data_type: "text",
-    is_required: true,
-    deleted: false,
-  },
-  {
-    id: "6",
-    table_name: "Personal",
-    field_name: "hours",
-    data_type: "number",
-    is_required: false,
-    deleted: false,
-  },
+  { id: "1", table_name: "Digital Logbook", field_name: "task", data_type: "text", is_required: true, deleted: false },
+  { id: "2", table_name: "Digital Logbook", field_name: "hours", data_type: "number", is_required: false, deleted: false },
+  { id: "3", table_name: "Khanyisa MVP", field_name: "task", data_type: "text", is_required: true, deleted: false },
+  { id: "4", table_name: "Khanyisa MVP", field_name: "hours", data_type: "number", is_required: false, deleted: false },
+  { id: "5", table_name: "Personal", field_name: "task", data_type: "text", is_required: true, deleted: false },
+  { id: "6", table_name: "Personal", field_name: "hours", data_type: "number", is_required: false, deleted: false },
 ];
 
 function formatDate(value: string | null | undefined) {
@@ -188,7 +116,19 @@ function customFieldsFor(projectName: string, fields: any[]) {
   return fields.filter((f) => f.table_name === projectName && !f.deleted);
 }
 
-function TaskRow({ entry, customFields }: { entry: any; customFields: any[] }) {
+// Fixed columns with proper widths to prevent overlap
+// Task (flex) | Status (fixed) | Due (fixed) | Priority (fixed) | custom fields (equal remaining)
+const BASE_COLS = "minmax(160px, 3fr) 120px 80px 180px";
+
+function buildGridTemplate(customFieldCount: number) {
+  let template = BASE_COLS;
+  for (let i = 0; i < customFieldCount; i++) {
+    template += " minmax(60px, 1fr)";
+  }
+  return template;
+}
+
+function TaskRow({ entry, customFields, gridTemplate }: { entry: any; customFields: any[]; gridTemplate: string }) {
   const customValues = entry.entries || {};
 
   return (
@@ -196,6 +136,7 @@ function TaskRow({ entry, customFields }: { entry: any; customFields: any[] }) {
       className="ptt-row"
       data-status={entry.status}
       data-priority={entry.priority}
+      style={{ gridTemplateColumns: gridTemplate }}
     >
       <div className="ptt-cell ptt-cell-title">
         <span className="ptt-checkbox" aria-hidden="true" />
@@ -230,6 +171,7 @@ function TaskRow({ entry, customFields }: { entry: any; customFields: any[] }) {
 function ProjectGroup({ project, fields }: { project: any; fields: any[] }) {
   const [open, setOpen] = useState(true);
   const customFields = customFieldsFor(project.name, fields);
+  const gridTemplate = buildGridTemplate(customFields.length);
 
   return (
     <div className="ptt-group">
@@ -248,11 +190,11 @@ function ProjectGroup({ project, fields }: { project: any; fields: any[] }) {
 
       {open && (
         <div className="ptt-table">
-          <div className="ptt-columns">
-            <div className="ptt-col ptt-col-title">Task name</div>
-            <div className="ptt-col ptt-col-status">Status</div>
-            <div className="ptt-col ptt-col-due">Due</div>
-            <div className="ptt-col ptt-col-priority">Priority</div>
+          <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
+            <div className="ptt-col">Task name</div>
+            <div className="ptt-col">Status</div>
+            <div className="ptt-col">Due</div>
+            <div className="ptt-col">Priority</div>
             {customFields.map((field) => (
               <div className="ptt-col ptt-col-custom" key={field.field_name}>
                 {field.field_name}
@@ -262,7 +204,7 @@ function ProjectGroup({ project, fields }: { project: any; fields: any[] }) {
 
           <div className="ptt-rows">
             {project.entries.map((entry: any) => (
-              <TaskRow key={entry.id} entry={entry} customFields={customFields} />
+              <TaskRow key={entry.id} entry={entry} customFields={customFields} gridTemplate={gridTemplate} />
             ))}
           </div>
         </div>
@@ -283,7 +225,7 @@ export default function ProjectTaskTable({ rows = [], fields = [] }: { rows?: an
   );
 }
 
-// Preview wrapper - fetches real data or uses dummy data
+// Preview wrapper
 export function ProjectTablePreview() {
   const [rows, setRows] = useState<any[]>(DUMMY_ROWS);
   const [fields, setFields] = useState<any[]>(DUMMY_FIELDS);
