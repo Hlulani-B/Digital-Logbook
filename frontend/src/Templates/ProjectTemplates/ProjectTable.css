@@ -147,82 +147,84 @@
   white-space: nowrap;
 }
 
-/* ── Status Pills — Vintage Earth Tones ────────────────── */
+/* ── Status Pills — Bold Vintage ───────────────────────── */
 .ptt-pill-status {
   display: inline-block;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.7rem;
   border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   white-space: nowrap;
-  border: 1.5px solid;
+  border: 2px solid;
+  letter-spacing: 0.02em;
 }
 
-/* done — muted sage green */
+/* done — rich sage green */
 .ptt-row[data-status='done'] .ptt-pill-status {
-  background: #e8f0e8;
-  color: #3d6649;
+  background: #d4e4d4;
+  color: #2d5038;
   border-color: #4a7c59;
 }
 
-/* in_progress — warm amber/ochre */
+/* in_progress — deep amber/ochre */
 .ptt-row[data-status='in_progress'] .ptt-pill-status {
-  background: #fdf3e0;
-  color: #8b6914;
+  background: #fae5b8;
+  color: #6b4f0a;
   border-color: #c49a2a;
 }
 
-/* blocked — terracotta/rust */
+/* blocked — bold terracotta */
 .ptt-row[data-status='blocked'] .ptt-pill-status {
-  background: #f5e6de;
-  color: #7a3b20;
+  background: #e8cfc0;
+  color: #5c2a12;
   border-color: #a0522d;
 }
 
-/* up_next — dusty slate blue */
+/* up_next — rich dusty blue */
 .ptt-row[data-status='up_next'] .ptt-pill-status {
-  background: #e8edf2;
-  color: #4a5c6e;
-  border-color: #6b7f8e;
+  background: #cdd8e4;
+  color: #34485a;
+  border-color: #5a7080;
 }
 
-/* ── Priority Pills — Vintage Earth Tones ──────────────── */
+/* ── Priority Pills — Bold Vintage ─────────────────────── */
 .ptt-pill-priority {
   display: inline-block;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.7rem;
   border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   white-space: nowrap;
-  border: 1.5px solid;
+  border: 2px solid;
+  letter-spacing: 0.02em;
 }
 
-/* Urgent and important — deep terracotta */
+/* Urgent and important — bold terracotta */
 .ptt-row[data-priority='Urgent and important'] .ptt-pill-priority {
-  background: #f5e6de;
-  color: #7a3b20;
+  background: #e8cfc0;
+  color: #5c2a12;
   border-color: #a0522d;
 }
 
-/* Important not urgent — warm ochre/gold */
+/* Important not urgent — rich ochre/gold */
 .ptt-row[data-priority='Important not urgent'] .ptt-pill-priority {
-  background: #fdf3e0;
-  color: #8b6914;
-  border-color: #c49a2a;
+  background: #fae5b8;
+  color: #6b4f0a;
+  border-color: #b8891e;
 }
 
-/* Urgent not important — burnt sienna */
+/* Urgent not important — warm burnt sienna */
 .ptt-row[data-priority='Urgent not important'] .ptt-pill-priority {
-  background: #f0e8dd;
-  color: #6b4c30;
-  border-color: #8b7355;
+  background: #e0d2c0;
+  color: #4a3520;
+  border-color: #8b6b45;
 }
 
-/* Neither — warm grey */
+/* Neither — warm stone */
 .ptt-row[data-priority='Neither urgent nor important'] .ptt-pill-priority {
-  background: #f0ece6;
-  color: #6b5d4a;
-  border-color: #9a8b74;
+  background: #ddd6cc;
+  color: #4a3f32;
+  border-color: #8a7d6a;
 }
 
 .ptt-cell-custom {
