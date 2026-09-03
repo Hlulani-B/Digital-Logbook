@@ -48,10 +48,31 @@
 .ptt-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
+/* Column headers - dark and bold */
 .ptt-columns {
-  display: none;
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1fr 1.2fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 2px solid var(--border, #e8dcc8);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text, #3b3226);
+}
+
+.ptt-col {
+  color: var(--text, #3b3226);
+  font-weight: 700;
+}
+
+.ptt-col-custom {
+  color: var(--text, #3b3226);
+  font-weight: 700;
 }
 
 .ptt-rows {
@@ -61,7 +82,7 @@
 
 .ptt-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 0.8fr 1.2fr;
+  grid-template-columns: 2.5fr 1fr 1fr 1.2fr 1fr;
   align-items: center;
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--border, #e8dcc8);
@@ -77,14 +98,19 @@
   background: var(--bg-subtle, #f8f2e3);
 }
 
+/* All cells - single line, no wrap */
 .ptt-cell {
   color: var(--text, #3b3226);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ptt-cell-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  overflow: hidden;
 }
 
 .ptt-checkbox {
@@ -116,7 +142,10 @@
 .ptt-cell-due,
 .ptt-cell-priority {
   color: var(--text-dim, #6b5d4a);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ptt-pill {
@@ -128,32 +157,13 @@
   background: var(--bg-subtle, #f8f2e3);
   border: 1px solid var(--border, #e8dcc8);
   color: var(--text-dim, #6b5d4a);
+  white-space: nowrap;
 }
 
 .ptt-cell-custom {
   color: var(--text-dim, #6b5d4a);
-  font-size: 0.8rem;
-}
-
-@media (min-width: 768px) {
-  .ptt-columns {
-    display: grid;
-    grid-template-columns: 2fr 1fr 0.8fr 1.2fr;
-    gap: 1rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border, #e8dcc8);
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted, #9a8b74);
-  }
-
-  .ptt-col-custom {
-    color: var(--text-muted, #9a8b74);
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
