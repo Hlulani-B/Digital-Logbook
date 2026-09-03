@@ -157,7 +157,7 @@ function entryFieldNames(rows: any[]): string[] {
 }
 
 // Grid: content columns | Priority | Due | Status (far right)
-const TRAILING_COLS = "150px 90px 110px";
+const TRAILING_COLS = "150px 90px 110px"; // Priority | Due | Status
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
   let template = "";
@@ -463,26 +463,25 @@ export default function ProjectTaskTable({
   );
 }
 
-// ── Preview wrapper with Supabase persistence ──────────────
+// ── Preview wrapper — real Supabase data only ──────────────
+const PREVIEW_EMAIL = "hlulanibaloyi@khanyisaeducentre.co.za";
+
 export function ProjectTablePreview() {
-  const [rows, setRows] = useState<any[]>(DUMMY_ROWS);
-  const [fields, setFields] = useState<any[]>(DUMMY_FIELDS);
-  const [useRealData, setUseRealData] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+  const [fields, setFields] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"entry" | "summary">("entry");
 
   useEffect(() => {
-    if (!useRealData) return;
-
-    async function fetchRealData() {
+    async function fetchData() {
       setLoading(true);
       try {
         const supabase = getSupabase();
         const { data: entriesData } = await supabase
           .from("entries")
           .select("*")
-          .eq("user_email", "hlulanibaloyi@khanyisaeducentre")
+          .eq("user_email", PREVIEW_EMAIL)
           .eq("deleted", false);
 
         const { data: fieldsData } = await supabase
@@ -490,25 +489,22 @@ export function ProjectTablePreview() {
           .select("*")
           .eq("deleted", false);
 
-        if (entriesData && entriesData.length > 0) setRows(entriesData);
-        if (fieldsData && fieldsData.length > 0) setFields(fieldsData);
+        if (entriesData) setRows(entriesData);
+        if (fieldsData) setFields(fieldsData);
       } catch (err) {
-        console.error("Failed to fetch real data:", err);
+        console.error("Failed to fetch data:", err);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchRealData();
-  }, [useRealData]);
+    fetchData();
+  }, []);
 
   const handleUpdate = useCallback(
     async (id: string, patch: Record<string, any>) => {
       setRows((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
       );
-
-      if (!useRealData) return;
 
       setSaving(id);
       try {
@@ -534,7 +530,7 @@ export function ProjectTablePreview() {
         setSaving(null);
       }
     },
-    [useRealData, rows],
+    [rows],
   );
 
   return (
@@ -575,23 +571,8 @@ export function ProjectTablePreview() {
           </button>
         </div>
 
-        <button
-          onClick={() => setUseRealData(!useRealData)}
-          style={{
-            padding: "0.4rem 0.9rem",
-            borderRadius: "4px",
-            border: "1px solid #ccc",
-            background: useRealData ? "#4a7c59" : "#fff",
-            color: useRealData ? "#fff" : "#333",
-            cursor: "pointer",
-            fontSize: "0.8rem",
-          }}
-        >
-          {loading ? "Loading..." : useRealData ? "Real Data" : "Dummy Data"}
-        </button>
-
         <span style={{ color: "#666", fontSize: "0.8rem" }}>
-          {useRealData ? "hlulanibaloyi@khanyisaeducentre" : "Preview"}
+          {loading ? "Loading..." : `${rows.length} entries`}
           {saving && " — saving..."}
         </span>
       </div>
