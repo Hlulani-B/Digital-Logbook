@@ -5412,3 +5412,61 @@ img {
 .checklist-card-menu {
   display: none;
 }
+
+/* ── Entries-by-due-date board ── */
+.edb-board {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+}
+.edb-column {
+  flex: 0 0 260px;
+  min-width: 220px;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+}
+.edb-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  background: var(--bg, #fafafa);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+.edb-column-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text, #111);
+}
+.edb-column-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary, #666);
+  background: var(--border, #e5e5e5);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  min-width: 1.4rem;
+  text-align: center;
+}
+.edb-column-body {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+@media (max-width: 600px) {
+  .edb-column {
+    flex: 0 0 85vw;
+  }
+}

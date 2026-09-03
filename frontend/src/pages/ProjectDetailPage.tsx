@@ -9,6 +9,7 @@ import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import { sortUnarchivedEntries, updateEntry, deleteEntryById } from '@/functions/project/entries.js';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
+import EntriesByDueDateBoard from '@/Templates/EntryTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
@@ -152,12 +153,12 @@ export function ProjectDetailPage() {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
 
   // View mode: table, cards, or checklist — persist in localStorage, default to cards on mobile
-  const [viewMode, setViewModeState] = useState<'table' | 'cards' | 'checklist'>(() => {
+  const [viewMode, setViewModeState] = useState<'table' | 'cards' | 'checklist' | 'board'>(() => {
     const stored = localStorage.getItem('project-view-mode');
-    if (stored === 'table' || stored === 'cards' || stored === 'checklist') return stored;
+    if (stored === 'table' || stored === 'cards' || stored === 'checklist' || stored === 'board') return stored;
     return window.innerWidth < 600 ? 'cards' : 'table';
   });
-  const setViewMode = (mode: 'table' | 'cards' | 'checklist') => {
+  const setViewMode = (mode: 'table' | 'cards' | 'checklist' | 'board') => {
     setViewModeState(mode);
     localStorage.setItem('project-view-mode', mode);
   };
@@ -928,6 +929,23 @@ export function ProjectDetailPage() {
               </svg>
               Checklist
             </button>
+            <button
+              className={`sort-btn ${viewMode === 'board' ? 'active' : ''}`}
+              onClick={() => setViewMode('board')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="3" width="7" height="18" rx="1" />
+                <rect x="14" y="3" width="7" height="12" rx="1" />
+              </svg>
+              Board
+            </button>
           </div>
         </div>
 
@@ -1065,6 +1083,21 @@ export function ProjectDetailPage() {
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
               />
+            ) : viewMode === 'board' ? (
+              <EntriesByDueDateBoard
+                entries={filteredEntries.map((r) => ({
+                  id: r.id as string,
+                  user_email: r.user_email as string,
+                  project_name: r.project_name as string,
+                  summary: (r.summary as string) || null,
+                  due_date: (r.due_date as string) || null,
+                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                  entries: r.entries as Record<string, unknown> | string | null,
+                  started_at: (r.started_at as string) || null,
+                }))}
+                onUpdated={() => loadEntries()}
+                onDelete={() => loadEntries()}
+              />
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
@@ -1171,6 +1204,21 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'checklist' ? (
               <ChecklistView
+                entries={entries.map((r) => ({
+                  id: r.id as string,
+                  user_email: r.user_email as string,
+                  project_name: r.project_name as string,
+                  summary: (r.summary as string) || null,
+                  due_date: (r.due_date as string) || null,
+                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                  entries: r.entries as Record<string, unknown> | string | null,
+                  started_at: (r.started_at as string) || null,
+                }))}
+                onUpdated={() => loadEntries()}
+                onDelete={() => loadEntries()}
+              />
+            ) : viewMode === 'board' ? (
+              <EntriesByDueDateBoard
                 entries={entries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,

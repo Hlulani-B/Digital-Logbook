@@ -19,6 +19,7 @@ import { dueSoon } from '@/functions/dashboard.js';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
+import EntriesByDueDateBoard from '@/Templates/EntryTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
@@ -89,7 +90,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [viewMode, setViewMode] = useState<'due-soon' | 'all-entries'>('due-soon');
 
   // Display mode: cards, checklist, or table
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table'>('cards');
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table' | 'board'>('cards');
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1292,6 +1293,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   Checklist
                 </button>
+                <button
+                  className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('board')}
+                >
+                  Board
+                </button>
                 {viewMode === 'all-entries' && (
                   <button
                     className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`}
@@ -1409,6 +1416,21 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   </div>
                 ) : displayMode === 'checklist' ? (
                   <ChecklistView
+                    entries={filteredEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as Record<string, unknown> | string | null,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadData()}
+                    onDelete={() => loadData()}
+                  />
+                ) : displayMode === 'board' ? (
+                  <EntriesByDueDateBoard
                     entries={filteredEntries.map((r) => ({
                       id: r.id as string,
                       user_email: r.user_email as string,
