@@ -1,4 +1,4 @@
-/* ProjectTaskTable — Vintage Table Styles */
+/* ProjectTaskTable — Vintage Editable Table */
 
 .ptt-root {
   width: 100%;
@@ -103,124 +103,147 @@
 }
 
 .ptt-cell-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   overflow: hidden;
 }
 
-.ptt-checkbox {
-  display: inline-block;
-  width: 1rem;
-  height: 1rem;
-  border: 1px solid var(--border, #e8dcc8);
+/* ── Editable text ───────────────────────────────────────── */
+.ptt-editable {
+  cursor: pointer;
+  padding: 0.15rem 0.3rem;
   border-radius: 3px;
-  flex-shrink: 0;
+  border: 1px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ptt-row[data-status='done'] .ptt-checkbox {
-  background: #4a7c59;
-  border-color: #3d6649;
-}
-
-.ptt-row[data-status='done'] .ptt-title-text {
-  text-decoration: line-through;
-  opacity: 0.6;
+.ptt-editable:hover {
+  border-color: var(--border, #e8dcc8);
+  background: var(--bg-subtle, #f8f2e3);
 }
 
 .ptt-title-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 500;
 }
 
-.ptt-cell-status,
-.ptt-cell-due,
-.ptt-cell-priority {
-  font-size: 0.85rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ptt-editable-date {
+  min-width: 60px;
 }
 
-/* ── Status Pills — Bold Vintage ───────────────────────── */
-.ptt-pill-status {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
+.ptt-placeholder {
+  color: var(--text-muted, #9a8b74);
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+/* Inline input for text editing */
+.ptt-inline-input {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text, #3b3226);
+  background: var(--bg, #fdfaf3);
+  border: 1.5px solid var(--accent, #c49a2a);
+  border-radius: 3px;
+  padding: 0.15rem 0.3rem;
+  outline: none;
+  width: 100%;
+  max-width: 100%;
+}
+
+.ptt-inline-input:focus {
+  border-color: var(--accent, #c49a2a);
+  box-shadow: 0 0 0 2px rgba(196, 154, 42, 0.2);
+}
+
+.ptt-inline-date {
+  width: 130px;
+}
+
+/* ── Select dropdowns (status & priority) ────────────────── */
+.ptt-select {
+  font-family: inherit;
+  font-size: 0.72rem;
   font-weight: 700;
-  white-space: nowrap;
   border: 2px solid;
+  border-radius: 999px;
+  padding: 0.15rem 1.4rem 0.15rem 0.55rem;
+  cursor: pointer;
+  white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233b3226'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 8px;
+  outline: none;
   letter-spacing: 0.02em;
 }
 
-/* done — rich sage green */
-.ptt-row[data-status='done'] .ptt-pill-status {
-  background: #d4e4d4;
+.ptt-select:hover {
+  opacity: 0.85;
+}
+
+.ptt-select:focus {
+  box-shadow: 0 0 0 2px rgba(196, 154, 42, 0.25);
+}
+
+/* Status select — colored per status */
+.ptt-row[data-status='done'] .ptt-select-status {
+  background-color: #d4e4d4;
   color: #2d5038;
   border-color: #4a7c59;
 }
 
-/* in_progress — deep amber/ochre */
-.ptt-row[data-status='in_progress'] .ptt-pill-status {
-  background: #fae5b8;
+.ptt-row[data-status='in_progress'] .ptt-select-status {
+  background-color: #fae5b8;
   color: #6b4f0a;
   border-color: #c49a2a;
 }
 
-/* blocked — bold terracotta */
-.ptt-row[data-status='blocked'] .ptt-pill-status {
-  background: #e8cfc0;
+.ptt-row[data-status='blocked'] .ptt-select-status {
+  background-color: #e8cfc0;
   color: #5c2a12;
   border-color: #a0522d;
 }
 
-/* up_next — rich dusty blue */
-.ptt-row[data-status='up_next'] .ptt-pill-status {
-  background: #cdd8e4;
+.ptt-row[data-status='up_next'] .ptt-select-status {
+  background-color: #cdd8e4;
   color: #34485a;
   border-color: #5a7080;
 }
 
-/* ── Priority Pills — Bold Vintage ─────────────────────── */
-.ptt-pill-priority {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
-  border: 2px solid;
-  letter-spacing: 0.02em;
-}
-
-/* Urgent and important — bold terracotta */
-.ptt-row[data-priority='Urgent and important'] .ptt-pill-priority {
-  background: #e8cfc0;
+/* Priority select — colored per priority */
+.ptt-row[data-priority='Urgent and important'] .ptt-select-priority {
+  background-color: #e8cfc0;
   color: #5c2a12;
   border-color: #a0522d;
 }
 
-/* Important not urgent — rich ochre/gold */
-.ptt-row[data-priority='Important not urgent'] .ptt-pill-priority {
-  background: #fae5b8;
+.ptt-row[data-priority='Important not urgent'] .ptt-select-priority {
+  background-color: #fae5b8;
   color: #6b4f0a;
   border-color: #b8891e;
 }
 
-/* Urgent not important — warm burnt sienna */
-.ptt-row[data-priority='Urgent not important'] .ptt-pill-priority {
-  background: #e0d2c0;
+.ptt-row[data-priority='Urgent not important'] .ptt-select-priority {
+  background-color: #e0d2c0;
   color: #4a3520;
   border-color: #8b6b45;
 }
 
-/* Neither — warm stone */
-.ptt-row[data-priority='Neither urgent nor important'] .ptt-pill-priority {
-  background: #ddd6cc;
+.ptt-row[data-priority='Neither urgent nor important'] .ptt-select-priority {
+  background-color: #ddd6cc;
   color: #4a3f32;
   border-color: #8a7d6a;
+}
+
+/* Done row — strikethrough title */
+.ptt-row[data-status='done'] .ptt-title-text {
+  text-decoration: line-through;
+  opacity: 0.6;
 }
 
 .ptt-cell-custom {
