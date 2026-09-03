@@ -71,6 +71,18 @@ codacaine/
 
 ````
 
+## Authentication & Security
+
+The frontend uses Supabase Auth for identity management and supports multiple sign-in methods:
+
+- **OAuth:** Google and GitHub one-click sign-in
+- **Email/password:** Sign-up with email confirmation and password reset
+- **Email validation:** Malformed addresses, disposable domains, and common typos are rejected before submission
+- **Session security:** Users are automatically signed out after 30 minutes of inactivity
+- **Account deletion:** Soft-deleted accounts enter a 30-day grace period with email-link restoration
+
+See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
+
 ## Prerequisites
 
 - Node.js (LTS) and npm

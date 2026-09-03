@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, renderHook } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../AuthContext';
 
 const mockUser = {
@@ -61,6 +62,14 @@ function TestConsumer() {
   );
 }
 
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <BrowserRouter>
+      <AuthProvider>{children}</AuthProvider>
+    </BrowserRouter>
+  );
+}
+
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -80,9 +89,9 @@ describe('AuthContext', () => {
 
   it('should initialize with no user when no session exists', async () => {
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     expect(screen.getByTestId('loading')).toHaveTextContent('true');
@@ -100,9 +109,9 @@ describe('AuthContext', () => {
     getSession.mockResolvedValue({ data: { session: mockSession }, error: null });
 
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -118,9 +127,9 @@ describe('AuthContext', () => {
     });
 
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -139,9 +148,9 @@ describe('AuthContext', () => {
   it('should call signInWithPassword with email and password', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -159,9 +168,9 @@ describe('AuthContext', () => {
   it('should call signUp with email, password, and redirect URL', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -182,9 +191,9 @@ describe('AuthContext', () => {
   it('should call signOut', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -199,9 +208,9 @@ describe('AuthContext', () => {
   it('should call resetPasswordForEmail with email and redirect URL', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -218,9 +227,9 @@ describe('AuthContext', () => {
   it('should call updateUser with new password', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -235,9 +244,9 @@ describe('AuthContext', () => {
   it('should call delete_user RPC and then signOut', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -254,7 +263,7 @@ describe('AuthContext', () => {
     rpc.mockResolvedValue({ error: { message: 'deletion failed' } });
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: Wrapper,
     });
 
     await waitFor(() => {
@@ -267,9 +276,9 @@ describe('AuthContext', () => {
   it('should call restore_user RPC', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {
@@ -284,9 +293,9 @@ describe('AuthContext', () => {
   it('should call signInWithOAuth for Google and GitHub', async () => {
     const user = userEvent.setup();
     render(
-      <AuthProvider>
+      <Wrapper>
         <TestConsumer />
-      </AuthProvider>
+      </Wrapper>
     );
 
     await waitFor(() => {

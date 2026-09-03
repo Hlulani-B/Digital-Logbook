@@ -36,6 +36,7 @@ export function SignIn() {
   );
   const [restoreSending, setRestoreSending] = useState(false);
   const [restoreSent, setRestoreSent] = useState(false);
+  const [restoreDetected, setRestoreDetected] = useState(false);
 
   // Clear restore query params from URL once read
   useEffect(() => {
@@ -43,6 +44,27 @@ export function SignIn() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Watch for external restoration (e.g. user clicked restore link on another device).
+  // Polls the profile service every 5 seconds while the restore prompt is visible.
+  useEffect(() => {
+    if (!restoreEmail || restoreDetected) return;
+
+    const checkRestored = async () => {
+      try {
+        const result = await checkUser(restoreEmail);
+        if (result.exists && !result.deleted) {
+          setRestoreDetected(true);
+        }
+      } catch {
+        /* ignore polling errors */
+      }
+    };
+
+    void checkRestored();
+    const id = setInterval(checkRestored, 5_000);
+    return () => clearInterval(id);
+  }, [restoreEmail, restoreDetected]);
 
   // Video background: alternate between two videos for seamless loop
   const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
@@ -171,6 +193,7 @@ export function SignIn() {
     setRestoreEmail(null);
     setRestoreScheduledAt(null);
     setRestoreSent(false);
+    setRestoreDetected(false);
     setEmail('');
     setPassword('');
   };
@@ -181,32 +204,58 @@ export function SignIn() {
     const daysLeft = restoreScheduledAt ? daysUntilDeletion(restoreScheduledAt) : 30;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div
-          style={{
-            padding: '1rem',
-            borderRadius: 'var(--radius-xs)',
-            background: 'var(--danger-glow)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            color: 'var(--danger-text)',
-            fontSize: '0.9375rem',
-            lineHeight: 1.6,
-          }}
-        >
-          <p style={{ margin: 0, fontWeight: 600 }}>Account scheduled for deletion</p>
-          <p style={{ margin: '0.5rem 0 0' }}>
-            Your account is scheduled to be permanently deleted in{' '}
-            <strong>
-              {daysLeft} day{daysLeft === 1 ? '' : 's'}
-            </strong>
-            .
-          </p>
-          <p style={{ margin: '0.5rem 0 0' }}>
-            Click below to receive a secure restore link via email. Opening the link will restore
-            your account and sign you in.
-          </p>
-        </div>
+        {restoreDetected ? (
+          <div
+            style={{
+              padding: '1rem',
+              borderRadius: 'var(--radius-xs)',
+              background: 'rgba(34,197,94,0.1)',
+              border: '1px solid rgba(34,197,94,0.2)',
+              color: '#15803d',
+              fontSize: '0.9375rem',
+              lineHeight: 1.6,
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 600 }}>Account restored</p>
+            <p style={{ margin: '0.5rem 0 0' }}>
+              Your account has been restored. You can now sign in again on this device.
+            </p>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: '1rem',
+              borderRadius: 'var(--radius-xs)',
+              background: 'var(--danger-glow)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              color: 'var(--danger-text)',
+              fontSize: '0.9375rem',
+              lineHeight: 1.6,
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 600 }}>Account scheduled for deletion</p>
+            <p style={{ margin: '0.5rem 0 0' }}>
+              Your account is scheduled to be permanently deleted in{' '}
+              <strong>
+                {daysLeft} day{daysLeft === 1 ? '' : 's'}
+              </strong>
+              .
+            </p>
+            <p style={{ margin: '0.5rem 0 0' }}>
+              Click below to receive a secure restore link via email. Opening the link will restore
+              your account and sign you in.
+            </p>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
+              Tip: open the link on this device for the fastest experience.
+            </p>
+          </div>
+        )}
 
-        {restoreSent ? (
+        {restoreDetected ? (
+          <button onClick={handleCancelRestore} className="btn-primary auth-submit">
+            Continue to sign in
+          </button>
+        ) : restoreSent ? (
           <div
             style={{
               padding: '0.75rem 1rem',
@@ -218,7 +267,8 @@ export function SignIn() {
             }}
           >
             A restore link has been sent to <strong>{restoreEmail}</strong>. Check your inbox (and
-            spam folder) and click the link to restore your account.
+            spam folder) and click the link to restore your account. Open the link on this device
+            for the fastest experience.
           </div>
         ) : (
           <button

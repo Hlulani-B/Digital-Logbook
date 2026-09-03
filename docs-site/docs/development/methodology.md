@@ -103,19 +103,19 @@ ci: add Gitea Actions workflow for frontend and microservices
 2. Work is committed following the convention above.
 3. Developer pushes the branch and opens a pull request on Gitea.
 4. CI pipeline runs automatically — all tests must pass.
-5. At least one teammate reviews the changes.
+5. At least one teammate reviews and approves the changes (enforced by branch protection on `main`).
 6. PR is merged into `main`.
 7. Render auto-deploys from `main`.
 
 ### Code Quality Enforcement
 
-| Check | Tool | When |
-|---|---|---|
-| Type checking | TypeScript strict mode (`tsc -b`) | Build + CI |
-| Unit tests (frontend) | Vitest (`npm test`) | Local + CI |
-| Unit tests (backend) | Jest (`npm test`) | Local + CI |
-| Coverage | Vitest / Jest `--coverage` | Local + CI (badges in README) |
-| Build | Vite (frontend) / Node (services) | CI on every push |
+| Check                 | Tool                              | When                          |
+| --------------------- | --------------------------------- | ----------------------------- |
+| Type checking         | TypeScript strict mode (`tsc -b`) | Build + CI                    |
+| Unit tests (frontend) | Vitest (`npm test`)               | Local + CI                    |
+| Unit tests (backend)  | Jest (`npm test`)                 | Local + CI                    |
+| Coverage              | Vitest / Jest `--coverage`        | Local + CI (badges in README) |
+| Build                 | Vite (frontend) / Node (services) | CI on every push              |
 
 See [Code Quality Tools](code-quality.md) for full details.
 

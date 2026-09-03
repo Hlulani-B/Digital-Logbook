@@ -46,6 +46,12 @@ The flow works as follows:
 
 Reset links expire after one hour for security.
 
+### Automatic Sign-Out After Inactivity
+
+For security and shared-device safety, the application automatically signs a user out after 30 minutes of inactivity. Any mouse movement, key press, scroll, touch, or click resets the timer, so active users are never interrupted. Once the timeout is reached, the session is ended and the user is returned to the sign-in page.
+
+This prevents accounts from staying signed in indefinitely on public or shared computers, while still allowing users to remain logged in during normal use.
+
 ### Account Deletion and Restoration
 
 Users can delete their account from the Account tab in the settings panel. Because deletion is destructive, the user must confirm the action in a dialog that explains the consequences.
@@ -55,6 +61,8 @@ When deletion is confirmed, the account is soft-deleted first. The user has 30 d
 - The account cannot be used normally.
 - If the user tries to sign in, they see a restore prompt instead of the dashboard.
 - Clicking the restore link sends a secure one-time login email. Opening it reactivates the account and signs the user back in.
+- The restore prompt and email suggest opening the link on the device where the user wants to sign in, which gives the fastest experience.
+- If the restore link is opened on another device (for example, a phone), the restore prompt on the original device automatically detects the restoration within a few seconds and switches to a "Continue to sign in" state, so the user does not have to refresh the page manually.
 
 After the 30-day grace period, a background process permanently removes the account and all related data. Until then, no data is lost.
 

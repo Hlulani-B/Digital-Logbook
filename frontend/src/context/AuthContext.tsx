@@ -3,6 +3,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { clearUserCache } from '@/lib/cache';
 import { disconnectSSE } from '@/lib/sse';
+import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 
 // Dev mode bypass - creates mock user for local testing
 const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === 'true';
@@ -206,6 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(error.message || 'Could not restore account');
     }
   };
+
+  // Automatically sign the user out after 30 minutes of inactivity.
+  // Disabled in dev-bypass mode so local testing is not interrupted.
+  useInactivityLogout({ enabled: !DEV_MODE && Boolean(state.user) });
 
   return (
     <AuthContext.Provider
