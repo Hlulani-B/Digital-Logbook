@@ -394,12 +394,14 @@ function ProjectGroup({
   onUpdate,
   onProjectNameClick,
   isMobile,
+  hideHeader,
 }: {
   project: any;
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
   isMobile: boolean;
+  hideHeader?: boolean;
 }) {
   const [open, setOpen] = useState(true);
   // Derive columns from the entries jsonb keys directly
@@ -409,28 +411,30 @@ function ProjectGroup({
 
   return (
     <div className="ptt-group">
-      <button
-        type="button"
-        className="ptt-group-header"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span className="ptt-group-toggle" aria-hidden="true">
-          {open ? "v" : ">"}
-        </span>
-        <span
-          className="ptt-group-name"
-          onClick={(e) => {
-            e.stopPropagation();
-            onProjectNameClick?.(project.name);
-          }}
-          style={onProjectNameClick ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
-          title={onProjectNameClick ? `Open ${project.name}` : undefined}
+      {!hideHeader && (
+        <button
+          type="button"
+          className="ptt-group-header"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
         >
-          {project.name}
-        </span>
-        <span className="ptt-group-count">{project.entries.length}</span>
-      </button>
+          <span className="ptt-group-toggle" aria-hidden="true">
+            {open ? "v" : ">"}
+          </span>
+          <span
+            className="ptt-group-name"
+            onClick={(e) => {
+              e.stopPropagation();
+              onProjectNameClick?.(project.name);
+            }}
+            style={onProjectNameClick ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
+            title={onProjectNameClick ? `Open ${project.name}` : undefined}
+          >
+            {project.name}
+          </span>
+          <span className="ptt-group-count">{project.entries.length}</span>
+        </button>
+      )}
 
       {open && (
         isMobile ? (
@@ -514,6 +518,7 @@ export default function ProjectTaskTable({
           onUpdate={onUpdate}
           onProjectNameClick={onProjectNameClick}
           isMobile={isMobile}
+          hideHeader={projectNames?.length === 1}
         />
       ))}
     </div>
