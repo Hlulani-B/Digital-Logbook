@@ -8,6 +8,7 @@ import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import { sortUnarchivedEntries, updateEntry } from '@/functions/project/entries.js';
+import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getProfile } from '@/functions/profile/profile.js';
@@ -65,12 +66,51 @@ export function ProjectDetailPage() {
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // Sort
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
+
+  // IndexedDB-first entries loading — read from cache immediately, no loading spinner
+  const sortType = sortBy === 'priority' ? 1 : 0;
+  const cacheKey = projectName ? `${email}:${projectName}` : email;
+  const cacheStore = projectName ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
+
+  // Read from IndexedDB immediately
+  useEffect(() => {
+    if (!email || !projectName) return;
+    let cancelled = false;
+    
+    // 1. Read from cache immediately
+    (async () => {
+      const cached = await cacheGet(cacheStore, cacheKey);
+      if (!cancelled) {
+        const data = cached?.data !== undefined ? cached.data : cached;
+        setEntries((data as Entry[]) || []);
+      }
+    })();
+
+    // 2. Subscribe to cache changes
+    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, (newData) => {
+      if (!cancelled) {
+        setEntries((newData as Entry[]) || []);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [cacheStore, cacheKey]);
+
+  // Fetch from server in background
+  useEffect(() => {
+    if (!email || !projectName) return;
+    sortUnarchivedEntries(email, projectName, sortType);
+  }, [email, projectName, sortType]);
+
+  const loading = false; // Never show loading — we always have cached data
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,24 +144,12 @@ export function ProjectDetailPage() {
     'No entries to show yet. Add your first entry above!'
   );
 
-  // Load entries for this project
+  // Refresh entries from server (called after add/update/delete)
   const loadEntries = useCallback(async () => {
     if (!email || !projectName) return;
-    setLoading(true);
-    try {
-      const sortType = sortBy === 'priority' ? 1 : 0;
-      const result = await sortUnarchivedEntries(email, projectName, sortType);
-      setEntries(result?.data || []);
-    } catch (err) {
-      console.error('[ProjectDetail] Failed to load entries:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [email, projectName, sortBy]);
-
-  useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
+    // The hook will automatically pick up the cache changes
+    await sortUnarchivedEntries(email, projectName, sortType);
+  }, [email, projectName, sortType]);
 
   // Load all projects for the drawer
   useEffect(() => {
