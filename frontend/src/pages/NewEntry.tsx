@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
-import { formatInterval } from '../functions/dashboard/stats.js';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -203,10 +202,7 @@ export function EntryBox({
   }, [menuOpen]);
 
   const entryFields = Object.entries(parsedEntries || {});
-  const createdLabel = formatDate(created_at);
   const dueLabel = formatDate(due_date);
-  const startedLabel = formatDate(started_at);
-  const endedLabel = formatDate(ended_at);
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
 

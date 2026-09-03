@@ -35,90 +35,7 @@ function friendlyPriority(raw: string) {
   return PRIORITY_LABELS[raw] || raw;
 }
 
-// Dummy data for preview
-const DUMMY_ROWS = [
-  {
-    id: "1",
-    project_name: "Digital Logbook",
-    entries: { task: "Fixed authentication bug", hours: "3" },
-    due_date: "2026-09-05T00:00:00Z",
-    priority: "0",
-    status: "in_motion",
-    summary: "Fixed the authentication bug in the login flow",
-    archived: false,
-    deleted: false,
-    user_email: "hlulanibaloyi@khanyisaeducentre",
-  },
-  {
-    id: "2",
-    project_name: "Digital Logbook",
-    entries: { task: "Add entry summaries feature", hours: "5" },
-    due_date: "2026-09-10T00:00:00Z",
-    priority: "1",
-    status: "in_motion",
-    summary: "Implemented AI-generated summaries for log entries",
-    archived: false,
-    deleted: false,
-    user_email: "hlulanibaloyi@khanyisaeducentre",
-  },
-  {
-    id: "3",
-    project_name: "Digital Logbook",
-    entries: { task: "Write unit tests", hours: "2" },
-    due_date: null,
-    priority: "2",
-    status: "done_and_dusted",
-    summary: "Added tests for AI messages toggle",
-    archived: false,
-    deleted: false,
-    user_email: "hlulanibaloyi@khanyisaeducentre",
-  },
-  {
-    id: "4",
-    project_name: "Khanyisa MVP",
-    entries: { task: "Design learner dashboard", hours: "4" },
-    due_date: "2026-09-08T00:00:00Z",
-    priority: "1",
-    status: "in_motion",
-    summary: "Designed the learner dashboard wireframes",
-    archived: false,
-    deleted: false,
-    user_email: "hlulanibaloyi@khanyisaeducentre",
-  },
-  {
-    id: "5",
-    project_name: "Khanyisa MVP",
-    entries: { task: "Setup Supabase schema", hours: "6" },
-    due_date: "2026-09-01T00:00:00Z",
-    priority: "0",
-    status: "done_and_dusted",
-    summary: "Set up the database schema in Supabase",
-    archived: false,
-    deleted: false,
-    user_email: "hlulanibaloyi@khanyisaeducentre",
-  },
-  {
-    id: "6",
-    project_name: "Personal",
-    entries: { task: "Morning run", hours: "1" },
-    due_date: null,
-    priority: "3",
-    status: "done_and_dusted",
-    summary: "Went for a 5km morning run",
-    archived: false,
-    deleted: false,
-    user_email: "hlulanibaloyi@khanyisaeducentre",
-  },
-];
 
-const DUMMY_FIELDS = [
-  { id: "1", table_name: "Digital Logbook", field_name: "task", data_type: "text", is_required: true, deleted: false },
-  { id: "2", table_name: "Digital Logbook", field_name: "hours", data_type: "number", is_required: false, deleted: false },
-  { id: "3", table_name: "Khanyisa MVP", field_name: "task", data_type: "text", is_required: true, deleted: false },
-  { id: "4", table_name: "Khanyisa MVP", field_name: "hours", data_type: "number", is_required: false, deleted: false },
-  { id: "5", table_name: "Personal", field_name: "task", data_type: "text", is_required: true, deleted: false },
-  { id: "6", table_name: "Personal", field_name: "hours", data_type: "number", is_required: false, deleted: false },
-];
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "";
@@ -141,10 +58,6 @@ function groupByProject(rows: any[]) {
     groups[key].push(row);
   }
   return Object.entries(groups).map(([name, entries]) => ({ name, entries }));
-}
-
-function customFieldsFor(projectName: string, fields: any[]) {
-  return fields.filter((f) => f.table_name === projectName && !f.deleted);
 }
 
 // Derive columns directly from the entries jsonb keys
@@ -377,13 +290,11 @@ function TaskRow({
 // ── Project group ──────────────────────────────────────────
 function ProjectGroup({
   project,
-  fields,
   viewMode,
   onUpdate,
   onProjectNameClick,
 }: {
   project: any;
-  fields: any[];
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
@@ -457,13 +368,11 @@ function ProjectGroup({
 // ── Main table ─────────────────────────────────────────────
 export default function ProjectTaskTable({
   rows = [],
-  fields = [],
   viewMode = "entry",
   onUpdate,
   onProjectNameClick,
 }: {
   rows?: any[];
-  fields?: any[];
   viewMode?: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
@@ -476,7 +385,6 @@ export default function ProjectTaskTable({
         <ProjectGroup
           key={project.name}
           project={project}
-          fields={fields}
           viewMode={viewMode}
           onUpdate={onUpdate}
           onProjectNameClick={onProjectNameClick}
@@ -612,7 +520,7 @@ export function ProjectTablePreview({
           {saving && " — saving..."}
         </span>
       </div>
-      <ProjectTaskTable rows={rows} fields={[]} viewMode={viewMode} onUpdate={handleUpdate} onProjectNameClick={onProjectNameClick} />
+      <ProjectTaskTable rows={rows} viewMode={viewMode} onUpdate={handleUpdate} onProjectNameClick={onProjectNameClick} />
     </div>
   );
 }
