@@ -998,7 +998,7 @@ export function ProjectDetailPage() {
               <ProjectTaskTable
                 rows={entries}
                 viewMode="entry"
-                onUpdate={async (id, patch) => {
+                onUpdate={async () => {
                   // Reload entries after table update
                   await loadEntries();
                 }}

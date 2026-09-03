@@ -123,7 +123,6 @@ export function EntryBox({
     user_email,
     project_name,
     entries,
-    created_at,
     due_date,
     priority,
     archived,
