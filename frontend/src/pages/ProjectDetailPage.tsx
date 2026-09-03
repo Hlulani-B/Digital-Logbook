@@ -66,13 +66,14 @@ export function ProjectDetailPage() {
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // Sort
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
 
-  // IndexedDB-first entries loading — read from cache immediately, no loading spinner
+  // IndexedDB-first entries loading — show cache immediately, only load if no cache
   const sortType = sortBy === 'priority' ? 1 : 0;
   const cacheKey = projectName ? `${email}:${projectName}` : email;
   const cacheStore = projectName ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
@@ -87,7 +88,10 @@ export function ProjectDetailPage() {
       const cached = await cacheGet(cacheStore, cacheKey);
       if (!cancelled) {
         const data = cached?.data !== undefined ? cached.data : cached;
-        setEntries((data as Entry[]) || []);
+        const entriesData = (data as Entry[]) || [];
+        setEntries(entriesData);
+        // Only show loading if no cached data exists
+        setLoading(entriesData.length === 0);
       }
     })();
 
@@ -95,6 +99,7 @@ export function ProjectDetailPage() {
     const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[]) => {
       if (!cancelled) {
         setEntries(newData || []);
+        setLoading(false); // Data arrived, stop loading
       }
     }) as (data: any) => void);
 
@@ -107,10 +112,12 @@ export function ProjectDetailPage() {
   // Fetch from server in background
   useEffect(() => {
     if (!email || !projectName) return;
-    sortUnarchivedEntries(email, projectName, sortType);
+    setLoading(true); // Show loading while fetching from server
+    (async () => {
+      await sortUnarchivedEntries(email, projectName, sortType);
+      setLoading(false); // Data arrived from server
+    })();
   }, [email, projectName, sortType]);
-
-  const loading = false; // Never show loading — we always have cached data
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -938,6 +945,23 @@ export function ProjectDetailPage() {
             <div className={`quick-entry-message ${quickMessageType}`}>{quickMessage}</div>
           )}
         </div>
+
+        {/* Loading — only show if no cached data */}
+        {loading && entries.length === 0 && (
+          <div className="feed-loading">
+            <div
+              className="animate-spin"
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--accent)',
+              }}
+            />
+            <p>Loading entries...</p>
+          </div>
+        )}
 
         {/* Search results */}
         {searchQuery && (
