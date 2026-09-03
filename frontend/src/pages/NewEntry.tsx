@@ -648,34 +648,10 @@ export function EntryBox({
 
       <div className="entry-box__meta">
         <div className="entry-box__meta-left">
-          {createdLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Created</span>
-              <span className="entry-box__meta-value">{createdLabel}</span>
-            </span>
-          )}
           {dueLabel && (
             <span className="entry-box__meta-item">
               <span className="entry-box__meta-label">Due</span>
               <span className="entry-box__meta-value">{dueLabel}</span>
-            </span>
-          )}
-          {startedLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Started</span>
-              <span className="entry-box__meta-value">{startedLabel}</span>
-            </span>
-          )}
-          {endedLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Ended</span>
-              <span className="entry-box__meta-value">{endedLabel}</span>
-            </span>
-          )}
-          {duration && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Duration</span>
-              <span className="entry-box__meta-value">{formatInterval(duration)}</span>
             </span>
           )}
         </div>
