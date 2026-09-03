@@ -124,8 +124,9 @@ function customFieldsFor(projectName: string, fields: any[]) {
   return fields.filter((f) => f.table_name === projectName && !f.deleted);
 }
 
-// Grid: Status (fixed) | Due (fixed) | Priority (fixed) | content columns (flex)
-const BASE_COLS = "130px 90px 190px";
+// Grid: Status | Due | Priority | content columns
+// Priority wider for long labels that wrap, others compact
+const BASE_COLS = "110px 80px 150px";
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
   let template = BASE_COLS;
