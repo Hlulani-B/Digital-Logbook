@@ -6,71 +6,57 @@ A comprehensive overview of all features implemented in the Digital Logbook, why
 
 ## Authentication & User Management
 
-### 1. OAuth Authentication (Google & GitHub)
+The Digital Logbook uses Supabase Auth as its identity provider. Users can authenticate with existing Google or GitHub accounts, or create a dedicated email and password account. All authentication flows are protected by Cloudflare Turnstile to prevent automated abuse, and sessions are managed globally so protected pages automatically redirect unauthenticated visitors to the sign-in screen.
 
-**What it does:** Users can sign in and sign up using their Google or GitHub accounts with a single click.
+![Sign-in page showing the email and password form, Cloudflare Turnstile widget, and Google and GitHub OAuth buttons](assets/ui-images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg)
 
-**Why it was implemented:** The project specification requires integration with established authentication libraries. OAuth eliminates the need for users to remember passwords and leverages trusted identity providers for secure authentication.
+### Signing Up and Signing In
 
-**How it works:**
+Users reach the sign-in page automatically when they are not authenticated. The page presents three ways to authenticate: Google, GitHub, and email with password.
 
-- Supabase Auth handles the OAuth flow with Google and GitHub providers
-- On first sign-in, user accounts are automatically provisioned in the `users` table
-- The `AuthContext` manages session state across the application
-- An OAuth callback handler (`/auth/callback`) exchanges authorization codes for Supabase sessions
-- Cloudflare Turnstile CAPTCHA protects the email/password sign-in form from bot abuse
+When a user chooses Google or GitHub, they are redirected to the provider to confirm consent, then returned to the application. On first visit, a profile record is created automatically so the user can immediately start using the logbook.
 
-**Key files:**
+When a user chooses email and password, the form validates the address before sending anything to Supabase:
 
-- `frontend/src/pages/SignIn.tsx` — Sign-in UI with OAuth buttons
-- `frontend/src/pages/AuthCallback.tsx` — OAuth redirect handler
-- `frontend/src/context/AuthContext.tsx` — Session state management
-- `services/auth-service/` — Backend auth endpoints
+- The email must look like a real address (for example, name@example.com).
+- Disposable or temporary email domains, such as tempmail.com or mailinator.com, are rejected.
+- Common typos are caught and suggested. Typing user@gmail.comm displays a clickable "Did you mean user@gmail.com?" hint.
 
-### 2. Email/Password Authentication
+On sign-up, a confirmation email is sent. The user must open the link before signing in. On sign-in, the application checks whether the account is active or scheduled for deletion. If the account was soft-deleted, the user is offered a one-click restore link instead of being logged in.
 
-**What it does:** Traditional sign-in and sign-up with email and password, protected by CAPTCHA.
+![Profile setup page where a new user enters their email, full name, and username](assets/ui-images/Screenshot_19-8-2026_123344_digital-logbook-bxgv.onrender.com.jpeg)
 
-**Why it was implemented:** Provides an alternative for users who prefer not to use OAuth, and supports the password reset flow required by the project specification.
+### Using the Same Email with Google and Email-Password
 
-**How it works:**
+Supabase Auth can automatically link identities that share the same confirmed email address. This means a user who first signed up with Google can later sign in with the same email and a password, and vice versa, as long as the email addresses match and the email provider identity is verified.
 
-- Supabase Auth's built-in email/password authentication
-- Cloudflare Turnstile verification required before form submission
-- Email verification sent on signup
-- Password reset link sent via email with 1-hour expiry
+If automatic linking is disabled in the Supabase project, the second sign-in method may create a separate account or be rejected. The application does not manually merge accounts, so the project relies on Supabase Auth's default linking behavior to keep a single user record per email.
 
-### 3. Password Reset Flow
+### Password Reset
 
-**What it does:** Users can request a password reset link via email and set a new password with real-time validation.
+Users who forget their password can request a reset link from the sign-in page or from the Account tab in settings.
 
-**Why it was implemented:** Required by the project specification. Provides a secure way for users to regain access to their accounts.
+The flow works as follows:
 
-**How it works:**
+- The user enters their email and completes the CAPTCHA.
+- Supabase sends a password reset link to the registered email address.
+- The link opens a secure page where the user enters a new password.
+- A strength meter gives immediate feedback on password quality.
+- After the password is updated, the user is signed in and redirected to the dashboard.
 
-- User requests reset from sign-in page or settings panel
-- CAPTCHA-protected form prevents abuse
-- Supabase sends reset link to user's email
-- User clicks link, redirected to `/auth/update-password`
-- Real-time password strength meter and validation
-- Redirects to dashboard on successful password update
+Reset links expire after one hour for security.
 
-**Key files:**
+### Account Deletion and Restoration
 
-- `frontend/src/pages/ResetPassword.tsx` — Reset request page
-- `frontend/src/pages/UpdatePassword.tsx` — Set new password page
+Users can delete their account from the Account tab in the settings panel. Because deletion is destructive, the user must confirm the action in a dialog that explains the consequences.
 
-### 4. Account Deletion
+When deletion is confirmed, the account is soft-deleted first. The user has 30 days to change their mind. During this window:
 
-**What it does:** Permanently deletes the user's account and all associated data.
+- The account cannot be used normally.
+- If the user tries to sign in, they see a restore prompt instead of the dashboard.
+- Clicking the restore link sends a secure one-time login email. Opening it reactivates the account and signs the user back in.
 
-**Why it was implemented:** Required by the project specification. Provides users with full control over their data.
-
-**How it works:**
-
-- Confirmation dialog prevents accidental deletion
-- Calls Supabase RPC function `delete_user()` which cascades to all related tables
-- User is signed out and redirected to sign-in page after deletion
+After the 30-day grace period, a background process permanently removes the account and all related data. Until then, no data is lost.
 
 ---
 
