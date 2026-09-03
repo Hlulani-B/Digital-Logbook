@@ -96,6 +96,24 @@ jobs:
           npm test --if-present
 ```
 
+## Repository settings and branch protection
+
+The following settings are configured at the repository level in Gitea, not in committed files:
+
+### Gitea Actions runners
+
+- The Wits Gitea instance (`sdp.ms.wits.ac.za`) provides the runners that execute workflow jobs.
+- For this project, the course staff provisioned **two runners**.
+- Runners pick up jobs automatically when a workflow is triggered; no manual start is needed.
+- If jobs begin queuing for long periods, the number of runners can be increased by the Gitea administrator.
+
+### Branch protection on `main`
+
+- Direct pushes to `main` are restricted.
+- At least **one approving review** is required before a pull request can be merged.
+- The CI pipeline must pass before merge (all tests and builds green).
+- These rules are enforced through Gitea's branch protection settings, under **Repository Settings → Branches**.
+
 ### Why each part exists
 
 | Part                                          | Reason                                                                                                                                                |
