@@ -49,11 +49,6 @@ const PRIORITY_LABELS: Record<string, string> = {
   '2': 'Not urgent, not important',
 };
 
-// Reverse map: friendly label → raw value (for dropdown display)
-const PRIORITY_TO_RAW: Record<string, string> = Object.fromEntries(
-  Object.entries(PRIORITY_LABELS).map(([k, v]) => [v, k]),
-);
-
 /** Normalize any priority value to the friendly label the DB expects */
 function toFriendlyPriority(val: string | null | undefined): string | null {
   if (val === null || val === undefined) return null;
