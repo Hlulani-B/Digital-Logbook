@@ -380,11 +380,13 @@ function ProjectGroup({
   fields,
   viewMode,
   onUpdate,
+  onProjectNameClick,
 }: {
   project: any;
   fields: any[];
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
+  onProjectNameClick?: (projectName: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   // Derive columns from the entries jsonb keys directly
@@ -403,7 +405,17 @@ function ProjectGroup({
         <span className="ptt-group-toggle" aria-hidden="true">
           {open ? "v" : ">"}
         </span>
-        <span className="ptt-group-name">{project.name}</span>
+        <span
+          className="ptt-group-name"
+          onClick={(e) => {
+            e.stopPropagation();
+            onProjectNameClick?.(project.name);
+          }}
+          style={onProjectNameClick ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
+          title={onProjectNameClick ? `Open ${project.name}` : undefined}
+        >
+          {project.name}
+        </span>
         <span className="ptt-group-count">{project.entries.length}</span>
       </button>
 
@@ -448,11 +460,13 @@ export default function ProjectTaskTable({
   fields = [],
   viewMode = "entry",
   onUpdate,
+  onProjectNameClick,
 }: {
   rows?: any[];
   fields?: any[];
   viewMode?: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
+  onProjectNameClick?: (projectName: string) => void;
 }) {
   const projects = groupByProject(rows);
 
@@ -465,6 +479,7 @@ export default function ProjectTaskTable({
           fields={fields}
           viewMode={viewMode}
           onUpdate={onUpdate}
+          onProjectNameClick={onProjectNameClick}
         />
       ))}
     </div>
@@ -472,7 +487,11 @@ export default function ProjectTaskTable({
 }
 
 // ── Preview wrapper — uses project service functions ─────────
-export function ProjectTablePreview() {
+export function ProjectTablePreview({
+  onProjectNameClick,
+}: {
+  onProjectNameClick?: (projectName: string) => void;
+} = {}) {
   const { user } = useAuth();
   const email = user?.email || "";
   const [rows, setRows] = useState<any[]>([]);
@@ -593,7 +612,7 @@ export function ProjectTablePreview() {
           {saving && " — saving..."}
         </span>
       </div>
-      <ProjectTaskTable rows={rows} fields={[]} viewMode={viewMode} onUpdate={handleUpdate} />
+      <ProjectTaskTable rows={rows} fields={[]} viewMode={viewMode} onUpdate={handleUpdate} onProjectNameClick={onProjectNameClick} />
     </div>
   );
 }
