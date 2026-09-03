@@ -180,12 +180,14 @@ export function ProjectsPage() {
           row.ended_at,
           row.duration,
         );
+        // Reload entries after successful update
+        await loadEntries();
       } catch (err) {
         console.error('Update failed:', err);
         setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
       }
     },
-    [entries, email],
+    [entries, email, loadEntries],
   );
 
   const handleCreateProject = async () => {

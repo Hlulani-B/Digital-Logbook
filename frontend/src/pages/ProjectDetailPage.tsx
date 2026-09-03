@@ -7,7 +7,7 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
+import { sortUnarchivedEntries, updateEntry } from '@/functions/project/entries.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getProfile } from '@/functions/profile/profile.js';
@@ -998,9 +998,32 @@ export function ProjectDetailPage() {
               <ProjectTaskTable
                 rows={entries}
                 viewMode="entry"
-                onUpdate={async () => {
-                  // Reload entries after table update
-                  await loadEntries();
+                onUpdate={async (id: string, patch: Record<string, any>) => {
+                  // Find the entry being updated
+                  const row = entries.find((r) => r.id === id);
+                  if (!row || !email) return;
+                  // Update local state immediately for instant UI
+                  setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+                  try {
+                    await updateEntry(
+                      email,
+                      row.project_name,
+                      id,
+                      patch.entries ?? row.entries,
+                      patch.due_date !== undefined ? patch.due_date : row.due_date,
+                      patch.priority !== undefined ? patch.priority : row.priority,
+                      patch.status !== undefined ? patch.status : row.status,
+                      row.started_at,
+                      row.ended_at,
+                      row.duration,
+                    );
+                    // Reload entries after successful update
+                    await loadEntries();
+                  } catch (err) {
+                    console.error('Update failed:', err);
+                    // Rollback local state on failure
+                    setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
+                  }
                 }}
                 projectNames={projectName ? [projectName] : undefined}
               />
