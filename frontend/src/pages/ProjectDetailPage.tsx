@@ -18,6 +18,7 @@ import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiArchive } from 'react-icons/fi';
+import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -86,6 +87,9 @@ export function ProjectDetailPage() {
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+
+  // View mode: table or cards
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -744,7 +748,7 @@ export function ProjectDetailPage() {
           />
         </div>
 
-        {/* Sort controls */}
+        {/* Sort controls + view toggle */}
         <div className="feed-controls-row">
           <div className="feed-sort-group">
             <span className="feed-sort-label">Sort:</span>
@@ -784,6 +788,48 @@ export function ProjectDetailPage() {
                 <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
               Priority
+            </button>
+          </div>
+
+          {/* View toggle — Table / Cards */}
+          <div className="view-toggle-group">
+            <span className="feed-sort-label">View:</span>
+            <button
+              className={`sort-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+              Table
+            </button>
+            <button
+              className={`sort-btn ${viewMode === 'cards' ? 'active' : ''}`}
+              onClick={() => setViewMode('cards')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+              </svg>
+              Cards
             </button>
           </div>
         </div>
@@ -948,6 +994,16 @@ export function ProjectDetailPage() {
                 <h2 className="empty-title">No entries yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
+            ) : viewMode === 'table' ? (
+              <ProjectTaskTable
+                rows={entries}
+                viewMode="entry"
+                onUpdate={async (id, patch) => {
+                  // Reload entries after table update
+                  await loadEntries();
+                }}
+                onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
+              />
             ) : (
               <div className="entries-grid">
                 {entries.map((row, i) => (
