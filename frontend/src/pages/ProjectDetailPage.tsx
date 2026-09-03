@@ -1002,7 +1002,7 @@ export function ProjectDetailPage() {
                   // Reload entries after table update
                   await loadEntries();
                 }}
-                projectName={projectName}
+                projectNames={projectName ? [projectName] : undefined}
               />
             ) : (
               <div className="entries-grid">
