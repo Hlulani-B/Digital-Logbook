@@ -38,6 +38,17 @@ const PRIORITY_LABELS: Record<string, string> = {
   "3": "No priority",
 };
 
+// Reverse map: friendly label → raw value (for dropdown display)
+const PRIORITY_TO_RAW: Record<string, string> = Object.fromEntries(
+  Object.entries(PRIORITY_LABELS).map(([k, v]) => [v, k]),
+);
+
+/** Convert DB priority (friendly label or raw) to raw value for dropdown */
+function toRawPriority(val: string | null | undefined): string {
+  if (!val) return "3";
+  return PRIORITY_TO_RAW[val] || val; // friendly→raw, or already raw
+}
+
 function friendlyStatus(raw: string) {
   return STATUS_LABELS[raw] || raw;
 }
@@ -264,7 +275,7 @@ function MobileCard({
           <span className="ptt-mobile-card__label">Priority</span>
           <select
             className="ptt-select ptt-select-priority"
-            value={entry.priority || PRIORITIES[3]}
+            value={toRawPriority(entry.priority)}
             onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
           >
             {PRIORITIES.map((p) => (
@@ -354,7 +365,7 @@ function TaskRow({
       <div className="ptt-cell ptt-cell-priority">
         <select
           className="ptt-select ptt-select-priority"
-          value={entry.priority || PRIORITIES[3]}
+          value={toRawPriority(entry.priority)}
           onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
         >
           {PRIORITIES.map((p) => (

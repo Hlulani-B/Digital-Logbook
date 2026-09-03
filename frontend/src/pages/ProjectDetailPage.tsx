@@ -48,6 +48,19 @@ const PRIORITY_LABELS: Record<string, string> = {
   '2': 'Not urgent, not important',
 };
 
+// Reverse map: friendly label → raw value (for dropdown display)
+const PRIORITY_TO_RAW: Record<string, string> = Object.fromEntries(
+  Object.entries(PRIORITY_LABELS).map(([k, v]) => [v, k]),
+);
+
+/** Normalize any priority value to the friendly label the DB expects */
+function toFriendlyPriority(val: string | null | undefined): string | null {
+  if (val === null || val === undefined) return null;
+  if (val === '3') return null;
+  if (PRIORITY_LABELS[val]) return PRIORITY_LABELS[val]; // raw "0"→label
+  return val; // already a friendly label
+}
+
 export function ProjectDetailPage() {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
@@ -1065,19 +1078,21 @@ export function ProjectDetailPage() {
                   // Map priority from raw value to friendly label for database
                   const mappedPatch = { ...patch };
                   if (patch.priority !== undefined) {
-                    mappedPatch.priority = patch.priority === '3' ? null : PRIORITY_LABELS[patch.priority] || patch.priority;
+                    mappedPatch.priority = toFriendlyPriority(patch.priority);
                   }
+                  // Always normalize priority to friendly label before sending to DB
+                  const dbPriority = toFriendlyPriority(mappedPatch.priority ?? row.priority);
                   // Update local state immediately for instant UI
                   setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r)));
                   try {
-                    console.log('[onUpdate] Calling updateEntry with mapped patch:', mappedPatch);
+                    console.log('[onUpdate] Calling updateEntry with mapped patch:', mappedPatch, 'dbPriority:', dbPriority);
                     const result = await updateEntry(
                       email,
                       row.project_name,
                       id,
                       mappedPatch.entries ?? row.entries,
                       mappedPatch.due_date !== undefined ? mappedPatch.due_date : row.due_date,
-                      mappedPatch.priority !== undefined ? mappedPatch.priority : row.priority,
+                      dbPriority,
                       mappedPatch.status !== undefined ? mappedPatch.status : row.status,
                       row.started_at,
                       row.ended_at,
