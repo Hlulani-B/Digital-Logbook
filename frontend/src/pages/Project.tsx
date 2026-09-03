@@ -121,14 +121,20 @@ export function ProjectsPage() {
   const loadEntries = useCallback(async () => {
     if (!email) return;
     try {
+      console.log('[ProjectsPage] loading entries for', email);
       const result = await getAllEntries(email);
+      console.log('[ProjectsPage] entries result:', result?.success, 'data length:', result?.data?.length ?? 'N/A');
       if (result?.success && result.data) {
         setEntries(result.data);
       } else if (Array.isArray(result)) {
         setEntries(result);
+      } else {
+        console.warn('[ProjectsPage] unexpected entries result:', result);
+        setEntries([]);
       }
     } catch (err) {
-      console.error('Failed to load entries:', err);
+      console.error('[ProjectsPage] Failed to load entries:', err);
+      setEntries([]);
     }
   }, [email]);
 
@@ -359,6 +365,14 @@ export function ProjectsPage() {
           onUpdate={handleEntryUpdate}
           onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
         />
+      )}
+
+      {!loading && entries.length === 0 && projects.length > 0 && (
+        <div className="glass" style={{ textAlign: 'center', padding: '2rem 1.5rem', borderRadius: '0.85rem', marginBottom: '1.5rem' }}>
+          <p style={{ margin: 0, color: 'var(--text-dim, #6b7280)', fontSize: '0.9rem' }}>
+            No entries yet. Start logging entries to see them in the table above.
+          </p>
+        </div>
       )}
 
       {/* Project management cards (rename/archive/delete) */}
