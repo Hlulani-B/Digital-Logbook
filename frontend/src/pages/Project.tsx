@@ -60,8 +60,16 @@ export function ProjectsPage() {
   const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
 
-  // View mode for table
-  const [viewMode, setViewMode] = useState<'entry' | 'summary'>('entry');
+  // View mode for table — persist in localStorage
+  const [viewMode, setViewModeState] = useState<'entry' | 'summary'>(() => {
+    const stored = localStorage.getItem('project-table-view-mode');
+    if (stored === 'entry' || stored === 'summary') return stored;
+    return 'entry';
+  });
+  const setViewMode = (mode: 'entry' | 'summary') => {
+    setViewModeState(mode);
+    localStorage.setItem('project-table-view-mode', mode);
+  };
 
   // Auto-seed test projects when the user has none
   const seedTestProjects = useCallback(async () => {

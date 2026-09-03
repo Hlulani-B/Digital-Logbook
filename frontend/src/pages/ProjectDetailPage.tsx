@@ -148,8 +148,16 @@ export function ProjectDetailPage() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
 
-  // View mode: table or cards — default to cards on mobile
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => window.innerWidth < 600 ? 'cards' : 'table');
+  // View mode: table or cards — persist in localStorage, default to cards on mobile
+  const [viewMode, setViewModeState] = useState<'table' | 'cards'>(() => {
+    const stored = localStorage.getItem('project-view-mode');
+    if (stored === 'table' || stored === 'cards') return stored;
+    return window.innerWidth < 600 ? 'cards' : 'table';
+  });
+  const setViewMode = (mode: 'table' | 'cards') => {
+    setViewModeState(mode);
+    localStorage.setItem('project-view-mode', mode);
+  };
 
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -1115,7 +1123,7 @@ export function ProjectDetailPage() {
                 onDeleteSelected={async (ids: string[]) => {
                   if (!email) return;
                   // Optimistic: remove from local state immediately
-                  setEntries((prev) => prev.filter((r) => !ids.includes(r.id)));
+                  setEntries((prev) => prev.filter((r) => !ids.includes(r.id as string)));
                   // Delete each entry on the server
                   for (const id of ids) {
                     try {
