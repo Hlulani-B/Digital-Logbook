@@ -64,7 +64,7 @@ export function App() {
       <ThemeInitializer>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/signin" replace />} />
+            <Route path="/" element={<ProjectTablePreview />} />
             <Route
               path="/signin"
               element={

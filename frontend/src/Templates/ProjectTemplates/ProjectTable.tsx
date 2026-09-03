@@ -165,12 +165,12 @@ function entryFieldNames(rows: any[]): string[] {
 }
 
 // Grid: content columns | Priority | Due | Status (far right)
-const TRAILING_COLS = "150px 90px 110px"; // Priority | Due | Status
+const TRAILING_COLS = "150px 100px 120px"; // Priority | Due | Status (wider for spacing)
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
   let template = "";
   if (viewMode === "summary") {
-    template = "minmax(200px, 3fr)";
+    template = "minmax(150px, 2fr)"; // Reduced from 3fr to give less space to summary
   } else {
     const parts = [];
     for (let i = 0; i < customFieldCount; i++) {

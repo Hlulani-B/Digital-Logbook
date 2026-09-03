@@ -52,7 +52,7 @@
 /* Column headers — grid template set inline per project */
 .ptt-columns {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.75rem; /* Increased from 0.5rem for better spacing */
   padding: 0.4rem 0;
   border-bottom: 2px solid var(--border, #e8dcc8);
   font-size: 0.72rem;
@@ -85,7 +85,7 @@
   padding: 0.4rem 0;
   border-bottom: 1px solid var(--border, #e8dcc8);
   font-size: 0.85rem;
-  gap: 0.5rem;
+  gap: 0.75rem; /* Increased from 0.5rem for better spacing */
 }
 
 .ptt-row:last-child {
