@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
 const mockGetSession = vi.fn();
 
@@ -17,6 +17,11 @@ vi.mock('../supabase', () => ({
 
 import { request, api } from '../api';
 
+// Helper to get typed mock fetch
+function getMockFetch(): Mock {
+  return fetch as unknown as Mock;
+}
+
 describe('request', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -31,7 +36,7 @@ describe('request', () => {
   });
 
   it('includes Authorization header with bearer token', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ data: 'ok' }),
     });
@@ -48,7 +53,7 @@ describe('request', () => {
   });
 
   it('throws on non-ok response', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: false, status: 404,
       text: () => Promise.resolve('Not found'),
     });
@@ -56,7 +61,7 @@ describe('request', () => {
   });
 
   it('returns parsed JSON on success', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ id: 1, name: 'Test' }),
     });
@@ -65,7 +70,7 @@ describe('request', () => {
   });
 
   it('passes through additional options', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({}),
     });
@@ -84,7 +89,7 @@ describe('request', () => {
 
   it('uses empty Authorization when no session', async () => {
     mockGetSession.mockResolvedValueOnce({ data: { session: null } });
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({}),
     });
@@ -112,7 +117,7 @@ describe('api health checks', () => {
   });
 
   it('api.auth.health calls AUTH_URL', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ service: 'auth', status: 'ok' }),
     });
@@ -121,7 +126,7 @@ describe('api health checks', () => {
   });
 
   it('api.dashboard.health calls DASHBOARD_URL', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ service: 'dashboard', status: 'ok' }),
     });
@@ -130,7 +135,7 @@ describe('api health checks', () => {
   });
 
   it('api.projects.health calls PROJECT_URL', async () => {
-    fetch.mockResolvedValueOnce({
+    getMockFetch().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ service: 'project', status: 'ok' }),
     });
