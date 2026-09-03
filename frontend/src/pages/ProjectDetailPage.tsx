@@ -8,6 +8,7 @@ import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import { sortUnarchivedEntries, updateEntry, deleteEntryById } from '@/functions/project/entries.js';
+import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
@@ -148,13 +149,13 @@ export function ProjectDetailPage() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
 
-  // View mode: table or cards — persist in localStorage, default to cards on mobile
-  const [viewMode, setViewModeState] = useState<'table' | 'cards'>(() => {
+  // View mode: table, cards, or checklist — persist in localStorage, default to cards on mobile
+  const [viewMode, setViewModeState] = useState<'table' | 'cards' | 'checklist'>(() => {
     const stored = localStorage.getItem('project-view-mode');
-    if (stored === 'table' || stored === 'cards') return stored;
+    if (stored === 'table' || stored === 'cards' || stored === 'checklist') return stored;
     return window.innerWidth < 600 ? 'cards' : 'table';
   });
-  const setViewMode = (mode: 'table' | 'cards') => {
+  const setViewMode = (mode: 'table' | 'cards' | 'checklist') => {
     setViewModeState(mode);
     localStorage.setItem('project-view-mode', mode);
   };
@@ -908,6 +909,23 @@ export function ProjectDetailPage() {
               </svg>
               Cards
             </button>
+            <button
+              className={`sort-btn ${viewMode === 'checklist' ? 'active' : ''}`}
+              onClick={() => setViewMode('checklist')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="9 11 12 14 22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              Checklist
+            </button>
           </div>
         </div>
 
@@ -1133,6 +1151,21 @@ export function ProjectDetailPage() {
                     }
                   }
                 }}
+              />
+            ) : viewMode === 'checklist' ? (
+              <ChecklistView
+                entries={entries.map((r) => ({
+                  id: r.id as string,
+                  user_email: r.user_email as string,
+                  project_name: r.project_name as string,
+                  summary: (r.summary as string) || null,
+                  due_date: (r.due_date as string) || null,
+                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                  entries: r.entries as Record<string, unknown> | string | null,
+                  started_at: (r.started_at as string) || null,
+                }))}
+                onUpdated={() => loadEntries()}
+                onDelete={() => loadEntries()}
               />
             ) : (
               <div className="entries-grid">

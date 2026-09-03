@@ -5199,3 +5199,216 @@ img {
   color: var(--text-secondary, #6b7280);
   font-family: var(--font-body);
 }
+
+/* ========== CHECKLIST VIEW ========== */
+.checklist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.checklist-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface, #ffffff);
+  border: 1.5px solid var(--border, #111111);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.checklist-card:hover {
+  border-color: var(--accent, #111111);
+  background: var(--surface-hover, #f5f5f5);
+}
+.checklist-card--done {
+  opacity: 0.7;
+}
+.checklist-card--done .checklist-summary {
+  text-decoration: line-through;
+  color: var(--text-muted, #737373);
+}
+
+.checklist-checkbox {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border, #111111);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-top: 2px;
+  transition: all 0.15s ease;
+}
+.checklist-checkbox:hover {
+  border-color: var(--accent, #111111);
+  background: var(--accent-glow, rgba(0, 0, 0, 0.06));
+}
+.checklist-checkbox--loading {
+  opacity: 0.5;
+  cursor: wait;
+}
+.checklist-check {
+  color: var(--accent, #111111);
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.checklist-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.checklist-summary {
+  font-size: 0.95rem;
+  color: var(--text, #111111);
+  margin: 0 0 0.25rem 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.checklist-summary--done {
+  text-decoration: line-through;
+  color: var(--text-muted, #737373);
+}
+
+.checklist-due {
+  font-size: 0.8rem;
+  color: var(--text-muted, #737373);
+  margin: 0;
+}
+
+.checklist-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted, #737373);
+}
+
+/* Checklist Dialog */
+.checklist-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.checklist-dialog {
+  background: var(--surface, #ffffff);
+  border: 1.5px solid var(--border, #111111);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.checklist-dialog-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text, #111111);
+  margin: 0 0 1rem 0;
+}
+
+.checklist-dialog-error {
+  color: var(--danger, #dc2626);
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.checklist-dialog-message {
+  font-size: 0.9rem;
+  color: var(--text-dim, #525252);
+  margin: 0 0 1.25rem 0;
+  line-height: 1.5;
+}
+
+.checklist-dialog-field {
+  margin-bottom: 1rem;
+}
+.checklist-dialog-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary, #404040);
+  margin-bottom: 0.35rem;
+}
+.checklist-dialog-field textarea,
+.checklist-dialog-field input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1.5px solid var(--border, #111111);
+  border-radius: 6px;
+  background: var(--bg, #ffffff);
+  color: var(--text, #111111);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.checklist-dialog-field textarea:focus,
+.checklist-dialog-field input:focus {
+  outline: none;
+  border-color: var(--accent, #111111);
+}
+
+.checklist-dialog-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.checklist-dialog-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.15s ease;
+}
+.checklist-dialog-btn--cancel {
+  background: transparent;
+  border-color: var(--border, #111111);
+  color: var(--text, #111111);
+}
+.checklist-dialog-btn--cancel:hover {
+  background: var(--surface-hover, #f5f5f5);
+}
+.checklist-dialog-btn--save {
+  background: var(--accent, #111111);
+  color: #ffffff;
+  border-color: var(--accent, #111111);
+}
+.checklist-dialog-btn--save:hover {
+  opacity: 0.9;
+}
+.checklist-dialog-btn--save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.checklist-dialog-btn--delete {
+  background: var(--danger, #dc2626);
+  color: #ffffff;
+  border-color: var(--danger, #dc2626);
+}
+.checklist-dialog-btn--delete:hover {
+  opacity: 0.9;
+}
+
+/* Checklist card menu (hidden by default, shown on hover) */
+.checklist-card-menu {
+  display: none;
+}
