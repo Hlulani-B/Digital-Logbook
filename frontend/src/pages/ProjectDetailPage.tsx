@@ -1002,7 +1002,7 @@ export function ProjectDetailPage() {
                   // Reload entries after table update
                   await loadEntries();
                 }}
-                onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
+                projectName={projectName}
               />
             ) : (
               <div className="entries-grid">

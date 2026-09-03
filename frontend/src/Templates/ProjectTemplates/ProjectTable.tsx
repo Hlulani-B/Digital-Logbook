@@ -489,13 +489,19 @@ export default function ProjectTaskTable({
   viewMode = "entry",
   onUpdate,
   onProjectNameClick,
+  projectName,
 }: {
   rows?: any[];
   viewMode?: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
+  projectName?: string; // Optional: filter to show only this project's entries
 }) {
-  const projects = groupByProject(rows);
+  // Filter rows by projectName if provided
+  const filteredRows = projectName
+    ? rows.filter((r) => r.project_name === projectName)
+    : rows;
+  const projects = groupByProject(filteredRows);
   const isMobile = useIsMobile();
 
   return (
