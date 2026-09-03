@@ -8,6 +8,38 @@
   color: var(--text, #3b3226);
 }
 
+/* ── Entry / Summary view toggle ─────────────────────────── */
+.ptt-view-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1.5px solid var(--accent, #c49a2a);
+  margin-bottom: 0.75rem;
+  width: fit-content;
+}
+
+.ptt-view-btn {
+  padding: 0.35rem 0.9rem;
+  border: none;
+  background: var(--bg-subtle, #fdfaf3);
+  color: var(--text, #3b3226);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ptt-view-btn + .ptt-view-btn {
+  border-left: 1.5px solid var(--accent, #c49a2a);
+}
+
+.ptt-view-btn--active {
+  background: var(--accent, #c49a2a);
+  color: #fff;
+}
+
 .ptt-group {
   margin-bottom: 1.5rem;
 }

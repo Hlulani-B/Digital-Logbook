@@ -490,17 +490,23 @@ function ProjectGroup({
 // ── Main table ─────────────────────────────────────────────
 export default function ProjectTaskTable({
   rows = [],
-  viewMode = "entry",
+  viewMode: externalViewMode,
   onUpdate,
   onProjectNameClick,
   projectNames,
+  showToggle = true,
 }: {
   rows?: any[];
   viewMode?: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
   projectNames?: string[]; // Optional: filter to show only these projects' entries
+  showToggle?: boolean; // Show Entry/Summary toggle buttons
 }) {
+  const [internalViewMode, setInternalViewMode] = useState<"entry" | "summary">("entry");
+  // Use external viewMode if provided, otherwise use internal state
+  const viewMode = externalViewMode !== undefined ? externalViewMode : internalViewMode;
+
   // Filter rows by projectNames if provided
   const filteredRows = projectNames && projectNames.length > 0
     ? rows.filter((r) => projectNames.includes(r.project_name))
@@ -510,6 +516,24 @@ export default function ProjectTaskTable({
 
   return (
     <div className="ptt-root">
+      {showToggle && (
+        <div className="ptt-view-toggle">
+          <button
+            type="button"
+            className={`ptt-view-btn ${viewMode === 'entry' ? 'ptt-view-btn--active' : ''}`}
+            onClick={() => setInternalViewMode('entry')}
+          >
+            Entry
+          </button>
+          <button
+            type="button"
+            className={`ptt-view-btn ${viewMode === 'summary' ? 'ptt-view-btn--active' : ''}`}
+            onClick={() => setInternalViewMode('summary')}
+          >
+            Summary
+          </button>
+        </div>
+      )}
       {projects.map((project) => (
         <ProjectGroup
           key={project.name}
