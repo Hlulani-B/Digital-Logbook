@@ -231,7 +231,7 @@ function MobileCard({
   );
 
   return (
-    <div className="ptt-mobile-card" data-status={friendlyStatus(entry.status)}>
+    <div className="ptt-mobile-card" data-status={friendlyStatus(entry.status)} data-priority={friendlyPriority(entry.priority)}>
       {/* Title / summary at top */}
       {viewMode === "summary" ? (
         <div className="ptt-mobile-card__title">
