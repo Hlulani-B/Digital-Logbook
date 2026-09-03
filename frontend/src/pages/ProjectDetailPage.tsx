@@ -8,7 +8,7 @@ import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import { sortUnarchivedEntries, updateEntry } from '@/functions/project/entries.js';
-import { cacheGet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
+import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getProfile } from '@/functions/profile/profile.js';
@@ -305,17 +305,38 @@ export function ProjectDetailPage() {
     _projectName: string,
     priorityValue: string
   ) => {
-    if (!email) return;
+    if (!email || !projectName) return;
     try {
       const priorityLabel = priorityValue === '3' ? null : PRIORITY_LABELS[priorityValue];
-      const result = await setPriority(email, priorityValue, projectName!, entryId);
+      // Update local state immediately for instant UI
+      setEntries((prev: Entry[]) =>
+        prev.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+      );
+      // Call server to save priority
+      const result = await setPriority(email, priorityValue, projectName, entryId);
       if (result?.success === false) {
         console.error('Failed to set priority:', result.message);
         return;
       }
-      setEntries((prev: Entry[]) =>
-        prev.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
-      );
+      // Update IndexedDB cache so it persists across reloads
+      const cacheKey = `${email}:${projectName}`;
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+      if (cached) {
+        const currentData = cached.data || cached;
+        const updatedData = Array.isArray(currentData)
+          ? currentData.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+          : currentData;
+        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: updatedData });
+      }
+      // Also update all-entries cache
+      const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cachedAll) {
+        const currentAll = cachedAll.data || cachedAll;
+        const updatedAll = Array.isArray(currentAll)
+          ? currentAll.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+          : currentAll;
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: updatedAll });
+      }
     } catch (err) {
       console.error('Failed to set priority:', err);
     }
