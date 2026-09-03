@@ -1404,13 +1404,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <ProjectTaskTable
                     rows={filteredEntries}
                     viewMode="entry"
-                    onUpdate={async (id: string, patch: Record<string, any>) => {
+                    onUpdate={async (id: string, _patch: Record<string, any>) => {
                       const row = filteredEntries.find((r) => r.id === id);
                       if (!row || !user?.email) return;
                       // Update logic would go here - for now just reload
                       await loadData();
                     }}
-                    onDeleteSelected={async (ids: string[]) => {
+                    onDeleteSelected={async (_ids: string[]) => {
                       // Delete logic would go here - for now just reload
                       await loadData();
                     }}
