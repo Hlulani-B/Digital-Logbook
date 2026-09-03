@@ -1027,13 +1027,18 @@ export function ProjectDetailPage() {
                 rows={entries}
                 viewMode="entry"
                 onUpdate={async (id: string, patch: Record<string, any>) => {
+                  console.log('[onUpdate] Called with id:', id, 'patch:', patch);
                   // Find the entry being updated
                   const row = entries.find((r) => r.id === id);
-                  if (!row || !email) return;
+                  if (!row || !email) {
+                    console.log('[onUpdate] Missing row or email:', { row: !!row, email: !!email });
+                    return;
+                  }
                   // Update local state immediately for instant UI
                   setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
                   try {
-                    await updateEntry(
+                    console.log('[onUpdate] Calling updateEntry...');
+                    const result = await updateEntry(
                       email,
                       row.project_name,
                       id,
@@ -1045,10 +1050,11 @@ export function ProjectDetailPage() {
                       row.ended_at,
                       row.duration,
                     );
+                    console.log('[onUpdate] updateEntry result:', result);
                     // Reload entries after successful update
                     await loadEntries();
                   } catch (err) {
-                    console.error('Update failed:', err);
+                    console.error('[onUpdate] Update failed:', err);
                     // Rollback local state on failure
                     setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
                   }
