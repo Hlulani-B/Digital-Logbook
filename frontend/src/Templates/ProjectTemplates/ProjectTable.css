@@ -1,4 +1,4 @@
-/* ProjectTaskTable — Simple Table Styles */
+/* ProjectTaskTable — Vintage Table Styles */
 
 .ptt-root {
   width: 100%;
@@ -51,7 +51,7 @@
   table-layout: fixed;
 }
 
-/* Column headers - dark and bold */
+/* Column headers */
 .ptt-columns {
   display: grid;
   grid-template-columns: 2.5fr 1fr 1fr 1.2fr 1fr;
@@ -98,7 +98,7 @@
   background: var(--bg-subtle, #f8f2e3);
 }
 
-/* All cells - single line, no wrap */
+/* All cells - single line */
 .ptt-cell {
   color: var(--text, #3b3226);
   overflow: hidden;
@@ -123,8 +123,8 @@
 }
 
 .ptt-row[data-status='done'] .ptt-checkbox {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: #4a7c59;
+  border-color: #3d6649;
 }
 
 .ptt-row[data-status='done'] .ptt-title-text {
@@ -147,7 +147,7 @@
   white-space: nowrap;
 }
 
-/* ── Status Pills ──────────────────────────────────────── */
+/* ── Status Pills — Vintage Earth Tones ────────────────── */
 .ptt-pill-status {
   display: inline-block;
   padding: 0.2rem 0.6rem;
@@ -155,29 +155,38 @@
   font-size: 0.7rem;
   font-weight: 600;
   white-space: nowrap;
+  border: 1.5px solid;
 }
 
+/* done — muted sage green */
 .ptt-row[data-status='done'] .ptt-pill-status {
-  background: #22c55e;
-  color: #fff;
+  background: #e8f0e8;
+  color: #3d6649;
+  border-color: #4a7c59;
 }
 
+/* in_progress — warm amber/ochre */
 .ptt-row[data-status='in_progress'] .ptt-pill-status {
-  background: #f59e0b;
-  color: #fff;
+  background: #fdf3e0;
+  color: #8b6914;
+  border-color: #c49a2a;
 }
 
+/* blocked — terracotta/rust */
 .ptt-row[data-status='blocked'] .ptt-pill-status {
-  background: #ef4444;
-  color: #fff;
+  background: #f5e6de;
+  color: #7a3b20;
+  border-color: #a0522d;
 }
 
+/* up_next — dusty slate blue */
 .ptt-row[data-status='up_next'] .ptt-pill-status {
-  background: #3b82f6;
-  color: #fff;
+  background: #e8edf2;
+  color: #4a5c6e;
+  border-color: #6b7f8e;
 }
 
-/* ── Priority Pills ────────────────────────────────────── */
+/* ── Priority Pills — Vintage Earth Tones ──────────────── */
 .ptt-pill-priority {
   display: inline-block;
   padding: 0.2rem 0.6rem;
@@ -185,26 +194,35 @@
   font-size: 0.7rem;
   font-weight: 600;
   white-space: nowrap;
+  border: 1.5px solid;
 }
 
+/* Urgent and important — deep terracotta */
 .ptt-row[data-priority='Urgent and important'] .ptt-pill-priority {
-  background: #ef4444;
-  color: #fff;
+  background: #f5e6de;
+  color: #7a3b20;
+  border-color: #a0522d;
 }
 
+/* Important not urgent — warm ochre/gold */
 .ptt-row[data-priority='Important not urgent'] .ptt-pill-priority {
-  background: #f59e0b;
-  color: #fff;
+  background: #fdf3e0;
+  color: #8b6914;
+  border-color: #c49a2a;
 }
 
+/* Urgent not important — burnt sienna */
 .ptt-row[data-priority='Urgent not important'] .ptt-pill-priority {
-  background: #f97316;
-  color: #fff;
+  background: #f0e8dd;
+  color: #6b4c30;
+  border-color: #8b7355;
 }
 
+/* Neither — warm grey */
 .ptt-row[data-priority='Neither urgent nor important'] .ptt-pill-priority {
-  background: #94a3b8;
-  color: #fff;
+  background: #f0ece6;
+  color: #6b5d4a;
+  border-color: #9a8b74;
 }
 
 .ptt-cell-custom {
