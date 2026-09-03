@@ -1,0 +1,298 @@
+/* ProjectTaskTable — Template Styles */
+
+.ptt-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-family: var(--font-body, 'Lora', Georgia, serif);
+  color: var(--text, #3b3226);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Group ─────────────────────────────────────────────── */
+
+.ptt-group {
+  border: 1px solid var(--border, #e8dcc8);
+  border-radius: var(--radius, 8px);
+  background: var(--surface, #ffffff);
+  overflow: hidden;
+  box-shadow: var(--shadow-card, 0 1px 3px rgba(139, 115, 85, 0.05));
+  transition: box-shadow 0.2s ease;
+}
+
+.ptt-group:hover {
+  box-shadow: var(--shadow-card-hover, 0 12px 32px rgba(139, 115, 85, 0.08));
+}
+
+/* ── Group Header ──────────────────────────────────────── */
+
+.ptt-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: var(--bg-subtle, #f8f2e3);
+  border: none;
+  border-bottom: 1px solid var(--border, #e8dcc8);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, #3b3226);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.ptt-group-header:hover {
+  background: var(--surface-hover, #f8f2e3);
+}
+
+.ptt-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #9a8b74);
+  transition: transform 0.2s ease;
+}
+
+.ptt-group-header[aria-expanded='true'] .ptt-group-toggle {
+  transform: rotate(0deg);
+}
+
+.ptt-group-header[aria-expanded='false'] .ptt-group-toggle {
+  transform: rotate(-90deg);
+}
+
+.ptt-group-name {
+  flex: 1;
+}
+
+.ptt-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-glow, rgba(139, 115, 85, 0.12));
+  color: var(--accent, #8b7355);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Table Structure ───────────────────────────────────── */
+
+.ptt-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.ptt-columns {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--border, #e8dcc8);
+  background: var(--surface, #ffffff);
+}
+
+.ptt-col {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #9a8b74);
+}
+
+.ptt-col-title { flex: 2; }
+.ptt-col-status { flex: 1; }
+.ptt-col-due { flex: 0.8; }
+.ptt-col-priority { flex: 1.2; }
+.ptt-col-custom { flex: 1; }
+
+/* ── Rows ──────────────────────────────────────────────── */
+
+.ptt-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.ptt-row {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border, #e8dcc8);
+  transition: background 0.12s ease;
+}
+
+.ptt-row:last-child {
+  border-bottom: none;
+}
+
+.ptt-row:hover {
+  background: var(--bg-subtle, #f8f2e3);
+}
+
+/* Row status indicators */
+.ptt-row[data-status='done'] {
+  opacity: 0.6;
+}
+
+.ptt-row[data-status='done'] .ptt-title-text {
+  text-decoration: line-through;
+}
+
+.ptt-row[data-status='in_progress'] {
+  border-left: 3px solid var(--accent, #8b7355);
+}
+
+.ptt-row[data-status='blocked'] {
+  border-left: 3px solid var(--danger, #a0522d);
+}
+
+/* ── Cells ─────────────────────────────────────────────── */
+
+.ptt-cell {
+  font-size: 0.875rem;
+  color: var(--text, #3b3226);
+}
+
+.ptt-cell-title {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ptt-checkbox {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border, #e8dcc8);
+  border-radius: var(--radius-xs, 4px);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ptt-checkbox:hover {
+  border-color: var(--accent, #8b7355);
+  background: var(--accent-glow, rgba(139, 115, 85, 0.12));
+}
+
+.ptt-row[data-status='done'] .ptt-checkbox {
+  background: var(--success, #4a7c59);
+  border-color: var(--success, #4a7c59);
+}
+
+.ptt-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ptt-cell-status { flex: 1; }
+.ptt-cell-due { flex: 0.8; color: var(--text-dim, #6b5d4a); }
+.ptt-cell-priority { flex: 1.2; }
+.ptt-cell-custom { flex: 1; color: var(--text-dim, #6b5d4a); }
+
+/* ── Pills ─────────────────────────────────────────────── */
+
+.ptt-pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ptt-pill-status {
+  background: var(--bg-subtle, #f8f2e3);
+  color: var(--text-dim, #6b5d4a);
+  border: 1px solid var(--border, #e8dcc8);
+}
+
+/* Status-specific pill colors */
+.ptt-row[data-status='done'] .ptt-pill-status {
+  background: rgba(74, 124, 89, 0.1);
+  color: var(--success, #4a7c59);
+  border-color: rgba(74, 124, 89, 0.2);
+}
+
+.ptt-row[data-status='in_progress'] .ptt-pill-status {
+  background: var(--accent-glow, rgba(139, 115, 85, 0.12));
+  color: var(--accent, #8b7355);
+  border-color: rgba(139, 115, 85, 0.2);
+}
+
+.ptt-row[data-status='blocked'] .ptt-pill-status {
+  background: var(--danger-glow, rgba(160, 82, 45, 0.08));
+  color: var(--danger, #a0522d);
+  border-color: rgba(160, 82, 45, 0.2);
+}
+
+/* Priority pills */
+.ptt-pill-priority {
+  background: transparent;
+  border: 1px solid var(--border, #e8dcc8);
+  color: var(--text-dim, #6b5d4a);
+}
+
+/* Priority-specific colors */
+.ptt-row[data-priority='Urgent and important'] .ptt-pill-priority {
+  background: rgba(160, 82, 45, 0.08);
+  color: var(--danger, #a0522d);
+  border-color: rgba(160, 82, 45, 0.25);
+}
+
+.ptt-row[data-priority='Important not urgent'] .ptt-pill-priority {
+  background: rgba(139, 115, 85, 0.08);
+  color: var(--accent, #8b7355);
+  border-color: rgba(139, 115, 85, 0.25);
+}
+
+.ptt-row[data-priority='Urgent not important'] .ptt-pill-priority {
+  background: rgba(160, 82, 45, 0.05);
+  color: var(--text-dim, #6b5d4a);
+  border-color: rgba(160, 82, 45, 0.15);
+}
+
+.ptt-row[data-priority='Neither urgent nor important'] .ptt-pill-priority {
+  color: var(--text-muted, #9a8b74);
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .ptt-columns {
+    display: none;
+  }
+
+  .ptt-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .ptt-cell-title {
+    flex: 1 1 100%;
+  }
+
+  .ptt-cell-status,
+  .ptt-cell-due,
+  .ptt-cell-priority {
+    flex: 0 1 auto;
+  }
+
+  .ptt-cell-custom {
+    flex: 0 1 auto;
+  }
+}

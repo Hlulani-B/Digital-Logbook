@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getSupabase } from "@/lib/supabase";
+import './ProjectTable.css';
 
 /*
   ProjectTaskTable
