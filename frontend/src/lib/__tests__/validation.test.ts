@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isValidEmail, isDisposableEmailDomain, validateEmailForAuth } from '../validation';
+import {
+  isValidEmail,
+  isDisposableEmailDomain,
+  validateEmailForAuth,
+  suggestEmailCorrection,
+} from '../validation';
 
 describe('validation', () => {
   describe('isValidEmail', () => {
@@ -60,6 +65,32 @@ describe('validation', () => {
       expect(validateEmailForAuth('temp@mailinator.com')).toBe(
         'Please use a permanent email address. Temporary or disposable email domains are not allowed.'
       );
+    });
+  });
+
+  describe('suggestEmailCorrection', () => {
+    it('suggests gmail.com for gmail.comm', () => {
+      expect(suggestEmailCorrection('nasintontela@gmail.comm')).toBe('nasintontela@gmail.com');
+    });
+
+    it('suggests outlook.com for outlok.com', () => {
+      expect(suggestEmailCorrection('user@outlok.com')).toBe('user@outlook.com');
+    });
+
+    it('suggests hotmail.com for hotmial.com', () => {
+      expect(suggestEmailCorrection('user@hotmial.com')).toBe('user@hotmail.com');
+    });
+
+    it('returns null for a correct email', () => {
+      expect(suggestEmailCorrection('user@gmail.com')).toBeNull();
+    });
+
+    it('returns null for unknown domains', () => {
+      expect(suggestEmailCorrection('user@some-random-domain.co.za')).toBeNull();
+    });
+
+    it('is case-insensitive', () => {
+      expect(suggestEmailCorrection('User@GMAIL.COMM')).toBe('user@gmail.com');
     });
   });
 });
