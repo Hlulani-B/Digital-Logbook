@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { checkUser } from '../functions/profile/login.js';
 import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '@/lib/supabase';
+import { validateEmailForAuth } from '@/lib/validation';
 
 type Provider = 'google' | 'github';
 
@@ -106,6 +107,12 @@ export function SignIn() {
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    const emailError = validateEmailForAuth(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
 
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwords do not match');
