@@ -111,7 +111,7 @@ function entryFieldNames(rows: any[]): string[] {
 }
 
 // Grid: checkbox | content columns | Priority | Due | Status (far right)
-const TRAILING_COLS = "32px 150px 100px 120px"; // Checkbox | Priority | Due | Status
+const TRAILING_COLS = "180px 120px 140px"; // Priority | Due | Status
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
   let template = "32px "; // checkbox column
