@@ -18,12 +18,16 @@ import { checkUser } from '@/functions/profile/login.js';
 import { dueSoon } from '@/functions/dashboard.js';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
+import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
+import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
+import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { FiArchive, FiX } from 'react-icons/fi';
 
 /** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
@@ -83,6 +87,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // View mode: "due-soon" shows only entries due within 3 days, "all-entries" shows everything
   const [viewMode, setViewMode] = useState<'due-soon' | 'all-entries'>('due-soon');
+
+  // Display mode: cards, checklist, or table
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table'>('cards');
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -215,6 +222,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   }, [email, sortBy, activeView]);
 
+  // SSE: Listen for real-time entry updates from backend
+  // When the backend finishes parsing a natural language entry, it pushes
+  // the data via SSE. We invalidate IndexedDB cache and reload the UI.
+  useSSEEntries({
+    onEntry: () => {
+      loadData();
+    },
+  });
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -234,8 +250,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     })();
   }, [activeView, email]);
 
-  // AI-generated greeting — shown as a toast
+  // AI-generated greeting — shown as a toast (respects AI messages preference)
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     if (!loading && projects.length > 0) {
       const hour = new Date().getHours();
       const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
@@ -361,6 +378,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // AI-generated empty state message
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     if (!loading && filteredEntries.length === 0) {
       (async () => {
         const tone = getToneInstruction();
@@ -587,21 +605,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
-    // Best-effort DB update (will silently fail due to RLS, that's OK)
+    // Sync to server via project-service
     try {
-      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
-      await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          apikey: anonJwt || apiKey,
-          Authorization: `Bearer ${anonJwt || apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ archived: true }),
-      });
+      const { archiveProject } = await import('@/functions/project/archives.js');
+      await archiveProject(email, projectName);
     } catch {}
   };
 
@@ -1272,6 +1279,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   All Entries
                 </button>
               </div>
+              <div className="feed-view-toggle">
+                <button
+                  className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('cards')}
+                >
+                  Cards
+                </button>
+                <button
+                  className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('checklist')}
+                >
+                  Checklist
+                </button>
+                {viewMode === 'all-entries' && (
+                  <button
+                    className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('table')}
+                  >
+                    Table
+                  </button>
+                )}
+              </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>
                 <button
@@ -1378,6 +1407,36 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         : aiEmptyMessage}
                     </p>
                   </div>
+                ) : displayMode === 'checklist' ? (
+                  <ChecklistView
+                    entries={filteredEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as Record<string, unknown> | string | null,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadData()}
+                    onDelete={() => loadData()}
+                  />
+                ) : displayMode === 'table' ? (
+                  <ProjectTaskTable
+                    rows={filteredEntries}
+                    viewMode="entry"
+                    onUpdate={async (id: string, _patch: Record<string, any>) => {
+                      const row = filteredEntries.find((r) => r.id === id);
+                      if (!row || !user?.email) return;
+                      // Update logic would go here - for now just reload
+                      await loadData();
+                    }}
+                    onDeleteSelected={async (_ids: string[]) => {
+                      // Delete logic would go here - for now just reload
+                      await loadData();
+                    }}
+                  />
                 ) : (
                   filteredEntries.map((row, i) => (
                     <EntryBox

@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Activity = {
   id: number;
@@ -44,6 +45,11 @@ export function ActivitySummary() {
 
   useEffect(() => {
     if (!email) return;
+    if (!getAiMessagesEnabled()) {
+      setSummary("Here's what you've been up to recently.");
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
 
     (async () => {

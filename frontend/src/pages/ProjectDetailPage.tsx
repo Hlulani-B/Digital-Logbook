@@ -7,7 +7,9 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
+import { sortUnarchivedEntries, updateEntry, deleteEntryById } from '@/functions/project/entries.js';
+import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
+import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getProfile } from '@/functions/profile/profile.js';
@@ -16,7 +18,9 @@ import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js
 import { archiveProject } from '@/functions/project/archives.js';
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiArchive } from 'react-icons/fi';
+import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -43,7 +47,22 @@ const PRIORITY_LABELS: Record<string, string> = {
   '0': 'Urgent and important',
   '1': 'Urgent but not important',
   '2': 'Not urgent, not important',
+  '3': 'No priority',
 };
+
+/** Normalize any priority value to the friendly label the DB expects */
+function toFriendlyPriority(val: string | null | undefined): string | null {
+  if (val === null || val === undefined) return null;
+  if (val === '3') return null;
+  if (PRIORITY_LABELS[val]) return PRIORITY_LABELS[val]; // raw "0"→label
+  // If already a friendly label (case-insensitive check), return it
+  const lowerVal = val.toLowerCase();
+  for (const label of Object.values(PRIORITY_LABELS)) {
+    if (label.toLowerCase() === lowerVal) return label;
+  }
+  // Return as-is if no match (might already be correct)
+  return val;
+}
 
 export function ProjectDetailPage() {
   const { projectName } = useParams<{ projectName: string }>();
@@ -70,6 +89,52 @@ export function ProjectDetailPage() {
   // Sort
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
 
+  // IndexedDB-first entries loading — show cache immediately, only load if no cache
+  const sortType = sortBy === 'priority' ? 1 : 0;
+  const cacheKey = projectName ? `${email}:${projectName}` : email;
+  const cacheStore = projectName ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
+
+  // Read from IndexedDB immediately
+  useEffect(() => {
+    if (!email || !projectName) return;
+    let cancelled = false;
+    
+    // 1. Read from cache immediately
+    (async () => {
+      const cached = await cacheGet(cacheStore, cacheKey);
+      if (!cancelled) {
+        const data = cached?.data !== undefined ? cached.data : cached;
+        const entriesData = (data as Entry[]) || [];
+        setEntries(entriesData);
+        // Only show loading if no cached data exists
+        setLoading(entriesData.length === 0);
+      }
+    })();
+
+    // 2. Subscribe to cache changes
+    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[]) => {
+      if (!cancelled) {
+        setEntries(newData || []);
+        setLoading(false); // Data arrived, stop loading
+      }
+    }) as (data: any) => void);
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [cacheStore, cacheKey]);
+
+  // Fetch from server in background
+  useEffect(() => {
+    if (!email || !projectName) return;
+    setLoading(true); // Show loading while fetching from server
+    (async () => {
+      await sortUnarchivedEntries(email, projectName, sortType);
+      setLoading(false); // Data arrived from server
+    })();
+  }, [email, projectName, sortType]);
+
   // Search
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
@@ -86,6 +151,17 @@ export function ProjectDetailPage() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
 
+  // View mode: table, cards, or checklist — persist in localStorage, default to cards on mobile
+  const [viewMode, setViewModeState] = useState<'table' | 'cards' | 'checklist'>(() => {
+    const stored = localStorage.getItem('project-view-mode');
+    if (stored === 'table' || stored === 'cards' || stored === 'checklist') return stored;
+    return window.innerWidth < 600 ? 'cards' : 'table';
+  });
+  const setViewMode = (mode: 'table' | 'cards' | 'checklist') => {
+    setViewModeState(mode);
+    localStorage.setItem('project-view-mode', mode);
+  };
+
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);
 
@@ -99,24 +175,12 @@ export function ProjectDetailPage() {
     'No entries to show yet. Add your first entry above!'
   );
 
-  // Load entries for this project
+  // Refresh entries from server (called after add/update/delete)
   const loadEntries = useCallback(async () => {
     if (!email || !projectName) return;
-    setLoading(true);
-    try {
-      const sortType = sortBy === 'priority' ? 1 : 0;
-      const result = await sortUnarchivedEntries(email, projectName, sortType);
-      setEntries(result?.data || []);
-    } catch (err) {
-      console.error('[ProjectDetail] Failed to load entries:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [email, projectName, sortBy]);
-
-  useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
+    // The hook will automatically pick up the cache changes
+    await sortUnarchivedEntries(email, projectName, sortType);
+  }, [email, projectName, sortType]);
 
   // Load all projects for the drawer
   useEffect(() => {
@@ -162,6 +226,7 @@ export function ProjectDetailPage() {
 
   // AI-generated placeholder that describes what quick add is
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     (async () => {
       const result = await askAI(
         `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log entry for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
@@ -179,6 +244,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     if (!loading && filteredEntries.length === 0 && !searchQuery) {
       (async () => {
         const tone = getToneInstruction();
@@ -263,17 +329,38 @@ export function ProjectDetailPage() {
     _projectName: string,
     priorityValue: string
   ) => {
-    if (!email) return;
+    if (!email || !projectName) return;
     try {
       const priorityLabel = priorityValue === '3' ? null : PRIORITY_LABELS[priorityValue];
-      const result = await setPriority(email, priorityValue, projectName!, entryId);
+      // Update local state immediately for instant UI
+      setEntries((prev: Entry[]) =>
+        prev.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+      );
+      // Call server to save priority
+      const result = await setPriority(email, priorityValue, projectName, entryId);
       if (result?.success === false) {
         console.error('Failed to set priority:', result.message);
         return;
       }
-      setEntries((prev: Entry[]) =>
-        prev.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
-      );
+      // Update IndexedDB cache so it persists across reloads
+      const cacheKey = `${email}:${projectName}`;
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+      if (cached) {
+        const currentData = cached.data || cached;
+        const updatedData = Array.isArray(currentData)
+          ? currentData.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+          : currentData;
+        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: updatedData });
+      }
+      // Also update all-entries cache
+      const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cachedAll) {
+        const currentAll = cachedAll.data || cachedAll;
+        const updatedAll = Array.isArray(currentAll)
+          ? currentAll.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+          : currentAll;
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: updatedAll });
+      }
     } catch (err) {
       console.error('Failed to set priority:', err);
     }
@@ -741,7 +828,7 @@ export function ProjectDetailPage() {
           />
         </div>
 
-        {/* Sort controls */}
+        {/* Sort controls + view toggle */}
         <div className="feed-controls-row">
           <div className="feed-sort-group">
             <span className="feed-sort-label">Sort:</span>
@@ -781,6 +868,65 @@ export function ProjectDetailPage() {
                 <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
               Priority
+            </button>
+          </div>
+
+          {/* View toggle — Table / Cards */}
+          <div className="view-toggle-group">
+            <span className="feed-sort-label">View:</span>
+            <button
+              className={`sort-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+              Table
+            </button>
+            <button
+              className={`sort-btn ${viewMode === 'cards' ? 'active' : ''}`}
+              onClick={() => setViewMode('cards')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+              </svg>
+              Cards
+            </button>
+            <button
+              className={`sort-btn ${viewMode === 'checklist' ? 'active' : ''}`}
+              onClick={() => setViewMode('checklist')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="9 11 12 14 22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              Checklist
             </button>
           </div>
         </div>
@@ -862,8 +1008,8 @@ export function ProjectDetailPage() {
           )}
         </div>
 
-        {/* Loading */}
-        {loading && (
+        {/* Loading — only show if no cached data */}
+        {loading && entries.length === 0 && (
           <div className="feed-loading">
             <div
               className="animate-spin"
@@ -880,7 +1026,7 @@ export function ProjectDetailPage() {
         )}
 
         {/* Search results */}
-        {!loading && searchQuery && (
+        {searchQuery && (
           <>
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -904,6 +1050,21 @@ export function ProjectDetailPage() {
                   No entries in {projectName} match "{searchQuery}".
                 </p>
               </div>
+            ) : viewMode === 'checklist' ? (
+              <ChecklistView
+                entries={filteredEntries.map((r) => ({
+                  id: r.id as string,
+                  user_email: r.user_email as string,
+                  project_name: r.project_name as string,
+                  summary: (r.summary as string) || null,
+                  due_date: (r.due_date as string) || null,
+                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                  entries: r.entries as Record<string, unknown> | string | null,
+                  started_at: (r.started_at as string) || null,
+                }))}
+                onUpdated={() => loadEntries()}
+                onDelete={() => loadEntries()}
+              />
             ) : (
               <div className="entries-feed">
                 {filteredEntries.map((row, i) => (
@@ -921,7 +1082,7 @@ export function ProjectDetailPage() {
         )}
 
         {/* All entries */}
-        {!loading && !searchQuery && (
+        {!searchQuery && (
           <div className="project-content">
             {entries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -945,6 +1106,84 @@ export function ProjectDetailPage() {
                 <h2 className="empty-title">No entries yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
+            ) : viewMode === 'table' ? (
+              <ProjectTaskTable
+                rows={entries}
+                viewMode="entry"
+                onUpdate={async (id: string, patch: Record<string, any>) => {
+                  console.log('[onUpdate] Called with id:', id, 'patch:', patch);
+                  // Find the entry being updated
+                  const row = entries.find((r) => r.id === id);
+                  if (!row || !email) {
+                    console.log('[onUpdate] Missing row or email:', { row: !!row, email: !!email });
+                    return;
+                  }
+                  // Map priority from raw value to friendly label for database
+                  const mappedPatch = { ...patch };
+                  if (patch.priority !== undefined) {
+                    mappedPatch.priority = toFriendlyPriority(patch.priority);
+                  }
+                  // Always normalize priority to friendly label before sending to DB
+                  const dbPriority = toFriendlyPriority(mappedPatch.priority ?? row.priority);
+                  // Update local state immediately for instant UI
+                  setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r)));
+                  try {
+                    console.log('[onUpdate] Calling updateEntry with mapped patch:', mappedPatch, 'dbPriority:', dbPriority);
+                    const result = await updateEntry(
+                      email,
+                      row.project_name,
+                      id,
+                      mappedPatch.entries ?? row.entries,
+                      mappedPatch.due_date !== undefined ? mappedPatch.due_date : row.due_date,
+                      dbPriority,
+                      mappedPatch.status !== undefined ? mappedPatch.status : row.status,
+                      row.started_at,
+                      row.ended_at,
+                      row.duration,
+                    );
+                    console.log('[onUpdate] updateEntry result:', result);
+                    // If server returned failure, rollback local state
+                    if (result && !result.success) {
+                      console.warn('[onUpdate] Server returned failure, rolling back UI:', (result as any).message);
+                      setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
+                    }
+                    // No need to call loadEntries() - updateEntry already updated the cache
+                  } catch (err) {
+                    console.error('[onUpdate] Update failed:', err);
+                    // Rollback local state on failure
+                    setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
+                  }
+                }}
+                projectNames={projectName ? [projectName] : undefined}
+                onDeleteSelected={async (ids: string[]) => {
+                  if (!email) return;
+                  // Optimistic: remove from local state immediately
+                  setEntries((prev) => prev.filter((r) => !ids.includes(r.id as string)));
+                  // Delete each entry on the server
+                  for (const id of ids) {
+                    try {
+                      await deleteEntryById(email, id);
+                    } catch (err) {
+                      console.error('[onDeleteSelected] Failed to delete', id, err);
+                    }
+                  }
+                }}
+              />
+            ) : viewMode === 'checklist' ? (
+              <ChecklistView
+                entries={entries.map((r) => ({
+                  id: r.id as string,
+                  user_email: r.user_email as string,
+                  project_name: r.project_name as string,
+                  summary: (r.summary as string) || null,
+                  due_date: (r.due_date as string) || null,
+                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                  entries: r.entries as Record<string, unknown> | string | null,
+                  started_at: (r.started_at as string) || null,
+                }))}
+                onUpdated={() => loadEntries()}
+                onDelete={() => loadEntries()}
+              />
             ) : (
               <div className="entries-grid">
                 {entries.map((row, i) => (

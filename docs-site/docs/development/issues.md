@@ -287,7 +287,6 @@ When the AI put an existing project in the `new` array (instead of `old`), the b
 The AI was copying the user's raw speech verbatim (e.g., "gonna grab some food") or extracting just keywords (e.g., "food") instead of writing clean, well-phrased descriptions.
 
 **Fix:** Updated the AI prompt (Steps 0 and 5) to enforce strict paraphrasing:
-
 - Step 0: "PARAPHRASE neatly into clear, well-written task descriptions" with explicit correct/wrong examples
 - Step 5: Renamed from "PRESERVE FULL TEXT" to "PARAPHRASE NEATLY (STRICT)" — the AI must rewrite casual speech into clean descriptions, not copy raw text or extract keywords
 
@@ -310,7 +309,6 @@ The voice feature was making extra AI calls for spoken prompts, confirmation mes
 Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscellaneous Tasks" card and others to be cut off at the viewport edge instead of wrapping or shrinking.
 
 **Root cause:** Multiple CSS issues:
-
 1. `.entries-feed` grid used `1fr` instead of `minmax(0, 1fr)` — `1fr` allows grid blowout where content wider than the column forces it open
 2. `<table>` elements inside cards have intrinsic minimum width that resists shrinking
 3. `.entry-box__field-key` had `white-space: nowrap` forcing field labels to never wrap
@@ -318,7 +316,6 @@ Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscel
 5. `.entry-box__project` had no overflow handling — long project names forced the card wider
 
 **Fix:**
-
 - `.entries-feed`: Changed all `1fr` to `minmax(0, 1fr)` across all breakpoints
 - `.entry-box`: Added `overflow: hidden` + `max-width: 100%`
 - `.entry-box__table`: Added `table-layout: fixed`
@@ -338,3 +335,207 @@ The hamburger icon on the project detail page navigated to the dashboard/home in
 Entries in the Activity Log were cut off with "..." at 60 characters, so the full text of what was actually typed was never visible.
 
 **Fix:** Increased the `truncateName` limit from 60 to 120 characters in `ActivityFeed.tsx`. Added `overflow-wrap: break-word` to `.activity-text` and `.activity-entity-name` CSS classes.
+
+---
+
+## Client-Side Persistent Caching
+
+### Issue 31: Slow Page Loads Due to Repeated Supabase Fetches
+
+Every page load required a full network round-trip to Supabase before the UI could render, resulting in 500–1000ms delays even for data the user had already seen. Navigation between pages (Dashboard → Project → Dashboard) re-fetched the same data every time.
+
+**Root cause:** No client-side caching layer existed. All read operations went directly to the backend API, and all responses were discarded after rendering.
+
+**Fix:** Implemented a **client-side persistent caching** layer using IndexedDB, following a **stale-while-revalidate** pattern. This is a specific type of web caching where data is stored in the browser's IndexedDB (a local mini-database) so it survives page refreshes and can serve instant reads on subsequent visits.
+
+The implementation uses the `idb` library (lightweight Promise-based IndexedDB wrapper) and provides:
+
+| Component | Purpose |
+|---|---|
+| `src/lib/cache.js` | Core caching module with `cacheGet`, `cacheSet`, `cacheDelete`, `staleWhileRevalidate` |
+| Cache stores | `projects`, `entries`, `all-entries`, `profile`, `search` — one per data type |
+| Read functions | `getEntries`, `getAllEntries`, `getProjectsByEmail`, `getProfile` — cache-first reads |
+| Write functions | All add/update/delete operations — invalidate cache on success |
+
+**How it works:**
+
+1. **Read (cache-first):** Check IndexedDB → if cached data exists, return it immediately → fetch fresh data from Supabase in background → update cache when fresh data arrives
+2. **Write (invalidate-on-success):** Write to Supabase → on success, delete relevant cache entries so next read fetches fresh data
+3. **Sign out:** Clear all cached data for the user via `clearUserCache(email)`
+
+**Web caching context:** "Web caching" is the umbrella term for storing data closer to where it's used instead of fetching it fresh every time. IndexedDB caching is one legitimate branch:
+
+| Type | Persists across reloads? | Handles structured data? | Use case |
+|---|---|---|---|
+| In-memory (React Query) | No | Limited | Fast but ephemeral |
+| LocalStorage | Yes | No (key-value only) | Simple flags/tokens |
+| **IndexedDB** | **Yes** | **Yes (mini local database)** | **Structured/relational data** |
+| Server-side (Express) | N/A | N/A | Backend API responses |
+| HTTP/browser (cache headers) | Varies | N/A | Low-level resource caching |
+
+IndexedDB caching is arguably stronger than in-memory caching because it survives refreshes and can support offline behaviour.
+
+**Performance impact:**
+
+| Metric | Before | After |
+|---|---|---|
+| First page load | ~500–1000ms | ~500–1000ms (first visit only) |
+| Subsequent loads | ~500–1000ms | <10ms (IndexedDB read) |
+| Navigation between pages | Full network fetch each time | Instant from cache |
+
+### Issue 32: IndexedDB Cache Not Cleared on Sign-Out
+
+After implementing IndexedDB caching, a user's cached data (projects, entries, profile) remained in the browser after signing out. If another user signed in on the same browser, they could potentially see the previous user's cached data briefly before fresh data arrived.
+
+**Root cause:** The `signOut` and `deleteAccount` functions in `AuthContext.tsx` did not clear the IndexedDB cache.
+
+**Fix:** Added `clearUserCache(email)` calls to both `signOut` and `deleteAccount` in `AuthContext.tsx`. The cache is now wiped for the current user before the Supabase sign-out completes, ensuring no stale data leaks between sessions.
+
+---
+
+## SSE Real-Time Entry Updates
+
+### Issue 33: Slow UI Update After Natural Language Entry Submission
+
+After submitting a natural language entry, the user had to wait for the full round-trip (AI parsing + DB writes + activity logging + POST response) before the UI updated. This took 3–5 seconds, even though the AI parsing itself only took 1–2 seconds.
+
+**Root cause:** The frontend only updated the UI when the POST response arrived. The POST response was delayed by database writes and activity logging that happened after AI parsing.
+
+**Fix:** Implemented **Server-Sent Events (SSE)** to push parsed data to the frontend the moment AI parsing completes, before DB writes finish.
+
+**Implementation:**
+
+| Component | File | Purpose |
+|---|---|---|
+| SSE Registry | `services/project-service/src/functions/sseRegistry.js` | Manages per-user SSE connections |
+| SSE Endpoint | `GET /service/nl-stream` | Persistent SSE stream for each user |
+| SSE Push | `POST /service/natural-language-entry` | Pushes parsed data via SSE after AI returns |
+| Auth Middleware | `services/project-service/src/middleware/auth.js` | Accepts JWT via query param for SSE |
+| SSE Manager | `frontend/src/lib/sse.js` | Frontend SSE connection with auto-reconnect |
+| React Hook | `frontend/src/hooks/useSSEEntries.ts` | Connects SSE events to IndexedDB + UI |
+| AuthContext | `frontend/src/context/AuthContext.tsx` | Disconnects SSE on sign-out |
+
+**Flow:**
+
+1. User submits natural language text
+2. Frontend sends POST + listens on SSE stream
+3. Backend AI parses text → pushes structured data via SSE immediately
+4. Frontend receives SSE event → invalidates IndexedDB cache → reloads UI
+5. Backend continues with DB writes and activity logging (POST response arrives later)
+
+**Result:** UI updates in 1–2s (after AI parsing) instead of 3–5s (full round-trip).
+
+---
+
+## Keep-Alive & Free-Tier Inactivity
+
+### Issue 34: Render Free Tier Sleeps After 15 Minutes — In-Process Daemon Never Fires
+
+The `dashboard-service` had a `setInterval` daemon that was supposed to ping Supabase every 12 hours to prevent database pausing. However, Render's free tier sleeps the entire service container after 15 minutes of inactivity. When the container is asleep, `setInterval` is suspended — the daemon never fires, and Supabase still gets paused.
+
+**Root cause:** Render free tier does not support long-running background processes. The container is put to sleep when no HTTP traffic arrives. Node.js `setInterval` is paused along with everything else.
+
+**Fix:** Replaced the passive daemon with an active external trigger. A GitHub Actions workflow (`.github/workflows/keep-alive.yml`) sends `curl` to `GET /service/health-ping` every 10 minutes. This endpoint:
+1. Wakes the Render container (prevents Render sleep)
+2. Calls `ping()` which writes "hello hlulani" to Supabase (prevents Supabase pause)
+
+The internal `setInterval` daemon is kept as a fallback in case GitHub Actions has an outage.
+
+**Takeaway:** Free-tier PaaS platforms (Render, Railway, Fly.io) do not guarantee persistent process execution. Background daemons that rely on `setInterval` or `cron` within the process are unreliable. Use an external trigger (GitHub Actions, cron-job.org, UptimeRobot) to periodically hit an HTTP endpoint instead.
+
+### Issue 35: EventSource API Cannot Send Custom Headers (JWT)
+
+The SSE implementation used the browser's `EventSource` API to listen for real-time entry updates. However, `EventSource` does not support setting custom HTTP headers — meaning the JWT token could not be sent via the standard `Authorization: Bearer <token>` header.
+
+**Root cause:** The `EventSource` constructor only accepts a URL string. There is no way to pass a `headers` option. This is a known limitation of the EventSource API specification.
+
+**Fix:** Added query parameter support to the auth middleware (`services/project-service/src/middleware/auth.js`). The middleware now checks for the token in two places:
+
+```javascript
+let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+if (!token && req.query?.token) { token = req.query.token; }
+```
+
+The frontend SSE manager constructs the URL as:
+```javascript
+const url = `${PROJECT_URL}/service/nl-stream?token=${encodeURIComponent(token)}`;
+```
+
+**Takeaway:** When using SSE with authenticated endpoints, either use cookies (which EventSource sends automatically) or pass the token as a URL query parameter. The query param approach requires the auth middleware to check both the `Authorization` header and `req.query.token`.
+
+### Issue 36: Jest Module Caching Causes Test State to Leak Between Tests
+
+The SSE registry tests (14 tests) failed because the module-level `Map` that stores connections accumulated state across tests. Jest does not reset modules between tests by default, so connections registered in test 1 were still present in test 2.
+
+**Root cause:** `sseRegistry.js` uses a module-level `const connections = new Map()`. When Jest imports the module once and runs all tests against it, the Map persists across the entire test suite.
+
+**Fix:** Added a `_resetRegistry()` export to `sseRegistry.js` that clears the Map. Tests call this in `beforeEach()`:
+
+```javascript
+// sseRegistry.js
+export function _resetRegistry() { connections.clear(); }
+
+// sseRegistry.test.js
+beforeEach(() => { _resetRegistry(); });
+```
+
+The underscore prefix signals this is test-only and should not be used in production code.
+
+**Takeaway:** Any module that uses module-level mutable state (Maps, Sets, arrays) needs a reset mechanism for test isolation. Without it, tests become order-dependent and flaky.
+
+### Issue 37: Vitest Fake Timers Don't Flush Async Operations
+
+The frontend SSE reconnection tests used `vi.advanceTimersByTime()` to simulate the passage of time for exponential backoff. However, `connectSSE()` is an async function (it uses `await import()` for the Supabase module), and `advanceTimersByTime()` only advances synchronous timers — it does not flush pending microtasks/promises.
+
+**Root cause:** `vi.advanceTimersByTime()` is synchronous. It advances the clock but does not await any pending promises. If the code under test has `await` expressions, the microtask queue is not drained.
+
+**Fix:** Replaced `vi.advanceTimersByTime()` with `vi.advanceTimersByTimeAsync()` which both advances the clock AND flushes the microtask queue:
+
+```javascript
+// Before (fails — async operations not flushed)
+vi.advanceTimersByTime(1000);
+
+// After (works — async operations complete)
+await vi.advanceTimersByTimeAsync(1000);
+```
+
+**Takeaway:** When testing async code with fake timers in Vitest, always use `vi.advanceTimersByTimeAsync()` instead of `vi.advanceTimersByTime()`. The synchronous version is only safe for purely synchronous code.
+
+---
+
+## AI Messages & User Preferences
+
+### Issue 38: No Option to Disable AI Toasts and Popup Messages
+
+The application showed AI-generated toasts (greeting on dashboard load, entry comments after quick-add) with no way to disable them. Users who did not want AI-generated messages had no opt-out mechanism.
+
+**Root cause:** The AI greeting toast in `Dashboard.tsx` and the AI comment toast in `QuickEntryBar.tsx` fired unconditionally. No preference flag existed in localStorage or the settings panel.
+
+**Fix:**
+1. Created `frontend/src/functions/aiMessages.ts` — a `getAiMessagesEnabled()` / `setAiMessagesEnabled()` pair backed by `localStorage` key `dl_ai_messages` (default: `true`).
+2. Added an **AI messages** toggle to `SettingsPanel.tsx` under Notifications section.
+3. Added an **AI messages** toggle to `FrequencySetup.tsx` onboarding page so new users can opt out during signup.
+4. Guarded the Dashboard greeting `useEffect` with `if (!getAiMessagesEnabled()) return;`.
+5. Guarded the QuickEntryBar AI comment toast with `if (comment && getAiMessagesEnabled())`.
+
+The preference persists across sessions via localStorage and takes effect immediately on all AI-generated messages.
+
+---
+
+## Entry Summaries
+
+### Issue 39: No One-Sentence Summary Stored for Entries
+
+Entries stored full structured field data (JSON objects) but no human-readable summary. Calendar views, activity feeds, and quick-scan overviews had to parse raw field objects to display anything meaningful.
+
+**Root cause:** The `entries` table had no `summary` column. The AI parsing flow generated structured fields but never produced a concise one-sentence summary.
+
+**Fix:**
+1. Created migration `007_add_summary_column.sql` — adds `summary TEXT` column to `entries` table.
+2. Added `generateSummary()` method to `Natural_language` class in `entries.js` — makes a separate lightweight AI call with the project name + entry object to produce a ≤20-word summary.
+3. Modified all 5 `addEntry()` call sites in the natural language flow (matched=0, 1, 3-old, 3-new-existing, 3-new-new) to generate and store summaries.
+4. Modified `addEntry()` method signature to accept optional `summary` parameter.
+5. Added `summary` to the SSE `entry_parsed` push so the frontend receives it immediately.
+6. Created `scripts/backfill-summaries.js` — iterates all existing entries with `summary IS NULL`, calls AI for each, and updates the column.
+
+The retrieval queries (`getEntries`, `getAllEntries`, `sortUnarchivedEntries`) already use `SELECT *`, so they automatically include the new column with zero changes.

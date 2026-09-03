@@ -4,6 +4,7 @@ import { getProjectsByEmail } from '@/functions/project/project.js';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -39,6 +40,11 @@ export function StatsReflection() {
 
   useEffect(() => {
     if (!email) return;
+    if (!getAiMessagesEnabled()) {
+      setReflection("Here's a quick look at your progress.");
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
 
     (async () => {
