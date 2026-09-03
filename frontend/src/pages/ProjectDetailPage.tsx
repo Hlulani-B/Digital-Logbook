@@ -8,7 +8,7 @@ import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import { sortUnarchivedEntries, updateEntry } from '@/functions/project/entries.js';
-import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
+import { cacheGet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getProfile } from '@/functions/profile/profile.js';
@@ -92,11 +92,11 @@ export function ProjectDetailPage() {
     })();
 
     // 2. Subscribe to cache changes
-    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, (newData) => {
+    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[]) => {
       if (!cancelled) {
-        setEntries((newData as Entry[]) || []);
+        setEntries(newData || []);
       }
-    });
+    }) as (data: any) => void);
 
     return () => {
       cancelled = true;
@@ -939,25 +939,8 @@ export function ProjectDetailPage() {
           )}
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="feed-loading">
-            <div
-              className="animate-spin"
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                border: '3px solid var(--border)',
-                borderTopColor: 'var(--accent)',
-              }}
-            />
-            <p>Loading entries...</p>
-          </div>
-        )}
-
         {/* Search results */}
-        {!loading && searchQuery && (
+        {searchQuery && (
           <>
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -998,7 +981,7 @@ export function ProjectDetailPage() {
         )}
 
         {/* All entries */}
-        {!loading && !searchQuery && (
+        {!searchQuery && (
           <div className="project-content">
             {entries.length === 0 ? (
               <div className="empty-state animate-in">
