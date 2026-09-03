@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getSupabase } from "@/lib/supabase";
+import { getAllEntries, updateEntry } from "@/functions/project/entries";
 import './ProjectTable.css';
 
 /*
@@ -129,7 +129,12 @@ function formatDate(value: string | null | undefined) {
 function groupByProject(rows: any[]) {
   const groups: Record<string, any[]> = {};
   for (const row of rows) {
-    if (row.deleted || row.archived) continue;
+    // Only skip soft-deleted rows (show archived ones too)
+    if (row.deleted) continue;
+    // Ensure entries jsonb is parsed (might be string from API)
+    if (typeof row.entries === "string") {
+      try { row.entries = JSON.parse(row.entries); } catch { row.entries = {}; }
+    }
     const key = row.project_name || "Unassigned";
     if (!groups[key]) groups[key] = [];
     groups[key].push(row);
@@ -153,7 +158,9 @@ function entryFieldNames(rows: any[]): string[] {
       }
     }
   }
-  return Array.from(keys);
+  const names = Array.from(keys);
+  console.log("[ptt] entry field names:", names);
+  return names;
 }
 
 // Grid: content columns | Priority | Due | Status (far right)
@@ -463,12 +470,11 @@ export default function ProjectTaskTable({
   );
 }
 
-// ── Preview wrapper — real Supabase data only ──────────────
+// ── Preview wrapper — uses project service functions ─────────
 const PREVIEW_EMAIL = "hlulanibaloyi@khanyisaeducentre.co.za";
 
 export function ProjectTablePreview() {
   const [rows, setRows] = useState<any[]>([]);
-  const [fields, setFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"entry" | "summary">("entry");
@@ -477,22 +483,20 @@ export function ProjectTablePreview() {
     async function fetchData() {
       setLoading(true);
       try {
-        const supabase = getSupabase();
-        const { data: entriesData } = await supabase
-          .from("entries")
-          .select("*")
-          .eq("user_email", PREVIEW_EMAIL)
-          .eq("deleted", false);
-
-        const { data: fieldsData } = await supabase
-          .from("fields")
-          .select("*")
-          .eq("deleted", false);
-
-        if (entriesData) setRows(entriesData);
-        if (fieldsData) setFields(fieldsData);
+        console.log("[ptt] fetching entries for", PREVIEW_EMAIL);
+        const result = await getAllEntries(PREVIEW_EMAIL);
+        console.log("[ptt] result:", JSON.stringify(result).slice(0, 500));
+        if (result?.success && result.data) {
+          console.log(`[ptt] got ${result.data.length} entries`);
+          setRows(result.data);
+        } else if (Array.isArray(result)) {
+          console.log(`[ptt] got ${result.length} entries (array)`);
+          setRows(result);
+        } else {
+          console.warn("[ptt] unexpected result shape:", result);
+        }
       } catch (err) {
-        console.error("Failed to fetch data:", err);
+        console.error("[ptt] Failed to fetch entries:", err);
       } finally {
         setLoading(false);
       }
@@ -502,30 +506,41 @@ export function ProjectTablePreview() {
 
   const handleUpdate = useCallback(
     async (id: string, patch: Record<string, any>) => {
+      // Optimistic local update
       setRows((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
       );
 
+      const row = rows.find((r) => r.id === id);
+      if (!row) return;
+
       setSaving(id);
       try {
-        const supabase = getSupabase();
-        const { error } = await supabase
-          .from("entries")
-          .update(patch)
-          .eq("id", id);
+        const result = await updateEntry(
+          PREVIEW_EMAIL,
+          row.project_name,
+          id,
+          patch.entries ?? row.entries,
+          patch.due_date !== undefined ? patch.due_date : row.due_date,
+          patch.priority !== undefined ? patch.priority : row.priority,
+          patch.status !== undefined ? patch.status : row.status,
+          row.started_at,
+          row.ended_at,
+          row.duration,
+        );
 
-        if (error) {
-          console.error("[ptt] update failed:", error.message);
+        if (result?.success === false) {
+          console.error("[ptt] update failed:", result.message);
+          // Revert on failure
           setRows((prev) =>
-            prev.map((r) => {
-              if (r.id !== id) return r;
-              const original = rows.find((o) => o.id === id);
-              return original || r;
-            }),
+            prev.map((r) => (r.id === id ? row : r)),
           );
         }
       } catch (err) {
         console.error("[ptt] update error:", err);
+        setRows((prev) =>
+          prev.map((r) => (r.id === id ? row : r)),
+        );
       } finally {
         setSaving(null);
       }
@@ -576,7 +591,7 @@ export function ProjectTablePreview() {
           {saving && " — saving..."}
         </span>
       </div>
-      <ProjectTaskTable rows={rows} fields={fields} viewMode={viewMode} onUpdate={handleUpdate} />
+      <ProjectTaskTable rows={rows} fields={[]} viewMode={viewMode} onUpdate={handleUpdate} />
     </div>
   );
 }
