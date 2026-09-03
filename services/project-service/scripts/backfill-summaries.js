@@ -17,7 +17,7 @@
 
 import pg from 'pg';
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +25,10 @@ const __dirname = dirname(__filename);
 
 // Load .env from project-service root
 dotenv.config({ path: join(__dirname, '..', '.env') });
+
+// Use the service's own AI function (same provider chain that works in production)
+const aiPath = pathToFileURL(join(__dirname, '..', 'src', 'functions', 'ai.js')).href;
+const { AI } = await import(aiPath);
 
 const { Pool } = pg;
 
@@ -43,46 +47,17 @@ const pool = new Pool({
 
 /**
  * Call AI to generate a one-sentence summary.
- * Uses OpenRouter if available (same provider the service uses).
+ * Uses the service's AI() function which tries all configured providers.
  */
 async function callAI(prompt) {
-  // Try OpenRouter first (primary provider)
-  if (process.env.OPENROUTER_API_KEY) {
-    try {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'deepseek/deepseek-chat-v3-0324:free',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 100,
-        }),
-      });
-      const data = await res.json();
-      return data.choices?.[0]?.message?.content?.trim() || null;
-    } catch (err) {
-      console.warn('OpenRouter failed:', err.message);
-    }
+  try {
+    const result = await AI(prompt);
+    if (!result || !result.trim()) return null;
+    return result.trim();
+  } catch (err) {
+    console.warn('AI call failed:', err.message);
+    return null;
   }
-
-  // Fallback: Gemini
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      const result = await model.generateContent(prompt);
-      return result.response.text().trim() || null;
-    } catch (err) {
-      console.warn('Gemini failed:', err.message);
-    }
-  }
-
-  console.error('No AI provider available. Set OPENROUTER_API_KEY or GEMINI_API_KEY.');
-  return null;
 }
 
 async function main() {

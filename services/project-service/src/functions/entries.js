@@ -531,7 +531,14 @@ Respond with ONLY the summary sentence. Nothing else.`;
 
       const result = await AI(prompt);
       if (!result || !result.trim()) return null;
-      return result.trim().replace(/^["']|["']$/g, '');
+      let text = result.trim().replace(/^["']|["']$/g, '');
+      // Strip JSON wrapping if AI returned {"summary": "..."} instead of plain text
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.summary) text = parsed.summary;
+        else if (parsed.text) text = parsed.text;
+      } catch { /* not JSON, use as-is */ }
+      return text;
     } catch (err) {
       console.error('[generateSummary] Failed:', err.message);
       return null;
