@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
 import {
   editProjectName,
   deleteProject,
   getProjectsByEmail,
   addProject,
 } from '../functions/project/project.js';
+import { getArchivedProjects, archiveProject, unarchiveProject } from '../functions/project/archives.js';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
-import { getAllEntries, updateEntry, deleteEntryById } from '@/functions/project/entries';
+import { getAllEntries, getEntries, updateEntry, deleteEntryById } from '@/functions/project/entries';
 import '@/Templates/ProjectTemplates/ProjectTable.css';
 
 type ProjectRecord = {
@@ -71,60 +71,23 @@ export function ProjectsPage() {
     localStorage.setItem('project-table-view-mode', mode);
   };
 
-  // Auto-seed test projects when the user has none
-  const seedTestProjects = useCallback(async () => {
-    if (!email) return;
-    const testProjects = [
-      { name: 'Website Redesign', description: 'Redesign the main company website with modern UI' },
-      { name: 'Mobile App MVP', description: 'Build the first version of the iOS/Android app' },
-      { name: 'Q4 Marketing Plan', description: 'Plan and execute Q4 marketing campaigns' },
-      { name: 'Internal Tools Audit', description: 'Audit all internal tools and consolidate' },
-      { name: 'Database Migration', description: 'Migrate legacy database to new architecture' },
-    ];
-    for (const p of testProjects) {
-      await addProject(email, p.name, p.description);
-    }
-  }, [email]);
-
   const loadProjects = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     setError(null);
     try {
-      let list: ProjectRecord[] = [];
-      if (supabase) {
-        const { data, error: sbError } = await supabase
-          .from('projects')
-          .select('project_name, description, created_at, archived')
-          .eq('user_email', email)
-          .order('created_at', { ascending: false });
-        if (sbError) throw new Error(sbError.message);
-        list = (data || []).filter((p) => !p.archived);
-      } else {
-        const result = await getProjectsByEmail(email);
-        if (result?.error) throw new Error(result.error);
-        list = (
-          Array.isArray(result) ? result : Array.isArray(result?.projects) ? result.projects : []
-        ).filter((p: ProjectRecord) => !p.archived);
-      }
+      const result = await getProjectsByEmail(email);
+      if (result?.error) throw new Error(result.error);
+      const list = (
+        Array.isArray(result) ? result : Array.isArray(result?.projects) ? result.projects : []
+      ).filter((p: ProjectRecord) => !p.archived);
       setProjects(list);
-
-      if (supabase && email) {
-        await seedTestProjects();
-        const { data: allData } = await supabase
-          .from('projects')
-          .select('project_name, description, created_at, archived')
-          .eq('user_email', email)
-          .order('created_at', { ascending: false });
-        list = (allData || []).filter((p) => !p.archived);
-        setProjects(list);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your projects');
     } finally {
       setLoading(false);
     }
-  }, [email, seedTestProjects]);
+  }, [email]);
 
   // Load all entries for the table
   const loadEntries = useCallback(async () => {
@@ -148,18 +111,17 @@ export function ProjectsPage() {
   }, [email]);
 
   const loadArchivedProjects = useCallback(async () => {
-    if (!email || !supabase) return;
+    if (!email) return;
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('project_name, created_at, archived')
-        .eq('user_email', email)
-        .eq('archived', true)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setArchivedProjects(data || []);
+      const result = await getArchivedProjects(email);
+      if (result?.success && result.data) {
+        setArchivedProjects(result.data);
+      } else {
+        setArchivedProjects([]);
+      }
     } catch (err) {
       console.error('Failed to load archived projects:', err);
+      setArchivedProjects([]);
     }
   }, [email]);
 
@@ -203,13 +165,8 @@ export function ProjectsPage() {
     if (!trimmed || !email) return;
     setSaving(true);
     try {
-      if (supabase) {
-        const { error: createError } = await supabase
-          .from('projects')
-          .insert({ user_email: email, project_name: trimmed, description: '' })
-          .select();
-        if (createError) throw new Error(createError.message);
-      }
+      const result = await addProject(email, trimmed, '');
+      if (result?.error) throw new Error(result.error);
       setNewProjectName('');
       setCreating(false);
       await loadProjects();
@@ -260,15 +217,11 @@ export function ProjectsPage() {
   };
 
   const handleArchive = async (name: string) => {
-    if (!email || !supabase) return;
+    if (!email) return;
     setArchiving(true);
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ archived: true })
-        .eq('user_email', email)
-        .eq('project_name', name);
-      if (error) throw error;
+      const result = await archiveProject(email, name);
+      if (result?.error) throw new Error(result.error);
       setConfirmArchive(null);
       await Promise.all([loadProjects(), loadArchivedProjects()]);
     } catch (err) {
@@ -279,14 +232,10 @@ export function ProjectsPage() {
   };
 
   const handleUnarchive = async (name: string) => {
-    if (!email || !supabase) return;
+    if (!email) return;
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ archived: false })
-        .eq('user_email', email)
-        .eq('project_name', name);
-      if (error) throw error;
+      const result = await unarchiveProject(email, name);
+      if (result?.error) throw new Error(result.error);
       setViewingArchived(null);
       setArchivedEntries([]);
       await Promise.all([loadProjects(), loadArchivedProjects()]);
@@ -296,17 +245,18 @@ export function ProjectsPage() {
   };
 
   const handleViewArchivedEntries = async (name: string) => {
-    if (!email || !supabase) return;
+    if (!email) return;
     setViewingArchived(name);
     setLoadingEntries(true);
     try {
-      const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_email', email)
-        .eq('project_name', name);
-      if (error) throw error;
-      setArchivedEntries(data || []);
+      const result = await getEntries(email, name);
+      if (result?.success && result.data) {
+        setArchivedEntries(result.data);
+      } else if (Array.isArray(result)) {
+        setArchivedEntries(result);
+      } else {
+        setArchivedEntries([]);
+      }
     } catch {
       setArchivedEntries([]);
     } finally {
