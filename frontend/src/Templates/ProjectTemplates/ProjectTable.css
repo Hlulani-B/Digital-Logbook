@@ -121,7 +121,7 @@
   word-wrap: break-word;
 }
 
-.ptt-row[data-status='done'] .ptt-summary-text {
+.ptt-row[data-status='Done & Dusted'] .ptt-summary-text {
   text-decoration: line-through;
   opacity: 0.6;
 }
@@ -210,51 +210,39 @@
   box-shadow: 0 0 0 2px rgba(196, 154, 42, 0.25);
 }
 
-/* Status select — colored per status */
-.ptt-row[data-status='done'] .ptt-select-status {
-  background-color: #d4e4d4;
-  color: #2d5038;
-  border-color: #4a7c59;
-}
-
-.ptt-row[data-status='in_progress'] .ptt-select-status {
+/* Status select — colored per status (friendly labels) */
+.ptt-row[data-status='In Motion'] .ptt-select-status {
   background-color: #fae5b8;
   color: #6b4f0a;
   border-color: #c49a2a;
 }
 
-.ptt-row[data-status='blocked'] .ptt-select-status {
-  background-color: #e8cfc0;
-  color: #5c2a12;
-  border-color: #a0522d;
+.ptt-row[data-status='Done & Dusted'] .ptt-select-status {
+  background-color: #d4e4d4;
+  color: #2d5038;
+  border-color: #4a7c59;
 }
 
-.ptt-row[data-status='up_next'] .ptt-select-status {
-  background-color: #cdd8e4;
-  color: #34485a;
-  border-color: #5a7080;
-}
-
-/* Priority select — colored per priority */
+/* Priority select — colored per priority (friendly labels) */
 .ptt-row[data-priority='Urgent and important'] .ptt-select-priority {
   background-color: #e8cfc0;
   color: #5c2a12;
   border-color: #a0522d;
 }
 
-.ptt-row[data-priority='Important not urgent'] .ptt-select-priority {
+.ptt-row[data-priority='Urgent but not important'] .ptt-select-priority {
   background-color: #fae5b8;
   color: #6b4f0a;
   border-color: #b8891e;
 }
 
-.ptt-row[data-priority='Urgent not important'] .ptt-select-priority {
+.ptt-row[data-priority='Not urgent, not important'] .ptt-select-priority {
   background-color: #e0d2c0;
   color: #4a3520;
   border-color: #8b6b45;
 }
 
-.ptt-row[data-priority='Neither urgent nor important'] .ptt-select-priority {
+.ptt-row[data-priority='No priority'] .ptt-select-priority {
   background-color: #ddd6cc;
   color: #4a3f32;
   border-color: #8a7d6a;

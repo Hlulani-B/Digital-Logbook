@@ -9,13 +9,30 @@ import './ProjectTable.css';
   View toggle: "entry" shows dynamic jsonb fields, "summary" shows AI summary.
 */
 
-const STATUSES = ["up_next", "in_progress", "blocked", "done"];
-const PRIORITIES = [
-  "Urgent and important",
-  "Important not urgent",
-  "Urgent not important",
-  "Neither urgent nor important",
-];
+// Status & priority enums matching the rest of the app
+const STATUSES = ["in_motion", "done_and_dusted"] as const;
+const PRIORITIES = ["0", "1", "2", "3"] as const;
+
+const STATUS_LABELS: Record<string, string> = {
+  up_next: "Up Next",
+  in_motion: "In Motion",
+  done_and_dusted: "Done & Dusted",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  "0": "Urgent and important",
+  "1": "Urgent but not important",
+  "2": "Not urgent, not important",
+  "3": "No priority",
+};
+
+function friendlyStatus(raw: string) {
+  return STATUS_LABELS[raw] || raw;
+}
+
+function friendlyPriority(raw: string) {
+  return PRIORITY_LABELS[raw] || raw;
+}
 
 // Dummy data for preview
 const DUMMY_ROWS = [
@@ -24,8 +41,8 @@ const DUMMY_ROWS = [
     project_name: "Digital Logbook",
     entries: { task: "Fixed authentication bug", hours: "3" },
     due_date: "2026-09-05T00:00:00Z",
-    priority: "Urgent and important",
-    status: "in_progress",
+    priority: "0",
+    status: "in_motion",
     summary: "Fixed the authentication bug in the login flow",
     archived: false,
     deleted: false,
@@ -36,8 +53,8 @@ const DUMMY_ROWS = [
     project_name: "Digital Logbook",
     entries: { task: "Add entry summaries feature", hours: "5" },
     due_date: "2026-09-10T00:00:00Z",
-    priority: "Important not urgent",
-    status: "up_next",
+    priority: "1",
+    status: "in_motion",
     summary: "Implemented AI-generated summaries for log entries",
     archived: false,
     deleted: false,
@@ -48,8 +65,8 @@ const DUMMY_ROWS = [
     project_name: "Digital Logbook",
     entries: { task: "Write unit tests", hours: "2" },
     due_date: null,
-    priority: "Urgent not important",
-    status: "done",
+    priority: "2",
+    status: "done_and_dusted",
     summary: "Added tests for AI messages toggle",
     archived: false,
     deleted: false,
@@ -60,8 +77,8 @@ const DUMMY_ROWS = [
     project_name: "Khanyisa MVP",
     entries: { task: "Design learner dashboard", hours: "4" },
     due_date: "2026-09-08T00:00:00Z",
-    priority: "Important not urgent",
-    status: "in_progress",
+    priority: "1",
+    status: "in_motion",
     summary: "Designed the learner dashboard wireframes",
     archived: false,
     deleted: false,
@@ -72,8 +89,8 @@ const DUMMY_ROWS = [
     project_name: "Khanyisa MVP",
     entries: { task: "Setup Supabase schema", hours: "6" },
     due_date: "2026-09-01T00:00:00Z",
-    priority: "Urgent and important",
-    status: "done",
+    priority: "0",
+    status: "done_and_dusted",
     summary: "Set up the database schema in Supabase",
     archived: false,
     deleted: false,
@@ -84,8 +101,8 @@ const DUMMY_ROWS = [
     project_name: "Personal",
     entries: { task: "Morning run", hours: "1" },
     due_date: null,
-    priority: "Neither urgent nor important",
-    status: "done",
+    priority: "3",
+    status: "done_and_dusted",
     summary: "Went for a 5km morning run",
     archived: false,
     deleted: false,
@@ -269,19 +286,19 @@ function TaskRow({
   return (
     <div
       className="ptt-row"
-      data-status={entry.status}
-      data-priority={entry.priority}
+      data-status={friendlyStatus(entry.status)}
+      data-priority={friendlyPriority(entry.priority)}
       style={{ gridTemplateColumns: gridTemplate }}
     >
       {/* Status — dropdown */}
       <div className="ptt-cell ptt-cell-status">
         <select
           className="ptt-select ptt-select-status"
-          value={entry.status || "up_next"}
+          value={entry.status || STATUSES[0]}
           onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
         >
           {STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{friendlyStatus(s)}</option>
           ))}
         </select>
       </div>
@@ -302,7 +319,7 @@ function TaskRow({
           onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
         >
           {PRIORITIES.map((p) => (
-            <option key={p} value={p}>{p}</option>
+            <option key={p} value={p}>{friendlyPriority(p)}</option>
           ))}
         </select>
       </div>
