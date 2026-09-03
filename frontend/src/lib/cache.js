@@ -12,7 +12,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 // Cache store names
 const STORES = {
@@ -71,28 +71,17 @@ function emitCacheChange(store, key, data) {
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        // Create object stores for each cache type
-        if (!db.objectStoreNames.contains(STORES.PROJECTS)) {
-          db.createObjectStore(STORES.PROJECTS, { keyPath: 'email' });
-        }
-        if (!db.objectStoreNames.contains(STORES.ENTRIES)) {
-          db.createObjectStore(STORES.ENTRIES, { keyPath: 'key' });
-        }
-        if (!db.objectStoreNames.contains(STORES.ALL_ENTRIES)) {
-          db.createObjectStore(STORES.ALL_ENTRIES, { keyPath: 'email' });
-        }
-        if (!db.objectStoreNames.contains(STORES.PROFILE)) {
-          db.createObjectStore(STORES.PROFILE, { keyPath: 'email' });
-        }
-        if (!db.objectStoreNames.contains(STORES.SEARCH)) {
-          db.createObjectStore(STORES.SEARCH, { keyPath: 'key' });
-        }
-        if (!db.objectStoreNames.contains(STORES.ARCHIVES)) {
-          db.createObjectStore(STORES.ARCHIVES, { keyPath: 'key' });
-        }
-        if (!db.objectStoreNames.contains(STORES.FIELDS)) {
-          db.createObjectStore(STORES.FIELDS, { keyPath: 'key' });
+      upgrade(db, oldVersion) {
+        // v2 -> v3: unified all stores to use 'key' as keyPath
+        if (oldVersion < 3) {
+          // Delete old stores with wrong keyPath
+          const storeNames = Object.values(STORES);
+          storeNames.forEach((storeName) => {
+            if (db.objectStoreNames.contains(storeName)) {
+              db.deleteObjectStore(storeName);
+            }
+            db.createObjectStore(storeName, { keyPath: 'key' });
+          });
         }
         if (!db.objectStoreNames.contains(META_STORE)) {
           db.createObjectStore(META_STORE, { keyPath: 'key' });

@@ -6,6 +6,7 @@ import {
   editProjectName,
   deleteProject,
   getProjectsByEmail,
+  addProject,
 } from '../functions/project/project.js';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
@@ -64,16 +65,16 @@ export function ProjectsPage() {
 
   // Auto-seed test projects when the user has none
   const seedTestProjects = useCallback(async () => {
-    if (!email || !supabase) return;
+    if (!email) return;
     const testProjects = [
-      { user_email: email, project_name: 'Website Redesign', description: 'Redesign the main company website with modern UI', archived: false },
-      { user_email: email, project_name: 'Mobile App MVP', description: 'Build the first version of the iOS/Android app', archived: false },
-      { user_email: email, project_name: 'Q4 Marketing Plan', description: 'Plan and execute Q4 marketing campaigns', archived: false },
-      { user_email: email, project_name: 'Internal Tools Audit', description: 'Audit all internal tools and consolidate', archived: false },
-      { user_email: email, project_name: 'Database Migration', description: 'Migrate legacy database to new architecture', archived: false },
+      { name: 'Website Redesign', description: 'Redesign the main company website with modern UI' },
+      { name: 'Mobile App MVP', description: 'Build the first version of the iOS/Android app' },
+      { name: 'Q4 Marketing Plan', description: 'Plan and execute Q4 marketing campaigns' },
+      { name: 'Internal Tools Audit', description: 'Audit all internal tools and consolidate' },
+      { name: 'Database Migration', description: 'Migrate legacy database to new architecture' },
     ];
     for (const p of testProjects) {
-      await supabase.from('projects').upsert(p, { onConflict: 'user_email,project_name' }).select();
+      await addProject(email, p.name, p.description);
     }
   }, [email]);
 

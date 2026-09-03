@@ -600,21 +600,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
-    // Best-effort DB update (will silently fail due to RLS, that's OK)
+    // Sync to server via project-service
     try {
-      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const anonJwt = import.meta.env.VITE_SUPABASE_ANON_JWT;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const url = `${supabaseUrl}/rest/v1/projects?user_email=eq.${encodeURIComponent(email)}&project_name=eq.${encodeURIComponent(projectName)}`;
-      await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          apikey: anonJwt || apiKey,
-          Authorization: `Bearer ${anonJwt || apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ archived: true }),
-      });
+      const { archiveProject } = await import('@/functions/project/archives.js');
+      await archiveProject(email, projectName);
     } catch {}
   };
 
