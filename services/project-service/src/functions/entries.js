@@ -518,30 +518,62 @@ export class Natural_language {
    * Generate a one-sentence summary for an entry using AI.
    * @param {string} projectName - The project the entry belongs to
    * @param {object} entryObject - The entry fields (key-value pairs)
-   * @returns {Promise<string|null>} One-sentence summary, or null on failure
+   * @returns {Promise<string>} One-sentence summary, or projectName as fallback
    */
   async generateSummary(projectName, entryObject) {
     try {
-      const prompt = `Given this logbook entry, write a single concise sentence summarising what was done. No more than 20 words. Do NOT use first-person pronouns (I, my, we). Write in a neutral, factual style.
+      // If entry has no meaningful fields, just use project name
+      const hasContent = entryObject && typeof entryObject === 'object' &&
+        Object.values(entryObject).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (!hasContent) return projectName;
+
+      const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
 
 Project: ${projectName}
 Entry: ${JSON.stringify(entryObject)}
 
-Respond with ONLY the summary sentence. Nothing else.`;
+You MUST respond with ONLY a JSON object in this exact format, nothing else:
+{"summary": "your one sentence here"}
+
+If the entry has no real content, use the project name as the summary.`;
 
       const result = await AI(prompt);
-      if (!result || !result.trim()) return null;
-      let text = result.trim().replace(/^["']|["']$/g, '');
-      // Strip JSON wrapping if AI returned {"summary": "..."} instead of plain text
+      if (!result || !result.trim()) return projectName;
+
+      const raw = result.trim().replace(/^["']|["']$/g, '');
+
+      // Parse the JSON response
       try {
-        const parsed = JSON.parse(text);
-        if (parsed.summary) text = parsed.summary;
-        else if (parsed.text) text = parsed.text;
-      } catch { /* not JSON, use as-is */ }
-      return text;
+        const parsed = JSON.parse(raw);
+        if (parsed.summary && typeof parsed.summary === 'string' && parsed.summary.trim()) {
+          return parsed.summary.trim();
+        }
+      } catch {
+        // Not valid JSON — try regex extraction
+        const match = raw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
+        if (match) return match[1].trim();
+      }
+
+      // Retry once if parsing failed
+      try {
+        const retry = await AI(prompt);
+        if (retry && retry.trim()) {
+          const retryRaw = retry.trim().replace(/^["']|["']$/g, '');
+          try {
+            const retryParsed = JSON.parse(retryRaw);
+            if (retryParsed.summary) return retryParsed.summary.trim();
+          } catch {
+            const match = retryRaw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
+            if (match) return match[1].trim();
+          }
+        }
+      } catch { /* retry failed */ }
+
+      // Final fallback: project name
+      return projectName;
     } catch (err) {
       console.error('[generateSummary] Failed:', err.message);
-      return null;
+      return projectName;
     }
   }
 
