@@ -47,6 +47,7 @@ const PRIORITY_LABELS: Record<string, string> = {
   '0': 'Urgent and important',
   '1': 'Urgent but not important',
   '2': 'Not urgent, not important',
+  '3': 'No priority',
 };
 
 /** Normalize any priority value to the friendly label the DB expects */
@@ -54,7 +55,13 @@ function toFriendlyPriority(val: string | null | undefined): string | null {
   if (val === null || val === undefined) return null;
   if (val === '3') return null;
   if (PRIORITY_LABELS[val]) return PRIORITY_LABELS[val]; // raw "0"→label
-  return val; // already a friendly label
+  // If already a friendly label (case-insensitive check), return it
+  const lowerVal = val.toLowerCase();
+  for (const label of Object.values(PRIORITY_LABELS)) {
+    if (label.toLowerCase() === lowerVal) return label;
+  }
+  // Return as-is if no match (might already be correct)
+  return val;
 }
 
 export function ProjectDetailPage() {

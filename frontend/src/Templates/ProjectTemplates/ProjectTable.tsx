@@ -46,7 +46,17 @@ const PRIORITY_TO_RAW: Record<string, string> = Object.fromEntries(
 /** Convert DB priority (friendly label or raw) to raw value for dropdown */
 function toRawPriority(val: string | null | undefined): string {
   if (!val) return "3";
-  return PRIORITY_TO_RAW[val] || val; // friendly→raw, or already raw
+  // Try exact match first
+  if (PRIORITY_TO_RAW[val]) return PRIORITY_TO_RAW[val];
+  // If already a raw value (0-3), return as-is
+  if (["0", "1", "2", "3"].includes(val)) return val;
+  // Try case-insensitive match
+  const lowerVal = val.toLowerCase();
+  for (const [label, raw] of Object.entries(PRIORITY_TO_RAW)) {
+    if (label.toLowerCase() === lowerVal) return raw;
+  }
+  // Default to "3" (no priority) if no match
+  return "3";
 }
 
 function friendlyStatus(raw: string) {
