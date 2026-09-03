@@ -52,6 +52,8 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested email format and disposable-domain validation before sign-up/sign-in submission
 - I requested email typo detection (for example, catching gmail.comm and suggesting gmail.com)
 - I requested automatic sign-out after a period of inactivity so sessions do not stay open indefinitely
+- I requested a calendar view that places entries on their due dates, supports month/week switching, and allows dragging an entry to another day to reschedule it
+- I requested that overdue and completed entries be visually distinct on the calendar
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -77,6 +79,9 @@ The AI generated the following code based on my instructions:
 | `src/lib/api.ts`                                            | Backend API helper with auth token                                                   | AI generated                          |
 | `src/lib/validation.ts`                                     | Email format, disposable-domain, and typo-correction helpers                         | AI generated from my requirements     |
 | `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity                                             | AI generated from my requirements     |
+| `src/pages/Calendar.tsx`                                    | Month/week calendar with drag-to-reschedule                                          | AI generated from my requirements     |
+| `src/pages/Calendar.css`                                    | Calendar component styles                                                            | AI generated from my design direction |
+| `src/lib/calendar.ts`                                       | Date utilities and entry grouping for the calendar                                   | AI generated from my requirements     |
 | `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
 | `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
 | `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |
@@ -114,6 +119,8 @@ I made all configuration decisions and directed the AI to execute the following:
 | Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)          | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)   |
 | Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)          | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)   |
 | Sessions remained signed in indefinitely on shared devices      | Me (student, requested)          | AI (added `useInactivityLogout` with 30-minute timeout)                    |
+| No visual calendar view for entry due dates                     | Me (student, requested)          | AI (added `/calendar` page with month/week views and drag-to-reschedule)   |
+| Rescheduling entries required editing each entry individually   | Me (student, requested)          | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)      |
 
 ---
 

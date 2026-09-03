@@ -172,11 +172,32 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `frontend/src/components/ProfileMenu.tsx` — Dropdown menu
 
+### 11. Calendar View
+
+**What it does:** Shows entries on a month or week calendar, placed on their due dates. Entries can be dragged to a different day to reschedule them.
+
+**Why it was implemented:** Gives users a visual, time-based view of their workload and makes it easy to move deadlines without opening each entry.
+
+**How it works:**
+
+- Fetches all unarchived entries with a due date using `getAllEntries()`
+- Month view shows a full 7-column grid; week view shows seven vertical day columns
+- Days are navigated with Previous, Next, and Today controls
+- Overdue entries are highlighted in red and completed entries are shown in green with a strikethrough
+- Dragging an entry onto another day calls `updateEntry()` with the new due date and updates the local list immediately
+- Days with many tasks show the first few entries plus a "+N more" indicator and remain scrollable
+
+**Key files:**
+
+- `frontend/src/pages/Calendar.tsx` — Calendar page
+- `frontend/src/lib/calendar.ts` — Date utilities and entry grouping
+- `frontend/src/pages/Calendar.css` — Calendar styles
+
 ---
 
 ## Project & Entry Management
 
-### 11. Project Creation & Management
+### 12. Project Creation & Management
 
 **What it does:** Users can create projects, add entries to them, and manage project lifecycle.
 
@@ -195,7 +216,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/pages/ProjectsPage.tsx` — Projects list
 - `services/project-service/src/functions/project.js` — Backend project functions
 
-### 12. Custom Fields per Project
+### 13. Custom Fields per Project
 
 **What it does:** Each project can have its own set of custom fields (text, number, date, etc.) beyond the built-in fields.
 
@@ -212,7 +233,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `services/project-service/src/functions/field.js` — Backend field functions
 
-### 13. Quick Add (Natural Language Entry)
+### 14. Quick Add (Natural Language Entry)
 
 **What it does:** Add entries using natural language. The AI parses the text, matches it to an existing project or creates a new one, and extracts field values.
 
@@ -234,7 +255,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/components/QuickAdd.tsx` — Quick Add UI
 - `services/project-service/src/functions/entries.js` — `Natural_language.entry()` and `getDate()`
 
-### 14. Manual Entry Creation
+### 15. Manual Entry Creation
 
 **What it does:** Traditional form-based entry creation with project selection and field inputs.
 
@@ -251,7 +272,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `frontend/src/pages/NewEntry.tsx` — Manual entry form
 
-### 15. Entry Timeline & All Entries View
+### 16. Entry Timeline & All Entries View
 
 **What it does:** View all entries in a timeline or list format, with filtering and search.
 
@@ -270,7 +291,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/pages/AllEntries.tsx` — All entries view
 - `frontend/src/pages/Activity.tsx` — Timeline view
 
-### 16. Priority & Status Tracking
+### 17. Priority & Status Tracking
 
 **What it does:** Each entry has a priority (0=urgent+important, 1=urgent, 2=not urgent, null=none) and status.
 
@@ -283,7 +304,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - Filter entries by priority or status
 - Visual indicators (colors, icons) for quick identification
 
-### 17. Soft Delete & Archives
+### 18. Soft Delete & Archives
 
 **What it does:** Entries and projects can be soft-deleted and moved to archives instead of permanent deletion.
 
@@ -305,7 +326,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Analytics & Insights
 
-### 18. Project Statistics
+### 19. Project Statistics
 
 **What it does:** Shows stats for each project: total entries, time spent, completion rate.
 
