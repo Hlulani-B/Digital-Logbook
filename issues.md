@@ -228,6 +228,43 @@ Also updated ProjectTable.css to use neutral colors instead of vintage earth ton
 
 ---
 
+## 8. Text Edits in Table Not Saving (Priority Value Mismatch)
+
+### Problem
+When editing text fields in the ProjectTaskTable (e.g., title), the change appeared briefly then reverted. The update failed silently on the server.
+
+### Root Cause
+The DB stores priority as friendly labels (`"Urgent and important"`) but the dropdown used raw values (`"0"`, `"1"`, `"2"`, `"3"`). When editing text:
+1. `onUpdate` sends ALL fields including `row.priority`
+2. If `row.priority` was a raw value `"0"` (from dropdown), DB rejected it: `invalid input value for enum priority_level: "0"`
+3. The entire update failed, including the text change
+4. Additionally, the dropdown couldn't display the DB's friendly label (no matching option)
+
+### Fix
+1. Added `toFriendlyPriority()` helper to normalize any priority format to the DB-expected friendly label
+2. Always normalize priority before calling `updateEntry`, even when priority isn't being changed
+3. Added `toRawPriority()` helper in ProjectTable to convert DB values back to raw values for dropdown display
+4. Applied fix to both desktop and mobile dropdowns
+
+```typescript
+// Normalize priority to friendly label before DB call
+function toFriendlyPriority(val: string | null | undefined): string | null {
+  if (val === null || val === undefined) return null;
+  if (val === '3') return null;
+  if (PRIORITY_LABELS[val]) return PRIORITY_LABELS[val]; // raw "0"→label
+  return val; // already a friendly label
+}
+
+// Always normalize before sending to DB
+const dbPriority = toFriendlyPriority(mappedPatch.priority ?? row.priority);
+```
+
+### Files Modified
+- `frontend/src/pages/ProjectDetailPage.tsx`
+- `frontend/src/Templates/ProjectTemplates/ProjectTable.tsx`
+
+---
+
 ## Summary
 
 All issues have been fixed and pushed to the `hlulani` branch. The key fixes were:
@@ -236,3 +273,4 @@ All issues have been fixed and pushed to the `hlulani` branch. The key fixes wer
 3. Loading spinner only shows when no cached data exists
 4. All direct Supabase calls replaced with proper service calls
 5. Clean white/black theme applied as default
+6. Priority values normalized between dropdown (raw) and database (friendly labels)
