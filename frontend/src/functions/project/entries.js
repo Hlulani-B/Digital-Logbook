@@ -1,6 +1,112 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
 
+// ── GET functions — write to IndexedDB, don't return ──────────
+
+/**
+ * Fetch entries for a specific project.
+ * Writes result to IndexedDB (triggers subscription), does not return data.
+ */
+export async function getEntries(user_email, project_name) {
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // Fetch from server and write to IndexedDB
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'get',
+        values: { user_email, project_name },
+      }),
+    });
+
+    if (result?.success) {
+      await cacheSet(CACHE_STORES.ENTRIES, cacheKey, result);
+    }
+    return result;
+  } catch (err) {
+    console.error('[getEntries] Failed:', err);
+    return { success: false, data: [] };
+  }
+}
+
+/**
+ * Fetch ALL entries for a user.
+ * Writes result to IndexedDB (triggers subscription), does not return data.
+ */
+export async function getAllEntries(user_email) {
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'getAll',
+        values: { user_email },
+      }),
+    });
+
+    if (result?.success) {
+      await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, result);
+    }
+    return result;
+  } catch (err) {
+    console.error('[getAllEntries] Failed:', err);
+    return { success: false, data: [] };
+  }
+}
+
+/**
+ * Fetch sorted unarchived entries for a project.
+ * Writes to IndexedDB, does not return data.
+ */
+export async function sortUnarchivedEntries(user_email, project_name, sort_type) {
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'sortUnarchived',
+        values: { user_email, project_name, sort_type },
+      }),
+    });
+
+    if (result?.success) {
+      await cacheSet(CACHE_STORES.ENTRIES, `${user_email}:${project_name}`, result);
+    }
+    return result;
+  } catch (err) {
+    console.error('[sortUnarchivedEntries] Failed:', err);
+    return { success: false, data: [] };
+  }
+}
+
+/**
+ * Fetch sorted archived entries for a project.
+ */
+export async function sortArchivedEntries(user_email, project_name, sort_type) {
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'sortArchived',
+        values: { user_email, project_name, sort_type },
+      }),
+    });
+
+    if (result?.success) {
+      await cacheSet(CACHE_STORES.ENTRIES, `${user_email}:${project_name}:archived`, result);
+    }
+    return result;
+  } catch (err) {
+    console.error('[sortArchivedEntries] Failed:', err);
+    return { success: false, data: [] };
+  }
+}
+
+// ── POST/PUT functions — write to IndexedDB FIRST, then sync ──
+
+/**
+ * Add a new entry.
+ * Writes optimistic data to IndexedDB immediately, then syncs to server.
+ */
 export async function addEntry(
   user_email,
   project_name,
@@ -12,34 +118,88 @@ export async function addEntry(
   ended_at,
   duration
 ) {
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'add',
-      values: {
-        user_email,
-        project_name,
-        entry_object,
-        due_date,
-        priority,
-        status,
-        started_at,
-        ended_at,
-        duration,
-      },
-    }),
-  });
-  
-  // Invalidate cache on successful write
-  if (result?.success) {
-    await cacheDelete(CACHE_STORES.ENTRIES, `${user_email}:${project_name}`);
-    await cacheDelete(CACHE_STORES.ALL_ENTRIES, user_email);
-    await cacheDelete(CACHE_STORES.PROJECTS, user_email);
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // 1. Optimistic update: read current cache, add optimistic entry, write back
+  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+  const optimisticEntry = {
+    id: `optimistic-${Date.now()}`,
+    user_email,
+    project_name,
+    entries: entry_object,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration,
+    created_at: new Date().toISOString(),
+    _optimistic: true,
+  };
+
+  // Write optimistic entry to per-project cache
+  if (cached) {
+    const currentData = cached.data || cached;
+    const optimisticData = Array.isArray(currentData)
+      ? [...currentData, optimisticEntry]
+      : currentData;
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: optimisticData });
   }
-  
-  return result;
+
+  // Write optimistic entry to all-entries cache
+  if (cachedAll) {
+    const currentAll = cachedAll.data || cachedAll;
+    const optimisticAll = Array.isArray(currentAll)
+      ? [...currentAll, optimisticEntry]
+      : currentAll;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: optimisticAll });
+  }
+
+  // 2. Sync to server
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'add',
+        values: {
+          user_email,
+          project_name,
+          entry_object,
+          due_date,
+          priority,
+          status,
+          started_at,
+          ended_at,
+          duration,
+        },
+      }),
+    });
+
+    // 3. On success, refresh cache with real data from server
+    if (result?.success) {
+      // Re-fetch to get real IDs and timestamps
+      await getEntries(user_email, project_name);
+      await getAllEntries(user_email);
+    }
+    return result;
+  } catch (err) {
+    // 4. On failure, rollback optimistic entry
+    console.error('[addEntry] Server sync failed, rolling back:', err);
+    if (cached) {
+      await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
+    }
+    if (cachedAll) {
+      await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
+    }
+    return { success: false, message: err.message || 'Failed to add entry' };
+  }
 }
 
+/**
+ * Update an existing entry.
+ * Writes optimistic update to IndexedDB immediately, then syncs to server.
+ */
 export async function updateEntry(
   user_email,
   project_name,
@@ -52,164 +212,158 @@ export async function updateEntry(
   ended_at,
   duration
 ) {
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'update',
-      values: {
-        user_email,
-        project_name,
-        entry_id,
-        new_entry,
-        due_date,
-        priority,
-        status,
-        started_at,
-        ended_at,
-        duration,
-      },
-    }),
-  });
-  
-  // Invalidate cache on successful write
-  if (result?.success) {
-    await cacheDelete(CACHE_STORES.ENTRIES, `${user_email}:${project_name}`);
-    await cacheDelete(CACHE_STORES.ALL_ENTRIES, user_email);
-  }
-  
-  return result;
-}
-
-export async function getEntries(user_email, project_name) {
   const cacheKey = `${user_email}:${project_name}`;
-  
-  // Try cache first
+
+  // 1. Optimistic update: patch the entry in cache
   const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+
+  function patchEntry(arr) {
+    if (!Array.isArray(arr)) return arr;
+    return arr.map((e) => {
+      if (e.id === entry_id || e.id?.toString() === entry_id?.toString()) {
+        return {
+          ...e,
+          entries: new_entry ?? e.entries,
+          due_date: due_date !== undefined ? due_date : e.due_date,
+          priority: priority !== undefined ? priority : e.priority,
+          status: status !== undefined ? status : e.status,
+          started_at: started_at !== undefined ? started_at : e.started_at,
+          ended_at: ended_at !== undefined ? ended_at : e.ended_at,
+          duration: duration !== undefined ? duration : e.duration,
+        };
+      }
+      return e;
+    });
+  }
+
   if (cached) {
-    // Return cached data immediately, fetch fresh in background
-    const freshPromise = request(`${PROJECT_URL}/service/entry`, {
+    const currentData = cached.data || cached;
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchEntry(currentData) });
+  }
+  if (cachedAll) {
+    const currentAll = cachedAll.data || cachedAll;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchEntry(currentAll) });
+  }
+
+  // 2. Sync to server
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
       body: JSON.stringify({
-        function: 'get',
-        values: { user_email, project_name },
+        function: 'update',
+        values: {
+          user_email,
+          project_name,
+          entry_id,
+          new_entry,
+          due_date,
+          priority,
+          status,
+          started_at,
+          ended_at,
+          duration,
+        },
       }),
-    }).then(async (freshData) => {
-      if (freshData?.success) {
-        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, freshData);
-      }
-      return freshData;
     });
-    
-    return cached.data !== undefined ? cached.data : cached;
+
+    // 3. On success, refresh cache with real data
+    if (result?.success) {
+      await getEntries(user_email, project_name);
+      await getAllEntries(user_email);
+    }
+    return result;
+  } catch (err) {
+    // 4. On failure, rollback
+    console.error('[updateEntry] Server sync failed, rolling back:', err);
+    if (cached) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
+    if (cachedAll) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
+    return { success: false, message: err.message || 'Failed to update entry' };
   }
-  
-  // No cache - fetch and cache
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'get',
-      values: { user_email, project_name },
-    }),
-  });
-  
-  if (result?.success) {
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, result);
-  }
-  
-  return result;
 }
 
-export async function getAllEntries(user_email) {
-  // Try cache first
-  const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
-  if (cached) {
-    // Return cached data immediately, fetch fresh in background
-    const freshPromise = request(`${PROJECT_URL}/service/entry`, {
-      method: 'POST',
-      body: JSON.stringify({
-        function: 'getAll',
-        values: { user_email },
-      }),
-    }).then(async (freshData) => {
-      if (freshData?.success) {
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, freshData);
-      }
-      return freshData;
-    });
-    
-    return cached.data !== undefined ? cached.data : cached;
-  }
-  
-  // No cache - fetch and cache
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'getAll',
-      values: { user_email },
-    }),
-  });
-  
-  if (result?.success) {
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, result);
-  }
-  
-  return result;
-}
-
+/**
+ * Delete an entry.
+ * Removes from IndexedDB immediately, then syncs to server.
+ */
 export async function deleteEntry(user_email, project_name, entry) {
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'delete',
-      values: { user_email, project_name, entry },
-    }),
-  });
-  
-  // Invalidate cache on successful write
-  if (result?.success) {
-    await cacheDelete(CACHE_STORES.ENTRIES, `${user_email}:${project_name}`);
-    await cacheDelete(CACHE_STORES.ALL_ENTRIES, user_email);
-    await cacheDelete(CACHE_STORES.PROJECTS, user_email);
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // 1. Optimistic: remove from cache
+  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+
+  function removeEntry(arr) {
+    if (!Array.isArray(arr)) return arr;
+    const entryId = typeof entry === 'object' ? entry.id : entry;
+    return arr.filter((e) => e.id !== entryId && e.id?.toString() !== entryId?.toString());
   }
-  
-  return result;
+
+  if (cached) {
+    const currentData = cached.data || cached;
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: removeEntry(currentData) });
+  }
+  if (cachedAll) {
+    const currentAll = cachedAll.data || cachedAll;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: removeEntry(currentAll) });
+  }
+
+  // 2. Sync to server
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'delete',
+        values: { user_email, project_name, entry },
+      }),
+    });
+
+    if (result?.success) {
+      await getEntries(user_email, project_name);
+      await getAllEntries(user_email);
+    }
+    return result;
+  } catch (err) {
+    // 3. Rollback on failure
+    console.error('[deleteEntry] Server sync failed, rolling back:', err);
+    if (cached) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
+    if (cachedAll) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
+    return { success: false, message: err.message || 'Failed to delete entry' };
+  }
 }
 
+/**
+ * Delete an entry by ID.
+ */
 export async function deleteEntryById(user_email, entry_id) {
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'deleteById',
-      values: { user_email, entry_id },
-    }),
-  });
-  
-  // Invalidate cache on successful write
-  if (result?.success) {
-    // Clear all entry caches since we don't know which project
-    await cacheDelete(CACHE_STORES.ALL_ENTRIES, user_email);
-    await cacheDelete(CACHE_STORES.PROJECTS, user_email);
+  // 1. Optimistic: remove from all-entries cache
+  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+
+  if (cachedAll) {
+    const currentAll = cachedAll.data || cachedAll;
+    const filtered = Array.isArray(currentAll)
+      ? currentAll.filter((e) => e.id !== entry_id && e.id?.toString() !== entry_id?.toString())
+      : currentAll;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: filtered });
   }
-  
-  return result;
-}
 
-export async function sortUnarchivedEntries(user_email, project_name, sort_type) {
-  return request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'sortUnarchived',
-      values: { user_email, project_name, sort_type },
-    }),
-  });
-}
+  // 2. Sync to server
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'deleteById',
+        values: { user_email, entry_id },
+      }),
+    });
 
-export async function sortArchivedEntries(user_email, project_name, sort_type) {
-  return request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'sortArchived',
-      values: { user_email, project_name, sort_type },
-    }),
-  });
+    if (result?.success) {
+      await getAllEntries(user_email);
+    }
+    return result;
+  } catch (err) {
+    console.error('[deleteEntryById] Server sync failed, rolling back:', err);
+    if (cachedAll) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
+    return { success: false, message: err.message || 'Failed to delete entry' };
+  }
 }

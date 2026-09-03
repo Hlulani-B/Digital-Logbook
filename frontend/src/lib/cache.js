@@ -1,17 +1,18 @@
 /**
- * IndexedDB caching layer for stale-while-revalidate pattern.
+ * IndexedDB caching layer with event-driven subscriptions.
  * 
  * This module provides a local-first caching mechanism:
  * - Read operations: Return cached data immediately, then fetch fresh data in background
- * - Write operations: Update Supabase first, then sync cache on success
+ * - Write operations: Update IndexedDB first (optimistic), then sync to server
+ * - Components subscribe to cache changes via useCachedData hook
  * 
- * Pattern: https://web.dev/stale-while-revalidate/
+ * Pattern: IndexedDB-first with stale-while-revalidate
  */
 
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Cache store names
 const STORES = {
@@ -20,12 +21,49 @@ const STORES = {
   ALL_ENTRIES: 'all-entries',
   PROFILE: 'profile',
   SEARCH: 'search',
+  ARCHIVES: 'archives',
+  FIELDS: 'fields',
 };
 
 // Cache metadata (timestamps for stale checks)
 const META_STORE = 'cache-meta';
 
 let dbPromise = null;
+
+// ── Event system for cache changes ──────────────────────────
+const listeners = new Map(); // key -> Set<callback>
+
+/**
+ * Subscribe to cache changes for a specific store+key.
+ * @param {string} store - The cache store name
+ * @param {string} key - The cache key
+ * @param {Function} callback - Called with new data when cache changes
+ * @returns {Function} Unsubscribe function
+ */
+export function cacheSubscribe(store, key, callback) {
+  const cacheKey = `${store}:${key}`;
+  if (!listeners.has(cacheKey)) {
+    listeners.set(cacheKey, new Set());
+  }
+  listeners.get(cacheKey).add(callback);
+  return () => {
+    listeners.get(cacheKey)?.delete(callback);
+  };
+}
+
+/**
+ * Notify all subscribers of a cache change.
+ */
+function emitCacheChange(store, key, data) {
+  const cacheKey = `${store}:${key}`;
+  const subs = listeners.get(cacheKey);
+  if (subs) {
+    const payload = data?.data !== undefined ? data.data : data;
+    subs.forEach((cb) => {
+      try { cb(payload); } catch (e) { console.warn('[Cache] Subscriber error:', e); }
+    });
+  }
+}
 
 /**
  * Get or create the IndexedDB database instance.
@@ -49,6 +87,12 @@ function getDB() {
         }
         if (!db.objectStoreNames.contains(STORES.SEARCH)) {
           db.createObjectStore(STORES.SEARCH, { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains(STORES.ARCHIVES)) {
+          db.createObjectStore(STORES.ARCHIVES, { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains(STORES.FIELDS)) {
+          db.createObjectStore(STORES.FIELDS, { keyPath: 'key' });
         }
         if (!db.objectStoreNames.contains(META_STORE)) {
           db.createObjectStore(META_STORE, { keyPath: 'key' });
@@ -92,6 +136,8 @@ export async function cacheSet(store, key, data) {
     await db.put(store, record);
     // Update timestamp
     await db.put(META_STORE, { key, timestamp: Date.now() });
+    // Notify subscribers
+    emitCacheChange(store, key, data);
   } catch (err) {
     console.warn(`[Cache] Failed to set ${key} in ${store}:`, err);
   }
@@ -123,6 +169,8 @@ export async function cacheDelete(store, key) {
     const db = await getDB();
     await db.delete(store, key);
     await db.delete(META_STORE, key);
+    // Notify subscribers that data was cleared
+    emitCacheChange(store, key, null);
   } catch (err) {
     console.warn(`[Cache] Failed to delete ${key} from ${store}:`, err);
   }
@@ -144,9 +192,15 @@ export async function clearUserCache(email) {
       tx.objectStore(STORES.ALL_ENTRIES).delete(email),
       tx.objectStore(STORES.PROFILE).delete(email),
       tx.objectStore(STORES.SEARCH).delete(email),
+      tx.objectStore(STORES.ARCHIVES).delete(email),
+      tx.objectStore(STORES.FIELDS).delete(email),
       tx.objectStore(META_STORE).delete(email),
       tx.done,
     ]);
+    // Notify all subscribers for this user that data was cleared
+    Object.values(STORES).forEach((store) => {
+      emitCacheChange(store, email, null);
+    });
   } catch (err) {
     console.warn(`[Cache] Failed to clear cache for ${email}:`, err);
   }
