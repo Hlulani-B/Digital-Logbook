@@ -2,12 +2,12 @@
 
 ## Student Details
 
-| Field              | Value                                   |
-| ------------------ | --------------------------------------- |
-| **Name**           | Nasiphi Ntontela                        |
-| **Student Number** | 2673619                                 |
-| **Project**        | Codacaine — Digital Logbook             |
-| **Date**           | 13 August 2026 (updated 24 August 2026) |
+| Field              | Value                                     |
+| ------------------ | ----------------------------------------- |
+| **Name**           | Nasiphi Ntontela                          |
+| **Student Number** | 2673619                                   |
+| **Project**        | Codacaine — Digital Logbook               |
+| **Date**           | 13 August 2026 (updated 3 September 2026) |
 
 ---
 
@@ -49,6 +49,9 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I identified the "Welcome back" bug for new users
 - I requested that scheduling deletion sign the user out immediately and that restoration require a secure email confirmation link
 - I directed the removal of the in-dashboard "Restore Account" button so restore only happens from the sign-in page
+- I requested email format and disposable-domain validation before sign-up/sign-in submission
+- I requested email typo detection (for example, catching gmail.comm and suggesting gmail.com)
+- I requested automatic sign-out after a period of inactivity so sessions do not stay open indefinitely
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -72,6 +75,8 @@ The AI generated the following code based on my instructions:
 | `src/context/AuthContext.tsx`                               | Auth state management + Supabase integration                                         | AI generated                          |
 | `src/lib/supabase.ts`                                       | Supabase client initialisation with `getSupabase()` helper                           | AI generated                          |
 | `src/lib/api.ts`                                            | Backend API helper with auth token                                                   | AI generated                          |
+| `src/lib/validation.ts`                                     | Email format, disposable-domain, and typo-correction helpers                         | AI generated from my requirements     |
+| `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity                                             | AI generated from my requirements     |
 | `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
 | `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
 | `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |
@@ -106,6 +111,9 @@ I made all configuration decisions and directed the AI to execute the following:
 | Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error) | AI (renamed variable to `v_email`, qualified column references)            |
 | Soft-deleted users could not sign back in cleanly               | Me (student, requested)          | AI (added auto-restore on sign-in in SignIn.tsx)                           |
 | Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)         | AI (changed `deleteAccount` to sign out, moved restore to email-link flow) |
+| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)          | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)   |
+| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)          | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)   |
+| Sessions remained signed in indefinitely on shared devices      | Me (student, requested)          | AI (added `useInactivityLogout` with 30-minute timeout)                    |
 
 ---
 
@@ -131,7 +139,7 @@ I am solely responsible for the frontend authentication component of this projec
 1. **Reviewed all generated code** before accepting it
 2. **Tested features manually** in the browser after each change
 3. **Made all design decisions** — directed the premium UI aesthetic, chose feature scope, and selected all third-party services
-4. **Identified bugs** — caught the "Welcome back" greeting issue, missing reset password access, ambiguous `user_email` error, and soft-delete restore flow (including the need to sign out immediately after scheduling deletion)
+4. **Identified bugs and feature gaps** — caught the "Welcome back" greeting issue, missing reset password access, ambiguous `user_email` error, soft-delete restore flow (including the need to sign out immediately after scheduling deletion), lack of email validation on sign-up/sign-in, and sessions remaining open indefinitely on inactive devices
 5. **Configured external services** — manually set up Supabase providers, Google Cloud Console, Cloudflare Turnstile, and **Brevo SMTP** (after switching from Resend)
 6. **Controlled deployment** — decided when and where to push code, and managed the merge into main myself
 
@@ -144,4 +152,4 @@ The AI was used as a **code generation and technical guidance tool** under my di
 ---
 
 **Signed:** Nasiphi Ntontela  
-**Date:** 24 August 2026
+**Date:** 3 September 2026

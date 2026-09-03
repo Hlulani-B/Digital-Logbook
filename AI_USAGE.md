@@ -26,6 +26,9 @@ The following frontend features were implemented with AI acting as a code-genera
   - Account deletion with a 30-day grace period and restore capability
   - Restore via secure email confirmation link on the sign-in page
   - Auto-redirect of soft-deleted users to the sign-in restore prompt
+  - Email format and disposable-domain validation on sign-up and sign-in
+  - Email typo detection with a "Did you mean?" suggestion
+  - Automatic sign-out after 30 minutes of inactivity
 - **UI components**
   - Sign-in page with split-screen video background and account-restore prompt
   - Dedicated `/auth/restore` page for email-link restoration
