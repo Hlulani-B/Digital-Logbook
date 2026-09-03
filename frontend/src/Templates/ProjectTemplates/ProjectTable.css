@@ -102,8 +102,23 @@
   white-space: nowrap;
 }
 
-.ptt-cell-title {
+/* ── Summary cell ────────────────────────────────────────── */
+.ptt-col-summary {
+  font-style: italic;
+}
+
+.ptt-cell-summary {
   overflow: hidden;
+}
+
+.ptt-summary-text {
+  font-style: italic;
+  color: var(--text-dim, #6b5d4a);
+}
+
+.ptt-row[data-status='done'] .ptt-summary-text {
+  text-decoration: line-through;
+  opacity: 0.6;
 }
 
 /* ── Editable text ───────────────────────────────────────── */
@@ -125,9 +140,6 @@
   background: var(--bg-subtle, #f8f2e3);
 }
 
-.ptt-title-text {
-  font-weight: 500;
-}
 
 .ptt-editable-date {
   min-width: 60px;
@@ -240,11 +252,7 @@
   border-color: #8a7d6a;
 }
 
-/* Done row — strikethrough title */
-.ptt-row[data-status='done'] .ptt-title-text {
-  text-decoration: line-through;
-  opacity: 0.6;
-}
+/* Done row — strikethrough summary */
 
 .ptt-cell-custom {
   color: var(--text-dim, #6b5d4a);

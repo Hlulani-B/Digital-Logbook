@@ -6,7 +6,7 @@ import './ProjectTable.css';
   ProjectTaskTable
   -----------------
   Editable table — every cell updates Supabase on change.
-  Status/Priority = dropdowns, text/date fields = click-to-edit.
+  View toggle: "entry" shows dynamic jsonb fields, "summary" shows AI summary.
 */
 
 const STATUSES = ["up_next", "in_progress", "blocked", "done"];
@@ -124,12 +124,17 @@ function customFieldsFor(projectName: string, fields: any[]) {
   return fields.filter((f) => f.table_name === projectName && !f.deleted);
 }
 
-const BASE_COLS = "minmax(160px, 3fr) 130px 90px 190px";
+// Grid: Status (fixed) | Due (fixed) | Priority (fixed) | content columns (flex)
+const BASE_COLS = "130px 90px 190px";
 
-function buildGridTemplate(customFieldCount: number) {
+function buildGridTemplate(viewMode: string, customFieldCount: number) {
   let template = BASE_COLS;
-  for (let i = 0; i < customFieldCount; i++) {
-    template += " minmax(60px, 1fr)";
+  if (viewMode === "summary") {
+    template += " minmax(200px, 3fr)"; // single summary column
+  } else {
+    for (let i = 0; i < customFieldCount; i++) {
+      template += " minmax(80px, 1fr)";
+    }
   }
   return template;
 }
@@ -200,7 +205,6 @@ function EditableDate({
     if (editing && inputRef.current) inputRef.current.focus();
   }, [editing]);
 
-  // Convert ISO to date input value (yyyy-mm-dd)
   const toDateInput = (iso: string | null) => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -242,17 +246,16 @@ function TaskRow({
   entry,
   customFields,
   gridTemplate,
+  viewMode,
   onUpdate,
 }: {
   entry: any;
   customFields: any[];
   gridTemplate: string;
+  viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
 }) {
   const customValues = entry.entries || {};
-  const taskField = customFields.find((f) => f.field_name === "task");
-  const taskKey = taskField ? "task" : (customValues.title !== undefined ? "title" : "task");
-  const taskValue = customValues[taskKey] || entry.summary || "";
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
@@ -269,15 +272,6 @@ function TaskRow({
       data-priority={entry.priority}
       style={{ gridTemplateColumns: gridTemplate }}
     >
-      {/* Task name — editable text */}
-      <div className="ptt-cell ptt-cell-title">
-        <EditableText
-          value={taskValue}
-          onSave={(val) => handleFieldEdit(taskKey, val)}
-          className="ptt-title-text"
-        />
-      </div>
-
       {/* Status — dropdown */}
       <div className="ptt-cell ptt-cell-status">
         <select
@@ -312,20 +306,29 @@ function TaskRow({
         </select>
       </div>
 
-      {/* Custom field columns — each editable */}
-      {customFields.map((field) => {
-        if (field.field_name === "task") return null; // already shown in title col
-        const val = String(customValues[field.field_name] ?? "");
-        return (
-          <div className="ptt-cell ptt-cell-custom" key={field.field_name}>
-            <EditableText
-              value={val}
-              onSave={(newVal) => handleFieldEdit(field.field_name, newVal)}
-              type={field.data_type === "number" ? "number" : "text"}
-            />
-          </div>
-        );
-      })}
+      {/* Content columns depend on view mode */}
+      {viewMode === "summary" ? (
+        <div className="ptt-cell ptt-cell-summary">
+          <EditableText
+            value={entry.summary || ""}
+            onSave={(val) => onUpdate(entry.id, { summary: val })}
+            className="ptt-summary-text"
+          />
+        </div>
+      ) : (
+        customFields.map((field) => {
+          const val = String(customValues[field.field_name] ?? "");
+          return (
+            <div className="ptt-cell ptt-cell-custom" key={field.field_name}>
+              <EditableText
+                value={val}
+                onSave={(newVal) => handleFieldEdit(field.field_name, newVal)}
+                type={field.data_type === "number" ? "number" : "text"}
+              />
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
@@ -334,15 +337,17 @@ function TaskRow({
 function ProjectGroup({
   project,
   fields,
+  viewMode,
   onUpdate,
 }: {
   project: any;
   fields: any[];
+  viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
 }) {
   const [open, setOpen] = useState(true);
   const customFields = customFieldsFor(project.name, fields);
-  const gridTemplate = buildGridTemplate(customFields.length);
+  const gridTemplate = buildGridTemplate(viewMode, customFields.length);
 
   return (
     <div className="ptt-group">
@@ -362,17 +367,18 @@ function ProjectGroup({
       {open && (
         <div className="ptt-table">
           <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
-            <div className="ptt-col">Task name</div>
             <div className="ptt-col">Status</div>
             <div className="ptt-col">Due</div>
             <div className="ptt-col">Priority</div>
-            {customFields
-              .filter((f) => f.field_name !== "task")
-              .map((field) => (
+            {viewMode === "summary" ? (
+              <div className="ptt-col ptt-col-summary">Summary</div>
+            ) : (
+              customFields.map((field) => (
                 <div className="ptt-col ptt-col-custom" key={field.field_name}>
                   {field.field_name}
                 </div>
-              ))}
+              ))
+            )}
           </div>
 
           <div className="ptt-rows">
@@ -382,6 +388,7 @@ function ProjectGroup({
                 entry={entry}
                 customFields={customFields}
                 gridTemplate={gridTemplate}
+                viewMode={viewMode}
                 onUpdate={onUpdate}
               />
             ))}
@@ -396,10 +403,12 @@ function ProjectGroup({
 export default function ProjectTaskTable({
   rows = [],
   fields = [],
+  viewMode = "entry",
   onUpdate,
 }: {
   rows?: any[];
   fields?: any[];
+  viewMode?: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
 }) {
   const projects = groupByProject(rows);
@@ -407,7 +416,13 @@ export default function ProjectTaskTable({
   return (
     <div className="ptt-root">
       {projects.map((project) => (
-        <ProjectGroup key={project.name} project={project} fields={fields} onUpdate={onUpdate} />
+        <ProjectGroup
+          key={project.name}
+          project={project}
+          fields={fields}
+          viewMode={viewMode}
+          onUpdate={onUpdate}
+        />
       ))}
     </div>
   );
@@ -420,6 +435,7 @@ export function ProjectTablePreview() {
   const [useRealData, setUseRealData] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"entry" | "summary">("entry");
 
   useEffect(() => {
     if (!useRealData) return;
@@ -451,15 +467,13 @@ export function ProjectTablePreview() {
     fetchRealData();
   }, [useRealData]);
 
-  // Persist a single field update to Supabase + local state
   const handleUpdate = useCallback(
     async (id: string, patch: Record<string, any>) => {
-      // Update local state immediately for snappy UI
       setRows((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
       );
 
-      if (!useRealData) return; // dummy mode — local only
+      if (!useRealData) return;
 
       setSaving(id);
       try {
@@ -471,7 +485,6 @@ export function ProjectTablePreview() {
 
         if (error) {
           console.error("[ptt] update failed:", error.message);
-          // Revert on failure
           setRows((prev) =>
             prev.map((r) => {
               if (r.id !== id) return r;
@@ -491,27 +504,63 @@ export function ProjectTablePreview() {
 
   return (
     <div style={{ padding: "2rem", fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-        <h2 style={{ margin: 0 }}>ProjectTaskTable Preview</h2>
+      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0 }}>ProjectTaskTable</h2>
+
+        {/* View toggle */}
+        <div style={{ display: "flex", gap: "0", borderRadius: "6px", overflow: "hidden", border: "1.5px solid #c49a2a" }}>
+          <button
+            onClick={() => setViewMode("entry")}
+            style={{
+              padding: "0.35rem 0.9rem",
+              border: "none",
+              background: viewMode === "entry" ? "#c49a2a" : "#fdfaf3",
+              color: viewMode === "entry" ? "#fff" : "#3b3226",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.8rem",
+            }}
+          >
+            Entry
+          </button>
+          <button
+            onClick={() => setViewMode("summary")}
+            style={{
+              padding: "0.35rem 0.9rem",
+              border: "none",
+              borderLeft: "1.5px solid #c49a2a",
+              background: viewMode === "summary" ? "#c49a2a" : "#fdfaf3",
+              color: viewMode === "summary" ? "#fff" : "#3b3226",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.8rem",
+            }}
+          >
+            Summary
+          </button>
+        </div>
+
         <button
           onClick={() => setUseRealData(!useRealData)}
           style={{
-            padding: "0.5rem 1rem",
+            padding: "0.4rem 0.9rem",
             borderRadius: "4px",
             border: "1px solid #ccc",
-            background: useRealData ? "#4CAF50" : "#fff",
+            background: useRealData ? "#4a7c59" : "#fff",
             color: useRealData ? "#fff" : "#333",
             cursor: "pointer",
+            fontSize: "0.8rem",
           }}
         >
-          {loading ? "Loading..." : useRealData ? "Showing Real Data" : "Show Real Data"}
+          {loading ? "Loading..." : useRealData ? "Real Data" : "Dummy Data"}
         </button>
-        <span style={{ color: "#666", fontSize: "0.875rem" }}>
-          {useRealData ? "hlulanibaloyi@khanyisaeducentre" : "Dummy data"}
+
+        <span style={{ color: "#666", fontSize: "0.8rem" }}>
+          {useRealData ? "hlulanibaloyi@khanyisaeducentre" : "Preview"}
           {saving && " — saving..."}
         </span>
       </div>
-      <ProjectTaskTable rows={rows} fields={fields} onUpdate={handleUpdate} />
+      <ProjectTaskTable rows={rows} fields={fields} viewMode={viewMode} onUpdate={handleUpdate} />
     </div>
   );
 }
