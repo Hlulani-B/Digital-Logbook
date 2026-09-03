@@ -228,9 +228,9 @@ export async function updateEntry(
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
-  // 1. Optimistic update: patch the entry in cache
-  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+  // 1. Save pre-update cache state for rollback
+  const cachedBefore = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  const cachedAllBefore = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
 
   function patchEntry(arr) {
     if (!Array.isArray(arr)) return arr;
@@ -251,17 +251,19 @@ export async function updateEntry(
     });
   }
 
-  if (cached) {
-    const currentData = cached.data || cached;
+  // 2. Optimistic update: patch the entry in cache
+  if (cachedBefore) {
+    const currentData = cachedBefore.data || cachedBefore;
     await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchEntry(currentData) });
   }
-  if (cachedAll) {
-    const currentAll = cachedAll.data || cachedAll;
+  if (cachedAllBefore) {
+    const currentAll = cachedAllBefore.data || cachedAllBefore;
     await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchEntry(currentAll) });
   }
 
-  // 2. Sync to server
+  // 3. Sync to server
   try {
+    console.log('[updateEntry] Sending to server:', { entry_id, priority, status, project_name });
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
       body: JSON.stringify({
@@ -281,32 +283,42 @@ export async function updateEntry(
       }),
     });
 
-    // 3. On success, update cache with returned data (no re-fetch needed)
+    console.log('[updateEntry] Server response:', JSON.stringify(result));
+
+    // 4a. Server returned success — update cache with authoritative server data
     if (result?.success && result.data) {
       const updatedEntry = Array.isArray(result.data) ? result.data[0] : result.data;
-      // Update per-project cache
-      if (cached) {
-        const currentData = cached.data || cached;
+      // Re-read current cache (not stale reference) and replace the entry
+      const currentCached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+      if (currentCached) {
+        const currentData = currentCached.data || currentCached;
         const newData = Array.isArray(currentData)
           ? currentData.map((e) => e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e)
           : currentData;
         await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
       }
-      // Update all-entries cache
-      if (cachedAll) {
-        const currentAll = cachedAll.data || cachedAll;
+      const currentCachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+      if (currentCachedAll) {
+        const currentAll = currentCachedAll.data || currentCachedAll;
         const newAll = Array.isArray(currentAll)
           ? currentAll.map((e) => e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e)
           : currentAll;
         await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
       }
     }
+    // 4b. Server returned failure — ROLLBACK optimistic update
+    else if (result && !result.success) {
+      console.warn('[updateEntry] Server returned failure, rolling back:', result.message);
+      if (cachedBefore) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cachedBefore);
+      if (cachedAllBefore) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAllBefore);
+    }
+
     return result;
   } catch (err) {
-    // 4. On failure, rollback
+    // 5. On network error, rollback
     console.error('[updateEntry] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
-    if (cachedAll) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
+    if (cachedBefore) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cachedBefore);
+    if (cachedAllBefore) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAllBefore);
     return { success: false, message: err.message || 'Failed to update entry' };
   }
 }

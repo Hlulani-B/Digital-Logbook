@@ -1099,6 +1099,11 @@ export function ProjectDetailPage() {
                       row.duration,
                     );
                     console.log('[onUpdate] updateEntry result:', result);
+                    // If server returned failure, rollback local state
+                    if (result && !result.success) {
+                      console.warn('[onUpdate] Server returned failure, rolling back UI:', (result as any).message);
+                      setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
+                    }
                     // No need to call loadEntries() - updateEntry already updated the cache
                   } catch (err) {
                     console.error('[onUpdate] Update failed:', err);
