@@ -195,7 +195,11 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/template" element={<ProjectTablePreview />} />
+            <Route path="/template" element={
+              <ProtectedRoute>
+                <ProjectTablePreview />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
         </AuthProvider>

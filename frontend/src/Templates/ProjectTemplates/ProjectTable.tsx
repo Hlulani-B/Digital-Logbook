@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getAllEntries, updateEntry } from "@/functions/project/entries";
+import { useAuth } from "@/context/AuthContext";
 import './ProjectTable.css';
 
 /*
@@ -471,20 +472,21 @@ export default function ProjectTaskTable({
 }
 
 // ── Preview wrapper — uses project service functions ─────────
-const PREVIEW_EMAIL = "hlulanibaloyi@khanyisaeducentre.co.za";
-
 export function ProjectTablePreview() {
+  const { user } = useAuth();
+  const email = user?.email || "";
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"entry" | "summary">("entry");
 
   useEffect(() => {
+    if (!email) return;
     async function fetchData() {
       setLoading(true);
       try {
-        console.log("[ptt] fetching entries for", PREVIEW_EMAIL);
-        const result = await getAllEntries(PREVIEW_EMAIL);
+        console.log("[ptt] fetching entries for", email);
+        const result = await getAllEntries(email);
         console.log("[ptt] result:", JSON.stringify(result).slice(0, 500));
         if (result?.success && result.data) {
           console.log(`[ptt] got ${result.data.length} entries`);
@@ -502,7 +504,7 @@ export function ProjectTablePreview() {
       }
     }
     fetchData();
-  }, []);
+  }, [email]);
 
   const handleUpdate = useCallback(
     async (id: string, patch: Record<string, any>) => {
@@ -517,7 +519,7 @@ export function ProjectTablePreview() {
       setSaving(id);
       try {
         const result = await updateEntry(
-          PREVIEW_EMAIL,
+          email,
           row.project_name,
           id,
           patch.entries ?? row.entries,
@@ -545,7 +547,7 @@ export function ProjectTablePreview() {
         setSaving(null);
       }
     },
-    [rows],
+    [rows, email],
   );
 
   return (
