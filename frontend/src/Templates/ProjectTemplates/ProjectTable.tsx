@@ -1,8 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { getAllEntries, updateEntry } from "@/functions/project/entries";
+import { useState, useRef, useCallback } from "react";
 import './ProjectTable.css';
-
-const PREVIEW_EMAIL = "hlulanibaloyi@khanyisaeducentre.co.za";
 
 /*
   ProjectTaskTable
@@ -35,6 +32,82 @@ function friendlyStatus(raw: string) {
 function friendlyPriority(raw: string) {
   return PRIORITY_LABELS[raw] || raw;
 }
+
+// Dummy data for preview
+const DUMMY_ROWS = [
+  {
+    id: "1",
+    project_name: "Digital Logbook",
+    entries: { task: "Fixed authentication bug", hours: "3" },
+    due_date: "2026-09-05T00:00:00Z",
+    priority: "0",
+    status: "in_motion",
+    summary: "Fixed the authentication bug in the login flow",
+    archived: false,
+    deleted: false,
+    user_email: "hlulanibaloyi@khanyisaeducentre.co.za",
+  },
+  {
+    id: "2",
+    project_name: "Digital Logbook",
+    entries: { task: "Add entry summaries feature", hours: "5" },
+    due_date: "2026-09-10T00:00:00Z",
+    priority: "1",
+    status: "in_motion",
+    summary: "Implemented AI-generated summaries for log entries",
+    archived: false,
+    deleted: false,
+    user_email: "hlulanibaloyi@khanyisaeducentre.co.za",
+  },
+  {
+    id: "3",
+    project_name: "Digital Logbook",
+    entries: { task: "Write unit tests", hours: "2" },
+    due_date: null,
+    priority: "2",
+    status: "done_and_dusted",
+    summary: "Added tests for AI messages toggle",
+    archived: false,
+    deleted: false,
+    user_email: "hlulanibaloyi@khanyisaeducentre.co.za",
+  },
+  {
+    id: "4",
+    project_name: "Khanyisa MVP",
+    entries: { task: "Design learner dashboard", hours: "4" },
+    due_date: "2026-09-08T00:00:00Z",
+    priority: "1",
+    status: "in_motion",
+    summary: "Designed the learner dashboard wireframes",
+    archived: false,
+    deleted: false,
+    user_email: "hlulanibaloyi@khanyisaeducentre.co.za",
+  },
+  {
+    id: "5",
+    project_name: "Khanyisa MVP",
+    entries: { task: "Setup Supabase schema", hours: "6" },
+    due_date: "2026-09-01T00:00:00Z",
+    priority: "0",
+    status: "done_and_dusted",
+    summary: "Set up the database schema in Supabase",
+    archived: false,
+    deleted: false,
+    user_email: "hlulanibaloyi@khanyisaeducentre.co.za",
+  },
+  {
+    id: "6",
+    project_name: "Personal",
+    entries: { task: "Morning run", hours: "1" },
+    due_date: null,
+    priority: "3",
+    status: "done_and_dusted",
+    summary: "Went for a 5km morning run",
+    archived: false,
+    deleted: false,
+    user_email: "hlulanibaloyi@khanyisaeducentre.co.za",
+  },
+];
 
 
 
@@ -395,85 +468,26 @@ export default function ProjectTaskTable({
   );
 }
 
-// ── Preview wrapper — uses project service functions ─────────
+// ── Preview wrapper — uses dummy data for now ─────────
 export function ProjectTablePreview({
   onProjectNameClick,
 }: {
   onProjectNameClick?: (projectName: string) => void;
 } = {}) {
-  const email = PREVIEW_EMAIL;
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<any[]>(DUMMY_ROWS);
   const [saving, setSaving] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"entry" | "summary">("entry");
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        console.log("[ptt] fetching entries for", email);
-        const result = await getAllEntries(email);
-        console.log("[ptt] result:", JSON.stringify(result).slice(0, 500));
-        if (result?.success && result.data) {
-          console.log(`[ptt] got ${result.data.length} entries`);
-          setRows(result.data);
-        } else if (Array.isArray(result)) {
-          console.log(`[ptt] got ${result.length} entries (array)`);
-          setRows(result);
-        } else {
-          console.warn("[ptt] unexpected result shape:", result);
-        }
-      } catch (err) {
-        console.error("[ptt] Failed to fetch entries:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [email]);
-
   const handleUpdate = useCallback(
     async (id: string, patch: Record<string, any>) => {
-      // Optimistic local update
+      // Local update only (dummy mode)
       setRows((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
       );
-
-      const row = rows.find((r) => r.id === id);
-      if (!row) return;
-
       setSaving(id);
-      try {
-        const result = await updateEntry(
-          email,
-          row.project_name,
-          id,
-          patch.entries ?? row.entries,
-          patch.due_date !== undefined ? patch.due_date : row.due_date,
-          patch.priority !== undefined ? patch.priority : row.priority,
-          patch.status !== undefined ? patch.status : row.status,
-          row.started_at,
-          row.ended_at,
-          row.duration,
-        );
-
-        if (result?.success === false) {
-          console.error("[ptt] update failed:", result.message);
-          // Revert on failure
-          setRows((prev) =>
-            prev.map((r) => (r.id === id ? row : r)),
-          );
-        }
-      } catch (err) {
-        console.error("[ptt] update error:", err);
-        setRows((prev) =>
-          prev.map((r) => (r.id === id ? row : r)),
-        );
-      } finally {
-        setSaving(null);
-      }
+      setTimeout(() => setSaving(null), 500);
     },
-    [rows, email],
+    [rows],
   );
 
   return (
@@ -515,7 +529,7 @@ export function ProjectTablePreview({
         </div>
 
         <span style={{ color: "#666", fontSize: "0.8rem" }}>
-          {loading ? "Loading..." : `${rows.length} entries`}
+          {`${rows.length} entries`}
           {saving && " — saving..."}
         </span>
       </div>
