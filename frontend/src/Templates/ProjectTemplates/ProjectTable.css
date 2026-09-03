@@ -256,3 +256,60 @@
   overflow-wrap: break-word;
   min-width: 0;
 }
+
+/* ── Mobile card layout (< 600px) ──────────────────────── */
+.ptt-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ptt-mobile-card {
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border, #e8dcc8);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ptt-mobile-card[data-status='Done & Dusted'] {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.ptt-mobile-card__title {
+  border-bottom: 1px solid var(--border, #e8dcc8);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.1rem;
+}
+
+.ptt-mobile-card__field-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.ptt-mobile-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ptt-mobile-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ptt-mobile-card__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #9a8b74);
+  min-width: 60px;
+  flex-shrink: 0;
+}

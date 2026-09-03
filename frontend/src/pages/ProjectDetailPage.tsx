@@ -88,8 +88,8 @@ export function ProjectDetailPage() {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
 
-  // View mode: table or cards
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  // View mode: table or cards — default to cards on mobile
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => window.innerWidth < 600 ? 'cards' : 'table');
 
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);

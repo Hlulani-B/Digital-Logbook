@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import './ProjectTable.css';
 
+/* Hook to detect mobile width (< 600px) */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 600);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 599px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
 /*
   ProjectTaskTable
   -----------------
@@ -270,6 +283,94 @@ function EditableDate({
   );
 }
 
+// ── Mobile card — stacked layout for < 600px ─────────────
+function MobileCard({
+  entry,
+  fieldNames,
+  viewMode,
+  onUpdate,
+}: {
+  entry: any;
+  fieldNames: string[];
+  viewMode: "entry" | "summary";
+  onUpdate: (id: string, patch: Record<string, any>) => void;
+}) {
+  const customValues = entry.entries || {};
+
+  const handleFieldEdit = useCallback(
+    (fieldName: string, newVal: string) => {
+      const updated = { ...customValues, [fieldName]: newVal };
+      onUpdate(entry.id, { entries: updated });
+    },
+    [entry.id, customValues, onUpdate],
+  );
+
+  return (
+    <div className="ptt-mobile-card" data-status={friendlyStatus(entry.status)}>
+      {/* Title / summary at top */}
+      {viewMode === "summary" ? (
+        <div className="ptt-mobile-card__title">
+          <EditableText
+            value={entry.summary || ""}
+            onSave={(val) => onUpdate(entry.id, { summary: val })}
+            className="ptt-summary-text"
+          />
+        </div>
+      ) : (
+        <div className="ptt-mobile-card__title">
+          {fieldNames.map((fieldName) => {
+            const val = String(customValues[fieldName] ?? "");
+            return (
+              <div key={fieldName} className="ptt-mobile-card__field-row">
+                <span className="ptt-mobile-card__label">{fieldName}</span>
+                <EditableText
+                  value={val}
+                  onSave={(newVal) => handleFieldEdit(fieldName, newVal)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Labeled rows */}
+      <div className="ptt-mobile-card__meta">
+        <div className="ptt-mobile-card__row">
+          <span className="ptt-mobile-card__label">Priority</span>
+          <select
+            className="ptt-select ptt-select-priority"
+            value={entry.priority || PRIORITIES[3]}
+            onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
+          >
+            {PRIORITIES.map((p) => (
+              <option key={p} value={p}>{friendlyPriority(p)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="ptt-mobile-card__row">
+          <span className="ptt-mobile-card__label">Due</span>
+          <EditableDate
+            value={entry.due_date}
+            onSave={(val) => onUpdate(entry.id, { due_date: val })}
+          />
+        </div>
+        <div className="ptt-mobile-card__row">
+          <span className="ptt-mobile-card__label">Status</span>
+          <select
+            className="ptt-select ptt-select-status"
+            value={entry.status || STATUSES[0]}
+            onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>{friendlyStatus(s)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Row component ──────────────────────────────────────────
 function TaskRow({
   entry,
@@ -367,11 +468,13 @@ function ProjectGroup({
   viewMode,
   onUpdate,
   onProjectNameClick,
+  isMobile,
 }: {
   project: any;
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
+  isMobile: boolean;
 }) {
   const [open, setOpen] = useState(true);
   // Derive columns from the entries jsonb keys directly
@@ -405,35 +508,51 @@ function ProjectGroup({
       </button>
 
       {open && (
-        <div className="ptt-table">
-          <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
-            {viewMode === "summary" ? (
-              <div className="ptt-col ptt-col-summary">Summary</div>
-            ) : (
-              fieldNames.map((name) => (
-                <div className="ptt-col ptt-col-custom" key={name}>
-                  {name}
-                </div>
-              ))
-            )}
-            <div className="ptt-col">Priority</div>
-            <div className="ptt-col">Due</div>
-            <div className="ptt-col">Status</div>
-          </div>
-
-          <div className="ptt-rows">
+        isMobile ? (
+          /* ── Mobile: stacked cards ── */
+          <div className="ptt-mobile-list">
             {project.entries.map((entry: any) => (
-              <TaskRow
+              <MobileCard
                 key={entry.id}
                 entry={entry}
                 fieldNames={fieldNames}
-                gridTemplate={gridTemplate}
                 viewMode={viewMode}
                 onUpdate={onUpdate}
               />
             ))}
           </div>
-        </div>
+        ) : (
+          /* ── Desktop: table ── */
+          <div className="ptt-table">
+            <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
+              {viewMode === "summary" ? (
+                <div className="ptt-col ptt-col-summary">Summary</div>
+              ) : (
+                fieldNames.map((name) => (
+                  <div className="ptt-col ptt-col-custom" key={name}>
+                    {name}
+                  </div>
+                ))
+              )}
+              <div className="ptt-col">Priority</div>
+              <div className="ptt-col">Due</div>
+              <div className="ptt-col">Status</div>
+            </div>
+
+            <div className="ptt-rows">
+              {project.entries.map((entry: any) => (
+                <TaskRow
+                  key={entry.id}
+                  entry={entry}
+                  fieldNames={fieldNames}
+                  gridTemplate={gridTemplate}
+                  viewMode={viewMode}
+                  onUpdate={onUpdate}
+                />
+              ))}
+            </div>
+          </div>
+        )
       )}
     </div>
   );
@@ -452,6 +571,7 @@ export default function ProjectTaskTable({
   onProjectNameClick?: (projectName: string) => void;
 }) {
   const projects = groupByProject(rows);
+  const isMobile = useIsMobile();
 
   return (
     <div className="ptt-root">
@@ -462,6 +582,7 @@ export default function ProjectTaskTable({
           viewMode={viewMode}
           onUpdate={onUpdate}
           onProjectNameClick={onProjectNameClick}
+          isMobile={isMobile}
         />
       ))}
     </div>
