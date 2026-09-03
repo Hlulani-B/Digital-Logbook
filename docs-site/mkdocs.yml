@@ -71,6 +71,7 @@ nav:
       - IndexedDB Caching: architecture/caching.md
       - SSE Real-Time Updates: architecture/sse.md
       - Keep-Alive Daemons: architecture/daemon.md
+      - Entry Summaries: architecture/entry-summaries.md
   - Roadmap: roadmap.md
   - Development:
       - Development Log: development/log.md

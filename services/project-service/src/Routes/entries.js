@@ -253,6 +253,7 @@ router.post('/natural-language-entry', async (req, res) => {
         fields: result.fields,
         priority: result.priority,
         due_date: result.due_date,
+        summary: result.summary,
         comment: result.comment,
         multi: result.multi,
         results: result.results,

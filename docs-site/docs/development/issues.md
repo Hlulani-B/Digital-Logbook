@@ -519,3 +519,23 @@ The application showed AI-generated toasts (greeting on dashboard load, entry co
 5. Guarded the QuickEntryBar AI comment toast with `if (comment && getAiMessagesEnabled())`.
 
 The preference persists across sessions via localStorage and takes effect immediately on all AI-generated messages.
+
+---
+
+## Entry Summaries
+
+### Issue 39: No One-Sentence Summary Stored for Entries
+
+Entries stored full structured field data (JSON objects) but no human-readable summary. Calendar views, activity feeds, and quick-scan overviews had to parse raw field objects to display anything meaningful.
+
+**Root cause:** The `entries` table had no `summary` column. The AI parsing flow generated structured fields but never produced a concise one-sentence summary.
+
+**Fix:**
+1. Created migration `007_add_summary_column.sql` — adds `summary TEXT` column to `entries` table.
+2. Added `generateSummary()` method to `Natural_language` class in `entries.js` — makes a separate lightweight AI call with the project name + entry object to produce a ≤20-word summary.
+3. Modified all 5 `addEntry()` call sites in the natural language flow (matched=0, 1, 3-old, 3-new-existing, 3-new-new) to generate and store summaries.
+4. Modified `addEntry()` method signature to accept optional `summary` parameter.
+5. Added `summary` to the SSE `entry_parsed` push so the frontend receives it immediately.
+6. Created `scripts/backfill-summaries.js` — iterates all existing entries with `summary IS NULL`, calls AI for each, and updates the column.
+
+The retrieval queries (`getEntries`, `getAllEntries`, `sortUnarchivedEntries`) already use `SELECT *`, so they automatically include the new column with zero changes.
