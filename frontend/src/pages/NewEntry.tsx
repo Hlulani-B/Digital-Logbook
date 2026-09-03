@@ -200,7 +200,8 @@ export function EntryBox({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  const entryFields = Object.entries(parsedEntries || {});
+  const SKIP_FIELDS = new Set(['created', 'started', 'ended', 'duration', 'created_at', 'started_at', 'ended_at']);
+  const entryFields = Object.entries(parsedEntries || {}).filter(([key]) => !SKIP_FIELDS.has(key));
   const dueLabel = formatDate(due_date);
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
