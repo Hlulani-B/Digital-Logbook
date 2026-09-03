@@ -81,6 +81,10 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Session security:** Users are automatically signed out after 30 minutes of inactivity
 - **Account deletion:** Soft-deleted accounts enter a 30-day grace period with email-link restoration
 
+## Features
+
+- **Calendar view:** Month and week calendars place entries on their due dates, with overdue entries highlighted and completed entries shown in green. Entries can be dragged to another day to reschedule them, and days with many tasks collapse gracefully into a "+N more" indicator.
+
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
 ## Prerequisites
