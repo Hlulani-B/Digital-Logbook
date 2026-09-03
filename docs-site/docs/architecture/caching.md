@@ -2,21 +2,13 @@
 
 ## Overview
 
-The Digital Logbook frontend implements **client-side persistent caching using IndexedDB, following a stale-while-revalidate pattern**. This is a specific type of web caching where data is stored in the browser's IndexedDB — a local mini-database — so it survives page refreshes and can serve instant reads on subsequent visits.
+The Digital Logbook frontend implements **client-side persistent caching using IndexedDB, following an IndexedDB-first with optimistic updates pattern**. This is a local-first architecture where:
 
-"Web caching" is the umbrella term for storing data closer to where it's used instead of fetching it fresh every time. IndexedDB caching is one legitimate branch of web caching:
+- **Read operations**: Data is read from IndexedDB immediately (no loading states), then refreshed from the server in the background
+- **Write operations**: Data is written to IndexedDB immediately (optimistic update), then synced to the server in the background
+- **Event-driven**: Components subscribe to cache changes via `cacheSubscribe()` and re-render automatically when cache updates
 
-| Type | Persists across reloads? | Handles structured data? | Use case |
-|---|---|---|---|
-| In-memory (e.g. React Query) | No | Limited | Fast but ephemeral |
-| LocalStorage | Yes | No (key-value only) | Simple flags/tokens |
-| **IndexedDB** | **Yes** | **Yes (mini local database)** | **Structured/relational data** |
-| Server-side (Express) | N/A | N/A | Backend API response caching |
-| HTTP/browser (cache headers) | Varies | N/A | Low-level resource caching |
-
-IndexedDB caching is arguably stronger than in-memory caching because it survives refreshes and can support offline behaviour too.
-
-The pattern is also known as **local-first** or **offline-first** architecture — the application reads from a local mirror first, then reconciles with the server.
+This pattern is also known as **offline-first** or **optimistic UI** — the application reads and writes to a local mirror first, then reconciles with the server.
 
 ## Why Caching?
 
@@ -29,29 +21,23 @@ The pattern is also known as **local-first** or **offline-first** architecture �
 
 ## Architecture
 
+### Read Operations (GET)
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     User Action                         │
-│                  (click, page load)                     │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-                      ▼
-            ┌─────────────────┐
-            │  Check IndexedDB │◄──── Cache hit? Return immediately
-            │     (local)      │      + fetch fresh in background
-            └────────┬────────┘
-                     │ Cache miss
-                     ▼
-            ┌─────────────────┐
-            │  Fetch from     │
-            │  Supabase/API   │
-            └────────┬────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  Update IndexedDB│
-            │  + Return data  │
-            └─────────────────┘
+1. Component mounts
+2. useCachedData hook reads from IndexedDB immediately → displays data (no loading)
+3. Hook subscribes to cache changes for this store+key
+4. Background fetch from server → writes to IndexedDB
+5. IndexedDB write triggers subscription → component re-renders with fresh data
+```
+
+### Write Operations (POST/PUT)
+```
+1. User triggers action (e.g., add entry)
+2. Function writes optimistic data to IndexedDB immediately
+3. IndexedDB write triggers subscription → component re-renders with optimistic data
+4. Function syncs to server in background
+5. On success: re-fetches from server → writes real data to IndexedDB → component updates
+6. On failure: rolls back IndexedDB to previous state → component re-renders with rolled-back data
 ```
 
 ## Implementation
@@ -63,12 +49,20 @@ The cache module provides these core functions:
 | Function | Purpose |
 |---|---|
 | `cacheGet(store, key)` | Read from IndexedDB |
-| `cacheSet(store, key, data)` | Write to IndexedDB |
-| `cacheDelete(store, key)` | Remove from IndexedDB |
+| `cacheSet(store, key, data)` | Write to IndexedDB (triggers subscription events) |
+| `cacheDelete(store, key)` | Remove from IndexedDB (triggers subscription events) |
+| `cacheSubscribe(store, key, callback)` | Subscribe to cache changes (returns unsubscribe fn) |
 | `cacheGetTimestamp(key)` | Check when cache was last updated |
 | `clearUserCache(email)` | Clear all cached data for a user (logout) |
-| `staleWhileRevalidate(options)` | Full SWR pattern with background refresh |
-| `cachedFetch(store, key, fetchFn)` | Simple cache-or-fetch wrapper |
+
+### React Hook (`src/hooks/useCachedData.js`)
+
+| Hook | Purpose |
+|---|---|
+| `useCachedData(store, key, fetchFn, deps)` | Generic hook — reads from IndexedDB, subscribes to changes, triggers background fetch |
+| `useCachedProjects(email, fetchFn)` | Convenience hook for projects |
+| `useCachedEntries(email, projectName, fetchFn)` | Convenience hook for entries |
+| `useCachedProfile(email, fetchFn)` | Convenience hook for profile |
 
 ### Cache Stores
 
@@ -79,54 +73,64 @@ The cache module provides these core functions:
 | `all-entries` | `user@email.com` | All entries across all projects |
 | `profile` | `user@email.com` | User profile (name, avatar, username) |
 | `search` | `user@email.com:keyword` | Search results |
+| `archives` | Various | Archived projects/entries |
+| `fields` | `user@email.com:table_name` | Custom field definitions |
 
-### Read Operations (Cache-First)
+### Read Operations (Cache-First with Event Subscriptions)
 
-All read functions follow this pattern:
+All read functions fetch from server and write to IndexedDB. Components use `useCachedData` hook to read from IndexedDB and subscribe to changes:
 
 ```javascript
+// Function: fetches from server, writes to IndexedDB
 export async function getProjectsByEmail(user_email) {
-  // 1. Try cache first
-  const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
-  if (cached) {
-    // 2. Return cached data immediately
-    // 3. Fetch fresh data in background (fire-and-forget)
-    const freshPromise = request(...)
-      .then(async (freshData) => {
-        if (freshData?.success) {
-          await cacheSet(CACHE_STORES.PROJECTS, user_email, freshData);
-        }
-        return freshData;
-      });
-    
-    return cached.data !== undefined ? cached.data : cached;
-  }
-  
-  // 4. No cache — must wait for fetch
   const result = await request(...);
   if (result?.success) {
     await cacheSet(CACHE_STORES.PROJECTS, user_email, result);
+    // cacheSet triggers subscription → components re-render automatically
   }
   return result;
 }
+
+// Component: reads from IndexedDB, subscribes to changes
+function ProjectsList({ email }) {
+  const { data } = useCachedData('projects', email, () => getProjectsByEmail(email), [email]);
+  // data is available immediately from IndexedDB (no loading spinner)
+  return <div>{data?.projects?.map(p => <span>{p.project_name}</span>)}</div>;
+}
 ```
 
-### Write Operations (Invalidate-on-Write)
+### Write Operations (Optimistic Updates with Rollback)
 
-All write functions invalidate relevant caches after a successful write:
+All write functions use **optimistic updates**: write to IndexedDB first for instant UI, then sync to server. On failure, roll back IndexedDB:
 
 ```javascript
-export async function addEntry(user_email, project_name, ...) {
-  const result = await request(...);
-  
-  // Invalidate cache on successful write
-  if (result?.success) {
-    await cacheDelete(CACHE_STORES.ENTRIES, `${user_email}:${project_name}`);
-    await cacheDelete(CACHE_STORES.ALL_ENTRIES, user_email);
-    await cacheDelete(CACHE_STORES.PROJECTS, user_email);
+export async function addEntry(user_email, project_name, entry_object, ...) {
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // 1. Read current cache for rollback
+  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+
+  // 2. Write optimistic data to IndexedDB immediately
+  const optimisticEntry = { id: `optimistic-${Date.now()}`, ...entry_object, _optimistic: true };
+  await cacheSet(CACHE_STORES.ENTRIES, cacheKey, {
+    success: true,
+    data: [...(cached?.data || []), optimisticEntry],
+  });
+  // → Component re-renders immediately with optimistic data
+
+  // 3. Sync to server
+  try {
+    const result = await request(...);
+    if (result?.success) {
+      // 4. On success, refresh with real data from server
+      await getEntries(user_email, project_name);
+    }
+    return result;
+  } catch (err) {
+    // 5. On failure, rollback to previous state
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
+    return { success: false, message: err.message };
   }
-  
-  return result;
 }
 ```
 
@@ -134,28 +138,29 @@ export async function addEntry(user_email, project_name, ...) {
 
 | Function | Cache Behavior |
 |---|---|
-| `getProjectsByEmail()` | Cache-first, invalidate on add/edit/delete project |
-| `getEntries()` | Cache-first, invalidate on add/update/delete entry |
-| `getAllEntries()` | Cache-first, invalidate on any entry change |
-| `getProfile()` | Cache-first, invalidate on profile update |
-| `addEntry()` | Invalidate entries + projects cache on success |
-| `updateEntry()` | Invalidate entries cache on success |
-| `deleteEntry()` | Invalidate entries + projects cache on success |
-| `addProject()` | Invalidate projects cache on success |
-| `editProjectName()` | Invalidate projects + entries cache on success |
-| `deleteProject()` | Invalidate projects + entries cache on success |
-| `updateUsername()` | Invalidate profile cache on success |
-| `updateName()` | Invalidate profile cache on success |
-| `updateAvatar()` | Invalidate profile cache on success |
-| `deleteProfile()` | Clear all caches on success |
+| `getProjectsByEmail()` | Fetch → write to IndexedDB → triggers subscription |
+| `getEntries()` | Fetch → write to IndexedDB → triggers subscription |
+| `getAllEntries()` | Fetch → write to IndexedDB → triggers subscription |
+| `getProfile()` | Fetch → write to IndexedDB → triggers subscription |
+| `addEntry()` | Optimistic write to IndexedDB → server sync → refresh or rollback |
+| `updateEntry()` | Optimistic patch in IndexedDB → server sync → refresh or rollback |
+| `deleteEntry()` | Optimistic remove from IndexedDB → server sync → refresh or rollback |
+| `addProject()` | Optimistic write to IndexedDB → server sync → refresh or rollback |
+| `editProjectName()` | Optimistic rename in IndexedDB → server sync → refresh or rollback |
+| `deleteProject()` | Optimistic remove from IndexedDB → server sync → refresh or rollback |
+| `updateUsername()` | Optimistic update in IndexedDB → server sync → refresh or rollback |
+| `updateName()` | Optimistic update in IndexedDB → server sync → refresh or rollback |
+| `updateAvatar()` | Optimistic update in IndexedDB → server sync → refresh or rollback |
+| `deleteProfile()` | Clear all caches → server sync |
 
 ## Cache Invalidation Strategy
 
-The cache uses **write-through invalidation**:
+The cache uses **optimistic updates with event-driven subscriptions**:
 
-1. **On write**: Delete relevant cache entries so next read fetches fresh data
-2. **On read**: If cache exists, return it immediately; background fetch updates cache for next time
-3. **On logout**: `clearUserCache(email)` wipes all cached data for the user
+1. **On write**: Write optimistic data to IndexedDB immediately → UI updates instantly
+2. **On server success**: Re-fetch fresh data → write to IndexedDB → UI updates with real data
+3. **On server failure**: Roll back IndexedDB to previous state → UI reverts
+4. **On logout**: `clearUserCache(email)` wipes all cached data for the user
 
 ### What Gets Invalidated
 
