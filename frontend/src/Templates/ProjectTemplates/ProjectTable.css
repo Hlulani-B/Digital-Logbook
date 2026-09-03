@@ -123,8 +123,8 @@
 }
 
 .ptt-row[data-status='done'] .ptt-checkbox {
-  background: var(--success, #4a7c59);
-  border-color: var(--success, #4a7c59);
+  background: #22c55e;
+  border-color: #22c55e;
 }
 
 .ptt-row[data-status='done'] .ptt-title-text {
@@ -141,23 +141,70 @@
 .ptt-cell-status,
 .ptt-cell-due,
 .ptt-cell-priority {
-  color: var(--text-dim, #6b5d4a);
   font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ptt-pill {
+/* ── Status Pills ──────────────────────────────────────── */
+.ptt-pill-status {
   display: inline-block;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 999px;
   font-size: 0.7rem;
-  font-weight: 500;
-  background: var(--bg-subtle, #f8f2e3);
-  border: 1px solid var(--border, #e8dcc8);
-  color: var(--text-dim, #6b5d4a);
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.ptt-row[data-status='done'] .ptt-pill-status {
+  background: #22c55e;
+  color: #fff;
+}
+
+.ptt-row[data-status='in_progress'] .ptt-pill-status {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.ptt-row[data-status='blocked'] .ptt-pill-status {
+  background: #ef4444;
+  color: #fff;
+}
+
+.ptt-row[data-status='up_next'] .ptt-pill-status {
+  background: #3b82f6;
+  color: #fff;
+}
+
+/* ── Priority Pills ────────────────────────────────────── */
+.ptt-pill-priority {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ptt-row[data-priority='Urgent and important'] .ptt-pill-priority {
+  background: #ef4444;
+  color: #fff;
+}
+
+.ptt-row[data-priority='Important not urgent'] .ptt-pill-priority {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.ptt-row[data-priority='Urgent not important'] .ptt-pill-priority {
+  background: #f97316;
+  color: #fff;
+}
+
+.ptt-row[data-priority='Neither urgent nor important'] .ptt-pill-priority {
+  background: #94a3b8;
+  color: #fff;
 }
 
 .ptt-cell-custom {
