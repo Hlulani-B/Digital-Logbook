@@ -373,3 +373,95 @@
   min-width: 60px;
   flex-shrink: 0;
 }
+
+/* ── Checkbox column ─────────────────────────────────────── */
+.ptt-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent, #111111);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.ptt-cell-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ptt-col-checkbox {
+  /* empty header cell for checkbox column */
+}
+
+.ptt-checkbox--header {
+  margin: 0 0.25rem;
+}
+
+/* Selected row highlight */
+.ptt-row--selected {
+  background: #eff6ff !important;
+  border-left: 3px solid #3b82f6;
+  padding-left: calc(0.75rem - 3px);
+}
+
+.ptt-mobile-card--selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* Mobile card header for checkbox */
+.ptt-mobile-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Bulk action bar ─────────────────────────────────────── */
+.ptt-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0.75rem;
+  background: #eff6ff;
+  border: 1.5px solid #3b82f6;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ptt-bulk-bar__count {
+  color: #1e40af;
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.ptt-bulk-bar__btn {
+  padding: 0.3rem 0.75rem;
+  border: 1.5px solid #d4d4d4;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text, #111111);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ptt-bulk-bar__btn:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
+
+.ptt-bulk-bar__btn--delete {
+  background: #ef4444;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.ptt-bulk-bar__btn--delete:hover {
+  background: #dc2626;
+  border-color: #b91c1c;
+}

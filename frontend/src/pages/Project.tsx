@@ -10,7 +10,7 @@ import {
 } from '../functions/project/project.js';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
-import { getAllEntries, updateEntry } from '@/functions/project/entries';
+import { getAllEntries, updateEntry, deleteEntryById } from '@/functions/project/entries';
 import '@/Templates/ProjectTemplates/ProjectTable.css';
 
 type ProjectRecord = {
@@ -367,6 +367,17 @@ export function ProjectsPage() {
           viewMode={viewMode}
           onUpdate={handleEntryUpdate}
           onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
+          onDeleteSelected={async (ids: string[]) => {
+            if (!email) return;
+            setEntries((prev) => prev.filter((r) => !ids.includes(r.id)));
+            for (const id of ids) {
+              try {
+                await deleteEntryById(email, id);
+              } catch (err) {
+                console.error('[onDeleteSelected] Failed to delete', id, err);
+              }
+            }
+          }}
         />
       )}
 

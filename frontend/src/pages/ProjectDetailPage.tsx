@@ -7,7 +7,7 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
-import { sortUnarchivedEntries, updateEntry } from '@/functions/project/entries.js';
+import { sortUnarchivedEntries, updateEntry, deleteEntryById } from '@/functions/project/entries.js';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
@@ -1107,6 +1107,19 @@ export function ProjectDetailPage() {
                   }
                 }}
                 projectNames={projectName ? [projectName] : undefined}
+                onDeleteSelected={async (ids: string[]) => {
+                  if (!email) return;
+                  // Optimistic: remove from local state immediately
+                  setEntries((prev) => prev.filter((r) => !ids.includes(r.id)));
+                  // Delete each entry on the server
+                  for (const id of ids) {
+                    try {
+                      await deleteEntryById(email, id);
+                    } catch (err) {
+                      console.error('[onDeleteSelected] Failed to delete', id, err);
+                    }
+                  }
+                }}
               />
             ) : (
               <div className="entries-grid">

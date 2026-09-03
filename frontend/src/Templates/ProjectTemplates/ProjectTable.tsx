@@ -100,19 +100,19 @@ function entryFieldNames(rows: any[]): string[] {
   return names;
 }
 
-// Grid: content columns | Priority | Due | Status (far right)
-const TRAILING_COLS = "150px 100px 120px"; // Priority | Due | Status (wider for spacing)
+// Grid: checkbox | content columns | Priority | Due | Status (far right)
+const TRAILING_COLS = "32px 150px 100px 120px"; // Checkbox | Priority | Due | Status
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
-  let template = "";
+  let template = "32px "; // checkbox column
   if (viewMode === "summary") {
-    template = "minmax(150px, 2fr)"; // Reduced from 3fr to give less space to summary
+    template += "minmax(150px, 2fr)";
   } else {
     const parts = [];
     for (let i = 0; i < customFieldCount; i++) {
       parts.push("minmax(80px, 1fr)");
     }
-    template = parts.join(" ");
+    template += parts.join(" ");
   }
   return template + " " + TRAILING_COLS;
 }
@@ -225,11 +225,15 @@ function MobileCard({
   fieldNames,
   viewMode,
   onUpdate,
+  selected,
+  onToggle,
 }: {
   entry: any;
   fieldNames: string[];
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
+  selected: boolean;
+  onToggle: (id: string) => void;
 }) {
   const customValues = entry.entries || {};
 
@@ -242,7 +246,15 @@ function MobileCard({
   );
 
   return (
-    <div className="ptt-mobile-card" data-status={friendlyStatus(entry.status)} data-priority={friendlyPriority(entry.priority)}>
+    <div className={`ptt-mobile-card${selected ? ' ptt-mobile-card--selected' : ''}`} data-status={friendlyStatus(entry.status)} data-priority={friendlyPriority(entry.priority)}>
+      <div className="ptt-mobile-card__header">
+        <input
+          type="checkbox"
+          className="ptt-checkbox"
+          checked={selected}
+          onChange={() => onToggle(entry.id)}
+        />
+      </div>
       {/* Title / summary at top */}
       {viewMode === "summary" ? (
         <div className="ptt-mobile-card__title">
@@ -314,12 +326,16 @@ function TaskRow({
   gridTemplate,
   viewMode,
   onUpdate,
+  selected,
+  onToggle,
 }: {
   entry: any;
   fieldNames: string[];
   gridTemplate: string;
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
+  selected: boolean;
+  onToggle: (id: string) => void;
 }) {
   const customValues = entry.entries || {};
 
@@ -333,11 +349,21 @@ function TaskRow({
 
   return (
     <div
-      className="ptt-row"
+      className={`ptt-row${selected ? ' ptt-row--selected' : ''}`}
       data-status={friendlyStatus(entry.status)}
       data-priority={friendlyPriority(entry.priority)}
       style={{ gridTemplateColumns: gridTemplate }}
     >
+      {/* Checkbox column */}
+      <div className="ptt-cell ptt-cell-checkbox">
+        <input
+          type="checkbox"
+          className="ptt-checkbox"
+          checked={selected}
+          onChange={() => onToggle(entry.id)}
+        />
+      </div>
+
       {/* Content columns — left side */}
       {viewMode === "summary" ? (
         <div className="ptt-cell ptt-cell-summary">
@@ -406,6 +432,8 @@ function ProjectGroup({
   onProjectNameClick,
   isMobile,
   hideHeader,
+  selectedIds,
+  onToggleSelect,
 }: {
   project: any;
   viewMode: "entry" | "summary";
@@ -413,12 +441,24 @@ function ProjectGroup({
   onProjectNameClick?: (projectName: string) => void;
   isMobile: boolean;
   hideHeader?: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   // Derive columns from the entries jsonb keys directly
   const fieldNames = entryFieldNames(project.entries);
   const colCount = viewMode === "summary" ? 1 : fieldNames.length;
   const gridTemplate = buildGridTemplate(viewMode, colCount);
+
+  const allSelected = project.entries.length > 0 && project.entries.every((e: any) => selectedIds.has(e.id));
+
+  const toggleAll = () => {
+    project.entries.forEach((e: any) => {
+      const isSelected = selectedIds.has(e.id);
+      if (allSelected && isSelected) onToggleSelect(e.id);
+      else if (!allSelected && !isSelected) onToggleSelect(e.id);
+    });
+  };
 
   return (
     <div className="ptt-group">
@@ -432,6 +472,13 @@ function ProjectGroup({
           <span className="ptt-group-toggle" aria-hidden="true">
             {open ? "v" : ">"}
           </span>
+          <input
+            type="checkbox"
+            className="ptt-checkbox ptt-checkbox--header"
+            checked={allSelected}
+            onChange={(e) => { e.stopPropagation(); toggleAll(); }}
+            onClick={(e) => e.stopPropagation()}
+          />
           <span
             className="ptt-group-name"
             onClick={(e) => {
@@ -458,6 +505,8 @@ function ProjectGroup({
                 fieldNames={fieldNames}
                 viewMode={viewMode}
                 onUpdate={onUpdate}
+                selected={selectedIds.has(entry.id)}
+                onToggle={onToggleSelect}
               />
             ))}
           </div>
@@ -465,6 +514,7 @@ function ProjectGroup({
           /* ── Desktop: table ── */
           <div className="ptt-table">
             <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
+              <div className="ptt-col ptt-col-checkbox"></div>
               {viewMode === "summary" ? (
                 <div className="ptt-col ptt-col-summary">Summary</div>
               ) : (
@@ -488,6 +538,8 @@ function ProjectGroup({
                   gridTemplate={gridTemplate}
                   viewMode={viewMode}
                   onUpdate={onUpdate}
+                  selected={selectedIds.has(entry.id)}
+                  onToggle={onToggleSelect}
                 />
               ))}
             </div>
@@ -506,6 +558,7 @@ export default function ProjectTaskTable({
   onProjectNameClick,
   projectNames,
   showToggle = true,
+  onDeleteSelected,
 }: {
   rows?: any[];
   viewMode?: "entry" | "summary";
@@ -513,10 +566,38 @@ export default function ProjectTaskTable({
   onProjectNameClick?: (projectName: string) => void;
   projectNames?: string[]; // Optional: filter to show only these projects' entries
   showToggle?: boolean; // Show Entry/Summary toggle buttons
+  onDeleteSelected?: (ids: string[]) => void; // Bulk delete callback
 }) {
   const [internalViewMode, setInternalViewMode] = useState<"entry" | "summary">("entry");
   // Use external viewMode if provided, otherwise use internal state
   const viewMode = externalViewMode !== undefined ? externalViewMode : internalViewMode;
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedIds.size === 0 || !onDeleteSelected) return;
+    onDeleteSelected(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedIds, onDeleteSelected]);
+
+  // Clear selection when rows change (e.g. after delete)
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const rowIds = new Set(rows.map((r) => r.id));
+      const next = new Set([...prev].filter((id) => rowIds.has(id)));
+      return next.size !== prev.size ? next : prev;
+    });
+  }, [rows]);
 
   // Filter rows by projectNames if provided
   const filteredRows = projectNames && projectNames.length > 0
@@ -545,6 +626,28 @@ export default function ProjectTaskTable({
           </button>
         </div>
       )}
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="ptt-bulk-bar">
+          <span className="ptt-bulk-bar__count">{selectedIds.size} selected</span>
+          <button
+            type="button"
+            className="ptt-bulk-bar__btn ptt-bulk-bar__btn--delete"
+            onClick={handleDeleteSelected}
+          >
+            Delete selected
+          </button>
+          <button
+            type="button"
+            className="ptt-bulk-bar__btn"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {projects.map((project) => (
         <ProjectGroup
           key={project.name}
@@ -554,6 +657,8 @@ export default function ProjectTaskTable({
           onProjectNameClick={onProjectNameClick}
           isMobile={isMobile}
           hideHeader={projectNames?.length === 1}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
         />
       ))}
     </div>
