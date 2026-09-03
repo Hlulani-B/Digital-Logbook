@@ -55,8 +55,8 @@
   border-bottom: 2.5px solid var(--border, #e8dcc8);
   cursor: pointer;
   font-family: inherit;
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--text, #3b3226);
   text-align: left;
   margin-bottom: 0.35rem;
@@ -73,7 +73,7 @@
 }
 
 .ptt-group-count {
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   color: var(--text-muted, #9a8b74);
   font-weight: 600;
 }
@@ -88,8 +88,8 @@
   gap: 0.75rem; /* Increased from 0.5rem for better spacing */
   padding: 0.5rem 0;
   border-bottom: 2.5px solid var(--border, #e8dcc8);
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.78rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text, #3b3226);
@@ -117,8 +117,8 @@
   align-items: center;
   padding: 0.55rem 0;
   border-bottom: 1px solid var(--border, #e8dcc8);
-  font-size: 1.05rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 400;
   gap: 0.75rem;
 }
 
@@ -215,8 +215,8 @@
 /* ── Select dropdowns (status & priority) ────────────────── */
 .ptt-select {
   font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.78rem;
+  font-weight: 600;
   border: 2px solid;
   border-radius: 999px;
   padding: 0.2rem 0.6rem;
@@ -309,8 +309,8 @@
 
 .ptt-cell-custom {
   color: var(--text-dim, #6b5d4a);
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 500;
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: break-word;
