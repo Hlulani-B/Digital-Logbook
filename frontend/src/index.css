@@ -2747,7 +2747,7 @@ img {
 .entry-box {
   position: relative;
   background: var(--bg-subtle, #f8f2e3);
-  border: 2.5px solid var(--text, #111111);
+  border: 1px solid var(--text, #111111);
   border-radius: 7px;
   padding: 1.05rem 1.25rem 1.15rem;
   display: flex;
