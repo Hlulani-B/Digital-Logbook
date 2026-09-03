@@ -63,7 +63,8 @@ export class Entries {
     status,
     started_at,
     ended_at,
-    duration
+    duration,
+    summary
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -78,6 +79,7 @@ export class Entries {
       if (status !== undefined) updateData.status = status;
       if (started_at !== undefined && started_at !== null) updateData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) updateData.ended_at = ended_at;
+      if (summary !== undefined && summary !== null) updateData.summary = summary;
 
       if (Object.keys(updateData).length === 0) {
         return { success: true, message: 'No changes to update' };
