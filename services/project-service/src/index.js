@@ -18,6 +18,7 @@ const allowedOrigins = [
   'https://digital-logbook-hlulani.onrender.com',
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost:3001',
 ];
 // CORS configuration with dynamic origin checking
 const corsOptions = {
