@@ -245,6 +245,9 @@ export function SignIn() {
               Click below to receive a secure restore link via email. Opening the link will restore
               your account and sign you in.
             </p>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
+              Tip: open the link on this device for the fastest experience.
+            </p>
           </div>
         )}
 
@@ -264,7 +267,8 @@ export function SignIn() {
             }}
           >
             A restore link has been sent to <strong>{restoreEmail}</strong>. Check your inbox (and
-            spam folder) and click the link to restore your account.
+            spam folder) and click the link to restore your account. Open the link on this device
+            for the fastest experience.
           </div>
         ) : (
           <button
