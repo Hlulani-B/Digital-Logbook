@@ -20,7 +20,6 @@ import { ProjectsPage } from '@/pages/Project';
 import { ProjectDetailPage } from '@/pages/ProjectDetailPage';
 import { StatsView } from '@/pages/StatsView';
 import { StreakView } from '@/pages/StreakView';
-import { ProjectTablePreview } from '@/Templates/ProjectTemplates/ProjectTable';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -64,7 +63,11 @@ export function App() {
       <ThemeInitializer>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<ProjectTablePreview />} />
+            <Route path="/" element={
+              <PublicRoute>
+                <SignIn />
+              </PublicRoute>
+            } />
             <Route
               path="/signin"
               element={
@@ -195,11 +198,7 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/template" element={
-              <ProtectedRoute>
-                <ProjectTablePreview />
-              </ProtectedRoute>
-            } />
+            <Route path="/template" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
         </AuthProvider>
