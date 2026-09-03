@@ -16,6 +16,7 @@ import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js
 import { archiveProject } from '@/functions/project/archives.js';
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiArchive } from 'react-icons/fi';
 
 /** Parse AI response — handles JSON or plain text */
@@ -162,6 +163,7 @@ export function ProjectDetailPage() {
 
   // AI-generated placeholder that describes what quick add is
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     (async () => {
       const result = await askAI(
         `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log entry for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
@@ -179,6 +181,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     if (!loading && filteredEntries.length === 0 && !searchQuery) {
       (async () => {
         const tone = getToneInstruction();

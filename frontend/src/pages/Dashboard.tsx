@@ -373,6 +373,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // AI-generated empty state message
   useEffect(() => {
+    if (!getAiMessagesEnabled()) return;
     if (!loading && filteredEntries.length === 0) {
       (async () => {
         const tone = getToneInstruction();

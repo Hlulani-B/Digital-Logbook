@@ -3,6 +3,7 @@ import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/da
 import { useNow } from '@/hooks/useNow';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -22,6 +23,7 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
   // Generate AI reflection when stats panel is opened
   useEffect(() => {
     if (!statsOpen || reflection || activeProject) return;
+    if (!getAiMessagesEnabled()) return;
 
     const generateReflection = async () => {
       try {
