@@ -1062,18 +1062,23 @@ export function ProjectDetailPage() {
                     console.log('[onUpdate] Missing row or email:', { row: !!row, email: !!email });
                     return;
                   }
+                  // Map priority from raw value to friendly label for database
+                  const mappedPatch = { ...patch };
+                  if (patch.priority !== undefined) {
+                    mappedPatch.priority = patch.priority === '3' ? null : PRIORITY_LABELS[patch.priority] || patch.priority;
+                  }
                   // Update local state immediately for instant UI
-                  setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+                  setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r)));
                   try {
-                    console.log('[onUpdate] Calling updateEntry...');
+                    console.log('[onUpdate] Calling updateEntry with mapped patch:', mappedPatch);
                     const result = await updateEntry(
                       email,
                       row.project_name,
                       id,
-                      patch.entries ?? row.entries,
-                      patch.due_date !== undefined ? patch.due_date : row.due_date,
-                      patch.priority !== undefined ? patch.priority : row.priority,
-                      patch.status !== undefined ? patch.status : row.status,
+                      mappedPatch.entries ?? row.entries,
+                      mappedPatch.due_date !== undefined ? mappedPatch.due_date : row.due_date,
+                      mappedPatch.priority !== undefined ? mappedPatch.priority : row.priority,
+                      mappedPatch.status !== undefined ? mappedPatch.status : row.status,
                       row.started_at,
                       row.ended_at,
                       row.duration,
