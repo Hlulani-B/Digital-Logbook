@@ -141,6 +141,20 @@ function customFieldsFor(projectName: string, fields: any[]) {
   return fields.filter((f) => f.table_name === projectName && !f.deleted);
 }
 
+// Derive columns directly from the entries jsonb keys
+function entryFieldNames(rows: any[]): string[] {
+  const keys = new Set<string>();
+  for (const row of rows) {
+    const obj = row.entries;
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      for (const key of Object.keys(obj)) {
+        keys.add(key);
+      }
+    }
+  }
+  return Array.from(keys);
+}
+
 // Grid: Status | Due | Priority | content columns
 // Priority wider for long labels that wrap, others compact
 const BASE_COLS = "110px 80px 150px";
@@ -262,13 +276,13 @@ function EditableDate({
 // ── Row component ──────────────────────────────────────────
 function TaskRow({
   entry,
-  customFields,
+  fieldNames,
   gridTemplate,
   viewMode,
   onUpdate,
 }: {
   entry: any;
-  customFields: any[];
+  fieldNames: string[];
   gridTemplate: string;
   viewMode: "entry" | "summary";
   onUpdate: (id: string, patch: Record<string, any>) => void;
@@ -334,14 +348,13 @@ function TaskRow({
           />
         </div>
       ) : (
-        customFields.map((field) => {
-          const val = String(customValues[field.field_name] ?? "");
+        fieldNames.map((fieldName) => {
+          const val = String(customValues[fieldName] ?? "");
           return (
-            <div className="ptt-cell ptt-cell-custom" key={field.field_name}>
+            <div className="ptt-cell ptt-cell-custom" key={fieldName}>
               <EditableText
                 value={val}
-                onSave={(newVal) => handleFieldEdit(field.field_name, newVal)}
-                type={field.data_type === "number" ? "number" : "text"}
+                onSave={(newVal) => handleFieldEdit(fieldName, newVal)}
               />
             </div>
           );
@@ -364,8 +377,10 @@ function ProjectGroup({
   onUpdate: (id: string, patch: Record<string, any>) => void;
 }) {
   const [open, setOpen] = useState(true);
-  const customFields = customFieldsFor(project.name, fields);
-  const gridTemplate = buildGridTemplate(viewMode, customFields.length);
+  // Derive columns from the entries jsonb keys directly
+  const fieldNames = entryFieldNames(project.entries);
+  const colCount = viewMode === "summary" ? 1 : fieldNames.length;
+  const gridTemplate = buildGridTemplate(viewMode, colCount);
 
   return (
     <div className="ptt-group">
@@ -391,9 +406,9 @@ function ProjectGroup({
             {viewMode === "summary" ? (
               <div className="ptt-col ptt-col-summary">Summary</div>
             ) : (
-              customFields.map((field) => (
-                <div className="ptt-col ptt-col-custom" key={field.field_name}>
-                  {field.field_name}
+              fieldNames.map((name) => (
+                <div className="ptt-col ptt-col-custom" key={name}>
+                  {name}
                 </div>
               ))
             )}
@@ -404,7 +419,7 @@ function ProjectGroup({
               <TaskRow
                 key={entry.id}
                 entry={entry}
-                customFields={customFields}
+                fieldNames={fieldNames}
                 gridTemplate={gridTemplate}
                 viewMode={viewMode}
                 onUpdate={onUpdate}
