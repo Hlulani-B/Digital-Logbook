@@ -176,11 +176,25 @@ export async function addEntry(
       }),
     });
 
-    // 3. On success, refresh cache with real data from server
-    if (result?.success) {
-      // Re-fetch to get real IDs and timestamps
-      await getEntries(user_email, project_name);
-      await getAllEntries(user_email);
+    // 3. On success, update cache with returned data (no re-fetch needed)
+    if (result?.success && result.data) {
+      const newEntry = Array.isArray(result.data) ? result.data[0] : result.data;
+      // Replace optimistic entry with real data in per-project cache
+      if (cached) {
+        const currentData = cached.data || cached;
+        const newData = Array.isArray(currentData)
+          ? currentData.map((e) => e.id?.toString().startsWith('optimistic-') && e.entries === entry_object ? newEntry : e)
+          : currentData;
+        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
+      }
+      // Replace in all-entries cache
+      if (cachedAll) {
+        const currentAll = cachedAll.data || cachedAll;
+        const newAll = Array.isArray(currentAll)
+          ? currentAll.map((e) => e.id?.toString().startsWith('optimistic-') && e.entries === entry_object ? newEntry : e)
+          : currentAll;
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
+      }
     }
     return result;
   } catch (err) {
@@ -267,10 +281,25 @@ export async function updateEntry(
       }),
     });
 
-    // 3. On success, refresh cache with real data
-    if (result?.success) {
-      await getEntries(user_email, project_name);
-      await getAllEntries(user_email);
+    // 3. On success, update cache with returned data (no re-fetch needed)
+    if (result?.success && result.data) {
+      const updatedEntry = Array.isArray(result.data) ? result.data[0] : result.data;
+      // Update per-project cache
+      if (cached) {
+        const currentData = cached.data || cached;
+        const newData = Array.isArray(currentData)
+          ? currentData.map((e) => e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e)
+          : currentData;
+        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
+      }
+      // Update all-entries cache
+      if (cachedAll) {
+        const currentAll = cachedAll.data || cachedAll;
+        const newAll = Array.isArray(currentAll)
+          ? currentAll.map((e) => e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e)
+          : currentAll;
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
+      }
     }
     return result;
   } catch (err) {
@@ -319,8 +348,7 @@ export async function deleteEntry(user_email, project_name, entry) {
     });
 
     if (result?.success) {
-      await getEntries(user_email, project_name);
-      await getAllEntries(user_email);
+      // Cache already updated optimistically - no re-fetch needed
     }
     return result;
   } catch (err) {
@@ -358,7 +386,7 @@ export async function deleteEntryById(user_email, entry_id) {
     });
 
     if (result?.success) {
-      await getAllEntries(user_email);
+      // Cache already updated optimistically - no re-fetch needed
     }
     return result;
   } catch (err) {

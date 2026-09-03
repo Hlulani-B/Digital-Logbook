@@ -1079,8 +1079,7 @@ export function ProjectDetailPage() {
                       row.duration,
                     );
                     console.log('[onUpdate] updateEntry result:', result);
-                    // Reload entries after successful update
-                    await loadEntries();
+                    // No need to call loadEntries() - updateEntry already updated the cache
                   } catch (err) {
                     console.error('[onUpdate] Update failed:', err);
                     // Rollback local state on failure
