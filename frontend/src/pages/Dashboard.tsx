@@ -18,6 +18,8 @@ import { checkUser } from '@/functions/profile/login.js';
 import { dueSoon } from '@/functions/dashboard.js';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
+import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
+import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
@@ -85,6 +87,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // View mode: "due-soon" shows only entries due within 3 days, "all-entries" shows everything
   const [viewMode, setViewMode] = useState<'due-soon' | 'all-entries'>('due-soon');
+
+  // Display mode: cards, checklist, or table
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table'>('cards');
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1252,6 +1257,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   All Entries
                 </button>
               </div>
+              <div className="feed-view-toggle">
+                <button
+                  className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('cards')}
+                >
+                  Cards
+                </button>
+                <button
+                  className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('checklist')}
+                >
+                  Checklist
+                </button>
+                {viewMode === 'all-entries' && (
+                  <button
+                    className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('table')}
+                  >
+                    Table
+                  </button>
+                )}
+              </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>
                 <button
@@ -1358,6 +1385,36 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         : aiEmptyMessage}
                     </p>
                   </div>
+                ) : displayMode === 'checklist' ? (
+                  <ChecklistView
+                    entries={filteredEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as Record<string, unknown> | string | null,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadData()}
+                    onDelete={() => loadData()}
+                  />
+                ) : displayMode === 'table' ? (
+                  <ProjectTaskTable
+                    rows={filteredEntries}
+                    viewMode="entry"
+                    onUpdate={async (id: string, patch: Record<string, any>) => {
+                      const row = filteredEntries.find((r) => r.id === id);
+                      if (!row || !user?.email) return;
+                      // Update logic would go here - for now just reload
+                      await loadData();
+                    }}
+                    onDeleteSelected={async (ids: string[]) => {
+                      // Delete logic would go here - for now just reload
+                      await loadData();
+                    }}
+                  />
                 ) : (
                   filteredEntries.map((row, i) => (
                     <EntryBox
