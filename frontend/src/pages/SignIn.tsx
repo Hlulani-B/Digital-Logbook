@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { checkUser } from '../functions/profile/login.js';
 import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '@/lib/supabase';
-import { validateEmailForAuth } from '@/lib/validation';
+import { validateEmailForAuth, suggestEmailCorrection } from '@/lib/validation';
 
 type Provider = 'google' | 'github';
 
@@ -24,6 +24,7 @@ export function SignIn() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
 
   // Restore-prompt state (for soft-deleted accounts signing back in)
@@ -114,6 +115,12 @@ export function SignIn() {
       return;
     }
 
+    // A known typo was detected and the user has not accepted the fix yet.
+    if (emailSuggestion) {
+      setError(`Please confirm your email address. Did you mean ${emailSuggestion}?`);
+      return;
+    }
+
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -122,6 +129,7 @@ export function SignIn() {
     setEmailLoading(true);
     setError(null);
     setSuccess(null);
+    setEmailSuggestion(null);
     try {
       if (mode === 'signin') {
         await signInWithEmail(email, password);
@@ -295,11 +303,38 @@ export function SignIn() {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setEmail(next);
+                      setEmailSuggestion(suggestEmailCorrection(next));
+                    }}
                     className="field-input"
                     placeholder="you@example.com"
                     autoComplete="email"
                   />
+                  {emailSuggestion && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail(emailSuggestion);
+                        setEmailSuggestion(null);
+                      }}
+                      className="field-hint"
+                      style={{
+                        display: 'inline-block',
+                        marginTop: '0.375rem',
+                        padding: '0.375rem 0.75rem',
+                        borderRadius: 'var(--radius-xs)',
+                        background: 'rgba(59,130,246,0.1)',
+                        border: '1px solid rgba(59,130,246,0.25)',
+                        color: '#2563eb',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      Did you mean <strong>{emailSuggestion}</strong>?
+                    </button>
+                  )}
                 </div>
 
                 <div className="field-group">
@@ -360,6 +395,7 @@ export function SignIn() {
                     setMode(mode === 'signin' ? 'signup' : 'signin');
                     setError(null);
                     setSuccess(null);
+                    setEmailSuggestion(null);
                     setConfirmPassword('');
                   }}
                   className="auth-mode-toggle"
