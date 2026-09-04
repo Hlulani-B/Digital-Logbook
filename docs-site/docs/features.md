@@ -237,6 +237,28 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/lib/today.ts` — Section partitioning and date helpers
 - `frontend/src/pages/Today.css` — Today styles
 
+### 14. Timeline
+
+**What it does:** Lays tasks out horizontally against time, with bars spanning start to due date and SVG arrows drawn between dependent tasks. The view is scrollable and zoomable across at least a month.
+
+**Why it was implemented:** Gives a project-planning view of work over time and makes task chains visible.
+
+**How it works:**
+
+- Fetches all unarchived, incomplete entries using `getAllEntries()`
+- Resolves each entry's start date (`started_at`, then `created_at`, then one day before `due_date`) and end date (`due_date`, then one day after start)
+- Reads dependency IDs from `entries.dependencies` or `entries.depends_on`
+- Assigns rows greedily to avoid overlapping bars, which keeps sequential chained tasks on separate rows
+- Renders an SVG timeline with grid lines, a "today" marker, task bars, and curved arrows between dependencies
+- Zoom buttons scale the day width from 50% to 400%
+- Empty state is shown when no dated, incomplete tasks exist
+
+**Key files:**
+
+- `frontend/src/pages/Timeline.tsx` — Timeline page
+- `frontend/src/lib/timeline.ts` — Date resolution, row layout, and arrow geometry
+- `frontend/src/pages/Timeline.css` — Timeline styles
+
 ---
 
 ## Project & Entry Management

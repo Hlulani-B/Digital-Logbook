@@ -950,6 +950,27 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Today
           </button>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/timeline');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <polyline points="8 8 12 4 16 8" />
+              <polyline points="8 16 12 20 16 16" />
+            </svg>
+            Timeline
+          </button>
         </div>
 
         <div className="drawer-section drawer-projects">

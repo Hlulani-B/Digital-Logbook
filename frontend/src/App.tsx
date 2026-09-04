@@ -23,6 +23,7 @@ import { StreakView } from '@/pages/StreakView';
 import { CalendarPage } from '@/pages/Calendar';
 import { KanbanPage } from '@/pages/Kanban';
 import { TodayPage } from '@/pages/Today';
+import { TimelinePage } from '@/pages/Timeline';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -226,6 +227,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <TodayPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/timeline"
+              element={
+                <ProtectedRoute>
+                  <TimelinePage />
                 </ProtectedRoute>
               }
             />
