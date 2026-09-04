@@ -1,4 +1,4 @@
-import ChecklistEntryCard from './EntryChecklist';
+import ChecklistEntryCard from '../EntryTemplates/EntryChecklist';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 

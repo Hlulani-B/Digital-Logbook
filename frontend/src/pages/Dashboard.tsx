@@ -19,7 +19,7 @@ import { dueSoon } from '@/functions/dashboard.js';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
-import EntriesByDueDateBoard from '@/Templates/EntryTemplates/EntriesByDueDateBoard';
+import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
@@ -42,7 +42,6 @@ import {
   isSameDay,
   addDays,
   addMonths,
-  parseDueDate,
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
 

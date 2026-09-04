@@ -9,7 +9,7 @@ import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import { sortUnarchivedEntries, updateEntry, deleteEntryById } from '@/functions/project/entries.js';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
-import EntriesByDueDateBoard from '@/Templates/EntryTemplates/EntriesByDueDateBoard';
+import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
