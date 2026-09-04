@@ -22,6 +22,7 @@ import { StatsView } from '@/pages/StatsView';
 import { StreakView } from '@/pages/StreakView';
 import { CalendarPage } from '@/pages/Calendar';
 import { KanbanPage } from '@/pages/Kanban';
+import { TodayPage } from '@/pages/Today';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -65,11 +66,14 @@ export function App() {
       <ThemeInitializer>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={
-              <PublicRoute>
-                <SignIn />
-              </PublicRoute>
-            } />
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <SignIn />
+                </PublicRoute>
+              }
+            />
             <Route
               path="/signin"
               element={
@@ -214,6 +218,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <KanbanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/today"
+              element={
+                <ProtectedRoute>
+                  <TodayPage />
                 </ProtectedRoute>
               }
             />

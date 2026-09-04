@@ -85,6 +85,7 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 
 - **Calendar view:** Month and week calendars place entries on their due dates, with overdue entries highlighted and completed entries shown in green. Entries can be dragged to another day to reschedule them, and days with many tasks collapse gracefully into a "+N more" indicator.
 - **Kanban board:** Three status columns (Up Next, In Motion, Done & Dusted) show entries as cards that can be dragged between columns to change status. The board supports project and search filters, and a failed save reverts the card to its original column.
+- **Today view:** A focused screen that lists overdue entries first, then entries due today, then work already in progress, with a friendly empty state when there is nothing to do.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 

@@ -215,6 +215,28 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/lib/kanban.ts` — Status grouping, filtering, and update helpers
 - `frontend/src/pages/Kanban.css` — Kanban styles
 
+### 13. Today View
+
+**What it does:** A single focused screen for starting work. It shows overdue entries first, then entries due today, then anything currently in progress.
+
+**Why it was implemented:** Helps users decide what to work on next without browsing the full dashboard or calendar.
+
+**How it works:**
+
+- Fetches all unarchived, incomplete entries using `getAllEntries()`
+- Partitions entries into three sections using `getTodaySections()`
+- **Overdue** appears first because missed deadlines are the most urgent
+- **Due today** appears second because today's commitments must be honoured before loose in-progress work
+- **In progress** appears third so started work remains visible, but does not hide deadlines
+- Sections only render when they have entries
+- When nothing requires attention, a friendly empty state is shown instead of a blank panel
+
+**Key files:**
+
+- `frontend/src/pages/Today.tsx` — Today page
+- `frontend/src/lib/today.ts` — Section partitioning and date helpers
+- `frontend/src/pages/Today.css` — Today styles
+
 ---
 
 ## Project & Entry Management
