@@ -193,6 +193,28 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/lib/calendar.ts` — Date utilities and entry grouping
 - `frontend/src/pages/Calendar.css` — Calendar styles
 
+### 12. Kanban Board
+
+**What it does:** Shows entries as cards in three columns based on their status: Up Next, In Motion, and Done & Dusted. Cards can be dragged between columns to change status, and the change is saved immediately.
+
+**Why it was implemented:** Provides a task-board view of work in progress and makes it easy to advance or complete entries without opening each one.
+
+**How it works:**
+
+- Fetches all unarchived entries using `getAllEntries()`
+- Columns are rendered for each status and display matching entries
+- Cards show the entry title, project, due date, and priority
+- Overdue entries are highlighted in red; completed entries appear in the Done & Dusted column
+- Project and search filters narrow the cards on the board
+- Dragging a card onto a different column optimistically updates the local state, calls `updateEntry()` with the new status, and reverts the card if the write fails
+- Moving a card to In Motion automatically sets `started_at`; moving it to Done & Dusted automatically sets `ended_at`
+
+**Key files:**
+
+- `frontend/src/pages/Kanban.tsx` — Kanban board page
+- `frontend/src/lib/kanban.ts` — Status grouping, filtering, and update helpers
+- `frontend/src/pages/Kanban.css` — Kanban styles
+
 ---
 
 ## Project & Entry Management
