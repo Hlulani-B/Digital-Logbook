@@ -36,6 +36,7 @@ The following frontend features were implemented with AI acting as a code-genera
   - Profile menu, settings panel (Profile / Preferences / Account)
   - Protected routes
   - Calendar page with month/week views, drag-to-reschedule, and overdue/completed visual indicators
+  - Kanban board with status columns, drag-to-change-status, project/search filters, and optimistic update with revert on failure
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)

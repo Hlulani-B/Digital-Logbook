@@ -21,6 +21,7 @@ import { ProjectDetailPage } from '@/pages/ProjectDetailPage';
 import { StatsView } from '@/pages/StatsView';
 import { StreakView } from '@/pages/StreakView';
 import { CalendarPage } from '@/pages/Calendar';
+import { KanbanPage } from '@/pages/Kanban';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -205,6 +206,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <CalendarPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kanban"
+              element={
+                <ProtectedRoute>
+                  <KanbanPage />
                 </ProtectedRoute>
               }
             />
