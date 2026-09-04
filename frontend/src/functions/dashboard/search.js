@@ -1,4 +1,4 @@
-const url = 'https://dashboard-service-bpc5.onrender.com';
+const url = import.meta.env.VITE_DASHBOARD_SERVICE_URL || "https://dashboard-service-bpc5.onrender.com";
 
 async function safeFetch(endpoint, body) {
   let res;

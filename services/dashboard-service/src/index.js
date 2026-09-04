@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 
 import searchRouter from './Routes/search.js';
+import { startDaemon, ping } from './functions/daemon.js';
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 5002;
 // Allowed origins for CORS
 const allowedOrigins = [
   'https://digital-logbook-bxgv.onrender.com',
+  'https://digital-logbook-bjev.onrender.com',
   'https://digital-logbook-hlulani.onrender.com',
   'http://localhost:5173',
   'http://localhost:3000',
@@ -46,6 +48,21 @@ app.get('/', (req, res) => {
 
 app.use('/service', searchRouter);
 
+// Health-ping endpoint — triggered by GitHub Actions every 10 min.
+// Wakes the Render instance AND pings Supabase with "hello hlulani".
+app.get('/service/health-ping', async (req, res) => {
+  try {
+    const result = await ping();
+    if (result.success) {
+      return res.json({ status: 'ok', ...result });
+    }
+    return res.status(503).json({ status: 'degraded', ...result });
+  } catch (err) {
+    console.error('[HealthPing] Error:', err.message);
+    return res.status(500).json({ status: 'error', reason: err.message });
+  }
+});
+
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
@@ -59,6 +76,8 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`dashboard-service running on port ${PORT}`);
+  // Start the Supabase keep-alive daemon
+  startDaemon();
 });
 
 export default app;

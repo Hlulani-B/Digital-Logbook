@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
+import { clearUserCache } from '@/lib/cache';
+import { disconnectSSE } from '@/lib/sse';
 import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 
 // Dev mode bypass - creates mock user for local testing
@@ -138,6 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[DEV MODE] signOut skipped');
       return;
     }
+    // Clear IndexedDB cache for the current user before signing out
+    const email = state.user?.email;
+    if (email) {
+      await clearUserCache(email);
+    }
+    // Close SSE connection
+    disconnectSSE();
     const { error } = await getSupabase().auth.signOut();
     if (error) throw error;
   };
@@ -167,6 +176,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[DEV MODE] deleteAccount skipped');
       return;
     }
+
+    // Clear all IndexedDB cache before account deletion
+    const email = state.user?.email;
+    if (email) {
+      await clearUserCache(email);
+    }
+
+    // Close SSE connection
+    disconnectSSE();
 
     // Schedule the account for deletion (30-day grace period), then sign the user out.
     // Restoration can only happen by signing back in and confirming via the email link.

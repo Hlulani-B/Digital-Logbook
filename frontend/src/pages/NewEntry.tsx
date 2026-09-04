@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
-import { formatInterval } from '../functions/dashboard/stats.js';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -124,7 +123,6 @@ export function EntryBox({
     user_email,
     project_name,
     entries,
-    created_at,
     due_date,
     priority,
     archived,
@@ -202,11 +200,9 @@ export function EntryBox({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  const entryFields = Object.entries(parsedEntries || {});
-  const createdLabel = formatDate(created_at);
+  const SKIP_FIELDS = new Set(['created', 'started', 'ended', 'duration', 'created_at', 'started_at', 'ended_at']);
+  const entryFields = Object.entries(parsedEntries || {}).filter(([key]) => !SKIP_FIELDS.has(key));
   const dueLabel = formatDate(due_date);
-  const startedLabel = formatDate(started_at);
-  const endedLabel = formatDate(ended_at);
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
 
@@ -648,34 +644,10 @@ export function EntryBox({
 
       <div className="entry-box__meta">
         <div className="entry-box__meta-left">
-          {createdLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Created</span>
-              <span className="entry-box__meta-value">{createdLabel}</span>
-            </span>
-          )}
           {dueLabel && (
             <span className="entry-box__meta-item">
               <span className="entry-box__meta-label">Due</span>
               <span className="entry-box__meta-value">{dueLabel}</span>
-            </span>
-          )}
-          {startedLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Started</span>
-              <span className="entry-box__meta-value">{startedLabel}</span>
-            </span>
-          )}
-          {endedLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Ended</span>
-              <span className="entry-box__meta-value">{endedLabel}</span>
-            </span>
-          )}
-          {duration && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Duration</span>
-              <span className="entry-box__meta-value">{formatInterval(duration)}</span>
             </span>
           )}
         </div>

@@ -65,7 +65,11 @@ export function App() {
       <ThemeInitializer>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/signin" replace />} />
+            <Route path="/" element={
+              <PublicRoute>
+                <SignIn />
+              </PublicRoute>
+            } />
             <Route
               path="/signin"
               element={
@@ -196,6 +200,7 @@ export function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/template" element={<Navigate to="/dashboard" replace />} />
             <Route
               path="/calendar"
               element={

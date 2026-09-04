@@ -68,6 +68,10 @@ nav:
       - Tech Stack: architecture/teck-stack.md
       - UI Design: architecture/ui-design.md
       - Voice Recording: architecture/voice-feature.md
+      - IndexedDB Caching: architecture/caching.md
+      - SSE Real-Time Updates: architecture/sse.md
+      - Keep-Alive Daemons: architecture/daemon.md
+      - Entry Summaries: architecture/entry-summaries.md
   - Roadmap: roadmap.md
   - Development:
       - Development Log: development/log.md
@@ -79,4 +83,5 @@ nav:
       - Open Questions & Decisions: development/decisions.md
       - Issues & Troubleshooting: development/issues.md
       - Code Quality Tools: development/code-quality.md
+      - Testing & User Feedback: development/testing.md
       - AI Attribution: development/ai-attribution.md

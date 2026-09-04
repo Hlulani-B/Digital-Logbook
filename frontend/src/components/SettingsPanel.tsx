@@ -4,6 +4,7 @@ import type { Theme } from '@/hooks/useTheme';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { getTone, setTone, TONE_OPTIONS, type Tone } from '@/functions/tone';
 import { getNudgeFrequency, setNudgeFrequency, type NudgeFrequency } from '@/pages/FrequencySetup';
+import { getAiMessagesEnabled, setAiMessagesEnabled } from '@/functions/aiMessages';
 import { getProfile, updateName, updateUsername, addEmail } from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
@@ -28,6 +29,7 @@ interface Preferences {
   notifications: boolean;
   weeklyReminder: boolean;
   nudgeFrequency: string;
+  aiMessages: boolean;
 }
 
 interface SettingsPanelProps {
@@ -194,6 +196,7 @@ export function SettingsPanel({
     notifications: true,
     weeklyReminder: false,
     nudgeFrequency: getNudgeFrequency(),
+    aiMessages: getAiMessagesEnabled(),
   };
 
   const [profile] = useState<ProfileSettings>(() => loadSettings(profileKey, defaultProfile));
@@ -779,6 +782,25 @@ export function SettingsPanel({
                           weeklyReminder: e.target.checked,
                         }))
                       }
+                    />
+                    <span className="toggle-track" />
+                  </label>
+                </div>
+
+                <div className="toggle-row">
+                  <div className="toggle-info">
+                    <p className="toggle-label">AI messages</p>
+                    <p className="toggle-desc">Show AI-generated greetings and entry comments.</p>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={prefs.aiMessages}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setPrefs((p) => ({ ...p, aiMessages: enabled }));
+                        setAiMessagesEnabled(enabled);
+                      }}
                     />
                     <span className="toggle-track" />
                   </label>

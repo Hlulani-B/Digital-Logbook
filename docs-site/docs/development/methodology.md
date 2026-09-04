@@ -119,6 +119,8 @@ ci: add Gitea Actions workflow for frontend and microservices
 
 See [Code Quality Tools](code-quality.md) for full details.
 
+See [Code Quality Tools](code-quality.md) for full details.
+
 ---
 
 ## Evidence Map

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBellOff, FiBell, FiClock, FiZap } from 'react-icons/fi';
+import { setAiMessagesEnabled } from '@/functions/aiMessages';
 
 export type NudgeFrequency = 'silent' | 'gentle' | 'daily' | 'active';
 
@@ -65,15 +66,18 @@ export function FrequencySetup() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<NudgeFrequency>('gentle');
   const [saving, setSaving] = useState(false);
+  const [aiMessages, setAiMessages] = useState(true);
 
   const handleContinue = () => {
     setSaving(true);
     setNudgeFrequency(selected);
+    setAiMessagesEnabled(aiMessages);
     setTimeout(() => navigate('/dashboard'), 400);
   };
 
   const handleSkip = () => {
     setNudgeFrequency('gentle');
+    setAiMessagesEnabled(aiMessages);
     navigate('/dashboard');
   };
 
@@ -121,6 +125,22 @@ export function FrequencySetup() {
                 </button>
               );
             })}
+          </div>
+
+          {/* AI messages toggle */}
+          <div className="toggle-row" style={{ marginTop: '1rem' }}>
+            <div className="toggle-info">
+              <p className="toggle-label">AI messages</p>
+              <p className="toggle-desc">Show AI-generated greetings and entry comments. You can change this later in Settings.</p>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={aiMessages}
+                onChange={(e) => setAiMessages(e.target.checked)}
+              />
+              <span className="toggle-track" />
+            </label>
           </div>
 
           {/* Live preview */}

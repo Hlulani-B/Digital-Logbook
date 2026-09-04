@@ -15,7 +15,8 @@ export class Entries {
     status,
     started_at,
     ended_at,
-    duration
+    duration,
+    summary
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -27,6 +28,7 @@ export class Entries {
       if (started_at !== undefined && started_at !== null) insertData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) insertData.ended_at = ended_at;
       if (duration !== undefined && duration !== null) insertData.duration = duration;
+      if (summary !== undefined && summary !== null) insertData.summary = summary;
 
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
 
@@ -61,7 +63,8 @@ export class Entries {
     status,
     started_at,
     ended_at,
-    duration
+    duration,
+    summary
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -76,6 +79,7 @@ export class Entries {
       if (status !== undefined) updateData.status = status;
       if (started_at !== undefined && started_at !== null) updateData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) updateData.ended_at = ended_at;
+      if (summary !== undefined && summary !== null) updateData.summary = summary;
 
       if (Object.keys(updateData).length === 0) {
         return { success: true, message: 'No changes to update' };
@@ -512,6 +516,69 @@ export function getDate(text) {
 }
 
 export class Natural_language {
+  /**
+   * Generate a one-sentence summary for an entry using AI.
+   * @param {string} projectName - The project the entry belongs to
+   * @param {object} entryObject - The entry fields (key-value pairs)
+   * @returns {Promise<string>} One-sentence summary, or projectName as fallback
+   */
+  async generateSummary(projectName, entryObject) {
+    try {
+      // If entry has no meaningful fields, just use project name
+      const hasContent = entryObject && typeof entryObject === 'object' &&
+        Object.values(entryObject).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (!hasContent) return projectName;
+
+      const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
+
+Project: ${projectName}
+Entry: ${JSON.stringify(entryObject)}
+
+You MUST respond with ONLY a JSON object in this exact format, nothing else:
+{"summary": "your one sentence here"}
+
+If the entry has no real content, use the project name as the summary.`;
+
+      const result = await AI(prompt);
+      if (!result || !result.trim()) return projectName;
+
+      const raw = result.trim().replace(/^["']|["']$/g, '');
+
+      // Parse the JSON response
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.summary && typeof parsed.summary === 'string' && parsed.summary.trim()) {
+          return parsed.summary.trim();
+        }
+      } catch {
+        // Not valid JSON — try regex extraction
+        const match = raw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
+        if (match) return match[1].trim();
+      }
+
+      // Retry once if parsing failed
+      try {
+        const retry = await AI(prompt);
+        if (retry && retry.trim()) {
+          const retryRaw = retry.trim().replace(/^["']|["']$/g, '');
+          try {
+            const retryParsed = JSON.parse(retryRaw);
+            if (retryParsed.summary) return retryParsed.summary.trim();
+          } catch {
+            const match = retryRaw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
+            if (match) return match[1].trim();
+          }
+        }
+      } catch { /* retry failed */ }
+
+      // Final fallback: project name
+      return projectName;
+    } catch (err) {
+      console.error('[generateSummary] Failed:', err.message);
+      return projectName;
+    }
+  }
+
   async entry(email, text) {
     try {
       const project = new Project();
@@ -697,12 +764,18 @@ Respond with ONLY this JSON, nothing else:`;
           };
         }
 
+        const summary = await this.generateSummary(parsed.project, parsed.fields);
         const addResult = await entries.addEntry(
           email,
           parsed.project,
           parsed.fields,
           calculatedDate || null,
-          priorityLabel
+          priorityLabel,
+          null, // status
+          null, // started_at
+          null, // ended_at
+          null, // duration
+          summary
         );
 
         return {
@@ -712,6 +785,7 @@ Respond with ONLY this JSON, nothing else:`;
           fields: parsed.fields,
           priority: priorityLabel,
           due_date: calculatedDate || null,
+          summary,
           comment: parsed.comment || null,
           created_new_project: false,
         };
@@ -801,15 +875,21 @@ Respond with ONLY this JSON, nothing else:`;
             continue;
           }
           try {
+            const summary = await this.generateSummary(projName, fieldValues);
             const addResult = await entries.addEntry(
               email,
               projName,
               fieldValues,
               calculatedDate || null,
-              priorityLabel
+              priorityLabel,
+              null, // status
+              null, // started_at
+              null, // ended_at
+              null, // duration
+              summary
             );
             if (addResult.success) {
-              results.old.push({ project_name: projName, fields: fieldValues });
+              results.old.push({ project_name: projName, fields: fieldValues, summary });
             } else {
               results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
             }
@@ -833,15 +913,21 @@ Respond with ONLY this JSON, nothing else:`;
             const existingProject = projectsWithFields.find((p) => p.project_name === projName);
             if (existingProject) {
               // Project already exists, just add the entry
+              const summary = await this.generateSummary(projName, fieldValues);
               const addResult = await entries.addEntry(
                 email,
                 projName,
                 fieldValues,
                 calculatedDate || null,
-                priorityLabel
+                priorityLabel,
+                null, // status
+                null, // started_at
+                null, // ended_at
+                null, // duration
+                summary
               );
               if (addResult.success) {
-                results.old.push({ project_name: projName, fields: fieldValues });
+                results.old.push({ project_name: projName, fields: fieldValues, summary });
               } else {
                 results.errors.push(
                   `Project "${projName}" already exists but failed to add entry: ${addResult.message}`
@@ -872,17 +958,24 @@ Respond with ONLY this JSON, nothing else:`;
             }
 
             // Add the entry
+            const summary = await this.generateSummary(projName, fieldValues);
             const addResult = await entries.addEntry(
               email,
               projName,
               fieldValues,
               calculatedDate || null,
-              priorityLabel
+              priorityLabel,
+              null, // status
+              null, // started_at
+              null, // ended_at
+              null, // duration
+              summary
             );
             if (addResult.success) {
               results.new.push({
                 project_name: projName,
                 fields: fieldValues,
+                summary,
                 new_fields: newFields,
               });
             } else {
@@ -950,12 +1043,18 @@ Respond with ONLY this JSON, nothing else:`;
         console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
       }
 
+      const summary = await this.generateSummary(newProjectName, parsed.fields);
       const addResult = await entries.addEntry(
         email,
         newProjectName,
         parsed.fields,
         calculatedDate || null,
-        priorityLabel
+        priorityLabel,
+        null, // status
+        null, // started_at
+        null, // ended_at
+        null, // duration
+        summary
       );
 
       return {
@@ -965,6 +1064,7 @@ Respond with ONLY this JSON, nothing else:`;
         fields: parsed.fields,
         priority: priorityLabel,
         due_date: calculatedDate || null,
+        summary,
         comment: parsed.comment || null,
         created_new_project: true,
         new_fields: newFields,
