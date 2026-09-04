@@ -5416,20 +5416,19 @@ img {
 /* ── Entries-by-due-date board ── */
 .edb-board {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  overflow-x: auto;
   padding-bottom: 0.5rem;
-  scroll-snap-type: x mandatory;
 }
 .edb-column {
-  flex: 0 0 260px;
+  flex: 1 1 260px;
   min-width: 220px;
+  max-width: 100%;
   background: var(--card, #fff);
   border: 1px solid var(--border, #e5e5e5);
   border-radius: 0.5rem;
   display: flex;
   flex-direction: column;
-  scroll-snap-align: start;
 }
 .edb-column-header {
   display: flex;
@@ -5467,6 +5466,6 @@ img {
 
 @media (max-width: 600px) {
   .edb-column {
-    flex: 0 0 85vw;
+    flex: 1 1 100%;
   }
 }
