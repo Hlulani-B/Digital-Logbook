@@ -170,7 +170,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Load data — always fetch sorted to reflect current sortBy
   const loadData = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
+    // Only show loading spinner on initial load (no cached data yet)
+    setEntries((prev) => {
+      if (prev.length === 0) setLoading(true);
+      return prev;
+    });
     try {
       const sortType = sortBy === 'priority' ? 1 : 0;
       const project =

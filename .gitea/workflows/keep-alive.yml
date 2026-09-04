@@ -1,0 +1,26 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # Ping every 10 minutes to prevent Render free tier from sleeping
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping frontend
+        run: curl -s -o /dev/null -w "%{http_code}" https://digital-logbook-bxgv.onrender.com || true
+
+      - name: Ping auth service
+        run: curl -s -o /dev/null -w "%{http_code}" https://auth-service-hl52.onrender.com/health || true
+
+      - name: Ping project service
+        run: curl -s -o /dev/null -w "%{http_code}" https://project-service-96ml.onrender.com/health || true
+
+      - name: Ping dashboard service
+        run: curl -s -o /dev/null -w "%{http_code}" https://dashboard-service-bpc5.onrender.com/health || true
+
+      - name: Ping profile service
+        run: curl -s -o /dev/null -w "%{http_code}" https://profile-service-0zk7.onrender.com/health || true

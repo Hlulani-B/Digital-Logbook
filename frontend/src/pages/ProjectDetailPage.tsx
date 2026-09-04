@@ -129,7 +129,11 @@ export function ProjectDetailPage() {
   // Fetch from server in background
   useEffect(() => {
     if (!email || !projectName) return;
-    setLoading(true); // Show loading while fetching from server
+    // Only show loading spinner on initial load (no cached data yet)
+    setEntries((prev) => {
+      if (prev.length === 0) setLoading(true);
+      return prev;
+    });
     (async () => {
       await sortUnarchivedEntries(email, projectName, sortType);
       setLoading(false); // Data arrived from server
