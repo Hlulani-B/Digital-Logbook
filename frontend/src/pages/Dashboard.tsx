@@ -930,6 +930,26 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Kanban
           </button>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/today');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Today
+          </button>
         </div>
 
         <div className="drawer-section drawer-projects">
@@ -1437,7 +1457,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       project_name: r.project_name as string,
                       summary: (r.summary as string) || null,
                       due_date: (r.due_date as string) || null,
-                      status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      status:
+                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
                       entries: r.entries as Record<string, unknown> | string | null,
                       started_at: (r.started_at as string) || null,
                     }))}
