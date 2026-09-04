@@ -30,6 +30,21 @@ import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { FiArchive, FiX } from 'react-icons/fi';
+import { isOverdue } from '@/functions/dashboard/overdue.js';
+import {
+  type CalendarEntry,
+  buildMonthGrid,
+  formatMonthYear,
+  formatShortDay,
+  formatDayNumber,
+  getEntriesForDay,
+  getEntryTitle,
+  isSameDay,
+  addDays,
+  addMonths,
+  parseDueDate,
+} from '@/lib/calendar';
+import '@/pages/Calendar.css';
 
 /** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -61,9 +76,10 @@ type ProjectFieldDraft = {
 
 type DashboardProps = {
   defaultView?: string;
+  entriesOnly?: boolean;
 };
 
-export function Dashboard({ defaultView = 'all' }: DashboardProps) {
+export function Dashboard({ defaultView = 'all', entriesOnly = false }: DashboardProps) {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -105,6 +121,22 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
+
+  // Calendar state (used in dashboard mode)
+  const [calDate, setCalDate] = useState(() => new Date());
+  const calDays = useMemo(() => buildMonthGrid(calDate, 0), [calDate]);
+  const calHeaderDays = useMemo(() => {
+    const start = calDays[0];
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [calDays]);
+  const calEntries = useMemo(() => {
+    return entries.filter((e: any) => e.due_date && !e.archived) as unknown as CalendarEntry[];
+  }, [entries]);
+  const isCalDayOverdue = useCallback((date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  }, []);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -832,6 +864,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <span className="drawer-badge">{entries.length}</span>
           </button>
           <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/entries');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            All Entries
+          </button>
+          <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
             onClick={() => {
               setActiveView('archives');
@@ -1040,7 +1094,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className="feed-header-row">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <h1 className="feed-title">
-                {activeView === 'all'
+                {entriesOnly
+                  ? 'All Entries'
+                  : activeView === 'all'
                   ? 'Dashboard'
                   : activeView === 'recent'
                     ? 'Recent'
@@ -1115,7 +1171,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 {searchQuery}"
               </p>
             )}
-            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
+            {entriesOnly && <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />}
           </div>
         </div>
 
@@ -1247,6 +1303,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         ) : (
           <>
+            {entriesOnly ? (
+            <>
             <div className="feed-search-bar">
               <svg
                 width="16"
@@ -1516,6 +1574,76 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   </div>
                 )}
               </>
+            )}
+            </>
+            ) : (
+            /* Calendar Section */
+            <div className="dashboard-calendar-section">
+              <div className="calendar-toolbar" style={{ marginBottom: '0.5rem' }}>
+                <div className="calendar-nav">
+                  <button type="button" className="btn-icon" onClick={() => setCalDate((d) => addMonths(d, -1))} aria-label="Previous month">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setCalDate(new Date())} style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>Today</button>
+                  <button type="button" className="btn-icon" onClick={() => setCalDate((d) => addMonths(d, 1))} aria-label="Next month">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                  </button>
+                </div>
+                <h2 className="calendar-period" style={{ fontSize: '1rem', fontWeight: 600 }}>{formatMonthYear(calDate)}</h2>
+              </div>
+              <div className="calendar-grid">
+                {calHeaderDays.map((day) => (
+                  <div key={day.toISOString()} className="calendar-header-cell">{formatShortDay(day)}</div>
+                ))}
+                {calDays.map((day) => {
+                  const isCurrentMonth = day.getMonth() === calDate.getMonth();
+                  const dayEntries = getEntriesForDay(calEntries, day);
+                  const isToday = isSameDay(day, new Date());
+                  const dayOverdue = isCalDayOverdue(day);
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={[
+                        'calendar-day',
+                        !isCurrentMonth && 'calendar-day--outside',
+                        isToday && 'calendar-day--today',
+                        dayOverdue && 'calendar-day--overdue',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      <div className="calendar-day-header">
+                        <span className="calendar-day-number">{formatDayNumber(day)}</span>
+                        {isToday && <span className="calendar-day-today-label">Today</span>}
+                      </div>
+                      <div className="calendar-day-entries">
+                        {dayEntries.slice(0, 3).map((entry) => (
+                          <div
+                            key={entry.id}
+                            className={[
+                              'calendar-entry',
+                              entry.status === 'done_and_dusted' && 'calendar-entry--completed',
+                              isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') && 'calendar-entry--overdue',
+                            ].filter(Boolean).join(' ')}
+                            title={getEntryTitle(entry)}
+                            onClick={() => navigate(`/project/${encodeURIComponent(entry.project_name)}`)}
+                          >
+                            <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
+                            <span className="calendar-entry-project">{entry.project_name}</span>
+                          </div>
+                        ))}
+                        {dayEntries.length > 3 && (
+                          <span className="calendar-more-label">+{dayEntries.length - 3} more</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="calendar-legend">
+                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--overdue" />Overdue</span>
+                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--completed" />Completed</span>
+                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--upcoming" />Upcoming</span>
+              </div>
+            </div>
             )}
           </>
         )}

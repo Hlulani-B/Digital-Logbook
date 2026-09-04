@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getAllEntries, updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
+import { cacheGet, cacheSet } from '@/lib/cache.js';
+import { ProfileMenu } from '@/components/ProfileMenu';
 import {
   type CalendarEntry,
   type CalendarView,
@@ -167,9 +169,11 @@ function CalendarEntryPill({
 }
 
 export function CalendarPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const email = user?.email ?? '';
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,8 +185,24 @@ export function CalendarPage() {
 
   const loadEntries = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
     setError(null);
+
+    // Try cache first — show cached data immediately, no spinner
+    const cacheKey = `calendar:${email}`;
+    try {
+      const cached = await cacheGet('entries', cacheKey);
+      if (cached?.data && cached.data.length > 0) {
+        setEntries(cached.data);
+        setLoading(false);
+      } else {
+        // No cache — show spinner
+        setLoading(true);
+      }
+    } catch {
+      setLoading(true);
+    }
+
+    // Fetch fresh data in background
     try {
       const result = await getAllEntries(email);
       if (result?.success === false) {
@@ -193,6 +213,8 @@ export function CalendarPage() {
         (entry: CalendarEntry) => !entry.archived && entry.due_date
       );
       setEntries(data);
+      // Update cache
+      await cacheSet('entries', cacheKey, data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {
@@ -284,27 +306,100 @@ export function CalendarPage() {
     navigate(`/project/${encodeURIComponent(entry.project_name)}`);
   };
 
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await signOut();
+      navigate('/signin');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
-    <div className="calendar-page">
-      <div className="calendar-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="calendar-page-title">Calendar</h1>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+
+      {/* Top Navigation - same as Dashboard */}
+      <nav className="navbar">
+        <div className="navbar-inner">
+          <div className="nav-left-group">
+            <button
+              className="nav-hamburger"
+              onClick={() => setDrawerOpen(!drawerOpen)}
+              aria-label="Toggle menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <button
+              className="nav-home-btn"
+              onClick={() => navigate('/dashboard')}
+              aria-label="Go to dashboard"
+            >
+              <div className="nav-logo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                  <path d="M8 7h6" />
+                  <path d="M8 11h4" />
+                </svg>
+              </div>
+              <span className="nav-title">Digital Logbook</span>
+            </button>
+          </div>
+          <div className="nav-right-group">
+            <div className="nav-user">
+              <ProfileMenu
+                displayName=""
+                email={user?.email || ''}
+                avatarUrl={undefined}
+                onManageProfile={() => navigate('/create-profile')}
+                onSettings={() => navigate('/dashboard')}
+                onSignOut={handleLogout}
+                signingOut={loggingOut}
+              />
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Drawer Overlay */}
+      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
+
+      {/* Drawer */}
+      <aside className={`drawer ${drawerOpen ? 'drawer-open' : ''}`}>
+        <div className="drawer-header">
+          <span className="drawer-title">Navigation</span>
+          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="drawer-section">
+          <button className="drawer-item" onClick={() => { navigate('/dashboard'); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+            Home
+          </button>
+          <button className="drawer-item" onClick={() => { navigate('/entries'); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+            All Entries
+          </button>
+          <button className="drawer-item active" onClick={() => setDrawerOpen(false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+            Calendar
+          </button>
+        </div>
+      </aside>
+
+      <main className="dash-main">
+      <div className="calendar-page">
 
       <div className="calendar-toolbar">
         <div className="calendar-nav">
@@ -428,6 +523,8 @@ export function CalendarPage() {
           Upcoming
         </span>
       </div>
+      </div>
+      </main>
     </div>
   );
 }

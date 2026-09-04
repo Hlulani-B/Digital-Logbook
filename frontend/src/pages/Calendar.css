@@ -1,8 +1,37 @@
 .calendar-page {
-  min-height: 100vh;
-  padding: 1.5rem 1.5rem 3rem;
+  min-height: auto;
+  padding: 0;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Dashboard calendar section */
+.dashboard-calendar-section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--card-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-calendar-section .calendar-grid {
+  font-size: 0.85rem;
+}
+
+.dashboard-calendar-section .calendar-day {
+  max-height: 6rem;
+}
+
+.dashboard-calendar-section .calendar-entry {
+  font-size: 0.7rem;
+  padding: 0.125rem 0.25rem;
+}
+
+.calendar-more-label {
+  font-size: 0.65rem;
+  opacity: 0.6;
+  padding: 0 0.25rem;
 }
 
 .calendar-page-header {

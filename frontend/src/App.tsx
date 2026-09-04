@@ -112,6 +112,14 @@ export function App() {
               }
             />
             <Route
+              path="/entries"
+              element={
+                <ProtectedRoute>
+                  <AllEntriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard/archives"
               element={
                 <ProtectedRoute>
