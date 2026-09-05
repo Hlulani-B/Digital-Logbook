@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { AppShell } from '@/components/AppShell';
 import {
   editProjectName,
   deleteProject,
@@ -265,6 +266,7 @@ export function ProjectsPage() {
   };
 
   return (
+    <AppShell title="Projects">
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -473,5 +475,6 @@ export function ProjectsPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }

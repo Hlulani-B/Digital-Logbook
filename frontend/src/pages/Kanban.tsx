@@ -15,6 +15,7 @@ import {
   groupEntriesByStatus,
 } from '@/lib/kanban';
 import './Kanban.css';
+import { AppShell } from '@/components/AppShell';
 
 function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
   if (!entries) return {};
@@ -251,26 +252,8 @@ export function KanbanPage() {
   };
 
   return (
+    <AppShell title="Kanban Board">
     <div className="kanban-page">
-      <div className="kanban-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="kanban-page-title">Kanban Board</h1>
-      </div>
 
       <div className="kanban-toolbar">
         <div className="kanban-filter">
@@ -366,5 +349,6 @@ export function KanbanPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }

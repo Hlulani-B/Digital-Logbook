@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { ProfileMenu } from '@/components/ProfileMenu';
+import { AppShell } from '@/components/AppShell';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
@@ -68,7 +68,7 @@ function toFriendlyPriority(val: string | null | undefined): string | null {
 export function ProjectDetailPage() {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
-  const { user, signOut, resetPassword } = useAuth();
+  const { user, resetPassword } = useAuth();
   const email = user?.email || '';
 
   // Settings
@@ -77,9 +77,7 @@ export function ProjectDetailPage() {
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
   // Drawer
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [allProjects, setAllProjects] = useState<{ project_name: string }[]>([]);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -420,18 +418,6 @@ export function ProjectDetailPage() {
   // User info
   const fullDisplayName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
-  const preferredName = (() => {
-    if (profileUsername?.trim()) return profileUsername.trim();
-    if (!user?.id) return fullDisplayName;
-    try {
-      const raw = localStorage.getItem(`dl_settings_profile_${user.id}`);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.preferredName?.trim()) return parsed.preferredName.trim();
-      }
-    } catch {}
-    return fullDisplayName;
-  })();
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
@@ -447,351 +433,13 @@ export function ProjectDetailPage() {
     }
   };
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await signOut();
-      navigate('/signin');
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      setLoggingOut(false);
-    }
-  };
-
   const openSettings = (tab: 'profile' | 'preferences' | 'account') => {
     setSettingsTab(tab);
     setSettingsOpen(true);
   };
 
   return (
-    <div className="dash-layout">
-      <div className="bg-mesh" />
-
-      {/* Top Navigation — identical to Dashboard */}
-      <nav className="navbar">
-        <div className="navbar-inner">
-          <div className="nav-left-group">
-            <button
-              className="nav-hamburger"
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              aria-label="Toggle menu"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <button
-              className="nav-home-btn"
-              onClick={() => navigate('/dashboard')}
-              aria-label="Go to dashboard"
-            >
-              <div className="nav-logo">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                  <path d="M8 7h6" />
-                  <path d="M8 11h4" />
-                </svg>
-              </div>
-              <span className="nav-title">Digital Logbook</span>
-            </button>
-          </div>
-
-          <div className="nav-right-group">
-            {searchOpen ? (
-              <div className="nav-search-inline">
-                <input
-                  ref={searchRef}
-                  type="text"
-                  placeholder={`Search in ${projectName}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="nav-search-input"
-                />
-                <button
-                  className="nav-search-close"
-                  onClick={() => {
-                    setSearchOpen(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <button
-                className="nav-icon-btn"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Search"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </button>
-            )}
-            <div className="nav-user">
-              <ProfileMenu
-                displayName={preferredName}
-                email={user?.email || ''}
-                avatarUrl={avatarUrl}
-                onManageProfile={() => openSettings('profile')}
-                onSettings={() => openSettings('preferences')}
-                onSignOut={handleLogout}
-                signingOut={loggingOut}
-              />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Drawer Overlay */}
-      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
-
-      {/* Navigation Drawer */}
-      <aside className={`drawer ${drawerOpen ? 'drawer-open' : ''}`}>
-        <div className="drawer-header">
-          <span className="drawer-title">Navigation</span>
-          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div className="drawer-section">
-          <p className="drawer-section-title">Views</p>
-          <button
-            className="drawer-item"
-            onClick={() => {
-              navigate('/dashboard');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            Home
-          </button>
-          <button
-            className="drawer-item"
-            onClick={() => {
-              navigate('/dashboard/archives');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
-            </svg>
-            Archives
-          </button>
-          <button
-            className="drawer-item"
-            onClick={() => {
-              navigate('/stats');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            My Stats
-          </button>
-          <button
-            className="drawer-item"
-            onClick={() => {
-              navigate('/dashboard/activity');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Activity Log
-          </button>
-        </div>
-        <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title">Projects</p>
-          <div className="drawer-project-list">
-            {allProjects.map((p) => {
-              const name = p.project_name as string;
-              const count = entries.filter((e) => e.project_name === name).length;
-              return (
-                <div
-                  key={name}
-                  className={`drawer-item ${name === projectName ? 'active' : ''}`}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate(`/project/${encodeURIComponent(name)}`);
-                      setDrawerOpen(false);
-                    }}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    {name}
-                    <span className="drawer-badge">{count}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleArchiveProject(name)}
-                    title="Archive project"
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid rgba(139, 115, 85, 0.3)',
-                      color: 'var(--text-secondary, #6b7280)',
-                      borderRadius: '0.4rem',
-                      padding: '0.2rem 0.5rem',
-                      fontSize: '0.7rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                    }}
-                  >
-                    <FiArchive size={12} />
-                    Archive
-                  </button>
-                </div>
-              );
-            })}
-            {allProjects.length === 0 && <p className="drawer-empty">No projects found.</p>}
-          </div>
-        </div>
-        <div className="drawer-footer">
-          <button
-            className="btn-primary drawer-new-btn"
-            onClick={() => {
-              navigate('/dashboard');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Project
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              navigate('/projects');
-              setDrawerOpen(false);
-            }}
-            style={{ marginTop: '0.5rem', width: '100%' }}
-          >
-            Manage Projects
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="dash-main">
+    <AppShell title={projectName!}>
         {/* Project heading + settings on same line */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">
@@ -1251,7 +899,6 @@ export function ProjectDetailPage() {
             )}
           </div>
         )}
-      </main>
 
       {/* FAB — only New Entry (project is already known) */}
       <div className="fab-container">
@@ -1333,6 +980,6 @@ export function ProjectDetailPage() {
           navigate('/dashboard');
         }}
       />
-    </div>
+    </AppShell>
   );
 }

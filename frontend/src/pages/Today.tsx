@@ -6,6 +6,7 @@ import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { type CalendarEntry, getEntryTitle, parseDueDate } from '@/lib/calendar';
 import { getTodaySections, hasNothingToDo } from '@/lib/today';
 import './Today.css';
+import { AppShell } from '@/components/AppShell';
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', {
@@ -131,29 +132,8 @@ export function TodayPage() {
   };
 
   return (
+    <AppShell title="Today">
     <div className="today-page">
-      <div className="today-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <div className="today-page-titles">
-          <h1 className="today-page-title">Today</h1>
-          <p className="today-page-date">{formatShortDate(new Date())}</p>
-        </div>
-      </div>
 
       {error && (
         <div className="today-error" role="alert">
@@ -220,5 +200,6 @@ export function TodayPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }

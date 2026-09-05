@@ -10,6 +10,7 @@ import {
   formatDuration,
 } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
+import { AppShell } from '@/components/AppShell';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -244,8 +245,9 @@ export function StatsView() {
 
   if (loading) {
     return (
-      <div className="stats-page">
-        <div className="feed-loading">
+      <AppShell title="My Stats">
+        <div className="stats-page">
+          <div className="feed-loading">
           <div
             className="animate-spin"
             style={{
@@ -258,32 +260,14 @@ export function StatsView() {
           />
           <p>Loading stats...</p>
         </div>
-      </div>
+        </div>
+      </AppShell>
     );
   }
 
   return (
+    <AppShell title="My Stats">
     <div className="stats-page">
-      {/* Header */}
-      <div className="stats-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="stats-page-title">My Stats</h1>
-      </div>
 
       {projectStats.length === 0 ? (
         <div className="stats-empty glass">
@@ -464,6 +448,7 @@ export function StatsView() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }
 
