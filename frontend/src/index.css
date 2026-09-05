@@ -5497,7 +5497,7 @@ img {
   min-width: 280px;
 }
 .edb-column {
-  background: var(--card, #fff);
+  background: var(--surface, #fff);
   border: 1px solid var(--border, #e5e5e5);
   border-radius: 0.5rem;
   display: flex;
@@ -5510,7 +5510,7 @@ img {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border, #e5e5e5);
-  background: var(--bg, #fafafa);
+  background: var(--surface-hover, #fafafa);
   border-radius: 0.5rem 0.5rem 0 0;
 }
 .edb-column-label {
