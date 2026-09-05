@@ -13,15 +13,48 @@ interface NavBarProps {
   onNewProject?: () => void;
 }
 
-export function NavBar({ projects = [], entries = [], activeView = 'all', onArchiveProject, onNewProject }: NavBarProps) {
+export function NavBar({ projects: projectsProp = [], entries: entriesProp = [], activeView = 'all', onArchiveProject, onNewProject }: NavBarProps) {
   const { user, signOut } = useAuth();
-  // Defensive: ensure projects/entries are always arrays (API or cache may return unexpected shapes)
-  const safeProjects = Array.isArray(projects) ? projects : [];
-  const safeEntries = Array.isArray(entries) ? entries : [];
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Load projects and entries from IndexedDB directly (local-first)
+  const [projects, setProjects] = useState<Array<Record<string, unknown>>>(() => 
+    Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : []
+  );
+  const [entries, setEntries] = useState<Array<Record<string, unknown>>>(() => 
+    Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : []
+  );
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.email) return;
+      try {
+        // Load projects from IndexedDB
+        const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, user.email);
+        if (cachedProjects?.data || cachedProjects?.projects) {
+          const rawProjects = cachedProjects.data || cachedProjects.projects || [];
+          const projectsList = Array.isArray(rawProjects) ? rawProjects : [];
+          setProjects(projectsList.filter((p: Record<string, unknown>) => !p.archived));
+        }
+        // Load entries from IndexedDB
+        const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, user.email);
+        if (cachedEntries?.data) {
+          const entriesList = Array.isArray(cachedEntries.data) ? cachedEntries.data : [];
+          setEntries(entriesList);
+        }
+      } catch (err) {
+        console.error('[NavBar] Failed to load data from cache:', err);
+      }
+    };
+    loadData();
+  }, [user?.email]);
+
+  // Use props if provided, otherwise use IndexedDB data
+  const safeProjects = (Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : projects) as Array<Record<string, unknown>>;
+  const safeEntries = (Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : entries) as Array<Record<string, unknown>>;
 
   // Profile info from IndexedDB
   const fallbackName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
