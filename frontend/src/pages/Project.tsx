@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { cacheGet, CACHE_STORES } from '@/lib/cache';
-import { syncAllData, syncProjectEntries } from '@/CacheFunctions';
+import { syncAllData } from '@/CacheFunctions';
 import {
   editProjectName,
   deleteProject,
@@ -12,9 +12,6 @@ import {
 } from '../functions/project/project.js';
 import { getArchivedProjects, archiveProject, unarchiveProject } from '../functions/project/archives.js';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
-import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
-import { updateEntry, deleteEntryById } from '@/functions/project/entries';
-import '@/Templates/ProjectTemplates/ProjectTable.css';
 
 type ProjectRecord = {
   project_name: string;
@@ -37,7 +34,6 @@ export function ProjectsPage() {
   const email = user?.email || '';
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
-  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,17 +58,6 @@ export function ProjectsPage() {
   const [viewingArchived, setViewingArchived] = useState<string | null>(null);
   const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
-
-  // View mode for table — persist in localStorage
-  const [viewMode, setViewModeState] = useState<'entry' | 'summary'>(() => {
-    const stored = localStorage.getItem('project-table-view-mode');
-    if (stored === 'entry' || stored === 'summary') return stored;
-    return 'entry';
-  });
-  const setViewMode = (mode: 'entry' | 'summary') => {
-    setViewModeState(mode);
-    localStorage.setItem('project-table-view-mode', mode);
-  };
 
   const loadProjects = useCallback(async () => {
     if (!email) return;
@@ -102,26 +87,6 @@ export function ProjectsPage() {
     }
   }, [email]);
 
-  // Load all entries for the table — read ONLY from IndexedDB.
-  const loadEntries = useCallback(async () => {
-    if (!email) return;
-    try {
-      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-      if (cached?.data) {
-        setEntries(Array.isArray(cached.data) ? cached.data : []);
-      } else {
-        // First visit ever — trigger initial sync
-        await syncAllData(email);
-        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-        if (fresh?.data) {
-          setEntries(Array.isArray(fresh.data) ? fresh.data : []);
-        }
-      }
-    } catch (err) {
-      console.error('[ProjectsPage] Failed to load entries:', err);
-    }
-  }, [email]);
-
   const loadArchivedProjects = useCallback(async () => {
     if (!email) return;
     try {
@@ -140,37 +105,7 @@ export function ProjectsPage() {
   useEffect(() => {
     loadProjects();
     loadArchivedProjects();
-    loadEntries();
-  }, [loadProjects, loadArchivedProjects, loadEntries]);
-
-  // Handle entry updates from the table
-  const handleEntryUpdate = useCallback(
-    async (id: string, patch: Record<string, any>) => {
-      setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-      const row = entries.find((r) => r.id === id);
-      if (!row) return;
-      try {
-        await updateEntry(
-          email,
-          row.project_name,
-          id,
-          patch.entries ?? row.entries,
-          patch.due_date !== undefined ? patch.due_date : row.due_date,
-          patch.priority !== undefined ? patch.priority : row.priority,
-          patch.status !== undefined ? patch.status : row.status,
-          row.started_at,
-          row.ended_at,
-          row.duration,
-        );
-        // Reload entries after successful update
-        await loadEntries();
-      } catch (err) {
-        console.error('Update failed:', err);
-        setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
-      }
-    },
-    [entries, email, loadEntries],
-  );
+  }, [loadProjects, loadArchivedProjects]);
 
   const handleCreateProject = async () => {
     const trimmed = newProjectName.trim();
@@ -261,14 +196,13 @@ export function ProjectsPage() {
     setViewingArchived(name);
     setLoadingEntries(true);
     try {
-      // Read from cache first
+      // Read from cache only
       const cached = await cacheGet(CACHE_STORES.ENTRIES, `${email}:${name}`);
-      if (cached?.data) setArchivedEntries(Array.isArray(cached.data) ? cached.data : []);
-
-      // Sync from server
-      await syncProjectEntries(email, name);
-      const fresh = await cacheGet(CACHE_STORES.ENTRIES, `${email}:${name}`);
-      if (fresh?.data) setArchivedEntries(Array.isArray(fresh.data) ? fresh.data : []);
+      if (cached?.data) {
+        setArchivedEntries(Array.isArray(cached.data) ? cached.data : []);
+      } else {
+        setArchivedEntries([]);
+      }
     } catch {
       setArchivedEntries([]);
     } finally {
@@ -279,9 +213,9 @@ export function ProjectsPage() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar projects={projects as Array<Record<string, unknown>>} entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <NavBar projects={projects as Array<Record<string, unknown>>} activeView="all" />
       <main className="dash-main">
-        <Header title="Your Projects" entries={entries as unknown as Array<Record<string, unknown>>} projects={projects as Array<Record<string, unknown>>} />
+        <Header title="Your Projects" projects={projects as Array<Record<string, unknown>>} />
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
@@ -295,11 +229,6 @@ export function ProjectsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* View toggle */}
-          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--accent, #c49a2a)' }}>
-            <button onClick={() => setViewMode('entry')} style={{ padding: '0.35rem 0.9rem', border: 'none', background: viewMode === 'entry' ? 'var(--accent, #c49a2a)' : 'var(--bg-subtle, #fdfaf3)', color: viewMode === 'entry' ? '#fff' : 'var(--text, #3b3226)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>Entry</button>
-            <button onClick={() => setViewMode('summary')} style={{ padding: '0.35rem 0.9rem', border: 'none', borderLeft: '1.5px solid var(--accent, #c49a2a)', background: viewMode === 'summary' ? 'var(--accent, #c49a2a)' : 'var(--bg-subtle, #fdfaf3)', color: viewMode === 'summary' ? '#fff' : 'var(--text, #3b3226)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>Summary</button>
-          </div>
           <button type="button" onClick={() => setCreating(true)} className="btn-primary" style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <FiPlus size={14} /> New project
           </button>
@@ -331,36 +260,6 @@ export function ProjectsPage() {
           <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.05rem', fontWeight: 700 }}>No projects yet</h3>
           <p style={{ margin: '0 0 1.25rem', color: 'var(--text-dim, #6b7280)', fontSize: '0.875rem' }}>Create a project to start logging entries against it.</p>
           <button type="button" onClick={() => setCreating(true)} className="btn-primary">+ New project</button>
-        </div>
-      )}
-
-      {/* Project table — all entries grouped by project */}
-      {!loading && entries.length > 0 && (
-        <ProjectTaskTable
-          rows={entries}
-          viewMode={viewMode}
-          showToggle={false}
-          onUpdate={handleEntryUpdate}
-          onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
-          onDeleteSelected={async (ids: string[]) => {
-            if (!email) return;
-            setEntries((prev) => prev.filter((r) => !ids.includes(r.id)));
-            for (const id of ids) {
-              try {
-                await deleteEntryById(email, id);
-              } catch (err) {
-                console.error('[onDeleteSelected] Failed to delete', id, err);
-              }
-            }
-          }}
-        />
-      )}
-
-      {!loading && entries.length === 0 && projects.length > 0 && (
-        <div className="glass" style={{ textAlign: 'center', padding: '2rem 1.5rem', borderRadius: '0.85rem', marginBottom: '1.5rem' }}>
-          <p style={{ margin: 0, color: 'var(--text-dim, #6b7280)', fontSize: '0.9rem' }}>
-            No entries yet. Start logging entries to see them in the table above.
-          </p>
         </div>
       )}
 
