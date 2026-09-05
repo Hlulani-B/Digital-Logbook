@@ -12,15 +12,13 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
-import { archiveProject } from '@/functions/project/archives.js';
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
-import { FiMic, FiArchive } from 'react-icons/fi';
+import { FiMic } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 
 /** Parse AI response — handles JSON or plain text */
@@ -73,17 +71,14 @@ export function ProjectDetailPage() {
 
   // Settings
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
+  const [settingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
-  // Drawer
-  const [allProjects, setAllProjects] = useState<{ project_name: string }[]>([]);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // Sort
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
@@ -185,26 +180,6 @@ export function ProjectDetailPage() {
     await sortUnarchivedEntries(email, projectName, sortType);
   }, [email, projectName, sortType]);
 
-  // Load all projects for the drawer
-  useEffect(() => {
-    if (!email) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await getProjectsByEmail(email);
-        if (!cancelled && result?.success) {
-          setAllProjects(
-            (result.projects || []).filter((p: Record<string, unknown>) => !p.archived)
-          );
-        }
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [email]);
 
   // Load profile
   useEffect(() => {
@@ -215,10 +190,8 @@ export function ProjectDetailPage() {
         const result = await getProfile(email);
         const profileData = result?.data || result;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
-        const username = (profileData as Record<string, unknown>)?.username as string;
         if (!cancelled) {
           if (avatar) setProfileAvatar(avatar);
-          if (username) setProfileUsername(username);
         }
       } catch {}
     })();
@@ -421,22 +394,6 @@ export function ProjectDetailPage() {
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
-  // Archive project — uses localStorage (DB UPDATE blocked by RLS)
-  const handleArchiveProject = async (projName: string) => {
-    if (!email) return;
-    // Update local state immediately for instant UI feedback
-    setAllProjects((prev) => prev.filter((p) => p.project_name !== projName));
-    try {
-      await archiveProject(email, projName);
-    } catch (err) {
-      console.error('Failed to archive project:', err);
-    }
-  };
-
-  const openSettings = (tab: 'profile' | 'preferences' | 'account') => {
-    setSettingsTab(tab);
-    setSettingsOpen(true);
-  };
 
   return (
     <AppShell title={projectName!}>

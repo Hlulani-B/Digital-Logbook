@@ -16,7 +16,7 @@ import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { dueSoon } from '@/functions/dashboard.js';
-import { cacheGet, cacheSet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';

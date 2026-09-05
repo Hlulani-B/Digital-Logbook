@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
@@ -157,7 +156,6 @@ function StatCard({
 /* ---------- Main Component ---------- */
 export function StatsView() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const email = user?.email || '';
 
   const [entries, setEntries] = useState<Entry[]>([]);

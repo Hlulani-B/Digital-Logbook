@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
@@ -14,7 +13,6 @@ type Entry = Record<string, unknown>;
  */
 export function StreakView() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const email = user?.email || '';
 
   const [entries, setEntries] = useState<Entry[]>([]);
