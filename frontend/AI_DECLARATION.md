@@ -58,6 +58,8 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested that a failed status write revert the dragged card to its original column
 - I requested a Today view that orders work deliberately: overdue first, then due today, then in progress
 - I requested a friendly empty state when the Today view has nothing to show
+- I requested a Timeline view with horizontal bars spanning start to due date, dependency arrows, zoom, and scroll
+- I requested that the Timeline empty state explain how to add dated tasks and dependencies
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -92,6 +94,9 @@ The AI generated the following code based on my instructions:
 | `src/pages/Today.tsx`                                       | Today view with overdue/due-today/in-progress ordering                               | AI generated from my requirements     |
 | `src/pages/Today.css`                                       | Today view styles                                                                    | AI generated from my design direction |
 | `src/lib/today.ts`                                          | Date partitioning helpers for the Today view                                         | AI generated from my requirements     |
+| `src/pages/Timeline.tsx`                                    | Timeline view with bars and dependency arrows                                        | AI generated from my requirements     |
+| `src/pages/Timeline.css`                                    | Timeline styles                                                                      | AI generated from my design direction |
+| `src/lib/timeline.ts`                                       | Date resolution, row layout, and arrow geometry helpers                              | AI generated from my requirements     |
 | `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
 | `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
 | `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |

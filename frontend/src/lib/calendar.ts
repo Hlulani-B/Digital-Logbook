@@ -17,6 +17,7 @@ export interface CalendarEntry {
   ended_at?: string | null;
   duration?: string | null;
   archived?: boolean;
+  created_at?: string;
 }
 
 export function stripTime(date: Date): Date {
