@@ -214,76 +214,80 @@ export function AllEntriesPage() {
         )}
 
         {/* Entries feed */}
-        {!loading && (
+        {!loading && filteredEntries.length === 0 && (
           <div className="entries-feed">
-            {filteredEntries.length === 0 ? (
-              <div className="empty-state animate-in">
-                <div className="empty-icon">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </div>
-                <h2 className="empty-title">{searchQuery ? 'No results found' : 'No entries yet'}</h2>
-                <p className="empty-desc">
-                  {searchQuery ? `No entries match "${searchQuery}". Try a different search term.` : 'No entries to show right now.'}
-                </p>
+            <div className="empty-state animate-in">
+              <div className="empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
               </div>
-            ) : displayMode === 'checklist' ? (
-              <div className="allentries-checklist-grid">
-              <ChecklistView
-                entries={filteredEntries.map((r) => ({
-                  id: r.id as string,
-                  user_email: r.user_email as string,
-                  project_name: r.project_name as string,
-                  summary: (r.summary as string) || null,
-                  due_date: (r.due_date as string) || null,
-                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as Record<string, unknown> | string | null,
-                  started_at: (r.started_at as string) || null,
-                }))}
+              <h2 className="empty-title">{searchQuery ? 'No results found' : 'No entries yet'}</h2>
+              <p className="empty-desc">
+                {searchQuery ? `No entries match "${searchQuery}". Try a different search term.` : 'No entries to show right now.'}
+              </p>
+            </div>
+          </div>
+        )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'board' && (
+          <div className="allentries-board-grid">
+            <EntriesByDueDateBoard
+              entries={filteredEntries.map((r) => ({
+                id: r.id as string,
+                user_email: r.user_email as string,
+                project_name: r.project_name as string,
+                summary: (r.summary as string) || null,
+                due_date: (r.due_date as string) || null,
+                status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                entries: r.entries as Record<string, unknown> | string | null,
+                started_at: (r.started_at as string) || null,
+              }))}
+              onUpdated={() => loadData()}
+              onDelete={() => loadData()}
+            />
+          </div>
+        )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'checklist' && (
+          <div className="allentries-checklist-grid">
+            <ChecklistView
+              entries={filteredEntries.map((r) => ({
+                id: r.id as string,
+                user_email: r.user_email as string,
+                project_name: r.project_name as string,
+                summary: (r.summary as string) || null,
+                due_date: (r.due_date as string) || null,
+                status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                entries: r.entries as Record<string, unknown> | string | null,
+                started_at: (r.started_at as string) || null,
+              }))}
+              onUpdated={() => loadData()}
+              onDelete={() => loadData()}
+            />
+          </div>
+        )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'table' && (
+          <ProjectTaskTable
+            rows={filteredEntries}
+            onUpdate={async () => {
+              await loadData();
+            }}
+            onDeleteSelected={async () => {
+              await loadData();
+            }}
+          />
+        )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
+          <div className="entries-feed">
+            {filteredEntries.map((row, i) => (
+              <EntryBox
+                key={`entry-${row.id || i}`}
+                entry={row as any}
                 onUpdated={() => loadData()}
+                onPriorityChanged={handleSetPriority}
                 onDelete={() => loadData()}
               />
-              </div>
-            ) : displayMode === 'board' ? (
-              <div className="allentries-board-grid">
-              <EntriesByDueDateBoard
-                entries={filteredEntries.map((r) => ({
-                  id: r.id as string,
-                  user_email: r.user_email as string,
-                  project_name: r.project_name as string,
-                  summary: (r.summary as string) || null,
-                  due_date: (r.due_date as string) || null,
-                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as Record<string, unknown> | string | null,
-                  started_at: (r.started_at as string) || null,
-                }))}
-                onUpdated={() => loadData()}
-                onDelete={() => loadData()}
-              />
-              </div>
-            ) : displayMode === 'table' ? (
-              <ProjectTaskTable
-                rows={filteredEntries}
-                onUpdate={async () => {
-                  await loadData();
-                }}
-                onDeleteSelected={async () => {
-                  await loadData();
-                }}
-              />
-            ) : (
-              filteredEntries.map((row, i) => (
-                <EntryBox
-                  key={`entry-${row.id || i}`}
-                  entry={row as any}
-                  onUpdated={() => loadData()}
-                  onPriorityChanged={handleSetPriority}
-                  onDelete={() => loadData()}
-                />
-              ))
-            )}
+            ))}
           </div>
         )}
       </main>
