@@ -39,6 +39,18 @@ The local-first architecture solves all of these by:
 - **`dueSoon` computes from cache** — no server call needed
 - **All mutations write IndexedDB first** — instant UI, then server sync
 
+### Why Pages No Longer Call `syncAllData` in the Background
+
+An intermediate approach had pages call `syncAllData` in the background after reading from IndexedDB. This caused a **race condition**:
+
+1. User adds an entry → mutation writes to IndexedDB (instant UI) ✓
+2. Page's `loadData` calls `syncAllData` → fetches from server
+3. Server doesn't have the new entry yet (network latency)
+4. `syncAllData` overwrites IndexedDB with stale server data
+5. The optimistic entry disappears or gets duplicated
+
+**The fix:** Pages now read ONLY from IndexedDB. The initial sync on login populates everything. After that, mutations handle their own server sync (write IndexedDB first, then server). SSE pushes handle real-time updates from the backend. Pages never make server calls.
+
 ## Architecture Flow
 
 ```
@@ -74,8 +86,11 @@ The local-first architecture solves all of these by:
 2. Page reads from IndexedDB via cacheGet() in useEffect
 3. If cache exists → display immediately (no spinner, no network)
 4. If no cache → show loading spinner (first visit only)
-5. Page calls syncAllData() in background → server data → IndexedDB
-6. Page re-reads from IndexedDB → updates UI with fresh data
+   → Trigger syncAllData() to populate IndexedDB
+   → Re-read from IndexedDB → display data
+5. After initial sync, pages NEVER call syncAllData again
+6. All subsequent reads are 100% from IndexedDB (zero network)
+7. SSE pushes trigger IndexedDB invalidation → page re-reads
 ```
 
 ### Write Flow (Mutations → IndexedDB → Server)

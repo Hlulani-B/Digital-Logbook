@@ -167,7 +167,7 @@ export function StatsView() {
     let cancelled = false;
 
     (async () => {
-      // 1. Read from IndexedDB first — no spinner
+      // Read ONLY from IndexedDB. Mutations update it directly.
       try {
         const [cachedEntries, cachedProjects] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
@@ -179,24 +179,18 @@ export function StatsView() {
         if (cachedEntries?.data) {
           setDueSoonCount(computeDueSoon(cachedEntries.data).length);
         }
-        if (cachedEntries?.data || cachedProjects?.data) {
-          setLoading(false);
+        if (!cachedEntries?.data && !cachedProjects?.data) {
+          // First visit ever — trigger initial sync
+          await syncAllData(email);
+          if (cancelled) return;
+          const [freshEntries, freshProjects] = await Promise.all([
+            cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+            cacheGet(CACHE_STORES.PROJECTS, email),
+          ]);
+          if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+          if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+          if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
         }
-      } catch { /* no cache, show spinner */ }
-
-      // 2. Sync all data from server → IndexedDB
-      try {
-        await syncAllData(email, { force: true });
-        if (cancelled) return;
-
-        // 3. Re-read from IndexedDB
-        const [freshEntries, freshProjects] = await Promise.all([
-          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-          cacheGet(CACHE_STORES.PROJECTS, email),
-        ]);
-        if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-        if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
-        if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
       } catch (err) {
         console.error('[StatsView] Failed to load stats data:', err);
       } finally {

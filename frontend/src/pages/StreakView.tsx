@@ -24,21 +24,18 @@ export function StreakView() {
     let cancelled = false;
 
     (async () => {
-      // 1. Read from IndexedDB first — no spinner
+      // Read ONLY from IndexedDB. Mutations update it directly.
       try {
         const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (!cancelled && cached?.data) {
           setEntries(Array.isArray(cached.data) ? cached.data : []);
-          setLoading(false);
-        }
-      } catch { /* no cache */ }
-
-      // 2. Sync from server → IndexedDB
-      try {
-        await syncAllData(email, { force: true });
-        if (!cancelled) {
-          const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-          if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+        } else if (!cancelled) {
+          // First visit ever — trigger initial sync
+          await syncAllData(email);
+          if (!cancelled) {
+            const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+            if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+          }
         }
       } catch (err) {
         console.error('[StreakView] Failed to load entries:', err);

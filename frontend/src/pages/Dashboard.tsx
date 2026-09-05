@@ -186,11 +186,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load data — local-first: read IndexedDB, then sync from server
+  // Load data — local-first: read ONLY from IndexedDB
+  // Initial sync on login populates IndexedDB. Mutations update it directly.
+  // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
-
-    // 1. Read from IndexedDB first — show cached data immediately, no spinner
     try {
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
@@ -211,33 +211,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         }
         if (cachedDueSoon?.data) setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
-        setLoading(true);
+        // First visit ever — trigger initial sync, then re-read
+        await syncAllData(email);
+        const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+          cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
+        ]);
+        if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+        if (freshProjects?.data) {
+          const allProjects = (Array.isArray(freshProjects.data) ? freshProjects.data : []) as Project[];
+          let localArch = new Set<string>();
+          try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+          setLocalArchived(localArch);
+          const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
+          setProjects(merged);
+          setArchivedProjects(merged.filter((p) => p.archived));
+        }
+        if (freshDueSoon?.data) setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
       }
-    } catch {
-      setLoading(true);
-    }
-
-    // 2. Sync all data from server → IndexedDB (background)
-    try {
-      await syncAllData(email, { force: true });
-
-      // 3. Re-read from IndexedDB (syncAllData has updated it)
-      const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
-        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-        cacheGet(CACHE_STORES.PROJECTS, email),
-        cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
-      ]);
-      if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-      if (freshProjects?.data) {
-        const allProjects = (Array.isArray(freshProjects.data) ? freshProjects.data : []) as Project[];
-        let localArch = new Set<string>();
-        try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
-        setLocalArchived(localArch);
-        const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
-        setProjects(merged);
-        setArchivedProjects(merged.filter((p) => p.archived));
-      }
-      if (freshDueSoon?.data) setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {

@@ -77,24 +77,21 @@ export function ProjectsPage() {
   const loadProjects = useCallback(async () => {
     if (!email) return;
     setError(null);
-
-    // 1. Read from IndexedDB first — no spinner
+    // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
       if (cached?.data) {
         const list = (Array.isArray(cached.data) ? cached.data : []).filter((p: ProjectRecord) => !p.archived);
         setProjects(list);
-        setLoading(false);
-      }
-    } catch { /* no cache */ }
-
-    // 2. Sync from server → IndexedDB
-    try {
-      await syncAllData(email, { force: true });
-      const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
-      if (fresh?.data) {
-        const list = (Array.isArray(fresh.data) ? fresh.data : []).filter((p: ProjectRecord) => !p.archived);
-        setProjects(list);
+      } else {
+        // First visit ever — trigger initial sync
+        setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
+        if (fresh?.data) {
+          const list = (Array.isArray(fresh.data) ? fresh.data : []).filter((p: ProjectRecord) => !p.archived);
+          setProjects(list);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your projects');
@@ -103,21 +100,20 @@ export function ProjectsPage() {
     }
   }, [email]);
 
-  // Load all entries for the table
+  // Load all entries for the table — read ONLY from IndexedDB.
   const loadEntries = useCallback(async () => {
     if (!email) return;
     try {
-      // 1. Read from IndexedDB first
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       if (cached?.data) {
         setEntries(Array.isArray(cached.data) ? cached.data : []);
-      }
-
-      // 2. Sync from server → IndexedDB
-      await syncAllData(email, { force: true });
-      const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-      if (fresh?.data) {
-        setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+      } else {
+        // First visit ever — trigger initial sync
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (fresh?.data) {
+          setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+        }
       }
     } catch (err) {
       console.error('[ProjectsPage] Failed to load entries:', err);

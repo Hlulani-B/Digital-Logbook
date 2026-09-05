@@ -57,10 +57,9 @@ export function AllEntriesPage() {
     return () => { cancelled = true; };
   }, [email, signOut]);
 
+  // Load data — read ONLY from IndexedDB. Mutations update it directly.
   const loadData = useCallback(async () => {
     if (!email) return;
-
-    // 1. Read from IndexedDB first — show cached data immediately, no spinner
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
@@ -71,23 +70,16 @@ export function AllEntriesPage() {
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
       } else {
+        // First visit ever — trigger initial sync
         setLoading(true);
+        await syncAllData(email);
+        const [freshEntries, freshProjects] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+        ]);
+        if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+        if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
       }
-    } catch {
-      setLoading(true);
-    }
-
-    // 2. Sync all data from server → IndexedDB (background)
-    try {
-      await syncAllData(email, { force: true });
-
-      // 3. Re-read from IndexedDB (syncAllData has updated it)
-      const [freshEntries, freshProjects] = await Promise.all([
-        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-        cacheGet(CACHE_STORES.PROJECTS, email),
-      ]);
-      if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-      if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {

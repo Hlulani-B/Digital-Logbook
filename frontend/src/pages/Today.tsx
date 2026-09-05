@@ -103,27 +103,24 @@ export function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Load data — read ONLY from IndexedDB. Mutations update it directly.
   const loadData = useCallback(async () => {
     if (!email) return;
     setError(null);
-
-    // 1. Read from IndexedDB first — no spinner
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       if (cached?.data) {
         const data = (Array.isArray(cached.data) ? cached.data : []).filter((e: CalendarEntry) => !e.archived);
         setEntries(data);
-        setLoading(false);
-      }
-    } catch { /* no cache */ }
-
-    // 2. Sync from server → IndexedDB
-    try {
-      await syncAllData(email, { force: true });
-      const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-      if (fresh?.data) {
-        const data = (Array.isArray(fresh.data) ? fresh.data : []).filter((entry: CalendarEntry) => !entry.archived);
-        setEntries(data);
+      } else {
+        // First visit ever — trigger initial sync
+        setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (fresh?.data) {
+          const data = (Array.isArray(fresh.data) ? fresh.data : []).filter((entry: CalendarEntry) => !entry.archived);
+          setEntries(data);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load today view');

@@ -190,11 +190,10 @@ export function CalendarPage() {
   const [updating, setUpdating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  // Load entries — read ONLY from IndexedDB. Mutations update it directly.
   const loadEntries = useCallback(async () => {
     if (!email) return;
     setError(null);
-
-    // 1. Read from IndexedDB first — show cached data immediately, no spinner
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
@@ -202,23 +201,17 @@ export function CalendarPage() {
           (entry: CalendarEntry) => !entry.archived && entry.due_date
         );
         setEntries(data);
-        setLoading(false);
       } else {
+        // First visit ever — trigger initial sync
         setLoading(true);
-      }
-    } catch {
-      setLoading(true);
-    }
-
-    // 2. Sync from server → IndexedDB
-    try {
-      await syncAllData(email, { force: true });
-      const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-      if (fresh?.data && Array.isArray(fresh.data)) {
-        const data = fresh.data.filter(
-          (entry: CalendarEntry) => !entry.archived && entry.due_date
-        );
-        setEntries(data);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (fresh?.data && Array.isArray(fresh.data)) {
+          const data = fresh.data.filter(
+            (entry: CalendarEntry) => !entry.archived && entry.due_date
+          );
+          setEntries(data);
+        }
       }
       // Also load projects for the add-entry dropdown
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
