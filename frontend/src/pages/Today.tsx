@@ -6,7 +6,8 @@ import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { type CalendarEntry, getEntryTitle, parseDueDate } from '@/lib/calendar';
 import { getTodaySections, hasNothingToDo } from '@/lib/today';
 import './Today.css';
-import { AppShell } from '@/components/AppShell';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 function formatShortDate(date: Date): string {
@@ -145,12 +146,12 @@ export function TodayPage() {
   };
 
   return (
-    <AppShell>
-    <div className="today-page">
-      <div className="dash-header-section">
-        <h1 className="dash-title">Today</h1>
-        <p className="dash-subtitle">Your tasks for today</p>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Today" entries={entries as unknown as Array<Record<string, unknown>>} />
+        <div className="today-page">
 
       {error && (
         <div className="today-error" role="alert">
@@ -216,7 +217,8 @@ export function TodayPage() {
           />
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { AppShell } from '@/components/AppShell';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import {
   editProjectName,
@@ -284,9 +285,12 @@ export function ProjectsPage() {
   };
 
   return (
-    <AppShell>
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      {/* Header */}
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects as Array<Record<string, unknown>>} entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Your Projects" entries={entries as unknown as Array<Record<string, unknown>>} projects={projects as Array<Record<string, unknown>>} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
@@ -493,7 +497,8 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }

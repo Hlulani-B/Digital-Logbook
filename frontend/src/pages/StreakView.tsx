@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
-import { AppShell } from '@/components/AppShell';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 type Entry = Record<string, unknown>;
@@ -53,34 +54,35 @@ export function StreakView() {
 
   if (loading) {
     return (
-      <AppShell>
-      <div className="stats-page">
-        <div className="dash-header-section">
-          <h1 className="dash-title">My Streaks</h1>
-          <p className="dash-subtitle">Track your consistency</p>
-        </div>
-        <div className="feed-loading">
-          <div
-            className="animate-spin spinner-circle"
-            style={{
-              width: 32,
-              height: 32,
-            }}
-          />
-          <p>Loading streaks...</p>
-        </div>
+      <div className="dash-layout">
+        <div className="bg-mesh" />
+        <NavBar entries={entries} activeView="all" />
+        <main className="dash-main">
+          <Header title="My Streaks" entries={entries} />
+          <div className="stats-page">
+            <div className="feed-loading">
+              <div
+                className="animate-spin spinner-circle"
+                style={{
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <p>Loading streaks...</p>
+            </div>
+          </div>
+        </main>
       </div>
-      </AppShell>
     );
   }
 
   return (
-    <AppShell>
-    <div className="stats-page">
-      <div className="dash-header-section">
-        <h1 className="dash-title">My Streaks</h1>
-        <p className="dash-subtitle">Track your consistency</p>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries} activeView="all" />
+      <main className="dash-main">
+        <Header title="My Streaks" entries={entries} />
+        <div className="stats-page">
 
       {entries.length === 0 ? (
         <div className="stats-empty glass">
@@ -211,8 +213,9 @@ export function StreakView() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }
 

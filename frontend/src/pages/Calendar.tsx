@@ -5,7 +5,8 @@ import { getAllEntries, updateEntry } from '@/functions/project/entries.js';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { cacheGet, cacheSet } from '@/lib/cache.js';
-import { AppShell } from '@/components/AppShell';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { CalendarDayModal } from '@/pages/CalendarDayModal';
 import {
   type CalendarEntry,
@@ -335,12 +336,12 @@ export function CalendarPage() {
   const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
 
   return (
-    <AppShell>
-      <div className="calendar-page">
-        <div className="dash-header-section">
-          <h1 className="dash-title">Calendar</h1>
-          <p className="dash-subtitle">View your tasks on a calendar</p>
-        </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Calendar" entries={entries as unknown as Array<Record<string, unknown>>} />
+        <div className="calendar-page">
 
       <div className="calendar-toolbar">
         <div className="calendar-nav">
@@ -478,6 +479,7 @@ export function CalendarPage() {
           onEntryClick={handleEntryClick}
         />
       )}
-    </AppShell>
+      </main>
+    </div>
   );
 }

@@ -9,7 +9,8 @@ import {
   formatDuration,
 } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
-import { AppShell } from '@/components/AppShell';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 type Entry = Record<string, unknown>;
@@ -262,34 +263,35 @@ export function StatsView() {
 
   if (loading) {
     return (
-      <AppShell>
-        <div className="stats-page">
-          <div className="dash-header-section">
-            <h1 className="dash-title">My Stats</h1>
-            <p className="dash-subtitle">Your productivity overview</p>
+      <div className="dash-layout">
+        <div className="bg-mesh" />
+        <NavBar projects={projects} entries={entries} activeView="all" />
+        <main className="dash-main">
+          <Header title="My Stats" entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+          <div className="stats-page">
+            <div className="feed-loading">
+              <div
+                className="animate-spin spinner-circle"
+                style={{
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <p>Loading stats...</p>
+            </div>
           </div>
-          <div className="feed-loading">
-          <div
-            className="animate-spin spinner-circle"
-            style={{
-              width: 32,
-              height: 32,
-            }}
-          />
-          <p>Loading stats...</p>
-        </div>
-        </div>
-      </AppShell>
+        </main>
+      </div>
     );
   }
 
   return (
-    <AppShell>
-    <div className="stats-page">
-      <div className="dash-header-section">
-        <h1 className="dash-title">My Stats</h1>
-        <p className="dash-subtitle">Your productivity overview</p>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects} entries={entries} activeView="all" />
+      <main className="dash-main">
+        <Header title="My Stats" entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+        <div className="stats-page">
 
       {projectStats.length === 0 ? (
         <div className="stats-empty glass">
@@ -469,8 +471,9 @@ export function StatsView() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }
 

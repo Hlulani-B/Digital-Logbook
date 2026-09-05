@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { AppShell } from '@/components/AppShell';
-import { SettingsPanel } from '@/components/SettingsPanel';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
@@ -12,7 +12,6 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProfile } from '@/functions/profile/profile.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 import { getToneInstruction } from '@/functions/tone';
@@ -66,19 +65,16 @@ function toFriendlyPriority(val: string | null | undefined): string | null {
 export function ProjectDetailPage() {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
-  const { user, resetPassword } = useAuth();
+  const { user } = useAuth();
   const email = user?.email || '';
 
   // Settings
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
 
   // Sort
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
@@ -181,24 +177,6 @@ export function ProjectDetailPage() {
   }, [email, projectName, sortType]);
 
 
-  // Load profile
-  useEffect(() => {
-    if (!email) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await getProfile(email);
-        const profileData = result?.data || result;
-        const avatar = (profileData as Record<string, unknown>)?.avatar as string;
-        if (!cancelled) {
-          if (avatar) setProfileAvatar(avatar);
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [email]);
 
   // AI-generated placeholder that describes what quick add is
   useEffect(() => {
@@ -388,33 +366,13 @@ export function ProjectDetailPage() {
     }
   }, [quickMessage]);
 
-  // User info
-  const fullDisplayName =
-    user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
-  const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
-  const provider = user?.app_metadata?.provider || 'email';
-
 
   return (
-    <AppShell>
-        {/* Project heading + settings on same line */}
-        <div className="feed-header animate-in">
-          <div className="feed-header-row">
-            <h1 className="feed-title">{projectName}</h1>
-            <button
-              className="btn-secondary project-settings-btn"
-              onClick={() => setProjectSettingsOpen(true)}
-            >
-              Project Settings
-            </button>
-          </div>
-          {searchQuery && (
-            <p className="feed-subtitle">
-              {filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''} for "
-              {searchQuery}"
-            </p>
-          )}
-        </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries} activeView="all" />
+      <main className="dash-main">
+        <Header title={projectName || 'Project'} entries={entries} />
 
         {/* Search bar inline for mobile */}
         <div className="feed-search-bar">
@@ -901,22 +859,6 @@ export function ProjectDetailPage() {
         />
       )}
 
-      {/* Settings Panel */}
-      <SettingsPanel
-        open={settingsOpen}
-        initialTab={settingsTab}
-        userId={user?.id || ''}
-        displayName={fullDisplayName}
-        email={user?.email || ''}
-        avatarUrl={avatarUrl}
-        provider={provider}
-        onClose={() => setSettingsOpen(false)}
-        onDeleteAccount={async () => {}}
-        onResetPassword={resetPassword}
-        deleting={false}
-        deleteError={null}
-      />
-
       {/* Project Settings Panel */}
       <ProjectSettingsPanel
         open={projectSettingsOpen}
@@ -933,6 +875,7 @@ export function ProjectDetailPage() {
           navigate('/dashboard');
         }}
       />
-    </AppShell>
+      </main>
+    </div>
   );
 }
