@@ -17,6 +17,13 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Listen for open-settings event from NavBar's ProfileMenu
+  useEffect(() => {
+    const handler = () => setSettingsOpen(true);
+    window.addEventListener('open-settings', handler);
+    return () => window.removeEventListener('open-settings', handler);
+  }, []);
+
   // Profile info from IndexedDB
   const [profileData, setProfileData] = useState<{ displayName: string; avatarUrl: string }>({
     displayName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User',

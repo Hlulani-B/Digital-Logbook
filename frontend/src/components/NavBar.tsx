@@ -154,7 +154,7 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
                 email={user?.email || ''}
                 avatarUrl={profileData.avatarUrl}
                 onManageProfile={() => navigate('/create-profile')}
-                onSettings={() => navigate('/dashboard')}
+                onSettings={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                 onSignOut={handleLogout}
                 signingOut={loggingOut}
               />

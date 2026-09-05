@@ -2351,7 +2351,8 @@ img {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .drawer-open {
   transform: translateX(0);
@@ -2359,8 +2360,6 @@ img {
 
 .drawer-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
   min-height: 0;
 }
 
