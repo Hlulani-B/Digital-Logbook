@@ -407,13 +407,10 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     return (
       <div className="feed-loading">
         <div
-          className="animate-spin"
+          className="animate-spin spinner-circle"
           style={{
             width: 24,
             height: 24,
-            borderRadius: '50%',
-            border: '3px solid var(--border)',
-            borderTopColor: 'var(--accent)',
           }}
         />
         <p>Loading activity...</p>

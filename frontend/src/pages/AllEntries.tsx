@@ -347,7 +347,7 @@ export function AllEntriesPage() {
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
-            <div className="animate-spin" style={{ width: 24, height: 24, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--accent)' }} />
+            <div className="animate-spin spinner-circle" style={{ width: 24, height: 24 }} />
             <p>Loading entries...</p>
           </div>
         )}

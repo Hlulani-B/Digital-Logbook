@@ -2132,6 +2132,12 @@ select.field-input {
   animation: spin 1s linear infinite;
 }
 
+.spinner-circle {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (min-width: 640px) {
   .stats-grid {

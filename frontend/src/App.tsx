@@ -38,14 +38,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
         <div className="auth-container">
           <div className="glass auth-card" style={{ textAlign: 'center' }}>
             <div
-              className="animate-spin"
+              className="animate-spin spinner-circle"
               style={{
                 width: 32,
                 height: 32,
                 margin: '0 auto 1rem',
-                borderRadius: '50%',
-                border: '3px solid var(--border)',
-                borderTopColor: 'var(--accent)',
               }}
             />
             <p style={{ fontSize: '0.875rem', color: 'var(--text-dim)' }}>Loading...</p>

@@ -61,13 +61,10 @@ export function StreakView() {
         </div>
         <div className="feed-loading">
           <div
-            className="animate-spin"
+            className="animate-spin spinner-circle"
             style={{
               width: 32,
               height: 32,
-              borderRadius: '50%',
-              border: '3px solid var(--border)',
-              borderTopColor: 'var(--accent)',
             }}
           />
           <p>Loading streaks...</p>

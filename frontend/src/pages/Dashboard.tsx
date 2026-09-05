@@ -1327,13 +1327,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             {loading && (
               <div className="feed-loading">
                 <div
-                  className="animate-spin"
+                  className="animate-spin spinner-circle"
                   style={{
                     width: 24,
                     height: 24,
-                    borderRadius: '50%',
-                    border: '3px solid var(--border)',
-                    borderTopColor: 'var(--accent)',
                   }}
                 />
                 <p>Loading entries...</p>
