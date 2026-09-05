@@ -26,13 +26,15 @@ interface Column {
   entries: BoardEntry[];
 }
 
-function formatColumnLabel(dateStr: string): string {
-  const d = new Date(dateStr);
+const WEEKDAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function getWeekdayName(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString(undefined, { weekday: 'long' });
 }
 
-function groupByDueDate(entries: BoardEntry[]): Column[] {
+function groupByWeekday(entries: BoardEntry[]): Column[] {
   const groups: Record<string, BoardEntry[]> = {};
   const noDueDate: BoardEntry[] = [];
 
@@ -42,17 +44,17 @@ function groupByDueDate(entries: BoardEntry[]): Column[] {
       noDueDate.push(entry);
       continue;
     }
-    const dayKey = entry.due_date.slice(0, 10); // YYYY-MM-DD
-    if (!groups[dayKey]) groups[dayKey] = [];
-    groups[dayKey].push(entry);
+    const weekday = getWeekdayName(entry.due_date.slice(0, 10));
+    if (!groups[weekday]) groups[weekday] = [];
+    groups[weekday].push(entry);
   }
 
-  const sortedColumns: Column[] = Object.keys(groups)
-    .sort()
-    .map((key) => ({
-      key,
-      label: formatColumnLabel(key),
-      entries: groups[key],
+  const sortedColumns: Column[] = WEEKDAY_ORDER
+    .filter((day) => groups[day])
+    .map((day) => ({
+      key: day,
+      label: day,
+      entries: groups[day],
     }));
 
   if (noDueDate.length) {
@@ -63,7 +65,7 @@ function groupByDueDate(entries: BoardEntry[]): Column[] {
 }
 
 export default function EntriesByDueDateBoard({ entries = [], onUpdated, onDelete }: EntriesByDueDateBoardProps) {
-  const columns = groupByDueDate(entries);
+  const columns = groupByWeekday(entries);
 
   if (!entries.length) {
     return (
