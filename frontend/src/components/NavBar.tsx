@@ -70,8 +70,9 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
         const cached = await cacheGet(CACHE_STORES.PROFILE, user.email);
         if (cached?.data) {
           const profile = cached.data;
-          const preferredName = profile.preferred_name || profile.full_name || profile.display_name || user.email;
-          const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || '';
+          // Field names from profile service: avatar, username, name
+          const preferredName = profile.username || profile.name || profile.display_name || user.email;
+          const avatarUrl = profile.avatar || user?.user_metadata?.avatar_url || '';
           setProfileData({ preferredName, avatarUrl });
         }
       } catch (err) {

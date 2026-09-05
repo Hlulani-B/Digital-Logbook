@@ -30,8 +30,9 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
         const cached = await cacheGet(CACHE_STORES.PROFILE, user.email);
         if (cached?.data) {
           const profile = cached.data;
-          const displayName = profile.preferred_name || profile.full_name || profile.display_name || user.email;
-          const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || '';
+          // Field names from profile service: avatar, username, name
+          const displayName = profile.username || profile.name || profile.display_name || user.email;
+          const avatarUrl = profile.avatar || user?.user_metadata?.avatar_url || '';
           setProfileData({ displayName, avatarUrl });
         }
       } catch (err) {
