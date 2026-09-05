@@ -5,10 +5,9 @@ import { ProfileMenu } from '@/components/ProfileMenu';
 
 interface AppShellProps {
   children: React.ReactNode;
-  title?: string;
 }
 
-export function AppShell({ children, title }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
