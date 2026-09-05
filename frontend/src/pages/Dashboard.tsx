@@ -90,11 +90,27 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     defaultView
   );
 
-  // Sort state
-  const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
+  // Sort state - persist in localStorage
+  const [sortBy, setSortBy] = useState<'priority' | 'date'>(() => {
+    const saved = localStorage.getItem('dashboard-sort-by');
+    if (saved === 'priority' || saved === 'date') return saved;
+    return 'date';
+  });
 
-  // Display mode: cards, checklist, or board
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>('cards');
+  useEffect(() => {
+    localStorage.setItem('dashboard-sort-by', sortBy);
+  }, [sortBy]);
+
+  // Display mode: cards, checklist, or board - persist in localStorage
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>(() => {
+    const saved = localStorage.getItem('dashboard-display-mode');
+    if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
+    return 'cards';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-display-mode', displayMode);
+  }, [displayMode]);
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
