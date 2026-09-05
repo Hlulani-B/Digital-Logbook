@@ -5214,6 +5214,27 @@ img {
   padding: 0.5rem 0;
 }
 
+/* AllEntries checklist grid - larger cards, better spacing */
+.allentries-checklist-grid .checklist-list {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.75rem;
+}
+
+.allentries-checklist-grid .checklist-card {
+  padding: 1rem 1.25rem;
+  min-height: 72px;
+}
+
+.allentries-checklist-grid .checklist-summary {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.allentries-checklist-grid .checklist-due {
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+}
+
 .checklist-card {
   display: flex;
   align-items: flex-start;

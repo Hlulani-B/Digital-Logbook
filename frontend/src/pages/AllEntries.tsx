@@ -230,6 +230,7 @@ export function AllEntriesPage() {
                 </p>
               </div>
             ) : displayMode === 'checklist' ? (
+              <div className="allentries-checklist-grid">
               <ChecklistView
                 entries={filteredEntries.map((r) => ({
                   id: r.id as string,
@@ -244,6 +245,7 @@ export function AllEntriesPage() {
                 onUpdated={() => loadData()}
                 onDelete={() => loadData()}
               />
+              </div>
             ) : displayMode === 'board' ? (
               <EntriesByDueDateBoard
                 entries={filteredEntries.map((r) => ({
