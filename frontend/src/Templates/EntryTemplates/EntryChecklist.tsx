@@ -308,9 +308,17 @@ export function ChecklistView({ entries, onUpdated, onDelete }: ChecklistViewPro
     );
   }
 
+  // Sort entries by due_date (earliest first), entries without due_date go last
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
+  });
+
   return (
     <div className="checklist-list">
-      {entries.map((entry) => (
+      {sortedEntries.map((entry) => (
         <ChecklistEntryCard
           key={entry.id}
           entry={entry}

@@ -38,7 +38,15 @@ function groupByWeekday(entries: BoardEntry[]): Column[] {
   const groups: Record<string, BoardEntry[]> = {};
   const noDueDate: BoardEntry[] = [];
 
-  for (const entry of entries) {
+  // Sort entries by due_date first (earliest first)
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
+  });
+
+  for (const entry of sortedEntries) {
     if (entry.deleted) continue;
     if (!entry.due_date) {
       noDueDate.push(entry);
@@ -49,13 +57,20 @@ function groupByWeekday(entries: BoardEntry[]): Column[] {
     groups[weekday].push(entry);
   }
 
-  const sortedColumns: Column[] = WEEKDAY_ORDER
-    .filter((day) => groups[day])
-    .map((day) => ({
+  // Sort columns by the earliest date in each column
+  const sortedColumns: Column[] = Object.entries(groups)
+    .map(([day, dayEntries]) => ({
       key: day,
       label: day,
-      entries: groups[day],
-    }));
+      entries: dayEntries,
+      earliestDate: dayEntries.reduce((earliest, e) => {
+        if (!e.due_date) return earliest;
+        if (!earliest) return e.due_date;
+        return e.due_date < earliest ? e.due_date : earliest;
+      }, ''),
+    }))
+    .sort((a, b) => a.earliestDate.localeCompare(b.earliestDate))
+    .map(({ key, label, entries: e }) => ({ key, label, entries: e }));
 
   if (noDueDate.length) {
     sortedColumns.push({ key: 'no-due-date', label: 'No due date', entries: noDueDate });
