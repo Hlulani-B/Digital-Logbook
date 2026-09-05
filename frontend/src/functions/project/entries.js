@@ -224,7 +224,8 @@ export async function updateEntry(
   status,
   started_at,
   ended_at,
-  duration
+  duration,
+  summary
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -245,6 +246,7 @@ export async function updateEntry(
           started_at: started_at !== undefined ? started_at : e.started_at,
           ended_at: ended_at !== undefined ? ended_at : e.ended_at,
           duration: duration !== undefined ? duration : e.duration,
+          summary: summary !== undefined ? summary : e.summary,
         };
       }
       return e;
@@ -279,6 +281,7 @@ export async function updateEntry(
           started_at,
           ended_at,
           duration,
+          summary,
         },
       }),
     });

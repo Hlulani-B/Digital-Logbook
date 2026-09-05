@@ -122,7 +122,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
     setError(null);
     
     try {
-      // Build entries object with updated summary
+      // Build entries object (keep existing data)
       let entriesObj: Record<string, unknown> = {};
       if (entry.entries) {
         entriesObj = typeof entry.entries === 'string'
@@ -130,9 +130,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
           : { ...entry.entries };
       }
       
-      // Update summary in entries object
-      entriesObj.summary = draftSummary;
-      
+      // Save summary directly to the summary column (as-is, no transformation)
       await updateEntry(
         entry.user_email,
         entry.project_name,
@@ -144,6 +142,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
         undefined, // started_at
         undefined, // ended_at
         undefined, // duration
+        draftSummary, // summary — saved as-is to the database
       );
       
       setEditOpen(false);
