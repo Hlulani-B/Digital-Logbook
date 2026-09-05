@@ -21,11 +21,31 @@ export function AllEntriesPage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Sort state
-  const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
+  // Sort state - persist in localStorage
+  const [sortBy, setSortBy] = useState<'priority' | 'date'>(() => {
+    const saved = localStorage.getItem('allentries-sort-by');
+    if (saved === 'priority' || saved === 'date') return saved;
+    return 'date';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('allentries-sort-by', sortBy);
+  }, [sortBy]);
 
   // Display mode: cards, checklist, board, or table
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'table'>('cards');
+  // Persist in localStorage so it survives refresh
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'table'>(() => {
+    const saved = localStorage.getItem('allentries-display-mode');
+    if (saved === 'cards' || saved === 'checklist' || saved === 'board' || saved === 'table') {
+      return saved;
+    }
+    return 'cards';
+  });
+
+  // Save display mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('allentries-display-mode', displayMode);
+  }, [displayMode]);
 
   // Data state
   const [entries, setEntries] = useState<Entry[]>([]);

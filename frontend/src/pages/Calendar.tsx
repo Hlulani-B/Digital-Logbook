@@ -185,7 +185,16 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [view, setView] = useState<CalendarView>('month');
+  // Persist view in localStorage
+  const [view, setView] = useState<CalendarView>(() => {
+    const saved = localStorage.getItem('calendar-view');
+    if (saved === 'month' || saved === 'week') return saved;
+    return 'month';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('calendar-view', view);
+  }, [view]);
   const [dragging, setDragging] = useState<DragState>(null);
   const [updating, setUpdating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
