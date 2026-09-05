@@ -167,7 +167,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [aiEmptyMessage, setAiEmptyMessage] = useState('No entries to show right now.');
+  const [, setAiEmptyMessage] = useState('No entries to show right now.');
   const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
 
   // New project modal

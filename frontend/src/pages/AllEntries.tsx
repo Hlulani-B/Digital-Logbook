@@ -1,10 +1,9 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
-import { addProject, getProjectsByEmail } from '@/functions/project/project.js';
-import { addField } from '@/functions/project/fields.js';
+import { getProjectsByEmail } from '@/functions/project/project.js';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
@@ -18,10 +17,8 @@ import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
-import { FiArchive } from 'react-icons/fi';
 
 type Entry = Record<string, unknown>;
-type Project = Record<string, unknown>;
 
 function parseAIResponse(response: string): string {
   try {
@@ -42,8 +39,10 @@ function parseAIResponse(response: string): string {
 }
 
 export function AllEntriesPage() {
-  const { user, signOut, deleteAccount, resetPassword } = useAuth();
+  const { user, signOut, resetPassword } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
 
@@ -60,14 +59,10 @@ export function AllEntriesPage() {
   const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'table'>('cards');
 
   // Data state
-  const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
-
-  // FAB menu
-  const [fabOpen, setFabOpen] = useState(false);
 
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -75,19 +70,6 @@ export function AllEntriesPage() {
   // AI-generated messages
   const [aiEmptyMessage, setAiEmptyMessage] = useState('No entries to show right now.');
   const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
-
-  // New project modal
-  const [newProjectOpen, setNewProjectOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [creatingProject, setCreatingProject] = useState(false);
-  const [newProjectError, setNewProjectError] = useState<string | null>(null);
-  const [projectFields, setProjectFields] = useState<{ field_name: string; data_type: 'text' | 'number' | 'date' | 'boolean'; is_required: boolean }[]>([]);
-
-  // Project settings panel
-  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   const email = user?.email || '';
 
@@ -113,26 +95,21 @@ export function AllEntriesPage() {
     setLoading(true);
     try {
       // Load from cache first
-      const cachedEntries = await cacheGet(CACHE_STORES.ENTRIES);
-      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS);
-      if (cachedEntries) setEntries(cachedEntries as Entry[]);
-      if (cachedProjects) setProjects(cachedProjects as Project[]);
+      const cachedEntries = await cacheGet(CACHE_STORES.ENTRIES, email);
+      if (cachedEntries?.data) setEntries(cachedEntries.data as Entry[]);
 
       // Fetch fresh data
       const [projRes, entRes] = await Promise.all([
         getProjectsByEmail(email),
-        cacheGet(CACHE_STORES.ENTRIES),
+        sortUnarchivedEntries(email, null, 0),
       ]);
 
-      const projs = projRes?.data || projRes || [];
-      const ents = entRes || [];
-
-      setProjects(projs);
-      setEntries(sortUnarchivedEntries(ents));
+      const ents = entRes?.data || entRes || [];
+      setEntries(ents as Entry[]);
 
       // Update cache
-      await cacheSet(CACHE_STORES.ENTRIES, ents);
-      await cacheSet(CACHE_STORES.PROJECTS, projs);
+      await cacheSet(CACHE_STORES.ENTRIES, email, { success: true, data: ents });
+      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projRes?.data || projRes || [] });
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {
@@ -141,6 +118,19 @@ export function AllEntriesPage() {
   }, [email]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Load profile info
+  useEffect(() => {
+    if (!email) return;
+    (async () => {
+      try {
+        const result = await getProfile(email);
+        const data = result?.data || result;
+        if (data?.avatar_url) setProfileAvatar(data.avatar_url);
+        if (data?.username) setProfileUsername(data.username);
+      } catch {}
+    })();
+  }, [email]);
 
   // User info
   const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
@@ -157,9 +147,9 @@ export function AllEntriesPage() {
     try { await signOut(); } catch {} finally { setLoggingOut(false); }
   };
 
-  const handleSetPriority = async (entryId: string, priority: 'low' | 'medium' | 'high') => {
+  const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
-    await setPriority(email, entryId, priority);
+    await setPriority(email, entryId, projectName, priorityValue);
     loadData();
   };
 
@@ -229,8 +219,6 @@ export function AllEntriesPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDrawerOpen(false);
-        setFabOpen(false);
-        setProjectMenuOpen(false);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -254,6 +242,7 @@ export function AllEntriesPage() {
             <div className="nav-logo-badge">
               <span>DL</span>
             </div>
+            <span className="nav-title">Digital Logbook</span>
           </div>
 
           <div className="nav-right-group">
@@ -413,7 +402,7 @@ export function AllEntriesPage() {
               <ProjectTaskTable
                 rows={filteredEntries}
                 viewMode="entry"
-                onUpdate={async (id: string) => {
+                onUpdate={async () => {
                   await loadData();
                 }}
                 onDeleteSelected={async () => {
@@ -443,29 +432,32 @@ export function AllEntriesPage() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         initialTab={settingsTab}
-        onProfileUpdated={() => {
-          loadData();
-          getProfile(email).then((res) => {
-            const data = res?.data || res;
-            if (data?.avatar_url) setProfileAvatar(data.avatar_url);
-          });
-        }}
+        userId={user?.id || ''}
+        displayName={preferredName}
+        email={user?.email || ''}
+        avatarUrl={avatarUrl}
+        provider={user?.app_metadata?.provider || 'email'}
         onDeleteAccount={async () => {
+          setDeleting(true);
+          setDeleteError(null);
           try {
-            await deleteAccount();
             await signOut();
           } catch (err) {
             console.error('Delete account failed:', err);
+            setDeleteError('Failed to delete account');
+          } finally {
+            setDeleting(false);
           }
         }}
-        onResetPassword={async () => {
-          if (!user?.email) return;
+        onResetPassword={async (email: string) => {
           try {
-            await resetPassword(user.email);
+            await resetPassword(email);
           } catch (err) {
             console.error('Password reset failed:', err);
           }
         }}
+        deleting={deleting}
+        deleteError={deleteError}
       />
     </div>
   );
