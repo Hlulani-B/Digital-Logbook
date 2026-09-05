@@ -6,6 +6,39 @@ The Digital Logbook frontend implements a **local-first architecture** using Ind
 
 **Core principle:** Pages never call server APIs directly. They read from IndexedDB via `useEffect` and display data instantly. A centralized sync service (`CacheFunctions/syncService.js`) handles all server communication.
 
+## Why the Previous Approach Failed
+
+Before the local-first architecture, the app had a **scattered cache-first pattern** that looked like caching but didn't actually work reliably. Here's what was wrong:
+
+### 1. No Centralized Cache Warm-Up
+Each page had its own `loadData` function that independently fetched from the server and wrote to IndexedDB. There was no global "warm-up" on app load. If you visited Dashboard first, only Dashboard's data was cached — AllEntries, Stats, Today, Calendar all had to fetch from scratch. Pages never benefited from each other's cache.
+
+### 2. Inconsistent Cache Stores
+Different pages used different IndexedDB stores for the same data. For example, Dashboard stored entries in `CACHE_STORES.ALL_ENTRIES` while AllEntries stored them in `CACHE_STORES.ENTRIES`. They never shared cached data — visiting one page didn't help the other.
+
+### 3. `hasCache` Checks Were Incomplete
+Dashboard's `hasCache` check only looked at `cachedEntries?.data || cachedProjects?.data` — it ignored `cachedDueSoon?.data`. So even if due-soon data was cached, the page would still show a spinner if entries/projects weren't cached yet.
+
+### 4. `dueSoon()` Always Hit the Server
+The `dueSoon()` function called `getUnarchived()` which made a server API call every single time. Even though all entries were already in IndexedDB, `dueSoon` ignored the cache and fetched from the network. This defeated the entire purpose of caching.
+
+### 5. `setPriority()` Had No IndexedDB Integration
+The `setPriority()` function called the server directly without writing to IndexedDB first. The UI wouldn't update until the next full page reload or `loadData()` call. Users would change a priority and see no change — then wonder if it worked.
+
+### 6. Pages Still Depended on Server Responses
+Even with cache-first reads, every page's `loadData` still called individual server fetch functions (`getProjectsByEmail`, `sortUnarchivedEntries`, `dueSoon`, etc.) in the background. These functions each made their own network requests, so a single page load could trigger 3-5 parallel server calls. If the server was slow, the "fresh data" phase would stall and the UI would flicker between cached and fresh data.
+
+### 7. No Single Source of Truth
+Without a centralized sync service, there was no guarantee that IndexedDB had complete, consistent data. Each page wrote to cache independently, sometimes with different key formats or store names. The result: cached data was often incomplete, stale, or missing entirely for pages the user hadn't visited yet.
+
+### The Fix
+The local-first architecture solves all of these by:
+- **One sync service** (`syncAllData`) that fetches ALL data in one call and populates all IndexedDB stores
+- **One trigger point** (`DataSyncInitializer` in App.tsx) that warms up cache on login
+- **Pages read only from IndexedDB** — no direct server calls from pages
+- **`dueSoon` computes from cache** — no server call needed
+- **All mutations write IndexedDB first** — instant UI, then server sync
+
 ## Architecture Flow
 
 ```
