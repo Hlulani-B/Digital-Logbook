@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
 
 interface HeaderProps {
   title?: string;
@@ -16,11 +17,29 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Profile info
-  const fullDisplayName =
-    user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
-  const avatarUrl = user?.user_metadata?.avatar_url;
-  const provider = user?.app_metadata?.provider || 'email';
+  // Profile info from IndexedDB
+  const [profileData, setProfileData] = useState<{ displayName: string; avatarUrl: string }>({
+    displayName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User',
+    avatarUrl: user?.user_metadata?.avatar_url || '',
+  });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.email) return;
+      try {
+        const cached = await cacheGet(CACHE_STORES.PROFILE, user.email);
+        if (cached?.data) {
+          const profile = cached.data;
+          const displayName = profile.preferred_name || profile.full_name || profile.display_name || user.email;
+          const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || '';
+          setProfileData({ displayName, avatarUrl });
+        }
+      } catch (err) {
+        console.error('[Header] Failed to load profile from cache:', err);
+      }
+    };
+    loadProfile();
+  }, [user?.email, user?.user_metadata]);
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -51,10 +70,10 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
         open={settingsOpen}
         initialTab="profile"
         userId={user?.id || ''}
-        displayName={fullDisplayName}
+        displayName={profileData.displayName}
         email={user?.email || ''}
-        avatarUrl={avatarUrl}
-        provider={provider}
+        avatarUrl={profileData.avatarUrl}
+        provider={user?.app_metadata?.provider || 'email'}
         onClose={() => setSettingsOpen(false)}
         onDeleteAccount={handleDeleteAccount}
         onResetPassword={resetPassword}
