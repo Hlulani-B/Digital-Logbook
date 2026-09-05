@@ -13,7 +13,6 @@ interface HeaderProps {
 export function Header({ title = 'Dashboard', entries = [], projects = [], dueSoonCount = 0 }: HeaderProps) {
   const { user, deleteAccount, resetPassword } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -35,11 +34,6 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
     }
   };
 
-  const openSettings = (tab: 'profile' | 'preferences' | 'account') => {
-    setSettingsTab(tab);
-    setSettingsOpen(true);
-  };
-
   return (
     <>
       {/* Feed Header */}
@@ -55,7 +49,7 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
       {/* Settings Panel */}
       <SettingsPanel
         open={settingsOpen}
-        initialTab={settingsTab}
+        initialTab="profile"
         userId={user?.id || ''}
         displayName={fullDisplayName}
         email={user?.email || ''}
