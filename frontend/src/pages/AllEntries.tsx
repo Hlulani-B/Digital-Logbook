@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { ProfileMenu } from '@/components/ProfileMenu';
-import { SettingsPanel } from '@/components/SettingsPanel';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import { EntryBox } from '@/pages/NewEntry';
@@ -14,40 +13,11 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
-import { askAI } from '@/functions/ai.js';
-import { getToneInstruction } from '@/functions/tone';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Entry = Record<string, unknown>;
 
-function parseAIResponse(response: string): string {
-  try {
-    const parsed = JSON.parse(response);
-    if (typeof parsed === 'string') return parsed;
-    if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
-        if (typeof parsed[key] === 'string') return parsed[key];
-      }
-      for (const val of Object.values(parsed)) {
-        if (typeof val === 'string') return val;
-      }
-    }
-    return response;
-  } catch {
-    return response;
-  }
-}
-
 export function AllEntriesPage() {
-  const { user, signOut, resetPassword } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
-
-  // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,15 +30,13 @@ export function AllEntriesPage() {
 
   // Data state
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [projects, setProjects] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // AI-generated messages
-  const [aiEmptyMessage, setAiEmptyMessage] = useState('No entries to show right now.');
+  // AI placeholder
   const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
 
   const email = user?.email || '';
@@ -105,11 +73,13 @@ export function AllEntriesPage() {
       ]);
 
       const ents = entRes?.data || entRes || [];
+      const projs = projRes?.data || projRes || [];
       setEntries(ents as Entry[]);
+      setProjects(projs as Array<Record<string, unknown>>);
 
       // Update cache
       await cacheSet(CACHE_STORES.ENTRIES, email, { success: true, data: ents });
-      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projRes?.data || projRes || [] });
+      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {
@@ -118,34 +88,6 @@ export function AllEntriesPage() {
   }, [email]);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  // Load profile info
-  useEffect(() => {
-    if (!email) return;
-    (async () => {
-      try {
-        const result = await getProfile(email);
-        const data = result?.data || result;
-        if (data?.avatar_url) setProfileAvatar(data.avatar_url);
-        if (data?.username) setProfileUsername(data.username);
-      } catch {}
-    })();
-  }, [email]);
-
-  // User info
-  const fullDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
-  const preferredName = profileUsername?.trim() || fullDisplayName;
-  const avatarUrl = profileAvatar || undefined;
-
-  const openSettings = (tab: 'profile' | 'preferences' | 'account' = 'profile') => {
-    setSettingsTab(tab);
-    setSettingsOpen(true);
-  };
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try { await signOut(); } catch {} finally { setLoggingOut(false); }
-  };
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
@@ -186,22 +128,6 @@ export function AllEntriesPage() {
     return filtered;
   }, [entries, searchQuery, sortBy]);
 
-  // AI empty message
-  useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
-    if (!loading && filteredEntries.length === 0 && !searchQuery) {
-      (async () => {
-        const tone = getToneInstruction();
-        const result = await askAI(
-          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny. ${tone}`
-        );
-        if (result?.response) {
-          setAiEmptyMessage(parseAIResponse(result.response));
-        }
-      })();
-    }
-  }, [loading, filteredEntries.length, searchQuery]);
-
   // AI placeholder
   useEffect(() => {
     const placeholders = [
@@ -214,83 +140,18 @@ export function AllEntriesPage() {
     setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
   }, []);
 
-  // Close drawer on escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDrawerOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   return (
     <div className="dash-layout">
-      <div className={drawerOpen ? 'drawer-backdrop' : 'd-none'} onClick={() => setDrawerOpen(false)} />
+      <div className="bg-mesh" />
 
-      <nav className="dash-nav">
-        <div className="dash-nav-inner">
-          <div className="nav-left-group">
-            <button className="nav-icon-btn" onClick={() => setDrawerOpen(!drawerOpen)} aria-label="Menu">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <div className="nav-logo-badge">
-              <span>DL</span>
-            </div>
-            <span className="nav-title">Digital Logbook</span>
-          </div>
-
-          <div className="nav-right-group">
-            <div className="nav-user">
-              <ProfileMenu
-                displayName={preferredName}
-                email={user?.email || ''}
-                avatarUrl={avatarUrl}
-                onManageProfile={() => openSettings('profile')}
-                onSettings={() => openSettings('preferences')}
-                onSignOut={handleLogout}
-                signingOut={loggingOut}
-              />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Drawer */}
-      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
-      <aside className={`drawer ${drawerOpen ? 'drawer-open' : ''}`}>
-        <div className="drawer-header">
-          <span className="drawer-title">Navigation</span>
-          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div className="drawer-content">
-          <button className={`drawer-item`} onClick={() => { window.location.href = '/dashboard'; setDrawerOpen(false); }}>
-            Dashboard
-          </button>
-          <button className={`drawer-item active`} onClick={() => { setDrawerOpen(false); }}>
-            My Entries
-          </button>
-          <button className={`drawer-item`} onClick={() => { window.location.href = '/calendar'; setDrawerOpen(false); }}>
-            Calendar
-          </button>
-        </div>
-      </aside>
+      <NavBar
+        projects={projects}
+        entries={entries}
+        activeView="all"
+      />
 
       <main className="dash-main">
-        <div className="dash-header-section">
-          <h1 className="dash-title">My Entries</h1>
-          <p className="dash-subtitle">All your tasks in one place</p>
-        </div>
+        <Header title="My Entries" entries={entries} projects={projects} />
 
         {/* Search bar */}
         <div className="feed-search-bar">
@@ -365,7 +226,7 @@ export function AllEntriesPage() {
                 </div>
                 <h2 className="empty-title">{searchQuery ? 'No results found' : 'No entries yet'}</h2>
                 <p className="empty-desc">
-                  {searchQuery ? `No entries match "${searchQuery}". Try a different search term.` : aiEmptyMessage}
+                  {searchQuery ? `No entries match "${searchQuery}". Try a different search term.` : 'No entries to show right now.'}
                 </p>
               </div>
             ) : displayMode === 'checklist' ? (
@@ -426,39 +287,6 @@ export function AllEntriesPage() {
 
       {/* Voice Feature */}
       {voiceOpen && <VoiceFeature onClose={() => setVoiceOpen(false)} onEntryCreated={() => { loadData(); setVoiceOpen(false); }} />}
-
-      {/* Settings Panel */}
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        initialTab={settingsTab}
-        userId={user?.id || ''}
-        displayName={preferredName}
-        email={user?.email || ''}
-        avatarUrl={avatarUrl}
-        provider={user?.app_metadata?.provider || 'email'}
-        onDeleteAccount={async () => {
-          setDeleting(true);
-          setDeleteError(null);
-          try {
-            await signOut();
-          } catch (err) {
-            console.error('Delete account failed:', err);
-            setDeleteError('Failed to delete account');
-          } finally {
-            setDeleting(false);
-          }
-        }}
-        onResetPassword={async (email: string) => {
-          try {
-            await resetPassword(email);
-          } catch (err) {
-            console.error('Password reset failed:', err);
-          }
-        }}
-        deleting={deleting}
-        deleteError={deleteError}
-      />
     </div>
   );
 }

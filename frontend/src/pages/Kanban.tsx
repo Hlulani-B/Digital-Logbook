@@ -15,7 +15,8 @@ import {
   groupEntriesByStatus,
 } from '@/lib/kanban';
 import './Kanban.css';
-import { AppShell } from '@/components/AppShell';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
@@ -273,12 +274,12 @@ export function KanbanPage() {
   };
 
   return (
-    <AppShell>
-    <div className="kanban-page">
-      <div className="dash-header-section">
-        <h1 className="dash-title">Kanban Board</h1>
-        <p className="dash-subtitle">Drag and drop tasks between columns</p>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects as Array<Record<string, unknown>>} entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+      <div className="kanban-page">
+        <Header title="Kanban Board" entries={entries as unknown as Array<Record<string, unknown>>} projects={projects as Array<Record<string, unknown>>} />
 
       <div className="kanban-toolbar">
         <div className="kanban-filter">
@@ -374,6 +375,7 @@ export function KanbanPage() {
         </div>
       )}
     </div>
-    </AppShell>
+    </main>
+    </div>
   );
 }
