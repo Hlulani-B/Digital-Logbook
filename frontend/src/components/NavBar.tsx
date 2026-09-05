@@ -189,7 +189,7 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
           <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
           <button
-            className={`drawer-item ${activeView === 'all' ? 'active' : ''}`}
+            className={`drawer-item ${location.pathname === '/dashboard/all' || location.pathname === '/dashboard' ? 'active' : ''}`}
             onClick={() => {
               navigate('/dashboard/all');
               setDrawerOpen(false);
@@ -210,7 +210,7 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
             <span className="drawer-badge">{safeEntries.length}</span>
           </button>
           <button
-            className="drawer-item"
+            className={`drawer-item ${location.pathname === '/entries' ? 'active' : ''}`}
             onClick={() => {
               navigate('/entries');
               setDrawerOpen(false);
