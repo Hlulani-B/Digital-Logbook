@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getAllEntries } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { type CalendarEntry, getEntryTitle, parseDueDate } from '@/lib/calendar';
 import { getTodaySections, hasNothingToDo } from '@/lib/today';
 import './Today.css';
-import { AppShell } from '@/components/AppShell';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', {
@@ -102,29 +103,24 @@ export function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Load data — read ONLY from IndexedDB. Mutations update it directly.
   const loadData = useCallback(async () => {
     if (!email) return;
     setError(null);
-
-    // 1. Try cache first — no spinner
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       if (cached?.data) {
         const data = (Array.isArray(cached.data) ? cached.data : []).filter((e: CalendarEntry) => !e.archived);
         setEntries(data);
-        setLoading(false);
-      }
-    } catch { /* no cache */ }
-
-    // 2. Fetch fresh data
-    try {
-      const result = await getAllEntries(email);
-      if (result?.success === false) {
-        setError(result.message || 'Failed to load entries');
       } else {
-        const data = (result?.data || []).filter((entry: CalendarEntry) => !entry.archived);
-        setEntries(data);
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data });
+        // First visit ever — trigger initial sync
+        setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (fresh?.data) {
+          const data = (Array.isArray(fresh.data) ? fresh.data : []).filter((entry: CalendarEntry) => !entry.archived);
+          setEntries(data);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load today view');
@@ -145,8 +141,12 @@ export function TodayPage() {
   };
 
   return (
-    <AppShell title="Today">
-    <div className="today-page">
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Today" entries={entries as unknown as Array<Record<string, unknown>>} />
+        <div className="today-page">
 
       {error && (
         <div className="today-error" role="alert">
@@ -212,7 +212,8 @@ export function TodayPage() {
           />
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }

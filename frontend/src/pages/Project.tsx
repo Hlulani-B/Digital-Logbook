@@ -1,19 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { AppShell } from '@/components/AppShell';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 import {
   editProjectName,
   deleteProject,
-  getProjectsByEmail,
   addProject,
 } from '../functions/project/project.js';
 import { getArchivedProjects, archiveProject, unarchiveProject } from '../functions/project/archives.js';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
-import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
-import { getAllEntries, getEntries, updateEntry, deleteEntryById } from '@/functions/project/entries';
-import '@/Templates/ProjectTemplates/ProjectTable.css';
 
 type ProjectRecord = {
   project_name: string;
@@ -36,7 +34,6 @@ export function ProjectsPage() {
   const email = user?.email || '';
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
-  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,70 +59,31 @@ export function ProjectsPage() {
   const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
 
-  // View mode for table — persist in localStorage
-  const [viewMode, setViewModeState] = useState<'entry' | 'summary'>(() => {
-    const stored = localStorage.getItem('project-table-view-mode');
-    if (stored === 'entry' || stored === 'summary') return stored;
-    return 'entry';
-  });
-  const setViewMode = (mode: 'entry' | 'summary') => {
-    setViewModeState(mode);
-    localStorage.setItem('project-table-view-mode', mode);
-  };
-
   const loadProjects = useCallback(async () => {
     if (!email) return;
     setError(null);
-
-    // 1. Try cache first — no spinner
+    // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
-      if (cached?.data) {
-        const list = (Array.isArray(cached.data) ? cached.data : []).filter((p: ProjectRecord) => !p.archived);
+      if (cached?.data || cached?.projects) {
+        const rawProjects = cached.data || cached.projects || [];
+        const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
         setProjects(list);
-        setLoading(false);
+      } else {
+        // First visit ever — trigger initial sync
+        setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
+        if (fresh?.data || fresh?.projects) {
+          const rawProjects = fresh.data || fresh.projects || [];
+          const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
+          setProjects(list);
+        }
       }
-    } catch { /* no cache */ }
-
-    // 2. Fetch fresh data
-    try {
-      const result = await getProjectsByEmail(email);
-      if (result?.error) throw new Error(result.error);
-      const list = (
-        Array.isArray(result) ? result : Array.isArray(result?.projects) ? result.projects : []
-      ).filter((p: ProjectRecord) => !p.archived);
-      setProjects(list);
-      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: list });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your projects');
     } finally {
       setLoading(false);
-    }
-  }, [email]);
-
-  // Load all entries for the table
-  const loadEntries = useCallback(async () => {
-    if (!email) return;
-    try {
-      // 1. Try cache first
-      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-      if (cached?.data) {
-        setEntries(Array.isArray(cached.data) ? cached.data : []);
-      }
-
-      // 2. Fetch fresh data
-      const result = await getAllEntries(email);
-      if (result?.success && result.data) {
-        setEntries(result.data);
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: result.data });
-      } else if (Array.isArray(result)) {
-        setEntries(result);
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: result });
-      } else {
-        if (!cached?.data) setEntries([]);
-      }
-    } catch (err) {
-      console.error('[ProjectsPage] Failed to load entries:', err);
     }
   }, [email]);
 
@@ -147,37 +105,7 @@ export function ProjectsPage() {
   useEffect(() => {
     loadProjects();
     loadArchivedProjects();
-    loadEntries();
-  }, [loadProjects, loadArchivedProjects, loadEntries]);
-
-  // Handle entry updates from the table
-  const handleEntryUpdate = useCallback(
-    async (id: string, patch: Record<string, any>) => {
-      setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-      const row = entries.find((r) => r.id === id);
-      if (!row) return;
-      try {
-        await updateEntry(
-          email,
-          row.project_name,
-          id,
-          patch.entries ?? row.entries,
-          patch.due_date !== undefined ? patch.due_date : row.due_date,
-          patch.priority !== undefined ? patch.priority : row.priority,
-          patch.status !== undefined ? patch.status : row.status,
-          row.started_at,
-          row.ended_at,
-          row.duration,
-        );
-        // Reload entries after successful update
-        await loadEntries();
-      } catch (err) {
-        console.error('Update failed:', err);
-        setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
-      }
-    },
-    [entries, email, loadEntries],
-  );
+  }, [loadProjects, loadArchivedProjects]);
 
   const handleCreateProject = async () => {
     const trimmed = newProjectName.trim();
@@ -268,11 +196,10 @@ export function ProjectsPage() {
     setViewingArchived(name);
     setLoadingEntries(true);
     try {
-      const result = await getEntries(email, name);
-      if (result?.success && result.data) {
-        setArchivedEntries(result.data);
-      } else if (Array.isArray(result)) {
-        setArchivedEntries(result);
+      // Read from cache only
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, `${email}:${name}`);
+      if (cached?.data) {
+        setArchivedEntries(Array.isArray(cached.data) ? cached.data : []);
       } else {
         setArchivedEntries([]);
       }
@@ -284,9 +211,12 @@ export function ProjectsPage() {
   };
 
   return (
-    <AppShell title="Projects">
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      {/* Header */}
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Your Projects" projects={projects as Array<Record<string, unknown>>} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
@@ -299,11 +229,6 @@ export function ProjectsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* View toggle */}
-          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--accent, #c49a2a)' }}>
-            <button onClick={() => setViewMode('entry')} style={{ padding: '0.35rem 0.9rem', border: 'none', background: viewMode === 'entry' ? 'var(--accent, #c49a2a)' : 'var(--bg-subtle, #fdfaf3)', color: viewMode === 'entry' ? '#fff' : 'var(--text, #3b3226)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>Entry</button>
-            <button onClick={() => setViewMode('summary')} style={{ padding: '0.35rem 0.9rem', border: 'none', borderLeft: '1.5px solid var(--accent, #c49a2a)', background: viewMode === 'summary' ? 'var(--accent, #c49a2a)' : 'var(--bg-subtle, #fdfaf3)', color: viewMode === 'summary' ? '#fff' : 'var(--text, #3b3226)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>Summary</button>
-          </div>
           <button type="button" onClick={() => setCreating(true)} className="btn-primary" style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <FiPlus size={14} /> New project
           </button>
@@ -335,35 +260,6 @@ export function ProjectsPage() {
           <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.05rem', fontWeight: 700 }}>No projects yet</h3>
           <p style={{ margin: '0 0 1.25rem', color: 'var(--text-dim, #6b7280)', fontSize: '0.875rem' }}>Create a project to start logging entries against it.</p>
           <button type="button" onClick={() => setCreating(true)} className="btn-primary">+ New project</button>
-        </div>
-      )}
-
-      {/* Project table — all entries grouped by project */}
-      {!loading && entries.length > 0 && (
-        <ProjectTaskTable
-          rows={entries}
-          viewMode={viewMode}
-          onUpdate={handleEntryUpdate}
-          onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
-          onDeleteSelected={async (ids: string[]) => {
-            if (!email) return;
-            setEntries((prev) => prev.filter((r) => !ids.includes(r.id)));
-            for (const id of ids) {
-              try {
-                await deleteEntryById(email, id);
-              } catch (err) {
-                console.error('[onDeleteSelected] Failed to delete', id, err);
-              }
-            }
-          }}
-        />
-      )}
-
-      {!loading && entries.length === 0 && projects.length > 0 && (
-        <div className="glass" style={{ textAlign: 'center', padding: '2rem 1.5rem', borderRadius: '0.85rem', marginBottom: '1.5rem' }}>
-          <p style={{ margin: 0, color: 'var(--text-dim, #6b7280)', fontSize: '0.9rem' }}>
-            No entries yet. Start logging entries to see them in the table above.
-          </p>
         </div>
       )}
 
@@ -492,7 +388,8 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }

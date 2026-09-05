@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { syncAllData } from '@/CacheFunctions';
 import { SignIn } from '@/pages/SignIn';
 import { AuthCallback } from '@/pages/AuthCallback';
 import { AuthRestore } from '@/pages/AuthRestore';
@@ -29,6 +31,26 @@ function ThemeInitializer({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * DataSyncInitializer — triggers a full IndexedDB sync when the user logs in.
+ * This warms up the local cache so all pages can read from IndexedDB immediately.
+ */
+function DataSyncInitializer({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const email = user?.email;
+
+  useEffect(() => {
+    if (email) {
+      // Fire-and-forget: sync all data from server → IndexedDB
+      syncAllData(email).catch((err) => {
+        console.warn('[App] Initial data sync failed:', err);
+      });
+    }
+  }, [email]);
+
+  return <>{children}</>;
+}
+
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) {
@@ -38,14 +60,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
         <div className="auth-container">
           <div className="glass auth-card" style={{ textAlign: 'center' }}>
             <div
-              className="animate-spin"
+              className="animate-spin spinner-circle"
               style={{
                 width: 32,
                 height: 32,
                 margin: '0 auto 1rem',
-                borderRadius: '50%',
-                border: '3px solid var(--border)',
-                borderTopColor: 'var(--accent)',
               }}
             />
             <p style={{ fontSize: '0.875rem', color: 'var(--text-dim)' }}>Loading...</p>
@@ -65,6 +84,7 @@ export function App() {
     <BrowserRouter>
       <ThemeInitializer>
         <AuthProvider>
+          <DataSyncInitializer>
           <Routes>
             <Route
               path="/"
@@ -239,6 +259,7 @@ export function App() {
             />
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
+          </DataSyncInitializer>
         </AuthProvider>
       </ThemeInitializer>
     </BrowserRouter>

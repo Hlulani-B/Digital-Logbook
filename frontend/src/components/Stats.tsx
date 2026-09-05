@@ -19,6 +19,9 @@ interface StatsProps {
 export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsProps) {
   const [statsOpen, setStatsOpen] = useState(false);
   const [reflection, setReflection] = useState('');
+  // Defensive: ensure entries/projects are always arrays
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  const safeProjects = Array.isArray(projects) ? projects : [];
 
   // Generate AI reflection when stats panel is opened
   useEffect(() => {
@@ -30,7 +33,7 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
         // Calculate quick stats
         const now = new Date();
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const recentEntries = entries.filter((e) => {
+        const recentEntries = safeEntries.filter((e) => {
           const created = new Date(e.created_at as string);
           return created >= weekAgo;
         });
@@ -42,7 +45,7 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
         });
 
         const topProject = Object.entries(projectCounts).sort((a, b) => b[1] - a[1])[0];
-        const totalEntries = entries.length;
+        const totalEntries = safeEntries.length;
         const weekEntries = recentEntries.length;
 
         // Build prompt for AI
@@ -50,7 +53,7 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
         const prompt = `Generate a brief, friendly stats reflection (under 25 words) for a user with:
 - ${totalEntries} total entries
 - ${weekEntries} entries in the past week
-- ${projects.length} projects
+- ${safeProjects.length} projects
 ${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[1]} entries)` : ''}
 
 Make it insightful and encouraging. ${tone}`;
@@ -90,19 +93,19 @@ Make it insightful and encouraging. ${tone}`;
           // Fallback if AI fails
           setReflection(
             topProject
-              ? `You've got ${totalEntries} entries across ${projects.length} projects. ${topProject[0]} is leading with ${topProject[1]} entries this week — keep it up!`
-              : `You've got ${totalEntries} entries across ${projects.length} projects. Log more this week to build momentum!`
+              ? `You've got ${totalEntries} entries across ${safeProjects.length} projects. ${topProject[0]} is leading with ${topProject[1]} entries this week — keep it up!`
+              : `You've got ${totalEntries} entries across ${safeProjects.length} projects. Log more this week to build momentum!`
           );
         }
       } catch (err) {
         console.error('[Stats] Reflection error:', err);
         // Fallback on error
-        const totalEntries = entries.length;
-        const topProject = projects.length > 0 ? projects[0] : null;
+        const totalEntries = safeEntries.length;
+        const topProject = safeProjects.length > 0 ? safeProjects[0] : null;
         setReflection(
           topProject
-            ? `You've got ${totalEntries} entries across ${projects.length} projects. ${(topProject as any).project_name} is your most active — nice work!`
-            : `You've got ${totalEntries} entries across ${projects.length} projects. Keep logging to build your streak!`
+            ? `You've got ${totalEntries} entries across ${safeProjects.length} projects. ${(topProject as any).project_name} is your most active — nice work!`
+            : `You've got ${totalEntries} entries across ${safeProjects.length} projects. Keep logging to build your streak!`
         );
       }
     };
@@ -111,7 +114,7 @@ Make it insightful and encouraging. ${tone}`;
   }, [statsOpen, reflection, activeProject, entries, projects]);
 
   // Detect in-progress entries so the live timer only ticks when needed.
-  const hasInProgress = useMemo(() => entries.some((e) => e.started_at && !e.ended_at), [entries]);
+  const hasInProgress = useMemo(() => safeEntries.some((e) => e.started_at && !e.ended_at), [safeEntries]);
   // Ticking timestamp — re-renders every second while a task is running,
   // paused otherwise to avoid unnecessary work.
   const now = useNow(1000, hasInProgress);
@@ -119,13 +122,13 @@ Make it insightful and encouraging. ${tone}`;
   // Calculate total time tracked (including in-progress tasks). Passes the
   // ticking `now` so in-progress durations count up live.
   const totalTimeTracked = useMemo(() => {
-    return calculateTotalTimeTracked(entries, now);
-  }, [entries, now]);
+    return calculateTotalTimeTracked(safeEntries, now);
+  }, [safeEntries, now]);
 
   // Per-project breakdown
   const projectStats = useMemo(() => {
-    return calculateProjectStats(entries, now);
-  }, [entries, now]);
+    return calculateProjectStats(safeEntries, now);
+  }, [safeEntries, now]);
 
   // Stats scoped to the active project
   const activeProjectStats = useMemo(() => {
@@ -135,8 +138,8 @@ Make it insightful and encouraging. ${tone}`;
 
   const activeProjectEntries = useMemo(() => {
     if (!activeProject) return [];
-    return entries.filter((e) => e.project_name === activeProject);
-  }, [entries, activeProject]);
+    return safeEntries.filter((e) => e.project_name === activeProject);
+  }, [safeEntries, activeProject]);
 
   return (
     <div className="feed-stats-box">
@@ -186,11 +189,11 @@ Make it insightful and encouraging. ${tone}`;
             ) : (
               <>
                 <div className="feed-stat-item">
-                  <span className="feed-stat-value">{entries.length}</span>
+                  <span className="feed-stat-value">{safeEntries.length}</span>
                   <span className="feed-stat-label">Total Entries</span>
                 </div>
                 <div className="feed-stat-item">
-                  <span className="feed-stat-value">{projects.length}</span>
+                  <span className="feed-stat-value">{safeProjects.length}</span>
                   <span className="feed-stat-label">Projects</span>
                 </div>
                 <div className="feed-stat-item">

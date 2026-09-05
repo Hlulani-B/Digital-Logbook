@@ -2132,6 +2132,12 @@ select.field-input {
   animation: spin 1s linear infinite;
 }
 
+.spinner-circle {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (min-width: 640px) {
   .stats-grid {
@@ -2345,7 +2351,8 @@ img {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .drawer-open {
   transform: translateX(0);
@@ -2457,8 +2464,7 @@ img {
 }
 
 .drawer-projects {
-  flex: 1;
-  overflow-y: auto;
+  /* Let the whole drawer scroll, not just this section */
 }
 .drawer-project-list {
   display: flex;
@@ -2499,6 +2505,22 @@ img {
   font-size: 0.8125rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
+}
+
+.due-soon-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+.due-soon-section-label svg {
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .feed-search-bar {
@@ -5208,11 +5230,32 @@ img {
   padding: 0.5rem 0;
 }
 
+/* AllEntries checklist grid - larger cards, better spacing */
+.allentries-checklist-grid .checklist-list {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.75rem;
+}
+
+.allentries-checklist-grid .checklist-card {
+  padding: 1rem 1.25rem;
+  min-height: 72px;
+}
+
+.allentries-checklist-grid .checklist-summary {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.allentries-checklist-grid .checklist-due {
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+}
+
 .checklist-card {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
   background: var(--surface, #ffffff);
   border: 1.5px solid var(--border, #111111);
   border-radius: 8px;
@@ -5229,6 +5272,23 @@ img {
 .checklist-card--done .checklist-summary {
   text-decoration: line-through;
   color: var(--text-muted, #737373);
+}
+
+.checklist-project {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted, #737373);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checklist-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .checklist-checkbox {
@@ -5415,20 +5475,28 @@ img {
 
 /* ── Entries-by-due-date board ── */
 .edb-board {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 0.75rem;
   padding-bottom: 0.5rem;
 }
+
+/* AllEntries board grid - horizontal layout with larger columns */
+.allentries-board-grid .edb-board {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.allentries-board-grid .edb-column {
+  min-width: 280px;
+}
 .edb-column {
-  flex: 1 1 260px;
-  min-width: 220px;
-  max-width: 100%;
-  background: var(--card, #fff);
+  background: var(--surface, #fff);
   border: 1px solid var(--border, #e5e5e5);
   border-radius: 0.5rem;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .edb-column-header {
   display: flex;
@@ -5436,7 +5504,7 @@ img {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border, #e5e5e5);
-  background: var(--bg, #fafafa);
+  background: var(--surface-hover, #fafafa);
   border-radius: 0.5rem 0.5rem 0 0;
 }
 .edb-column-label {
@@ -5465,7 +5533,7 @@ img {
 }
 
 @media (max-width: 600px) {
-  .edb-column {
-    flex: 1 1 100%;
+  .edb-board {
+    grid-template-columns: 1fr;
   }
 }

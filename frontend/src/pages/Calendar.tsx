@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getAllEntries, updateEntry } from '@/functions/project/entries.js';
-import { getProjectsByEmail } from '@/functions/project/project.js';
+import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
-import { cacheGet, cacheSet } from '@/lib/cache.js';
-import { AppShell } from '@/components/AppShell';
+import { cacheGet, CACHE_STORES } from '@/lib/cache.js';
+import { syncAllData } from '@/CacheFunctions';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
 import { CalendarDayModal } from '@/pages/CalendarDayModal';
 import {
   type CalendarEntry,
@@ -184,50 +185,50 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [view, setView] = useState<CalendarView>('month');
+  // Persist view in localStorage
+  const [view, setView] = useState<CalendarView>(() => {
+    const saved = localStorage.getItem('calendar-view');
+    if (saved === 'month' || saved === 'week') return saved;
+    return 'month';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('calendar-view', view);
+  }, [view]);
   const [dragging, setDragging] = useState<DragState>(null);
   const [updating, setUpdating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  // Load entries — read ONLY from IndexedDB. Mutations update it directly.
   const loadEntries = useCallback(async () => {
     if (!email) return;
     setError(null);
-
-    // Try cache first — show cached data immediately, no spinner
-    const cacheKey = `calendar:${email}`;
     try {
-      const cached = await cacheGet('entries', cacheKey);
-      if (cached?.data && cached.data.length > 0) {
-        setEntries(cached.data);
-        setLoading(false);
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
+        const data = cached.data.filter(
+          (entry: CalendarEntry) => !entry.archived && entry.due_date
+        );
+        setEntries(data);
       } else {
-        // No cache — show spinner
+        // First visit ever — trigger initial sync
         setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (fresh?.data && Array.isArray(fresh.data)) {
+          const data = fresh.data.filter(
+            (entry: CalendarEntry) => !entry.archived && entry.due_date
+          );
+          setEntries(data);
+        }
       }
-    } catch {
-      setLoading(true);
-    }
-
-    // Fetch fresh data in background
-    try {
-      const [entriesResult, projectsResult] = await Promise.all([
-        getAllEntries(email),
-        getProjectsByEmail(email),
-      ]);
-      if (entriesResult?.success === false) {
-        setError(entriesResult.message || 'Failed to load entries');
-        return;
+      // Also load projects for the add-entry dropdown
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects?.data) {
+        const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : [])
+          .filter((p: Record<string, unknown>) => !p.archived);
+        setProjects(projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string })));
       }
-      const data = (entriesResult?.data || []).filter(
-        (entry: CalendarEntry) => !entry.archived && entry.due_date
-      );
-      setEntries(data);
-      await cacheSet('entries', cacheKey, data);
-
-      // Load projects for the add-entry dropdown
-      const projList = (projectsResult?.projects || projectsResult || [])
-        .filter((p: Record<string, unknown>) => !p.archived);
-      setProjects(projList.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string })));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {
@@ -335,8 +336,12 @@ export function CalendarPage() {
   const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
 
   return (
-    <AppShell title="Calendar">
-      <div className="calendar-page">
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Calendar" entries={entries as unknown as Array<Record<string, unknown>>} />
+        <div className="calendar-page">
 
       <div className="calendar-toolbar">
         <div className="calendar-nav">
@@ -474,6 +479,7 @@ export function CalendarPage() {
           onEntryClick={handleEntryClick}
         />
       )}
-    </AppShell>
+      </main>
+    </div>
   );
 }

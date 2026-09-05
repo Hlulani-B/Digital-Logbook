@@ -122,7 +122,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
     setError(null);
     
     try {
-      // Build entries object with updated summary
+      // Build entries object (keep existing data)
       let entriesObj: Record<string, unknown> = {};
       if (entry.entries) {
         entriesObj = typeof entry.entries === 'string'
@@ -130,9 +130,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
           : { ...entry.entries };
       }
       
-      // Update summary in entries object
-      entriesObj.summary = draftSummary;
-      
+      // Save summary directly to the summary column (as-is, no transformation)
       await updateEntry(
         entry.user_email,
         entry.project_name,
@@ -144,6 +142,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
         undefined, // started_at
         undefined, // ended_at
         undefined, // duration
+        draftSummary, // summary — saved as-is to the database
       );
       
       setEditOpen(false);
@@ -174,23 +173,26 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
         data-status={entry.status}
         onClick={handleCardClick}
       >
-        <button
-          type="button"
-          className={`checklist-checkbox ${checking ? 'checklist-checkbox--loading' : ''}`}
-          role="checkbox"
-          aria-checked={isDone}
-          aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
-          onClick={handleCheckboxClick}
-          disabled={checking}
-        >
-          {isDone && <span className="checklist-check" aria-hidden="true">✓</span>}
-        </button>
+        <span className="checklist-project">{entry.project_name}</span>
+        <div className="checklist-card-row">
+          <button
+            type="button"
+            className={`checklist-checkbox ${checking ? 'checklist-checkbox--loading' : ''}`}
+            role="checkbox"
+            aria-checked={isDone}
+            aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
+            onClick={handleCheckboxClick}
+            disabled={checking}
+          >
+            {isDone && <span className="checklist-check" aria-hidden="true">✓</span>}
+          </button>
 
-        <div className="checklist-body">
-          <p className={`checklist-summary ${isDone ? 'checklist-summary--done' : ''}`}>
-            {getSummary(entry)}
-          </p>
-          <p className="checklist-due">{formatDate(entry.due_date)}</p>
+          <div className="checklist-body">
+            <p className={`checklist-summary ${isDone ? 'checklist-summary--done' : ''}`}>
+              {getSummary(entry)}
+            </p>
+            <p className="checklist-due">{formatDate(entry.due_date)}</p>
+          </div>
         </div>
       </div>
 
@@ -308,9 +310,17 @@ export function ChecklistView({ entries, onUpdated, onDelete }: ChecklistViewPro
     );
   }
 
+  // Sort entries by due_date (earliest first), entries without due_date go last
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
+  });
+
   return (
     <div className="checklist-list">
-      {entries.map((entry) => (
+      {sortedEntries.map((entry) => (
         <ChecklistEntryCard
           key={entry.id}
           entry={entry}

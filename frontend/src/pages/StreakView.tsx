@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
-import { AppShell } from '@/components/AppShell';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
 
@@ -23,21 +24,18 @@ export function StreakView() {
     let cancelled = false;
 
     (async () => {
-      // 1. Try cache first — no spinner
+      // Read ONLY from IndexedDB. Mutations update it directly.
       try {
         const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (!cancelled && cached?.data) {
           setEntries(Array.isArray(cached.data) ? cached.data : []);
-          setLoading(false);
-        }
-      } catch { /* no cache */ }
-
-      // 2. Fetch fresh data
-      try {
-        const res = await sortUnarchivedEntries(email, null, 0);
-        if (!cancelled) {
-          setEntries(res?.data || []);
-          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: res?.data || [] });
+        } else if (!cancelled) {
+          // First visit ever — trigger initial sync
+          await syncAllData(email);
+          if (!cancelled) {
+            const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+            if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+          }
         }
       } catch (err) {
         console.error('[StreakView] Failed to load entries:', err);
@@ -53,29 +51,35 @@ export function StreakView() {
 
   if (loading) {
     return (
-      <AppShell title="My Streaks">
-      <div className="stats-page">
-        <div className="feed-loading">
-          <div
-            className="animate-spin"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              border: '3px solid var(--border)',
-              borderTopColor: 'var(--accent)',
-            }}
-          />
-          <p>Loading streaks...</p>
-        </div>
+      <div className="dash-layout">
+        <div className="bg-mesh" />
+        <NavBar entries={entries} activeView="all" />
+        <main className="dash-main">
+          <Header title="My Streaks" entries={entries} />
+          <div className="stats-page">
+            <div className="feed-loading">
+              <div
+                className="animate-spin spinner-circle"
+                style={{
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <p>Loading streaks...</p>
+            </div>
+          </div>
+        </main>
       </div>
-      </AppShell>
     );
   }
 
   return (
-    <AppShell title="My Streaks">
-    <div className="stats-page">
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries} activeView="all" />
+      <main className="dash-main">
+        <Header title="My Streaks" entries={entries} />
+        <div className="stats-page">
 
       {entries.length === 0 ? (
         <div className="stats-empty glass">
@@ -206,8 +210,9 @@ export function StreakView() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }
 

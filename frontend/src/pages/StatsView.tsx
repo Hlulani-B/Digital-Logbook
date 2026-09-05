@@ -1,16 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getProjectsByEmail } from '@/functions/project/project.js';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
-import { dueSoon } from '@/functions/dashboard.js';
 import {
   calculateTotalTimeTracked,
   calculateProjectStats,
   formatDuration,
 } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
-import { AppShell } from '@/components/AppShell';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData, computeDueSoon } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -168,7 +167,7 @@ export function StatsView() {
     let cancelled = false;
 
     (async () => {
-      // 1. Try cache first — no spinner
+      // Read ONLY from IndexedDB. Mutations update it directly.
       try {
         const [cachedEntries, cachedProjects] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
@@ -177,30 +176,21 @@ export function StatsView() {
         if (cancelled) return;
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
-        if (cachedEntries?.data || cachedProjects?.data) {
-          setLoading(false);
+        if (cachedEntries?.data) {
+          setDueSoonCount(computeDueSoon(cachedEntries.data).length);
         }
-      } catch { /* no cache, show spinner */ }
-
-      // 2. Fetch fresh data
-      try {
-        const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
-          getProjectsByEmail(email),
-          sortUnarchivedEntries(email, null, 0),
-          dueSoon(email, null),
-        ]);
-        if (cancelled) return;
-        if (projectsRes.status === 'fulfilled') {
-          const projs = projectsRes.value?.projects || [];
-          setProjects(projs);
-          await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
+        if (!cachedEntries?.data && !cachedProjects?.data) {
+          // First visit ever — trigger initial sync
+          await syncAllData(email);
+          if (cancelled) return;
+          const [freshEntries, freshProjects] = await Promise.all([
+            cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+            cacheGet(CACHE_STORES.PROJECTS, email),
+          ]);
+          if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+          if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+          if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
         }
-        if (entriesRes.status === 'fulfilled') {
-          const ents = entriesRes.value?.data || [];
-          setEntries(ents);
-          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: ents });
-        }
-        if (dueSoonRes.status === 'fulfilled') setDueSoonCount(dueSoonRes.value?.data?.length || 0);
       } catch (err) {
         console.error('[StatsView] Failed to load stats data:', err);
       } finally {
@@ -262,29 +252,35 @@ export function StatsView() {
 
   if (loading) {
     return (
-      <AppShell title="My Stats">
-        <div className="stats-page">
-          <div className="feed-loading">
-          <div
-            className="animate-spin"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              border: '3px solid var(--border)',
-              borderTopColor: 'var(--accent)',
-            }}
-          />
-          <p>Loading stats...</p>
-        </div>
-        </div>
-      </AppShell>
+      <div className="dash-layout">
+        <div className="bg-mesh" />
+        <NavBar projects={projects} entries={entries} activeView="all" />
+        <main className="dash-main">
+          <Header title="My Stats" entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+          <div className="stats-page">
+            <div className="feed-loading">
+              <div
+                className="animate-spin spinner-circle"
+                style={{
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <p>Loading stats...</p>
+            </div>
+          </div>
+        </main>
+      </div>
     );
   }
 
   return (
-    <AppShell title="My Stats">
-    <div className="stats-page">
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects} entries={entries} activeView="all" />
+      <main className="dash-main">
+        <Header title="My Stats" entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+        <div className="stats-page">
 
       {projectStats.length === 0 ? (
         <div className="stats-empty glass">
@@ -464,8 +460,9 @@ export function StatsView() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
-    </AppShell>
   );
 }
 

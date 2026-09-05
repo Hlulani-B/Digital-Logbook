@@ -8,20 +8,17 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ActivitySummary } from '@/components/ActivitySummary';
-import { addProject, getProjectsByEmail } from '@/functions/project/project.js';
+import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { dueSoon } from '@/functions/dashboard.js';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
-import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
-import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
@@ -93,26 +90,33 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     defaultView
   );
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
+  // Sort state - persist in localStorage
+  const [sortBy, setSortBy] = useState<'priority' | 'date'>(() => {
+    const saved = localStorage.getItem('dashboard-sort-by');
+    if (saved === 'priority' || saved === 'date') return saved;
+    return 'date';
+  });
 
-  // Sort state
-  const [sortBy, setSortBy] = useState<'priority' | 'date'>('date');
+  useEffect(() => {
+    localStorage.setItem('dashboard-sort-by', sortBy);
+  }, [sortBy]);
 
-  // View mode: "due-soon" shows only entries due within 3 days, "all-entries" shows everything
-  const [viewMode, setViewMode] = useState<'due-soon' | 'all-entries'>('due-soon');
+  // Display mode: cards, checklist, or board - persist in localStorage
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>(() => {
+    const saved = localStorage.getItem('dashboard-display-mode');
+    if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
+    return 'cards';
+  });
 
-  // Display mode: cards, checklist, or table
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table' | 'board'>('cards');
+  useEffect(() => {
+    localStorage.setItem('dashboard-display-mode', displayMode);
+  }, [displayMode]);
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
-  const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   // Archive state
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
   const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
@@ -178,7 +182,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [aiEmptyMessage, setAiEmptyMessage] = useState('No entries to show right now.');
+  const [, setAiEmptyMessage] = useState('No entries to show right now.');
   const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
 
   // New project modal
@@ -198,32 +202,23 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load data — cache-first, then background fetch
+  // Load data — local-first: read ONLY from IndexedDB
+  // Initial sync on login populates IndexedDB. Mutations update it directly.
+  // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
-    const sortType = sortBy === 'priority' ? 1 : 0;
-    const project =
-      activeView !== 'all' &&
-      activeView !== 'recent' &&
-      activeView !== 'drafts' &&
-      activeView !== 'archives'
-        ? activeView
-        : null;
-  
-    // 1. Try cache first — show cached data immediately, no spinner
-    const entriesCacheKey = project ? `${email}:${project}` : email;
-    const entriesStore = project ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
     try {
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
-        cacheGet(entriesStore, entriesCacheKey),
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
-      const hasCache = cachedEntries?.data || cachedProjects?.data;
+      const hasCache = cachedEntries?.data || cachedProjects?.data || cachedProjects?.projects || cachedDueSoon?.data;
       if (hasCache) {
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-        if (cachedProjects?.data) {
-          const allProjects = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []) as Project[];
+        if (cachedProjects?.data || cachedProjects?.projects) {
+          const rawProjects = cachedProjects.data || cachedProjects.projects || [];
+          const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
           let localArch = new Set<string>();
           try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
           setLocalArchived(localArch);
@@ -233,58 +228,32 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         }
         if (cachedDueSoon?.data) setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
-        setLoading(true);
-      }
-    } catch {
-      setLoading(true);
-    }
-  
-    // 2. Fetch fresh data in background (functions write to cache automatically)
-    try {
-      const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
-        getProjectsByEmail(email),
-        sortUnarchivedEntries(email, project, sortType),
-        dueSoon(email, null),
-      ]);
-      // Read localStorage archived set (DB UPDATE is blocked by RLS)
-      let localArch = new Set<string>();
-      try {
-        const raw = localStorage.getItem(`dl_archived_${email}`);
-        if (raw) localArch = new Set(JSON.parse(raw));
-      } catch {}
-      setLocalArchived(localArch);
-  
-      if (projectsRes.status === 'fulfilled') {
-        const allProjects = (projectsRes.value?.projects || []) as Project[];
-        const merged = allProjects.map((p) => ({
-          ...p,
-          archived: p.archived === true || localArch.has(p.project_name as string),
-        }));
-        setProjects(merged);
-        setArchivedProjects(merged.filter((p) => p.archived));
-        // Cache projects
-        await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: merged });
-      } else {
-        console.error('Failed to load projects:', projectsRes.reason);
-      }
-      if (entriesRes.status === 'fulfilled') {
-        setEntries(entriesRes.value?.data || []);
-      } else {
-        console.error('Failed to load entries:', entriesRes.reason);
-      }
-      if (dueSoonRes.status === 'fulfilled') {
-        setDueSoonRows(dueSoonRes.value?.data || []);
-        // Cache due soon
-        await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, { success: true, data: dueSoonRes.value?.data || [] });
-      } else {
-        console.error('Failed to load due soon:', dueSoonRes.reason);
+        // First visit ever — trigger initial sync, then re-read
+        await syncAllData(email);
+        const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+          cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
+        ]);
+        if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+        if (freshProjects?.data || freshProjects?.projects) {
+          const rawProjects = freshProjects.data || freshProjects.projects || [];
+          const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
+          let localArch = new Set<string>();
+          try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+          setLocalArchived(localArch);
+          const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
+          setProjects(merged);
+          setArchivedProjects(merged.filter((p) => p.archived));
+        }
+        if (freshDueSoon?.data) setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
       }
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
       setLoading(false);
     }
-  }, [email, sortBy, activeView]);
+  }, [email]);
 
   // SSE: Listen for real-time entry updates from backend
   // When the backend finishes parsing a natural language entry, it pushes
@@ -360,20 +329,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
   }, []);
 
-  // Focus search input when opened
-  useEffect(() => {
-    if (searchOpen && searchRef.current) {
-      searchRef.current.focus();
-    }
-  }, [searchOpen]);
-
   // Close drawer on escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDrawerOpen(false);
         setFabOpen(false);
-        setSearchOpen(false);
         setProjectMenuOpen(false);
       }
     };
@@ -394,10 +355,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
-    // If search results are available, use them
-    if (searchResults !== null) return searchResults;
-
-    // Otherwise use all entries (unarchived)
+    // Use all entries (unarchived)
     let filtered = [...entries];
 
     if (activeView === 'recent') {
@@ -408,20 +366,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       filtered = filtered.filter((e) => e.project_name === activeView);
     }
 
-    // Apply "due soon" view filter: only entries with due_date within 3 days
-    if (viewMode === 'due-soon') {
-      const now = new Date();
-      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter((e) => {
-        if (!e.due_date) return false;
-        const due = new Date(e.due_date as string);
-        if (isNaN(due.getTime())) return false;
-        return due >= now && due <= threeDaysFromNow;
-      });
-    }
+    // Always apply "due soon" filter: only entries with due_date within 3 days
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    filtered = filtered.filter((e) => {
+      if (!e.due_date) return false;
+      const due = new Date(e.due_date as string);
+      if (isNaN(due.getTime())) return false;
+      return due >= now && due <= threeDaysFromNow;
+    });
 
     return filtered;
-  }, [entries, activeView, searchResults, viewMode]);
+  }, [entries, activeView]);
 
   // In-progress entries (started but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
@@ -455,45 +411,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       })();
     }
   }, [loading, filteredEntries.length]);
-
-  // Search using provided search functions
-  useEffect(() => {
-    if (!searchQuery.trim() || !email) {
-      setSearchResults(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      // Run both entry search and project name search in parallel
-      const isProjectView =
-        activeView !== 'all' &&
-        activeView !== 'recent' &&
-        activeView !== 'drafts' &&
-        activeView !== 'archives';
-      const entrySearch = isProjectView
-        ? searchProject(email, activeView, searchQuery.trim())
-        : searchAll(email, searchQuery.trim());
-      const projectSearch = searchProjects(email, searchQuery.trim());
-
-      const [entryResult, projectResult] = await Promise.all([entrySearch, projectSearch]);
-
-      if (!cancelled) {
-        // Merge results, deduplicating by entry id
-        const entryRows = entryResult?.data || [];
-        const projectRows = projectResult?.data || [];
-        const seen = new Set();
-        const merged = [...entryRows, ...projectRows].filter((row: Entry) => {
-          if (seen.has(row.id as string)) return false;
-          seen.add(row.id as string);
-          return true;
-        });
-        setSearchResults(merged);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [searchQuery, activeView, email]);
 
   // User info
   const fullDisplayName =
@@ -779,57 +696,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
 
           <div className="nav-right-group">
-            {searchOpen ? (
-              <div className="nav-search-inline">
-                <input
-                  ref={searchRef}
-                  type="text"
-                  placeholder="Search entries..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="nav-search-input"
-                />
-                <button
-                  className="nav-search-close"
-                  onClick={() => {
-                    setSearchOpen(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <button
-                className="nav-icon-btn"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Search"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </button>
-            )}
             <div className="nav-user">
               <ProfileMenu
                 displayName={preferredName}
@@ -1164,7 +1030,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <h1 className="feed-title">
                 {activeView === 'all'
-                  ? 'Dashboard'
+                  ? 'Home'
                   : activeView === 'recent'
                     ? 'Recent'
                     : activeView === 'drafts'
@@ -1232,12 +1098,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   </div>
                 )}
             </div>
-            {searchQuery && (
-              <p className="feed-subtitle">
-                {filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''} for "
-                {searchQuery}"
-              </p>
-            )}
             <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
           </div>
         </div>
@@ -1370,43 +1230,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         ) : (
           <>
-            <div className="feed-search-bar">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Filter entries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="feed-search-input"
-              />
-            </div>
-
-            {/* View + Sort controls */}
+            {/* Display mode + Sort controls */}
             <div className="feed-controls-row">
-              <div className="feed-view-toggle">
-                <button
-                  className={`feed-view-btn ${viewMode === 'due-soon' ? 'active' : ''}`}
-                  onClick={() => setViewMode('due-soon')}
-                >
-                  Due Soon
-                </button>
-                <button
-                  className={`feed-view-btn ${viewMode === 'all-entries' ? 'active' : ''}`}
-                  onClick={() => setViewMode('all-entries')}
-                >
-                  All Entries
-                </button>
-              </div>
               <div className="feed-view-toggle">
                 <button
                   className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
@@ -1426,14 +1251,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   Board
                 </button>
-                {viewMode === 'all-entries' && (
-                  <button
-                    className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('table')}
-                  >
-                    Table
-                  </button>
-                )}
               </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>
@@ -1486,25 +1303,40 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               placeholder={aiPlaceholder}
             />
 
+            {/* Due Soon Section Label */}
+            <div className="due-soon-section-label">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>Due soon</span>
+            </div>
+
             {/* Loading */}
             {loading && (
               <div className="feed-loading">
                 <div
-                  className="animate-spin"
+                  className="animate-spin spinner-circle"
                   style={{
                     width: 24,
                     height: 24,
-                    borderRadius: '50%',
-                    border: '3px solid var(--border)',
-                    borderTopColor: 'var(--accent)',
                   }}
                 />
                 <p>Loading entries...</p>
               </div>
             )}
 
-            {/* Entries feed ΓÇö always shown (filtered by viewMode + sort) */}
-            {!loading && !searchQuery && (
+            {/* Entries feed ΓÇö always shown (filtered by due-soon + sort) */}
+            {!loading && (
               <div className="entries-feed">
                 {filteredEntries.length === 0 ? (
                   <div className="empty-state animate-in">
@@ -1519,26 +1351,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        {viewMode === 'due-soon' ? (
-                          <>
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </>
-                        ) : (
-                          <>
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                          </>
-                        )}
+                        <>
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </>
                       </svg>
                     </div>
-                    <h2 className="empty-title">
-                      {viewMode === 'due-soon' ? 'Nothing due soon' : 'No entries to show'}
-                    </h2>
+                    <h2 className="empty-title">Nothing due soon</h2>
                     <p className="empty-desc">
-                      {viewMode === 'due-soon'
-                        ? 'No entries are due within the next 3 days. Switch to "All Entries" to see everything.'
-                        : aiEmptyMessage}
+                      No entries are due within the next 3 days.
                     </p>
                   </div>
                 ) : displayMode === 'checklist' ? (
@@ -1572,21 +1393,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     onUpdated={() => loadData()}
                     onDelete={() => loadData()}
                   />
-                ) : displayMode === 'table' ? (
-                  <ProjectTaskTable
-                    rows={filteredEntries}
-                    viewMode="entry"
-                    onUpdate={async (id: string, _patch: Record<string, any>) => {
-                      const row = filteredEntries.find((r) => r.id === id);
-                      if (!row || !user?.email) return;
-                      // Update logic would go here - for now just reload
-                      await loadData();
-                    }}
-                    onDeleteSelected={async (_ids: string[]) => {
-                      // Delete logic would go here - for now just reload
-                      await loadData();
-                    }}
-                  />
                 ) : (
                   filteredEntries.map((row, i) => (
                     <EntryBox
@@ -1601,46 +1407,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Search Results ΓÇö only when searching */}
-            {!loading && searchQuery && (
-              <>
-                {filteredEntries.length === 0 ? (
-                  <div className="empty-state animate-in">
-                    <div className="empty-icon">
-                      <svg
-                        width="48"
-                        height="48"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                      </svg>
-                    </div>
-                    <h2 className="empty-title">No results found</h2>
-                    <p className="empty-desc">
-                      No entries match "{searchQuery}". Try a different search term.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="entries-feed">
-                    {filteredEntries.map((row, i) => (
-                      <EntryBox
-                        key={`search-${row.id || i}`}
-                        entry={row as any}
-                        onUpdated={() => loadData()}
-                        onPriorityChanged={handleSetPriority}
-                        onDelete={() => loadData()}
-                      />
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
             {/* Calendar Section */}
             <div className="dashboard-calendar-section">
               <div className="calendar-toolbar" style={{ marginBottom: '0.5rem' }}>

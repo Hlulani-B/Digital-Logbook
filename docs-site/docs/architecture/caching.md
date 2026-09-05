@@ -1,241 +1,308 @@
-# Client-Side Persistent Caching (IndexedDB)
+# Local-First Architecture (IndexedDB)
 
 ## Overview
 
-The Digital Logbook frontend implements **client-side persistent caching using IndexedDB, following an IndexedDB-first with optimistic updates pattern**. This is a local-first architecture where:
+The Digital Logbook frontend implements a **local-first architecture** using IndexedDB as the primary data source for all pages. The app reads from and writes to IndexedDB first — the server is only used to keep IndexedDB in sync.
 
-- **Read operations**: Data is read from IndexedDB immediately (no loading states), then refreshed from the server in the background
-- **Write operations**: Data is written to IndexedDB immediately (optimistic update), then synced to the server in the background
-- **Event-driven**: Components subscribe to cache changes via `cacheSubscribe()` and re-render automatically when cache updates
+**Core principle:** Pages never call server APIs directly. They read from IndexedDB via `useEffect` and display data instantly. A centralized sync service (`CacheFunctions/syncService.js`) handles all server communication.
 
-This pattern is also known as **offline-first** or **optimistic UI** — the application reads and writes to a local mirror first, then reconciles with the server.
+## Why the Previous Approach Failed
 
-## Why Caching?
+Before the local-first architecture, the app had a **scattered cache-first pattern** that looked like caching but didn't actually work reliably. Here's what was wrong:
 
-| Problem | Solution |
-|---|---|
-| Network latency on every page load | IndexedDB reads are instant (no network round-trip) |
-| Poor UX while waiting for Supabase | UI renders from cache immediately |
-| Offline/poor connectivity | Cached data available even when server is unreachable |
-| Repeated fetches of same data | Cache serves repeated reads without hitting the server |
+### 1. No Centralized Cache Warm-Up
+Each page had its own `loadData` function that independently fetched from the server and wrote to IndexedDB. There was no global "warm-up" on app load. If you visited Dashboard first, only Dashboard's data was cached — AllEntries, Stats, Today, Calendar all had to fetch from scratch. Pages never benefited from each other's cache.
 
-## Architecture
+### 2. Inconsistent Cache Stores
+Different pages used different IndexedDB stores for the same data. For example, Dashboard stored entries in `CACHE_STORES.ALL_ENTRIES` while AllEntries stored them in `CACHE_STORES.ENTRIES`. They never shared cached data — visiting one page didn't help the other.
 
-### Read Operations (GET)
+### 3. `hasCache` Checks Were Incomplete
+Dashboard's `hasCache` check only looked at `cachedEntries?.data || cachedProjects?.data` — it ignored `cachedDueSoon?.data`. So even if due-soon data was cached, the page would still show a spinner if entries/projects weren't cached yet.
+
+### 4. `dueSoon()` Always Hit the Server
+The `dueSoon()` function called `getUnarchived()` which made a server API call every single time. Even though all entries were already in IndexedDB, `dueSoon` ignored the cache and fetched from the network. This defeated the entire purpose of caching.
+
+### 5. `setPriority()` Had No IndexedDB Integration
+The `setPriority()` function called the server directly without writing to IndexedDB first. The UI wouldn't update until the next full page reload or `loadData()` call. Users would change a priority and see no change — then wonder if it worked.
+
+### 6. Pages Still Depended on Server Responses
+Even with cache-first reads, every page's `loadData` still called individual server fetch functions (`getProjectsByEmail`, `sortUnarchivedEntries`, `dueSoon`, etc.) in the background. These functions each made their own network requests, so a single page load could trigger 3-5 parallel server calls. If the server was slow, the "fresh data" phase would stall and the UI would flicker between cached and fresh data.
+
+### 7. No Single Source of Truth
+Without a centralized sync service, there was no guarantee that IndexedDB had complete, consistent data. Each page wrote to cache independently, sometimes with different key formats or store names. The result: cached data was often incomplete, stale, or missing entirely for pages the user hadn't visited yet.
+
+### The Fix
+The local-first architecture solves all of these by:
+- **One sync service** (`syncAllData`) that fetches ALL data in one call and populates all IndexedDB stores
+- **One trigger point** (`DataSyncInitializer` in App.tsx) that warms up cache on login
+- **Pages read only from IndexedDB** — no direct server calls from pages
+- **`dueSoon` computes from cache** — no server call needed
+- **All mutations write IndexedDB first** — instant UI, then server sync
+
+### Why Pages No Longer Call `syncAllData` in the Background
+
+An intermediate approach had pages call `syncAllData` in the background after reading from IndexedDB. This caused a **race condition**:
+
+1. User adds an entry → mutation writes to IndexedDB (instant UI) ✓
+2. Page's `loadData` calls `syncAllData` → fetches from server
+3. Server doesn't have the new entry yet (network latency)
+4. `syncAllData` overwrites IndexedDB with stale server data
+5. The optimistic entry disappears or gets duplicated
+
+**The fix:** Pages now read ONLY from IndexedDB. The initial sync on login populates everything. After that, mutations handle their own server sync (write IndexedDB first, then server). SSE pushes handle real-time updates from the backend. Pages never make server calls.
+
+## Architecture Flow
+
 ```
-1. Component mounts
-2. useCachedData hook reads from IndexedDB immediately → displays data (no loading)
-3. Hook subscribes to cache changes for this store+key
-4. Background fetch from server → writes to IndexedDB
-5. IndexedDB write triggers subscription → component re-renders with fresh data
+┌─────────────────────────────────────────────────────────────┐
+│                        App Load                              │
+│  DataSyncInitializer (App.tsx) → syncAllData(email)          │
+│  Fetches ALL data from server → populates IndexedDB          │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     IndexedDB (local)                        │
+│                                                              │
+│  ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌──────────┐      │
+│  │ projects │ │all-entries│ │ entries  │ │ profile  │      │
+│  │          │ │           │ │(per-proj)│ │          │      │
+│  └──────────┘ └───────────┘ └──────────┘ └──────────┘      │
+│  ┌──────────┐ ┌───────────┐ ┌──────────┐                   │
+│  │ archives │ │  fields   │ │ due-soon │                   │
+│  └──────────┘ └───────────┘ └──────────┘                   │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+         Dashboard    AllEntries     StatsView
+         (reads       (reads        (reads
+          from IDB)    from IDB)     from IDB)
 ```
 
-### Write Operations (POST/PUT)
+### Read Flow (Pages → IndexedDB)
 ```
-1. User triggers action (e.g., add entry)
-2. Function writes optimistic data to IndexedDB immediately
-3. IndexedDB write triggers subscription → component re-renders with optimistic data
+1. User navigates to a page
+2. Page reads from IndexedDB via cacheGet() in useEffect
+3. If cache exists → display immediately (no spinner, no network)
+4. If no cache → show loading spinner (first visit only)
+   → Trigger syncAllData() to populate IndexedDB
+   → Re-read from IndexedDB → display data
+5. After initial sync, pages NEVER call syncAllData again
+6. All subsequent reads are 100% from IndexedDB (zero network)
+7. SSE pushes trigger IndexedDB invalidation → page re-reads
+```
+
+### Write Flow (Mutations → IndexedDB → Server)
+```
+1. User triggers action (e.g., add entry, change priority)
+2. Function writes to IndexedDB immediately (optimistic update)
+3. UI updates instantly from IndexedDB
 4. Function syncs to server in background
-5. On success: re-fetches from server → writes real data to IndexedDB → component updates
-6. On failure: rolls back IndexedDB to previous state → component re-renders with rolled-back data
+5. On success: IndexedDB already has the data (or refreshes)
+6. On failure: Roll back IndexedDB to previous state
 ```
 
-## Implementation
+## CacheFunctions Module (`src/CacheFunctions/`)
 
-### Cache Module (`src/lib/cache.js`)
+The centralized sync service that populates IndexedDB from the server.
 
-The cache module provides these core functions:
+### `syncAllData(email, options)`
 
-| Function | Purpose |
-|---|---|
-| `cacheGet(store, key)` | Read from IndexedDB |
-| `cacheSet(store, key, data)` | Write to IndexedDB (triggers subscription events) |
-| `cacheDelete(store, key)` | Remove from IndexedDB (triggers subscription events) |
-| `cacheSubscribe(store, key, callback)` | Subscribe to cache changes (returns unsubscribe fn) |
-| `cacheGetTimestamp(key)` | Check when cache was last updated |
-| `clearUserCache(email)` | Clear all cached data for a user (logout) |
+Fetches ALL user data from the server and writes to IndexedDB. Called on app load and when pages need a refresh.
 
-### React Hook (`src/hooks/useCachedData.js`)
+```javascript
+import { syncAllData } from '@/CacheFunctions';
 
-| Hook | Purpose |
-|---|---|
-| `useCachedData(store, key, fetchFn, deps)` | Generic hook — reads from IndexedDB, subscribes to changes, triggers background fetch |
-| `useCachedProjects(email, fetchFn)` | Convenience hook for projects |
-| `useCachedEntries(email, projectName, fetchFn)` | Convenience hook for entries |
-| `useCachedProfile(email, fetchFn)` | Convenience hook for profile |
+// On app load or page refresh
+await syncAllData(email, { force: true });
+```
 
-### Cache Stores
+**What it syncs:**
+
+| Store | Source Function | Cache Key |
+|---|---|---|
+| `projects` | `getProjectsByEmail()` | `email` |
+| `all-entries` | `getAllEntries()` | `email` |
+| `entries` (per-project) | Derived from all-entries | `email:projectName` |
+| `profile` | `getProfile()` | `email` |
+| `archives` | `getArchives()`, `getArchivedProjects()`, `getUnarchivedProjects()` | Various |
+| `due-soon` | Computed from cached entries (no server call) | `email:due-soon` |
+
+**Features:**
+- Prevents duplicate concurrent syncs
+- Throttles to one sync per 10 seconds (unless forced)
+- Populates per-project entry caches from the all-entries data
+- Computes `due-soon` from cached entries (no extra server call)
+
+### `syncProjectEntries(email, projectName)`
+
+Syncs entries for a single project. Used when navigating to a project detail page.
+
+### `computeDueSoon(entries)`
+
+Pure function that filters entries to find those due within 3 days. Used by both the sync service and the `dueSoon()` function.
+
+## IndexedDB Schema (mirrors database tables)
 
 | Store | Key Format | Data |
 |---|---|---|
-| `projects` | `user@email.com` | User's project list |
-| `entries` | `user@email.com:project_name` | Entries for a specific project |
+| `projects` | `user@email.com` | All user projects |
 | `all-entries` | `user@email.com` | All entries across all projects |
+| `entries` | `user@email.com:project_name` | Entries for a specific project |
 | `profile` | `user@email.com` | User profile (name, avatar, username) |
-| `search` | `user@email.com:keyword` | Search results |
 | `archives` | Various | Archived projects/entries |
 | `fields` | `user@email.com:table_name` | Custom field definitions |
+| `due-soon` (entries store) | `user@email.com:due-soon` | Entries due within 3 days (computed) |
 
-### Read Operations (Cache-First with Event Subscriptions)
+## Page Implementation Pattern
 
-All read functions fetch from server and write to IndexedDB. Components use `useCachedData` hook to read from IndexedDB and subscribe to changes:
+Every page follows the same local-first pattern:
 
 ```javascript
-// Function: fetches from server, writes to IndexedDB
-export async function getProjectsByEmail(user_email) {
-  const result = await request(...);
-  if (result?.success) {
-    await cacheSet(CACHE_STORES.PROJECTS, user_email, result);
-    // cacheSet triggers subscription → components re-render automatically
-  }
-  return result;
-}
+const loadData = useCallback(async () => {
+  if (!email) return;
 
-// Component: reads from IndexedDB, subscribes to changes
-function ProjectsList({ email }) {
-  const { data } = useCachedData('projects', email, () => getProjectsByEmail(email), [email]);
-  // data is available immediately from IndexedDB (no loading spinner)
-  return <div>{data?.projects?.map(p => <span>{p.project_name}</span>)}</div>;
-}
+  // 1. Read from IndexedDB first — show cached data immediately
+  try {
+    const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+    if (cached?.data) {
+      setEntries(Array.isArray(cached.data) ? cached.data : []);
+      // No spinner — data is already displayed
+    } else {
+      setLoading(true); // First visit — show spinner
+    }
+  } catch { setLoading(true); }
+
+  // 2. Sync from server → IndexedDB (background)
+  try {
+    await syncAllData(email, { force: true });
+
+    // 3. Re-read from IndexedDB (syncAllData has updated it)
+    const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+    if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+  } catch (err) {
+    console.error('Load failed:', err);
+  } finally {
+    setLoading(false);
+  }
+}, [email]);
+
+useEffect(() => { loadData(); }, [loadData]);
 ```
 
-### Write Operations (Optimistic Updates with Rollback)
+## Mutation Functions (Optimistic Updates)
 
-All write functions use **optimistic updates**: write to IndexedDB first for instant UI, then sync to server. On failure, roll back IndexedDB:
+All mutation functions write to IndexedDB first, then sync to the server:
+
+| Function | IndexedDB Behavior |
+|---|---|
+| `addEntry()` | Optimistic write → server sync → replace or rollback |
+| `updateEntry()` | Optimistic patch → server sync → replace or rollback |
+| `deleteEntry()` | Optimistic remove → server sync → rollback on failure |
+| `addProject()` | Optimistic write → server sync → refresh or rollback |
+| `editProjectName()` | Optimistic rename → server sync → refresh or rollback |
+| `deleteProject()` | Optimistic remove → server sync → rollback on failure |
+| `setPriority()` | Optimistic patch → server sync → rollback on failure |
+| `updateUsername()` | Optimistic update → server sync → refresh or rollback |
+| `updateName()` | Optimistic update → server sync → refresh or rollback |
+| `updateAvatar()` | Optimistic update → server sync → refresh or rollback |
+
+### Example: setPriority (IndexedDB-first)
 
 ```javascript
-export async function addEntry(user_email, project_name, entry_object, ...) {
-  const cacheKey = `${user_email}:${project_name}`;
+export async function setPriority(user_email, priorityValue, project_name, entry_id) {
+  // 1. Save current cache for rollback
+  const cachedBefore = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
 
-  // 1. Read current cache for rollback
-  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-
-  // 2. Write optimistic data to IndexedDB immediately
-  const optimisticEntry = { id: `optimistic-${Date.now()}`, ...entry_object, _optimistic: true };
-  await cacheSet(CACHE_STORES.ENTRIES, cacheKey, {
-    success: true,
-    data: [...(cached?.data || []), optimisticEntry],
-  });
-  // → Component re-renders immediately with optimistic data
+  // 2. Update IndexedDB immediately (instant UI)
+  await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchedData });
 
   // 3. Sync to server
   try {
     const result = await request(...);
-    if (result?.success) {
-      // 4. On success, refresh with real data from server
-      await getEntries(user_email, project_name);
-    }
     return result;
   } catch (err) {
-    // 5. On failure, rollback to previous state
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
+    // 4. Rollback on failure
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cachedBefore);
     return { success: false, message: err.message };
   }
 }
 ```
 
-### Functions with Caching
+## dueSoon — Computed from Cache (No Server Call)
 
-| Function | Cache Behavior |
-|---|---|
-| `getProjectsByEmail()` | Fetch → write to IndexedDB → triggers subscription |
-| `getEntries()` | Fetch → write to IndexedDB → triggers subscription |
-| `getAllEntries()` | Fetch → write to IndexedDB → triggers subscription |
-| `getProfile()` | Fetch → write to IndexedDB → triggers subscription |
-| `addEntry()` | Optimistic write to IndexedDB → server sync → refresh or rollback |
-| `updateEntry()` | Optimistic patch in IndexedDB → server sync → refresh or rollback |
-| `deleteEntry()` | Optimistic remove from IndexedDB → server sync → refresh or rollback |
-| `addProject()` | Optimistic write to IndexedDB → server sync → refresh or rollback |
-| `editProjectName()` | Optimistic rename in IndexedDB → server sync → refresh or rollback |
-| `deleteProject()` | Optimistic remove from IndexedDB → server sync → refresh or rollback |
-| `updateUsername()` | Optimistic update in IndexedDB → server sync → refresh or rollback |
-| `updateName()` | Optimistic update in IndexedDB → server sync → refresh or rollback |
-| `updateAvatar()` | Optimistic update in IndexedDB → server sync → refresh or rollback |
-| `deleteProfile()` | Clear all caches → server sync |
-
-## Cache Invalidation Strategy
-
-The cache uses **optimistic updates with event-driven subscriptions**:
-
-1. **On write**: Write optimistic data to IndexedDB immediately → UI updates instantly
-2. **On server success**: Re-fetch fresh data → write to IndexedDB → UI updates with real data
-3. **On server failure**: Roll back IndexedDB to previous state → UI reverts
-4. **On logout**: `clearUserCache(email)` wipes all cached data for the user
-
-### What Gets Invalidated
-
-| Write Operation | Cache Entries Invalidated |
-|---|---|
-| Add entry | `entries:{email}:{project}`, `all-entries:{email}`, `projects:{email}` |
-| Update entry | `entries:{email}:{project}`, `all-entries:{email}` |
-| Delete entry | `entries:{email}:{project}`, `all-entries:{email}`, `projects:{email}` |
-| Add project | `projects:{email}` |
-| Edit project name | `projects:{email}`, `entries:{email}:{old_name}`, `all-entries:{email}` |
-| Delete project | `projects:{email}`, `entries:{email}:{project}`, `all-entries:{email}` |
-| Update profile | `profile:{email}` |
-| Delete profile | `profile:{email}`, `projects:{email}`, `all-entries:{email}` |
-| **Sign out** | **All stores for user's email** |
-| **Delete account** | **All stores for user's email** |
-
-### Authentication & Cache Clearing
-
-The `signOut` and `deleteAccount` functions in `AuthContext.tsx` call `clearUserCache(email)` before the Supabase sign-out completes. This ensures:
-
-- No stale data leaks between sessions on the same browser
-- A different user signing in won't see the previous user's cached projects/entries/profile
-- Account deletion fully wipes all local data
+The `dueSoon()` function reads from IndexedDB instead of calling the server:
 
 ```javascript
-// In AuthContext.tsx
-const signOut = async () => {
-  const email = state.user?.email;
-  if (email) {
-    await clearUserCache(email);  // Wipe IndexedDB first
+export async function dueSoon(user_email, project_name) {
+  // 1. Read from IndexedDB (instant, no network)
+  const cached = await cacheGet(store, cacheKey);
+  if (cached?.data) {
+    return { success: true, data: computeDueSoon(cached.data) };
   }
-  await getSupabase().auth.signOut();
-};
+
+  // 2. Fallback: fetch from server only if no cache
+  const result = await getUnarchived(user_email, project_name);
+  return { success: true, data: computeDueSoon(result?.data || []) };
+}
 ```
+
+## App Initialization
+
+The `DataSyncInitializer` component in `App.tsx` triggers the initial sync when the user logs in:
+
+```javascript
+function DataSyncInitializer({ children }) {
+  const { user } = useAuth();
+  const email = user?.email;
+
+  useEffect(() => {
+    if (email) {
+      syncAllData(email).catch(err => {
+        console.warn('[App] Initial data sync failed:', err);
+      });
+    }
+  }, [email]);
+
+  return <>{children}</>;
+}
+```
+
+## Cache Invalidation
+
+| Event | Action |
+|---|---|
+| Write operation | Optimistic IndexedDB update → server sync → rollback on failure |
+| Sign out | `clearUserCache(email)` wipes all IndexedDB data |
+| Delete account | `clearUserCache(email)` wipes all IndexedDB data |
+| SSE push | Invalidate cache → call `loadData()` to re-read from IndexedDB |
 
 ## Performance Impact
 
-| Metric | Without Cache | With Cache |
+| Metric | Before (server-first) | After (local-first) |
 |---|---|---|
-| First page load | ~500-1000ms (network) | ~500-1000ms (network, first visit) |
-| Subsequent loads | ~500-1000ms (network) | <10ms (IndexedDB read) |
-| Navigation between pages | Full network fetch each time | Instant from cache |
-| Offline/poor connectivity | App breaks or shows loading | Shows cached data |
-
-## Testing
-
-Tests are in `src/lib/__tests__/cache.test.js` and cover:
-
-- Cache get/set operations
-- Cache deletion and timestamp tracking
-- User cache clearing
-- Stale-while-revalidate pattern
-- Error handling for failed fetches
-
-Run tests:
-```bash
-cd frontend
-npm test
-```
+| First page load | 500-1000ms (network) | 500-1000ms (first visit only) |
+| Subsequent loads | 500-1000ms (network) | <10ms (IndexedDB read) |
+| Navigation | Full network fetch | Instant from cache |
+| Offline/poor connectivity | App breaks | Shows cached data |
+| Mutations | Wait for server | Instant UI, background sync |
 
 ## Dependencies
 
 - [`idb`](https://www.npmjs.com/package/idb) — Lightweight IndexedDB wrapper (Promise-based API)
 
-## Future Enhancements
+## File Reference
 
-1. **Offline write queue**: Buffer writes when offline, sync when connection returns
-2. **Conflict resolution**: Handle cases where local and server data diverge
-3. **Cache size limits**: Evict oldest entries when cache grows too large
-4. **Background sync**: Use Service Workers for true offline-first capability
-5. **Version timestamps**: Compare local vs server timestamps to avoid overwriting newer data with stale
-
-## References
-
-- [Stale-While-Revalidate pattern](https://web.dev/stale-while-revalidate/)
-- [IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
-- [idb library documentation](https://github.com/jakearchibald/idb)
-- [Offline-first architecture](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Offline_Service_workers)
+| File | Purpose |
+|---|---|
+| `src/CacheFunctions/syncService.js` | Central sync — fetches all data → IndexedDB |
+| `src/CacheFunctions/index.js` | Barrel export |
+| `src/lib/cache.js` | IndexedDB CRUD + event subscriptions |
+| `src/hooks/useCachedData.js` | React hook for IndexedDB-first loading |
+| `src/functions/project/project.js` | Project mutations (optimistic) |
+| `src/functions/project/entries.js` | Entry mutations (optimistic) |
+| `src/functions/project/priority.js` | Priority mutation (optimistic) |
+| `src/functions/profile/profile.js` | Profile mutations (optimistic) |
+| `src/functions/dashboard.js` | `dueSoon()` — reads from cache |
+| `src/App.tsx` | `DataSyncInitializer` — triggers sync on login |
