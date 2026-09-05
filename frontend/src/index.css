@@ -5202,8 +5202,8 @@ img {
 
 /* ========== CHECKLIST VIEW ========== */
 .checklist-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 0.5rem;
   padding: 0.5rem 0;
 }
@@ -5411,4 +5411,61 @@ img {
 /* Checklist card menu (hidden by default, shown on hover) */
 .checklist-card-menu {
   display: none;
+}
+
+/* ── Entries-by-due-date board ── */
+.edb-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+.edb-column {
+  flex: 1 1 260px;
+  min-width: 220px;
+  max-width: 100%;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+}
+.edb-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  background: var(--bg, #fafafa);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+.edb-column-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text, #111);
+}
+.edb-column-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary, #666);
+  background: var(--border, #e5e5e5);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  min-width: 1.4rem;
+  text-align: center;
+}
+.edb-column-body {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+@media (max-width: 600px) {
+  .edb-column {
+    flex: 1 1 100%;
+  }
 }

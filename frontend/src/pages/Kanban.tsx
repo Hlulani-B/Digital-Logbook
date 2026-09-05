@@ -15,6 +15,8 @@ import {
   groupEntriesByStatus,
 } from '@/lib/kanban';
 import './Kanban.css';
+import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
   if (!entries) return {};
@@ -159,8 +161,25 @@ export function KanbanPage() {
 
   const loadData = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
     setError(null);
+
+    // 1. Try cache first — no spinner
+    try {
+      const [cachedEntries, cachedProjects] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+      ]);
+      if (cachedEntries?.data) {
+        const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter((e: CalendarEntry) => !e.archived);
+        setEntries(data);
+      }
+      if (cachedProjects?.data) {
+        setProjects((Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter((p: { archived?: boolean }) => !p.archived));
+      }
+      if (cachedEntries?.data) setLoading(false);
+    } catch { /* no cache, show spinner */ }
+
+    // 2. Fetch fresh data
     try {
       const [entriesRes, projectsRes] = await Promise.allSettled([
         getAllEntries(email),
@@ -174,6 +193,7 @@ export function KanbanPage() {
         } else {
           const data = (result?.data || []).filter((entry: CalendarEntry) => !entry.archived);
           setEntries(data);
+          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data });
         }
       } else {
         setError(entriesRes.reason?.message || 'Failed to load entries');
@@ -182,7 +202,9 @@ export function KanbanPage() {
       if (projectsRes.status === 'fulfilled') {
         const result = projectsRes.value;
         if (result?.success !== false) {
-          setProjects((result?.data || []).filter((p: { archived?: boolean }) => !p.archived));
+          const projs = (result?.data || []).filter((p: { archived?: boolean }) => !p.archived);
+          setProjects(projs);
+          await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
         }
       }
     } catch (err) {
@@ -251,26 +273,8 @@ export function KanbanPage() {
   };
 
   return (
+    <AppShell title="Kanban Board">
     <div className="kanban-page">
-      <div className="kanban-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="kanban-page-title">Kanban Board</h1>
-      </div>
 
       <div className="kanban-toolbar">
         <div className="kanban-filter">
@@ -366,5 +370,6 @@ export function KanbanPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }

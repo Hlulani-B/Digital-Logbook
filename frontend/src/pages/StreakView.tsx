@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
+import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 type Entry = Record<string, unknown>;
 
@@ -12,7 +13,6 @@ type Entry = Record<string, unknown>;
  */
 export function StreakView() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const email = user?.email || '';
 
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -23,10 +23,22 @@ export function StreakView() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // 1. Try cache first — no spinner
+      try {
+        const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (!cancelled && cached?.data) {
+          setEntries(Array.isArray(cached.data) ? cached.data : []);
+          setLoading(false);
+        }
+      } catch { /* no cache */ }
+
+      // 2. Fetch fresh data
       try {
         const res = await sortUnarchivedEntries(email, null, 0);
-        if (!cancelled) setEntries(res?.data || []);
+        if (!cancelled) {
+          setEntries(res?.data || []);
+          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: res?.data || [] });
+        }
       } catch (err) {
         console.error('[StreakView] Failed to load entries:', err);
       } finally {
@@ -34,15 +46,14 @@ export function StreakView() {
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [email]);
 
   const streaks = useMemo(() => calculateStreaks(entries), [entries]);
 
   if (loading) {
     return (
+      <AppShell title="My Streaks">
       <div className="stats-page">
         <div className="feed-loading">
           <div
@@ -58,31 +69,13 @@ export function StreakView() {
           <p>Loading streaks...</p>
         </div>
       </div>
+      </AppShell>
     );
   }
 
   return (
+    <AppShell title="My Streaks">
     <div className="stats-page">
-      {/* Header */}
-      <div className="stats-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="stats-page-title">My Streaks</h1>
-      </div>
 
       {entries.length === 0 ? (
         <div className="stats-empty glass">
@@ -214,6 +207,7 @@ export function StreakView() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }
 

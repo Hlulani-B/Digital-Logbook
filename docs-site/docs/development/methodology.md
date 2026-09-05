@@ -99,13 +99,30 @@ ci: add Gitea Actions workflow for frontend and microservices
 
 ### Pull Request Workflow
 
+All changes to `main` **must** go through a pull request — direct pushes and
+force pushes are blocked by branch protection on Gitea.
+
 1. Developer creates a feature branch from `main`.
 2. Work is committed following the convention above.
-3. Developer pushes the branch and opens a pull request on Gitea.
+3. Developer pushes the branch to Gitea and opens a pull request.
 4. CI pipeline runs automatically — all tests must pass.
-5. At least one teammate reviews and approves the changes (enforced by branch protection on `main`).
-6. PR is merged into `main`.
-7. Render auto-deploys from `main`.
+5. At least one teammate reviews the PR (optional — 0 approvals required, but recommended).
+6. PR is merged into `main` via a **merge commit** (never rebase).
+7. Render auto-deploys from `main` via the GitHub mirror.
+
+**Branch protection rules on `main`:**
+
+| Rule                        | Setting  |
+| --------------------------- | -------- |
+| Direct pushes               | Blocked  |
+| Force pushes                | Blocked  |
+| Required approvals          | 0        |
+| Block on rejected reviews   | Yes      |
+| Block on outdated branch    | Yes      |
+| Dismiss stale approvals     | Yes      |
+
+> **Why no direct pushes?** Every change must be visible as a pull request
+> on Gitea so the team has a full audit trail of what changed and when.
 
 ### Code Quality Enforcement
 

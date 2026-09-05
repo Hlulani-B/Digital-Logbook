@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getAllEntries, updateEntry } from '@/functions/project/entries.js';
+import { getProjectsByEmail } from '@/functions/project/project.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
+import { cacheGet, cacheSet } from '@/lib/cache.js';
+import { AppShell } from '@/components/AppShell';
+import { CalendarDayModal } from '@/pages/CalendarDayModal';
 import {
   type CalendarEntry,
   type CalendarView,
@@ -52,6 +56,7 @@ function CalendarDayCell({
   onDragStart,
   onDrop,
   onEntryClick,
+  onDayClick,
   isOverdue: isDayOverdue,
 }: {
   date: Date;
@@ -61,6 +66,7 @@ function CalendarDayCell({
   onDragStart: (entry: CalendarEntry, sourceDate: Date) => void;
   onDrop: (date: Date) => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  onDayClick: (date: Date) => void;
   isOverdue: (date: Date) => boolean;
 }) {
   const isToday = isSameDay(date, new Date());
@@ -89,9 +95,11 @@ function CalendarDayCell({
       ]
         .filter(Boolean)
         .join(' ')}
+      onClick={() => onDayClick(date)}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       data-date={date.toISOString()}
+      style={{ cursor: 'pointer' }}
     >
       <div className="calendar-day-header">
         <span className="calendar-day-number">{formatDayNumber(date)}</span>
@@ -111,7 +119,7 @@ function CalendarDayCell({
           <button
             type="button"
             className="calendar-more-btn"
-            onClick={() => {}}
+            onClick={(e) => { e.stopPropagation(); onDayClick(date); }}
             title={`${hiddenCount} more task${hiddenCount === 1 ? '' : 's'}`}
           >
             +{hiddenCount} more
@@ -172,27 +180,54 @@ export function CalendarPage() {
   const email = user?.email ?? '';
 
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
+  const [projects, setProjects] = useState<{ project_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [view, setView] = useState<CalendarView>('month');
   const [dragging, setDragging] = useState<DragState>(null);
   const [updating, setUpdating] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const loadEntries = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
     setError(null);
+
+    // Try cache first — show cached data immediately, no spinner
+    const cacheKey = `calendar:${email}`;
     try {
-      const result = await getAllEntries(email);
-      if (result?.success === false) {
-        setError(result.message || 'Failed to load entries');
+      const cached = await cacheGet('entries', cacheKey);
+      if (cached?.data && cached.data.length > 0) {
+        setEntries(cached.data);
+        setLoading(false);
+      } else {
+        // No cache — show spinner
+        setLoading(true);
+      }
+    } catch {
+      setLoading(true);
+    }
+
+    // Fetch fresh data in background
+    try {
+      const [entriesResult, projectsResult] = await Promise.all([
+        getAllEntries(email),
+        getProjectsByEmail(email),
+      ]);
+      if (entriesResult?.success === false) {
+        setError(entriesResult.message || 'Failed to load entries');
         return;
       }
-      const data = (result?.data || []).filter(
+      const data = (entriesResult?.data || []).filter(
         (entry: CalendarEntry) => !entry.archived && entry.due_date
       );
       setEntries(data);
+      await cacheSet('entries', cacheKey, data);
+
+      // Load projects for the add-entry dropdown
+      const projList = (projectsResult?.projects || projectsResult || [])
+        .filter((p: Record<string, unknown>) => !p.archived);
+      setProjects(projList.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string })));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {
@@ -284,27 +319,24 @@ export function CalendarPage() {
     navigate(`/project/${encodeURIComponent(entry.project_name)}`);
   };
 
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+  };
+
+  const handleModalClose = () => {
+    setSelectedDate(null);
+  };
+
+  const handleEntryAdded = () => {
+    loadEntries();
+  };
+
+  // Entries for the currently selected day
+  const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
+
   return (
-    <div className="calendar-page">
-      <div className="calendar-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="calendar-page-title">Calendar</h1>
-      </div>
+    <AppShell title="Calendar">
+      <div className="calendar-page">
 
       <div className="calendar-toolbar">
         <div className="calendar-nav">
@@ -407,6 +439,7 @@ export function CalendarPage() {
                 onDragStart={handleDragStart}
                 onDrop={handleDrop}
                 onEntryClick={handleEntryClick}
+                onDayClick={handleDayClick}
                 isOverdue={isDayOverdue}
               />
             );
@@ -428,6 +461,19 @@ export function CalendarPage() {
           Upcoming
         </span>
       </div>
-    </div>
+      </div>
+
+      {selectedDate && (
+        <CalendarDayModal
+          date={selectedDate}
+          entries={selectedDayEntries}
+          projects={projects}
+          userEmail={email}
+          onClose={handleModalClose}
+          onEntryAdded={handleEntryAdded}
+          onEntryClick={handleEntryClick}
+        />
+      )}
+    </AppShell>
   );
 }

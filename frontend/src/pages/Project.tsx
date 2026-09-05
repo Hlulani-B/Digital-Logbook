@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import {
   editProjectName,
   deleteProject,
@@ -73,8 +75,19 @@ export function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
     setError(null);
+
+    // 1. Try cache first — no spinner
+    try {
+      const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cached?.data) {
+        const list = (Array.isArray(cached.data) ? cached.data : []).filter((p: ProjectRecord) => !p.archived);
+        setProjects(list);
+        setLoading(false);
+      }
+    } catch { /* no cache */ }
+
+    // 2. Fetch fresh data
     try {
       const result = await getProjectsByEmail(email);
       if (result?.error) throw new Error(result.error);
@@ -82,6 +95,7 @@ export function ProjectsPage() {
         Array.isArray(result) ? result : Array.isArray(result?.projects) ? result.projects : []
       ).filter((p: ProjectRecord) => !p.archived);
       setProjects(list);
+      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: list });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your projects');
     } finally {
@@ -93,20 +107,25 @@ export function ProjectsPage() {
   const loadEntries = useCallback(async () => {
     if (!email) return;
     try {
-      console.log('[ProjectsPage] loading entries for', email);
+      // 1. Try cache first
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cached?.data) {
+        setEntries(Array.isArray(cached.data) ? cached.data : []);
+      }
+
+      // 2. Fetch fresh data
       const result = await getAllEntries(email);
-      console.log('[ProjectsPage] entries result:', result?.success, 'data length:', result?.data?.length ?? 'N/A');
       if (result?.success && result.data) {
         setEntries(result.data);
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: result.data });
       } else if (Array.isArray(result)) {
         setEntries(result);
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: result });
       } else {
-        console.warn('[ProjectsPage] unexpected entries result:', result);
-        setEntries([]);
+        if (!cached?.data) setEntries([]);
       }
     } catch (err) {
       console.error('[ProjectsPage] Failed to load entries:', err);
-      setEntries([]);
     }
   }, [email]);
 
@@ -265,6 +284,7 @@ export function ProjectsPage() {
   };
 
   return (
+    <AppShell title="Projects">
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -473,5 +493,6 @@ export function ProjectsPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }

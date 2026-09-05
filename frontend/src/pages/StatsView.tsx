@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getProjectsByEmail } from '@/functions/project/project.js';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
@@ -10,6 +9,8 @@ import {
   formatDuration,
 } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
+import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -155,7 +156,6 @@ function StatCard({
 /* ---------- Main Component ---------- */
 export function StatsView() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const email = user?.email || '';
 
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -168,18 +168,38 @@ export function StatsView() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // 1. Try cache first — no spinner
+      try {
+        const [cachedEntries, cachedProjects] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+        ]);
+        if (cancelled) return;
+        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+        if (cachedEntries?.data || cachedProjects?.data) {
+          setLoading(false);
+        }
+      } catch { /* no cache, show spinner */ }
+
+      // 2. Fetch fresh data
       try {
         const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
           getProjectsByEmail(email),
           sortUnarchivedEntries(email, null, 0),
           dueSoon(email, null),
         ]);
-
         if (cancelled) return;
-
-        if (projectsRes.status === 'fulfilled') setProjects(projectsRes.value?.projects || []);
-        if (entriesRes.status === 'fulfilled') setEntries(entriesRes.value?.data || []);
+        if (projectsRes.status === 'fulfilled') {
+          const projs = projectsRes.value?.projects || [];
+          setProjects(projs);
+          await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
+        }
+        if (entriesRes.status === 'fulfilled') {
+          const ents = entriesRes.value?.data || [];
+          setEntries(ents);
+          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: ents });
+        }
         if (dueSoonRes.status === 'fulfilled') setDueSoonCount(dueSoonRes.value?.data?.length || 0);
       } catch (err) {
         console.error('[StatsView] Failed to load stats data:', err);
@@ -188,9 +208,7 @@ export function StatsView() {
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [email]);
 
   // Tick every second only while a task is running so in-progress totals stay live.
@@ -244,8 +262,9 @@ export function StatsView() {
 
   if (loading) {
     return (
-      <div className="stats-page">
-        <div className="feed-loading">
+      <AppShell title="My Stats">
+        <div className="stats-page">
+          <div className="feed-loading">
           <div
             className="animate-spin"
             style={{
@@ -258,32 +277,14 @@ export function StatsView() {
           />
           <p>Loading stats...</p>
         </div>
-      </div>
+        </div>
+      </AppShell>
     );
   }
 
   return (
+    <AppShell title="My Stats">
     <div className="stats-page">
-      {/* Header */}
-      <div className="stats-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <h1 className="stats-page-title">My Stats</h1>
-      </div>
 
       {projectStats.length === 0 ? (
         <div className="stats-empty glass">
@@ -464,6 +465,7 @@ export function StatsView() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }
 

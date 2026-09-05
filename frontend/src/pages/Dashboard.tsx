@@ -16,9 +16,11 @@ import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { dueSoon } from '@/functions/dashboard.js';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
+import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
@@ -29,8 +31,22 @@ import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { FiArchive, FiX } from 'react-icons/fi';
+import { isOverdue } from '@/functions/dashboard/overdue.js';
+import {
+  type CalendarEntry,
+  buildMonthGrid,
+  formatMonthYear,
+  formatShortDay,
+  formatDayNumber,
+  getEntriesForDay,
+  getEntryTitle,
+  isSameDay,
+  addDays,
+  addMonths,
+} from '@/lib/calendar';
+import '@/pages/Calendar.css';
 
-/** Parse AI response — handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
+/** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
@@ -89,7 +105,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [viewMode, setViewMode] = useState<'due-soon' | 'all-entries'>('due-soon');
 
   // Display mode: cards, checklist, or table
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table'>('cards');
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'table' | 'board'>('cards');
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -104,6 +120,22 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
+
+  // Calendar state (used in dashboard mode)
+  const [calDate, setCalDate] = useState(() => new Date());
+  const calDays = useMemo(() => buildMonthGrid(calDate, 0), [calDate]);
+  const calHeaderDays = useMemo(() => {
+    const start = calDays[0];
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [calDays]);
+  const calEntries = useMemo(() => {
+    return entries.filter((e: any) => e.due_date && !e.archived) as unknown as CalendarEntry[];
+  }, [entries]);
+  const isCalDayOverdue = useCallback((date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  }, []);
 
   // FAB menu
   const [fabOpen, setFabOpen] = useState(false);
@@ -166,20 +198,49 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load data — always fetch sorted to reflect current sortBy
+  // Load data — cache-first, then background fetch
   const loadData = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
+    const sortType = sortBy === 'priority' ? 1 : 0;
+    const project =
+      activeView !== 'all' &&
+      activeView !== 'recent' &&
+      activeView !== 'drafts' &&
+      activeView !== 'archives'
+        ? activeView
+        : null;
+  
+    // 1. Try cache first — show cached data immediately, no spinner
+    const entriesCacheKey = project ? `${email}:${project}` : email;
+    const entriesStore = project ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
     try {
-      const sortType = sortBy === 'priority' ? 1 : 0;
-      const project =
-        activeView !== 'all' &&
-        activeView !== 'recent' &&
-        activeView !== 'drafts' &&
-        activeView !== 'archives'
-          ? activeView
-          : null;
-
+      const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
+        cacheGet(entriesStore, entriesCacheKey),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+        cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
+      ]);
+      const hasCache = cachedEntries?.data || cachedProjects?.data;
+      if (hasCache) {
+        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data) {
+          const allProjects = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []) as Project[];
+          let localArch = new Set<string>();
+          try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+          setLocalArchived(localArch);
+          const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
+          setProjects(merged);
+          setArchivedProjects(merged.filter((p) => p.archived));
+        }
+        if (cachedDueSoon?.data) setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
+      } else {
+        setLoading(true);
+      }
+    } catch {
+      setLoading(true);
+    }
+  
+    // 2. Fetch fresh data in background (functions write to cache automatically)
+    try {
       const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
         getProjectsByEmail(email),
         sortUnarchivedEntries(email, project, sortType),
@@ -192,16 +253,17 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         if (raw) localArch = new Set(JSON.parse(raw));
       } catch {}
       setLocalArchived(localArch);
-
+  
       if (projectsRes.status === 'fulfilled') {
         const allProjects = (projectsRes.value?.projects || []) as Project[];
-        // Merge DB archived flag with localStorage archived set
         const merged = allProjects.map((p) => ({
           ...p,
           archived: p.archived === true || localArch.has(p.project_name as string),
         }));
         setProjects(merged);
         setArchivedProjects(merged.filter((p) => p.archived));
+        // Cache projects
+        await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: merged });
       } else {
         console.error('Failed to load projects:', projectsRes.reason);
       }
@@ -212,6 +274,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       }
       if (dueSoonRes.status === 'fulfilled') {
         setDueSoonRows(dueSoonRes.value?.data || []);
+        // Cache due soon
+        await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, { success: true, data: dueSoonRes.value?.data || [] });
       } else {
         console.error('Failed to load due soon:', dueSoonRes.reason);
       }
@@ -250,7 +314,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     })();
   }, [activeView, email]);
 
-  // AI-generated greeting — shown as a toast (respects AI messages preference)
+  // AI-generated greeting ΓÇö shown as a toast (respects AI messages preference)
   useEffect(() => {
     if (!getAiMessagesEnabled()) return;
     if (!loading && projects.length > 0) {
@@ -262,7 +326,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about their productivity, their procrastination, or their life choices. Be witty and entertaining. ${tone}`
+          `Generate a ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about their productivity, their procrastination, or their life choices. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           const msg = parseAIResponse(result.response);
@@ -328,7 +392,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtered entries — uses provided sort/search/archive functions
+  // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // If search results are available, use them
     if (searchResults !== null) return searchResults;
@@ -383,7 +447,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny — tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -583,7 +647,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   };
 
-  // Archive project — uses localStorage (DB UPDATE blocked by RLS)
+  // Archive project ΓÇö uses localStorage (DB UPDATE blocked by RLS)
   const handleArchiveProject = async (projectName: string) => {
     if (!email) {
       setArchiveError('Cannot archive: no email');
@@ -825,6 +889,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Home
             <span className="drawer-badge">{entries.length}</span>
+          </button>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/entries');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            All Entries
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -1108,7 +1194,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       aria-expanded={projectMenuOpen}
                       style={{ position: 'static' }}
                     >
-                      ⋯
+                      Γï»
                     </button>
                     {projectMenuOpen && (
                       <div
@@ -1156,7 +1242,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         </div>
 
-        {/* Live running-timer banner — shows when a task is in progress */}
+        {/* Live running-timer banner ΓÇö shows when a task is in progress */}
         {primaryTimer && activeView !== 'activity' && activeView !== 'archives' && (
           <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
             <span className="dash-timer-dot" />
@@ -1233,7 +1319,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       className="btn-secondary"
                       style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
                     >
-                      ↩ Unarchive
+                      Γå⌐ Unarchive
                     </button>
                   </div>
                 );
@@ -1264,7 +1350,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <FiArchive size={40} />
                 </div>
                 <h2 className="empty-title">No archived entries</h2>
-                <p className="empty-desc">Archive an entry from the ⋯ menu to see it here.</p>
+                <p className="empty-desc">Archive an entry from the Γï» menu to see it here.</p>
               </div>
             ) : (
               archivedEntries.map((row, i) => (
@@ -1333,6 +1419,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   onClick={() => setDisplayMode('checklist')}
                 >
                   Checklist
+                </button>
+                <button
+                  className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('board')}
+                >
+                  Board
                 </button>
                 {viewMode === 'all-entries' && (
                   <button
@@ -1411,7 +1503,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Entries feed — always shown (filtered by viewMode + sort) */}
+            {/* Entries feed ΓÇö always shown (filtered by viewMode + sort) */}
             {!loading && !searchQuery && (
               <div className="entries-feed">
                 {filteredEntries.length === 0 ? (
@@ -1465,6 +1557,21 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     onUpdated={() => loadData()}
                     onDelete={() => loadData()}
                   />
+                ) : displayMode === 'board' ? (
+                  <EntriesByDueDateBoard
+                    entries={filteredEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as Record<string, unknown> | string | null,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadData()}
+                    onDelete={() => loadData()}
+                  />
                 ) : displayMode === 'table' ? (
                   <ProjectTaskTable
                     rows={filteredEntries}
@@ -1494,7 +1601,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Search Results — only when searching */}
+            {/* Search Results ΓÇö only when searching */}
             {!loading && searchQuery && (
               <>
                 {filteredEntries.length === 0 ? (
@@ -1534,6 +1641,73 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 )}
               </>
             )}
+            {/* Calendar Section */}
+            <div className="dashboard-calendar-section">
+              <div className="calendar-toolbar" style={{ marginBottom: '0.5rem' }}>
+                <div className="calendar-nav">
+                  <button type="button" className="btn-icon" onClick={() => setCalDate((d) => addMonths(d, -1))} aria-label="Previous month">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setCalDate(new Date())} style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>Today</button>
+                  <button type="button" className="btn-icon" onClick={() => setCalDate((d) => addMonths(d, 1))} aria-label="Next month">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                  </button>
+                </div>
+                <h2 className="calendar-period" style={{ fontSize: '1rem', fontWeight: 600 }}>{formatMonthYear(calDate)}</h2>
+              </div>
+              <div className="calendar-grid">
+                {calHeaderDays.map((day) => (
+                  <div key={day.toISOString()} className="calendar-header-cell">{formatShortDay(day)}</div>
+                ))}
+                {calDays.map((day) => {
+                  const isCurrentMonth = day.getMonth() === calDate.getMonth();
+                  const dayEntries = getEntriesForDay(calEntries, day);
+                  const isToday = isSameDay(day, new Date());
+                  const dayOverdue = isCalDayOverdue(day);
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={[
+                        'calendar-day',
+                        !isCurrentMonth && 'calendar-day--outside',
+                        isToday && 'calendar-day--today',
+                        dayOverdue && 'calendar-day--overdue',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      <div className="calendar-day-header">
+                        <span className="calendar-day-number">{formatDayNumber(day)}</span>
+                        {isToday && <span className="calendar-day-today-label">Today</span>}
+                      </div>
+                      <div className="calendar-day-entries">
+                        {dayEntries.slice(0, 3).map((entry) => (
+                          <div
+                            key={entry.id}
+                            className={[
+                              'calendar-entry',
+                              entry.status === 'done_and_dusted' && 'calendar-entry--completed',
+                              isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') && 'calendar-entry--overdue',
+                            ].filter(Boolean).join(' ')}
+                            title={getEntryTitle(entry)}
+                            onClick={() => navigate(`/project/${encodeURIComponent(entry.project_name)}`)}
+                          >
+                            <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
+                            <span className="calendar-entry-project">{entry.project_name}</span>
+                          </div>
+                        ))}
+                        {dayEntries.length > 3 && (
+                          <span className="calendar-more-label">+{dayEntries.length - 3} more</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="calendar-legend">
+                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--overdue" />Overdue</span>
+                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--completed" />Completed</span>
+                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--upcoming" />Upcoming</span>
+              </div>
+            </div>
           </>
         )}
       </main>

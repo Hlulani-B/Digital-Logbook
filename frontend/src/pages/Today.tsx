@@ -6,6 +6,8 @@ import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { type CalendarEntry, getEntryTitle, parseDueDate } from '@/lib/calendar';
 import { getTodaySections, hasNothingToDo } from '@/lib/today';
 import './Today.css';
+import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', {
@@ -102,8 +104,19 @@ export function TodayPage() {
 
   const loadData = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
     setError(null);
+
+    // 1. Try cache first — no spinner
+    try {
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cached?.data) {
+        const data = (Array.isArray(cached.data) ? cached.data : []).filter((e: CalendarEntry) => !e.archived);
+        setEntries(data);
+        setLoading(false);
+      }
+    } catch { /* no cache */ }
+
+    // 2. Fetch fresh data
     try {
       const result = await getAllEntries(email);
       if (result?.success === false) {
@@ -111,6 +124,7 @@ export function TodayPage() {
       } else {
         const data = (result?.data || []).filter((entry: CalendarEntry) => !entry.archived);
         setEntries(data);
+        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load today view');
@@ -131,29 +145,8 @@ export function TodayPage() {
   };
 
   return (
+    <AppShell title="Today">
     <div className="today-page">
-      <div className="today-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <div className="today-page-titles">
-          <h1 className="today-page-title">Today</h1>
-          <p className="today-page-date">{formatShortDate(new Date())}</p>
-        </div>
-      </div>
 
       {error && (
         <div className="today-error" role="alert">
@@ -220,5 +213,6 @@ export function TodayPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }
