@@ -247,6 +247,7 @@ export function AllEntriesPage() {
               />
               </div>
             ) : displayMode === 'board' ? (
+              <div className="allentries-board-grid">
               <EntriesByDueDateBoard
                 entries={filteredEntries.map((r) => ({
                   id: r.id as string,
@@ -261,6 +262,7 @@ export function AllEntriesPage() {
                 onUpdated={() => loadData()}
                 onDelete={() => loadData()}
               />
+              </div>
             ) : displayMode === 'table' ? (
               <ProjectTaskTable
                 rows={filteredEntries}

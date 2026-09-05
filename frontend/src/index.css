@@ -5447,6 +5447,16 @@ img {
   gap: 0.75rem;
   padding-bottom: 0.5rem;
 }
+
+/* AllEntries board grid - horizontal layout with larger columns */
+.allentries-board-grid .edb-board {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.allentries-board-grid .edb-column {
+  min-width: 280px;
+}
 .edb-column {
   background: var(--card, #fff);
   border: 1px solid var(--border, #e5e5e5);
