@@ -16,6 +16,7 @@ import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { dueSoon } from '@/functions/dashboard.js';
+import { cacheGet, cacheSet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { searchAll, searchProject, searchProjects } from '@/functions/dashboard/search.js';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
@@ -197,24 +198,49 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load data ΓÇö always fetch sorted to reflect current sortBy
+  // Load data — cache-first, then background fetch
   const loadData = useCallback(async () => {
     if (!email) return;
-    // Only show loading spinner on initial load (no cached data yet)
-    setEntries((prev) => {
-      if (prev.length === 0) setLoading(true);
-      return prev;
-    });
+    const sortType = sortBy === 'priority' ? 1 : 0;
+    const project =
+      activeView !== 'all' &&
+      activeView !== 'recent' &&
+      activeView !== 'drafts' &&
+      activeView !== 'archives'
+        ? activeView
+        : null;
+  
+    // 1. Try cache first — show cached data immediately, no spinner
+    const entriesCacheKey = project ? `${email}:${project}` : email;
+    const entriesStore = project ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
     try {
-      const sortType = sortBy === 'priority' ? 1 : 0;
-      const project =
-        activeView !== 'all' &&
-        activeView !== 'recent' &&
-        activeView !== 'drafts' &&
-        activeView !== 'archives'
-          ? activeView
-          : null;
-
+      const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
+        cacheGet(entriesStore, entriesCacheKey),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+        cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
+      ]);
+      const hasCache = cachedEntries?.data || cachedProjects?.data;
+      if (hasCache) {
+        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data) {
+          const allProjects = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []) as Project[];
+          let localArch = new Set<string>();
+          try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+          setLocalArchived(localArch);
+          const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
+          setProjects(merged);
+          setArchivedProjects(merged.filter((p) => p.archived));
+        }
+        if (cachedDueSoon?.data) setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
+      } else {
+        setLoading(true);
+      }
+    } catch {
+      setLoading(true);
+    }
+  
+    // 2. Fetch fresh data in background (functions write to cache automatically)
+    try {
       const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
         getProjectsByEmail(email),
         sortUnarchivedEntries(email, project, sortType),
@@ -227,16 +253,17 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         if (raw) localArch = new Set(JSON.parse(raw));
       } catch {}
       setLocalArchived(localArch);
-
+  
       if (projectsRes.status === 'fulfilled') {
         const allProjects = (projectsRes.value?.projects || []) as Project[];
-        // Merge DB archived flag with localStorage archived set
         const merged = allProjects.map((p) => ({
           ...p,
           archived: p.archived === true || localArch.has(p.project_name as string),
         }));
         setProjects(merged);
         setArchivedProjects(merged.filter((p) => p.archived));
+        // Cache projects
+        await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: merged });
       } else {
         console.error('Failed to load projects:', projectsRes.reason);
       }
@@ -247,6 +274,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       }
       if (dueSoonRes.status === 'fulfilled') {
         setDueSoonRows(dueSoonRes.value?.data || []);
+        // Cache due soon
+        await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, { success: true, data: dueSoonRes.value?.data || [] });
       } else {
         console.error('Failed to load due soon:', dueSoonRes.reason);
       }

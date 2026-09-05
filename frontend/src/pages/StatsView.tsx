@@ -11,6 +11,7 @@ import {
 } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -169,18 +170,38 @@ export function StatsView() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // 1. Try cache first — no spinner
+      try {
+        const [cachedEntries, cachedProjects] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+        ]);
+        if (cancelled) return;
+        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+        if (cachedEntries?.data || cachedProjects?.data) {
+          setLoading(false);
+        }
+      } catch { /* no cache, show spinner */ }
+
+      // 2. Fetch fresh data
       try {
         const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
           getProjectsByEmail(email),
           sortUnarchivedEntries(email, null, 0),
           dueSoon(email, null),
         ]);
-
         if (cancelled) return;
-
-        if (projectsRes.status === 'fulfilled') setProjects(projectsRes.value?.projects || []);
-        if (entriesRes.status === 'fulfilled') setEntries(entriesRes.value?.data || []);
+        if (projectsRes.status === 'fulfilled') {
+          const projs = projectsRes.value?.projects || [];
+          setProjects(projs);
+          await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
+        }
+        if (entriesRes.status === 'fulfilled') {
+          const ents = entriesRes.value?.data || [];
+          setEntries(ents);
+          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: ents });
+        }
         if (dueSoonRes.status === 'fulfilled') setDueSoonCount(dueSoonRes.value?.data?.length || 0);
       } catch (err) {
         console.error('[StatsView] Failed to load stats data:', err);
@@ -189,9 +210,7 @@ export function StatsView() {
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [email]);
 
   // Tick every second only while a task is running so in-progress totals stay live.

@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
 import { AppShell } from '@/components/AppShell';
+import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 type Entry = Record<string, unknown>;
 
@@ -24,10 +25,22 @@ export function StreakView() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // 1. Try cache first — no spinner
+      try {
+        const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (!cancelled && cached?.data) {
+          setEntries(Array.isArray(cached.data) ? cached.data : []);
+          setLoading(false);
+        }
+      } catch { /* no cache */ }
+
+      // 2. Fetch fresh data
       try {
         const res = await sortUnarchivedEntries(email, null, 0);
-        if (!cancelled) setEntries(res?.data || []);
+        if (!cancelled) {
+          setEntries(res?.data || []);
+          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: res?.data || [] });
+        }
       } catch (err) {
         console.error('[StreakView] Failed to load entries:', err);
       } finally {
@@ -35,9 +48,7 @@ export function StreakView() {
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [email]);
 
   const streaks = useMemo(() => calculateStreaks(entries), [entries]);
