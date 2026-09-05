@@ -1,26 +1,16 @@
-name: Keep Render Alive
+name: Keep Render Alive & Supabase Active
 
 on:
   schedule:
-    # Ping every 10 minutes to prevent Render free tier from sleeping
-    - cron: '*/10 * * * *'
-  workflow_dispatch: # Allow manual trigger
+    - cron: '*/10 * * * *' # Runs every 10 minutes
+  workflow_dispatch:       # Allows manual trigger from GitHub UI
 
 jobs:
-  keep-alive:
+  ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping frontend
-        run: curl -s -o /dev/null -w "%{http_code}" https://digital-logbook-bxgv.onrender.com || true
-
-      - name: Ping auth service
-        run: curl -s -o /dev/null -w "%{http_code}" https://auth-service-hl52.onrender.com/health || true
-
-      - name: Ping project service
-        run: curl -s -o /dev/null -w "%{http_code}" https://project-service-96ml.onrender.com/health || true
-
-      - name: Ping dashboard service
-        run: curl -s -o /dev/null -w "%{http_code}" https://dashboard-service-bpc5.onrender.com/health || true
-
-      - name: Ping profile service
-        run: curl -s -o /dev/null -w "%{http_code}" https://profile-service-0zk7.onrender.com/health || true
+      - name: Ping health-ping endpoint (wakes Render + pings Supabase)
+        env:
+          RENDER_URL: ${{ secrets.RENDER_URL }}
+        run: |
+          curl -f "$RENDER_URL/service/health-ping" || echo "Ping failed, but workflow continues"
