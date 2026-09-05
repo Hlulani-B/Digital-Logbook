@@ -8,15 +8,14 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ActivitySummary } from '@/components/ActivitySummary';
-import { addProject, getProjectsByEmail } from '@/functions/project/project.js';
+import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { dueSoon } from '@/functions/dashboard.js';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -187,24 +186,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load data — cache-first, then background fetch
+  // Load data — local-first: read IndexedDB, then sync from server
   const loadData = useCallback(async () => {
     if (!email) return;
-    const sortType = sortBy === 'priority' ? 1 : 0;
-    const project =
-      activeView !== 'all' &&
-      activeView !== 'recent' &&
-      activeView !== 'drafts' &&
-      activeView !== 'archives'
-        ? activeView
-        : null;
-  
-    // 1. Try cache first — show cached data immediately, no spinner
-    const entriesCacheKey = project ? `${email}:${project}` : email;
-    const entriesStore = project ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
+
+    // 1. Read from IndexedDB first — show cached data immediately, no spinner
     try {
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
-        cacheGet(entriesStore, entriesCacheKey),
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
@@ -227,53 +216,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     } catch {
       setLoading(true);
     }
-  
-    // 2. Fetch fresh data in background (functions write to cache automatically)
+
+    // 2. Sync all data from server → IndexedDB (background)
     try {
-      const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
-        getProjectsByEmail(email),
-        sortUnarchivedEntries(email, project, sortType),
-        dueSoon(email, null),
+      await syncAllData(email, { force: true });
+
+      // 3. Re-read from IndexedDB (syncAllData has updated it)
+      const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+        cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
-      // Read localStorage archived set (DB UPDATE is blocked by RLS)
-      let localArch = new Set<string>();
-      try {
-        const raw = localStorage.getItem(`dl_archived_${email}`);
-        if (raw) localArch = new Set(JSON.parse(raw));
-      } catch {}
-      setLocalArchived(localArch);
-  
-      if (projectsRes.status === 'fulfilled') {
-        const allProjects = (projectsRes.value?.projects || []) as Project[];
-        const merged = allProjects.map((p) => ({
-          ...p,
-          archived: p.archived === true || localArch.has(p.project_name as string),
-        }));
+      if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+      if (freshProjects?.data) {
+        const allProjects = (Array.isArray(freshProjects.data) ? freshProjects.data : []) as Project[];
+        let localArch = new Set<string>();
+        try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+        setLocalArchived(localArch);
+        const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
         setProjects(merged);
         setArchivedProjects(merged.filter((p) => p.archived));
-        // Cache projects
-        await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: merged });
-      } else {
-        console.error('Failed to load projects:', projectsRes.reason);
       }
-      if (entriesRes.status === 'fulfilled') {
-        setEntries(entriesRes.value?.data || []);
-      } else {
-        console.error('Failed to load entries:', entriesRes.reason);
-      }
-      if (dueSoonRes.status === 'fulfilled') {
-        setDueSoonRows(dueSoonRes.value?.data || []);
-        // Cache due soon
-        await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, { success: true, data: dueSoonRes.value?.data || [] });
-      } else {
-        console.error('Failed to load due soon:', dueSoonRes.reason);
-      }
+      if (freshDueSoon?.data) setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
       setLoading(false);
     }
-  }, [email, sortBy, activeView]);
+  }, [email]);
 
   // SSE: Listen for real-time entry updates from backend
   // When the backend finishes parsing a natural language entry, it pushes

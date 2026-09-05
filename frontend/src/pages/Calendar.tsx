@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getAllEntries, updateEntry } from '@/functions/project/entries.js';
-import { getProjectsByEmail } from '@/functions/project/project.js';
+import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
-import { cacheGet, cacheSet } from '@/lib/cache.js';
+import { cacheGet, CACHE_STORES } from '@/lib/cache.js';
+import { syncAllData } from '@/CacheFunctions';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { CalendarDayModal } from '@/pages/CalendarDayModal';
@@ -194,41 +194,39 @@ export function CalendarPage() {
     if (!email) return;
     setError(null);
 
-    // Try cache first — show cached data immediately, no spinner
-    const cacheKey = `calendar:${email}`;
+    // 1. Read from IndexedDB first — show cached data immediately, no spinner
     try {
-      const cached = await cacheGet('entries', cacheKey);
-      if (cached?.data && cached.data.length > 0) {
-        setEntries(cached.data);
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
+        const data = cached.data.filter(
+          (entry: CalendarEntry) => !entry.archived && entry.due_date
+        );
+        setEntries(data);
         setLoading(false);
       } else {
-        // No cache — show spinner
         setLoading(true);
       }
     } catch {
       setLoading(true);
     }
 
-    // Fetch fresh data in background
+    // 2. Sync from server → IndexedDB
     try {
-      const [entriesResult, projectsResult] = await Promise.all([
-        getAllEntries(email),
-        getProjectsByEmail(email),
-      ]);
-      if (entriesResult?.success === false) {
-        setError(entriesResult.message || 'Failed to load entries');
-        return;
+      await syncAllData(email, { force: true });
+      const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (fresh?.data && Array.isArray(fresh.data)) {
+        const data = fresh.data.filter(
+          (entry: CalendarEntry) => !entry.archived && entry.due_date
+        );
+        setEntries(data);
       }
-      const data = (entriesResult?.data || []).filter(
-        (entry: CalendarEntry) => !entry.archived && entry.due_date
-      );
-      setEntries(data);
-      await cacheSet('entries', cacheKey, data);
-
-      // Load projects for the add-entry dropdown
-      const projList = (projectsResult?.projects || projectsResult || [])
-        .filter((p: Record<string, unknown>) => !p.archived);
-      setProjects(projList.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string })));
+      // Also load projects for the add-entry dropdown
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects?.data) {
+        const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : [])
+          .filter((p: Record<string, unknown>) => !p.archived);
+        setProjects(projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string })));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {

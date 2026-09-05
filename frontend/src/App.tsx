@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { syncAllData } from '@/CacheFunctions';
 import { SignIn } from '@/pages/SignIn';
 import { AuthCallback } from '@/pages/AuthCallback';
 import { AuthRestore } from '@/pages/AuthRestore';
@@ -26,6 +28,26 @@ import { TodayPage } from '@/pages/Today';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
+  return <>{children}</>;
+}
+
+/**
+ * DataSyncInitializer — triggers a full IndexedDB sync when the user logs in.
+ * This warms up the local cache so all pages can read from IndexedDB immediately.
+ */
+function DataSyncInitializer({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const email = user?.email;
+
+  useEffect(() => {
+    if (email) {
+      // Fire-and-forget: sync all data from server → IndexedDB
+      syncAllData(email).catch((err) => {
+        console.warn('[App] Initial data sync failed:', err);
+      });
+    }
+  }, [email]);
+
   return <>{children}</>;
 }
 
@@ -62,6 +84,7 @@ export function App() {
     <BrowserRouter>
       <ThemeInitializer>
         <AuthProvider>
+          <DataSyncInitializer>
           <Routes>
             <Route
               path="/"
@@ -236,6 +259,7 @@ export function App() {
             />
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
+          </DataSyncInitializer>
         </AuthProvider>
       </ThemeInitializer>
     </BrowserRouter>

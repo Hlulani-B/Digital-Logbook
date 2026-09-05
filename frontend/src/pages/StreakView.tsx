@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
 
@@ -24,7 +24,7 @@ export function StreakView() {
     let cancelled = false;
 
     (async () => {
-      // 1. Try cache first — no spinner
+      // 1. Read from IndexedDB first — no spinner
       try {
         const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (!cancelled && cached?.data) {
@@ -33,12 +33,12 @@ export function StreakView() {
         }
       } catch { /* no cache */ }
 
-      // 2. Fetch fresh data
+      // 2. Sync from server → IndexedDB
       try {
-        const res = await sortUnarchivedEntries(email, null, 0);
+        await syncAllData(email, { force: true });
         if (!cancelled) {
-          setEntries(res?.data || []);
-          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: res?.data || [] });
+          const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+          if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
         }
       } catch (err) {
         console.error('[StreakView] Failed to load entries:', err);

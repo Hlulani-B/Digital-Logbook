@@ -3,17 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData, syncProjectEntries } from '@/CacheFunctions';
 import {
   editProjectName,
   deleteProject,
-  getProjectsByEmail,
   addProject,
 } from '../functions/project/project.js';
 import { getArchivedProjects, archiveProject, unarchiveProject } from '../functions/project/archives.js';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
-import { getAllEntries, getEntries, updateEntry, deleteEntryById } from '@/functions/project/entries';
+import { updateEntry, deleteEntryById } from '@/functions/project/entries';
 import '@/Templates/ProjectTemplates/ProjectTable.css';
 
 type ProjectRecord = {
@@ -78,7 +78,7 @@ export function ProjectsPage() {
     if (!email) return;
     setError(null);
 
-    // 1. Try cache first — no spinner
+    // 1. Read from IndexedDB first — no spinner
     try {
       const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
       if (cached?.data) {
@@ -88,15 +88,14 @@ export function ProjectsPage() {
       }
     } catch { /* no cache */ }
 
-    // 2. Fetch fresh data
+    // 2. Sync from server → IndexedDB
     try {
-      const result = await getProjectsByEmail(email);
-      if (result?.error) throw new Error(result.error);
-      const list = (
-        Array.isArray(result) ? result : Array.isArray(result?.projects) ? result.projects : []
-      ).filter((p: ProjectRecord) => !p.archived);
-      setProjects(list);
-      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: list });
+      await syncAllData(email, { force: true });
+      const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (fresh?.data) {
+        const list = (Array.isArray(fresh.data) ? fresh.data : []).filter((p: ProjectRecord) => !p.archived);
+        setProjects(list);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your projects');
     } finally {
@@ -108,22 +107,17 @@ export function ProjectsPage() {
   const loadEntries = useCallback(async () => {
     if (!email) return;
     try {
-      // 1. Try cache first
+      // 1. Read from IndexedDB first
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       if (cached?.data) {
         setEntries(Array.isArray(cached.data) ? cached.data : []);
       }
 
-      // 2. Fetch fresh data
-      const result = await getAllEntries(email);
-      if (result?.success && result.data) {
-        setEntries(result.data);
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: result.data });
-      } else if (Array.isArray(result)) {
-        setEntries(result);
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: result });
-      } else {
-        if (!cached?.data) setEntries([]);
+      // 2. Sync from server → IndexedDB
+      await syncAllData(email, { force: true });
+      const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (fresh?.data) {
+        setEntries(Array.isArray(fresh.data) ? fresh.data : []);
       }
     } catch (err) {
       console.error('[ProjectsPage] Failed to load entries:', err);
@@ -269,14 +263,14 @@ export function ProjectsPage() {
     setViewingArchived(name);
     setLoadingEntries(true);
     try {
-      const result = await getEntries(email, name);
-      if (result?.success && result.data) {
-        setArchivedEntries(result.data);
-      } else if (Array.isArray(result)) {
-        setArchivedEntries(result);
-      } else {
-        setArchivedEntries([]);
-      }
+      // Read from cache first
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, `${email}:${name}`);
+      if (cached?.data) setArchivedEntries(Array.isArray(cached.data) ? cached.data : []);
+
+      // Sync from server
+      await syncProjectEntries(email, name);
+      const fresh = await cacheGet(CACHE_STORES.ENTRIES, `${email}:${name}`);
+      if (fresh?.data) setArchivedEntries(Array.isArray(fresh.data) ? fresh.data : []);
     } catch {
       setArchivedEntries([]);
     } finally {

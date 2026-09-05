@@ -3,11 +3,10 @@ import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
-import { getProjectsByEmail } from '@/functions/project/project.js';
-import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -61,7 +60,7 @@ export function AllEntriesPage() {
   const loadData = useCallback(async () => {
     if (!email) return;
 
-    // 1. Try cache first — show cached data immediately, no spinner
+    // 1. Read from IndexedDB first — show cached data immediately, no spinner
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
@@ -78,21 +77,17 @@ export function AllEntriesPage() {
       setLoading(true);
     }
 
-    // 2. Fetch fresh data in background
+    // 2. Sync all data from server → IndexedDB (background)
     try {
-      const [projRes, entRes] = await Promise.all([
-        getProjectsByEmail(email),
-        sortUnarchivedEntries(email, null, 0),
+      await syncAllData(email, { force: true });
+
+      // 3. Re-read from IndexedDB (syncAllData has updated it)
+      const [freshEntries, freshProjects] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+        cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
-
-      const ents = entRes?.data || entRes || [];
-      const projs = projRes?.data || projRes || [];
-      setEntries(ents as Entry[]);
-      setProjects(projs as Array<Record<string, unknown>>);
-
-      // Update cache
-      await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: ents });
-      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
+      if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+      if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {
