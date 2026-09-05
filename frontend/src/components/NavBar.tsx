@@ -14,6 +14,9 @@ interface NavBarProps {
 
 export function NavBar({ projects = [], entries = [], activeView = 'all', onArchiveProject, onNewProject }: NavBarProps) {
   const { user, signOut } = useAuth();
+  // Defensive: ensure projects/entries are always arrays (API or cache may return unexpected shapes)
+  const safeProjects = Array.isArray(projects) ? projects : [];
+  const safeEntries = Array.isArray(entries) ? entries : [];
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -159,7 +162,7 @@ export function NavBar({ projects = [], entries = [], activeView = 'all', onArch
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
             Home
-            <span className="drawer-badge">{entries.length}</span>
+            <span className="drawer-badge">{safeEntries.length}</span>
           </button>
           <button
             className="drawer-item"
@@ -312,11 +315,11 @@ export function NavBar({ projects = [], entries = [], activeView = 'all', onArch
         <div className="drawer-section drawer-projects">
           <p className="drawer-section-title">Projects</p>
           <div className="drawer-project-list">
-            {projects
+            {safeProjects
               .filter((p) => !p.archived)
               .map((project) => {
                 const name = project.project_name as string;
-                const count = entries.filter((e) => e.project_name === name).length;
+                const count = safeEntries.filter((e) => e.project_name === name).length;
                 return (
                   <div
                     key={name}
@@ -382,7 +385,7 @@ export function NavBar({ projects = [], entries = [], activeView = 'all', onArch
                   </div>
                 );
               })}
-            {projects.filter((p) => !p.archived).length === 0 && (
+            {safeProjects.filter((p) => !p.archived).length === 0 && (
               <p className="drawer-empty">No projects yet. Create one below.</p>
             )}
           </div>
