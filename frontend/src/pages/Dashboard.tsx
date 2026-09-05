@@ -1323,6 +1323,24 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               placeholder={aiPlaceholder}
             />
 
+            {/* Due Soon Section Label */}
+            <div className="due-soon-section-label">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>Due soon</span>
+            </div>
+
             {/* Loading */}
             {loading && (
               <div className="feed-loading">
