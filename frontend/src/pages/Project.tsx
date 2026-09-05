@@ -343,6 +343,7 @@ export function ProjectsPage() {
         <ProjectTaskTable
           rows={entries}
           viewMode={viewMode}
+          showToggle={false}
           onUpdate={handleEntryUpdate}
           onProjectNameClick={(name) => navigate(`/project/${encodeURIComponent(name)}`)}
           onDeleteSelected={async (ids: string[]) => {

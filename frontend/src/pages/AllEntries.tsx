@@ -266,7 +266,6 @@ export function AllEntriesPage() {
             ) : displayMode === 'table' ? (
               <ProjectTaskTable
                 rows={filteredEntries}
-                viewMode="entry"
                 onUpdate={async () => {
                   await loadData();
                 }}

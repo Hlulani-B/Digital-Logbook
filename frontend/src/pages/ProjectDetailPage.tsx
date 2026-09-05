@@ -748,7 +748,6 @@ export function ProjectDetailPage() {
             ) : viewMode === 'table' ? (
               <ProjectTaskTable
                 rows={entries}
-                viewMode="entry"
                 onUpdate={async (id: string, patch: Record<string, any>) => {
                   console.log('[onUpdate] Called with id:', id, 'patch:', patch);
                   // Find the entry being updated
