@@ -185,8 +185,7 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
           </button>
         </div>
 
-        <div className="drawer-content">
-          <div className="drawer-section">
+        <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
           <button
             className={`drawer-item ${location.pathname === '/dashboard/all' || location.pathname === '/dashboard' ? 'active' : ''}`}
@@ -434,7 +433,6 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
               <p className="drawer-empty">No projects yet. Create one below.</p>
             )}
           </div>
-        </div>
         </div>
 
         <div className="drawer-footer">

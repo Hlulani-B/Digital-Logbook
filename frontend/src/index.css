@@ -2358,11 +2358,6 @@ img {
   transform: translateX(0);
 }
 
-.drawer-content {
-  flex: 1;
-  min-height: 0;
-}
-
 .drawer-header {
   display: flex;
   align-items: center;
