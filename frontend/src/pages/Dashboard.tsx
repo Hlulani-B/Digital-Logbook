@@ -208,7 +208,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
-      const hasCache = cachedEntries?.data || cachedProjects?.data;
+      const hasCache = cachedEntries?.data || cachedProjects?.data || cachedDueSoon?.data;
       if (hasCache) {
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data) {

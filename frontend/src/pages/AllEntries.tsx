@@ -60,13 +60,26 @@ export function AllEntriesPage() {
 
   const loadData = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
-    try {
-      // Load from cache first
-      const cachedEntries = await cacheGet(CACHE_STORES.ENTRIES, email);
-      if (cachedEntries?.data) setEntries(cachedEntries.data as Entry[]);
 
-      // Fetch fresh data
+    // 1. Try cache first — show cached data immediately, no spinner
+    try {
+      const [cachedEntries, cachedProjects] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+      ]);
+      const hasCache = cachedEntries?.data || cachedProjects?.data;
+      if (hasCache) {
+        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+      } else {
+        setLoading(true);
+      }
+    } catch {
+      setLoading(true);
+    }
+
+    // 2. Fetch fresh data in background
+    try {
       const [projRes, entRes] = await Promise.all([
         getProjectsByEmail(email),
         sortUnarchivedEntries(email, null, 0),
@@ -78,7 +91,7 @@ export function AllEntriesPage() {
       setProjects(projs as Array<Record<string, unknown>>);
 
       // Update cache
-      await cacheSet(CACHE_STORES.ENTRIES, email, { success: true, data: ents });
+      await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: ents });
       await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
