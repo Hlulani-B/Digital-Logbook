@@ -1030,7 +1030,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <h1 className="feed-title">
                 {activeView === 'all'
-                  ? 'Due in 3 days'
+                  ? 'Home'
                   : activeView === 'recent'
                     ? 'Recent'
                     : activeView === 'drafts'
