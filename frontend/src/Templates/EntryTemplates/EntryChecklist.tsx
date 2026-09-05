@@ -174,23 +174,26 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
         data-status={entry.status}
         onClick={handleCardClick}
       >
-        <button
-          type="button"
-          className={`checklist-checkbox ${checking ? 'checklist-checkbox--loading' : ''}`}
-          role="checkbox"
-          aria-checked={isDone}
-          aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
-          onClick={handleCheckboxClick}
-          disabled={checking}
-        >
-          {isDone && <span className="checklist-check" aria-hidden="true">✓</span>}
-        </button>
+        <span className="checklist-project">{entry.project_name}</span>
+        <div className="checklist-card-row">
+          <button
+            type="button"
+            className={`checklist-checkbox ${checking ? 'checklist-checkbox--loading' : ''}`}
+            role="checkbox"
+            aria-checked={isDone}
+            aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
+            onClick={handleCheckboxClick}
+            disabled={checking}
+          >
+            {isDone && <span className="checklist-check" aria-hidden="true">✓</span>}
+          </button>
 
-        <div className="checklist-body">
-          <p className={`checklist-summary ${isDone ? 'checklist-summary--done' : ''}`}>
-            {getSummary(entry)}
-          </p>
-          <p className="checklist-due">{formatDate(entry.due_date)}</p>
+          <div className="checklist-body">
+            <p className={`checklist-summary ${isDone ? 'checklist-summary--done' : ''}`}>
+              {getSummary(entry)}
+            </p>
+            <p className="checklist-due">{formatDate(entry.due_date)}</p>
+          </div>
         </div>
       </div>
 
