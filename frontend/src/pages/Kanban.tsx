@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getAllEntries, updateEntry } from '@/functions/project/entries.js';
-import { getProjectsByEmail } from '@/functions/project/project.js';
+import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { type CalendarEntry, getEntryTitle, parseDueDate } from '@/lib/calendar';
 import {
@@ -17,7 +16,8 @@ import {
 import './Kanban.css';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 
 function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
   if (!entries) return {};
@@ -164,7 +164,7 @@ export function KanbanPage() {
     if (!email) return;
     setError(null);
 
-    // 1. Try cache first — no spinner
+    // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
@@ -174,42 +174,28 @@ export function KanbanPage() {
         const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter((e: CalendarEntry) => !e.archived);
         setEntries(data);
       }
-      if (cachedProjects?.data) {
-        setProjects((Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter((p: { archived?: boolean }) => !p.archived));
+      if (cachedProjects?.data || cachedProjects?.projects) {
+        const rawProjects = cachedProjects.data || cachedProjects.projects || [];
+        setProjects((Array.isArray(rawProjects) ? rawProjects : []).filter((p: { archived?: boolean }) => !p.archived));
       }
-      if (cachedEntries?.data) setLoading(false);
-    } catch { /* no cache, show spinner */ }
-
-    // 2. Fetch fresh data
-    try {
-      const [entriesRes, projectsRes] = await Promise.allSettled([
-        getAllEntries(email),
-        getProjectsByEmail(email),
-      ]);
-
-      if (entriesRes.status === 'fulfilled') {
-        const result = entriesRes.value;
-        if (result?.success === false) {
-          setError(result.message || 'Failed to load entries');
-        } else {
-          const data = (result?.data || []).filter((entry: CalendarEntry) => !entry.archived);
+      if (!cachedEntries?.data && !cachedProjects?.data && !cachedProjects?.projects) {
+        // First visit ever — trigger initial sync
+        await syncAllData(email);
+        const [freshEntries, freshProjects] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+        ]);
+        if (freshEntries?.data) {
+          const data = (Array.isArray(freshEntries.data) ? freshEntries.data : []).filter((e: CalendarEntry) => !e.archived);
           setEntries(data);
-          await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data });
         }
-      } else {
-        setError(entriesRes.reason?.message || 'Failed to load entries');
-      }
-
-      if (projectsRes.status === 'fulfilled') {
-        const result = projectsRes.value;
-        if (result?.success !== false) {
-          const projs = (result?.data || []).filter((p: { archived?: boolean }) => !p.archived);
-          setProjects(projs);
-          await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projs });
+        if (freshProjects?.data || freshProjects?.projects) {
+          const rawProjects = freshProjects.data || freshProjects.projects || [];
+          setProjects((Array.isArray(rawProjects) ? rawProjects : []).filter((p: { archived?: boolean }) => !p.archived));
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load board data');
+      console.error('[Kanban] Failed to load data:', err);
     } finally {
       setLoading(false);
     }

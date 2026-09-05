@@ -197,11 +197,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
-      const hasCache = cachedEntries?.data || cachedProjects?.data || cachedDueSoon?.data;
+      const hasCache = cachedEntries?.data || cachedProjects?.data || cachedProjects?.projects || cachedDueSoon?.data;
       if (hasCache) {
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-        if (cachedProjects?.data) {
-          const allProjects = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []) as Project[];
+        if (cachedProjects?.data || cachedProjects?.projects) {
+          const rawProjects = cachedProjects.data || cachedProjects.projects || [];
+          const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
           let localArch = new Set<string>();
           try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
           setLocalArchived(localArch);
@@ -219,8 +220,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
         if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-        if (freshProjects?.data) {
-          const allProjects = (Array.isArray(freshProjects.data) ? freshProjects.data : []) as Project[];
+        if (freshProjects?.data || freshProjects?.projects) {
+          const rawProjects = freshProjects.data || freshProjects.projects || [];
+          const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
           let localArch = new Set<string>();
           try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
           setLocalArchived(localArch);

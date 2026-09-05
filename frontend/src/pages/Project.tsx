@@ -80,16 +80,18 @@ export function ProjectsPage() {
     // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
-      if (cached?.data) {
-        const list = (Array.isArray(cached.data) ? cached.data : []).filter((p: ProjectRecord) => !p.archived);
+      if (cached?.data || cached?.projects) {
+        const rawProjects = cached.data || cached.projects || [];
+        const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
         setProjects(list);
       } else {
         // First visit ever — trigger initial sync
         setLoading(true);
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
-        if (fresh?.data) {
-          const list = (Array.isArray(fresh.data) ? fresh.data : []).filter((p: ProjectRecord) => !p.archived);
+        if (fresh?.data || fresh?.projects) {
+          const rawProjects = fresh.data || fresh.projects || [];
+          const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
           setProjects(list);
         }
       }

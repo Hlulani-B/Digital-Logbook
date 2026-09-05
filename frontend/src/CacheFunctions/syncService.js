@@ -80,7 +80,8 @@ async function _doSync(email, onProgress) {
     const result = await getProjectsByEmail(email);
     if (result?.success || result?.projects) {
       const projects = result.projects || [];
-      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, data: projects });
+      // Store in the same format as getProjectsByEmail: { success, projects }
+      await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, projects });
       summary.synced.push('projects');
       onProgress?.({ store: 'projects', data: projects });
     }
