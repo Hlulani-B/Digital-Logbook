@@ -2464,8 +2464,7 @@ img {
 }
 
 .drawer-projects {
-  flex: 1;
-  overflow-y: auto;
+  /* Let the whole drawer scroll, not just this section */
 }
 .drawer-project-list {
   display: flex;
