@@ -26,8 +26,6 @@ interface Column {
   entries: BoardEntry[];
 }
 
-const WEEKDAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 function getWeekdayName(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   if (Number.isNaN(d.getTime())) return dateStr;
