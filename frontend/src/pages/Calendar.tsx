@@ -335,8 +335,12 @@ export function CalendarPage() {
   const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
 
   return (
-    <AppShell title="Calendar">
+    <AppShell>
       <div className="calendar-page">
+        <div className="dash-header-section">
+          <h1 className="dash-title">Calendar</h1>
+          <p className="dash-subtitle">View your tasks on a calendar</p>
+        </div>
 
       <div className="calendar-toolbar">
         <div className="calendar-nav">

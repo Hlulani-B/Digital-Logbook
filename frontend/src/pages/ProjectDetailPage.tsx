@@ -396,7 +396,7 @@ export function ProjectDetailPage() {
 
 
   return (
-    <AppShell title={projectName!}>
+    <AppShell>
         {/* Project heading + settings on same line */}
         <div className="feed-header animate-in">
           <div className="feed-header-row">

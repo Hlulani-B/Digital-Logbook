@@ -284,7 +284,7 @@ export function ProjectsPage() {
   };
 
   return (
-    <AppShell title="Projects">
+    <AppShell>
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>

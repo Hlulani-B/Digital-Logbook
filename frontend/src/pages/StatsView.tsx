@@ -262,8 +262,12 @@ export function StatsView() {
 
   if (loading) {
     return (
-      <AppShell title="My Stats">
+      <AppShell>
         <div className="stats-page">
+          <div className="dash-header-section">
+            <h1 className="dash-title">My Stats</h1>
+            <p className="dash-subtitle">Your productivity overview</p>
+          </div>
           <div className="feed-loading">
           <div
             className="animate-spin"
@@ -283,8 +287,12 @@ export function StatsView() {
   }
 
   return (
-    <AppShell title="My Stats">
+    <AppShell>
     <div className="stats-page">
+      <div className="dash-header-section">
+        <h1 className="dash-title">My Stats</h1>
+        <p className="dash-subtitle">Your productivity overview</p>
+      </div>
 
       {projectStats.length === 0 ? (
         <div className="stats-empty glass">

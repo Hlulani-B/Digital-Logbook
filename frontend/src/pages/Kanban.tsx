@@ -273,8 +273,12 @@ export function KanbanPage() {
   };
 
   return (
-    <AppShell title="Kanban Board">
+    <AppShell>
     <div className="kanban-page">
+      <div className="dash-header-section">
+        <h1 className="dash-title">Kanban Board</h1>
+        <p className="dash-subtitle">Drag and drop tasks between columns</p>
+      </div>
 
       <div className="kanban-toolbar">
         <div className="kanban-filter">

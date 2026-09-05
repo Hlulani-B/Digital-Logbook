@@ -53,8 +53,12 @@ export function StreakView() {
 
   if (loading) {
     return (
-      <AppShell title="My Streaks">
+      <AppShell>
       <div className="stats-page">
+        <div className="dash-header-section">
+          <h1 className="dash-title">My Streaks</h1>
+          <p className="dash-subtitle">Track your consistency</p>
+        </div>
         <div className="feed-loading">
           <div
             className="animate-spin"
@@ -74,8 +78,12 @@ export function StreakView() {
   }
 
   return (
-    <AppShell title="My Streaks">
+    <AppShell>
     <div className="stats-page">
+      <div className="dash-header-section">
+        <h1 className="dash-title">My Streaks</h1>
+        <p className="dash-subtitle">Track your consistency</p>
+      </div>
 
       {entries.length === 0 ? (
         <div className="stats-empty glass">

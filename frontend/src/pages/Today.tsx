@@ -145,8 +145,12 @@ export function TodayPage() {
   };
 
   return (
-    <AppShell title="Today">
+    <AppShell>
     <div className="today-page">
+      <div className="dash-header-section">
+        <h1 className="dash-title">Today</h1>
+        <p className="dash-subtitle">Your tasks for today</p>
+      </div>
 
       {error && (
         <div className="today-error" role="alert">
