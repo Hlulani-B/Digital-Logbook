@@ -414,6 +414,7 @@ export default function DataPortability() {
           onDrop={handleDrop}
         >
           <input
+            id="data-import-file"
             ref={fileInputRef}
             type="file"
             accept=".json,.csv,.md,.markdown"
