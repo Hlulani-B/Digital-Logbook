@@ -259,3 +259,32 @@ meeting is enough to count as evidence.
 - Update remaining documentation where required.
 - Prepare for the Sprint Review and demonstration on 25 August 2026.
 - Begin planning for Sprint 2 based on feedback received during the review.
+
+---
+
+## Meeting 9 — 2 September 2026
+
+**Venue:** Online (Microsoft Teams call)
+**Attendees:** Siphesihle Merile, Nasiphi Ntontela, Hlulani Baloyi
+
+**Context:** The team met after Sprint 1 to plan the Sprint 2 work and address issues identified in the previous sprint.
+
+**What we did:**
+
+- Planned the work to be completed during Sprint 2.
+- Diagnosed what was broken from Sprint 1.
+- Discussed and planned fixes for the Sprint 1 issues.
+
+**Decisions made:**
+
+- Sprint 2 work will be planned around the agreed priorities.
+- The identified Sprint 1 issues will be addressed as part of the planned fixes.
+
+**Open questions / disagreements:**
+
+- Specific implementation details for the Sprint 1 fixes will be resolved as the work is assigned and completed.
+
+**Next step decided:**
+
+- Break the Sprint 2 plan into assigned tasks.
+- Implement and verify fixes for the Sprint 1 issues.
