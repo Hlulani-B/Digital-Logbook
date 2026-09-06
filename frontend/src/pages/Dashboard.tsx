@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { PROJECT_URL } from '@/lib/api';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
@@ -213,20 +214,32 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
-      const hasCache = cachedEntries?.data || cachedProjects?.data || cachedProjects?.projects || cachedDueSoon?.data;
+      const hasCache =
+        cachedEntries?.data ||
+        cachedProjects?.data ||
+        cachedProjects?.projects ||
+        cachedDueSoon?.data;
       if (hasCache) {
-        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedEntries?.data)
+          setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data || cachedProjects?.projects) {
           const rawProjects = cachedProjects.data || cachedProjects.projects || [];
           const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
           let localArch = new Set<string>();
-          try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+          try {
+            const raw = localStorage.getItem(`dl_archived_${email}`);
+            if (raw) localArch = new Set(JSON.parse(raw));
+          } catch {}
           setLocalArchived(localArch);
-          const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
+          const merged = allProjects.map((p) => ({
+            ...p,
+            archived: p.archived === true || localArch.has(p.project_name as string),
+          }));
           setProjects(merged);
           setArchivedProjects(merged.filter((p) => p.archived));
         }
-        if (cachedDueSoon?.data) setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
+        if (cachedDueSoon?.data)
+          setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
         // First visit ever — trigger initial sync, then re-read
         await syncAllData(email);
@@ -235,18 +248,26 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           cacheGet(CACHE_STORES.PROJECTS, email),
           cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
-        if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+        if (freshEntries?.data)
+          setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data || freshProjects?.projects) {
           const rawProjects = freshProjects.data || freshProjects.projects || [];
           const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
           let localArch = new Set<string>();
-          try { const raw = localStorage.getItem(`dl_archived_${email}`); if (raw) localArch = new Set(JSON.parse(raw)); } catch {}
+          try {
+            const raw = localStorage.getItem(`dl_archived_${email}`);
+            if (raw) localArch = new Set(JSON.parse(raw));
+          } catch {}
           setLocalArchived(localArch);
-          const merged = allProjects.map((p) => ({ ...p, archived: p.archived === true || localArch.has(p.project_name as string) }));
+          const merged = allProjects.map((p) => ({
+            ...p,
+            archived: p.archived === true || localArch.has(p.project_name as string),
+          }));
           setProjects(merged);
           setArchivedProjects(merged.filter((p) => p.archived));
         }
-        if (freshDueSoon?.data) setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
+        if (freshDueSoon?.data)
+          setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
       }
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
@@ -944,6 +965,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Import & Export
           </button>
+          <a
+            className="drawer-item"
+            href={`${PROJECT_URL}/api-docs`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              textDecoration: 'none',
+              color: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            API Docs
+          </a>
         </div>
 
         <div className="drawer-section drawer-projects">
@@ -1400,9 +1449,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       </svg>
                     </div>
                     <h2 className="empty-title">Nothing due soon</h2>
-                    <p className="empty-desc">
-                      No entries are due within the next 3 days.
-                    </p>
+                    <p className="empty-desc">No entries are due within the next 3 days.</p>
                   </div>
                 ) : displayMode === 'checklist' ? (
                   <ChecklistView
@@ -1428,7 +1475,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       project_name: r.project_name as string,
                       summary: (r.summary as string) || null,
                       due_date: (r.due_date as string) || null,
-                      status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      status:
+                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
                       entries: r.entries as Record<string, unknown> | string | null,
                       started_at: (r.started_at as string) || null,
                     }))}
@@ -1453,19 +1501,58 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <div className="dashboard-calendar-section">
               <div className="calendar-toolbar" style={{ marginBottom: '0.5rem' }}>
                 <div className="calendar-nav">
-                  <button type="button" className="btn-icon" onClick={() => setCalDate((d) => addMonths(d, -1))} aria-label="Previous month">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    onClick={() => setCalDate((d) => addMonths(d, -1))}
+                    aria-label="Previous month"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
                   </button>
-                  <button type="button" className="btn-secondary" onClick={() => setCalDate(new Date())} style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>Today</button>
-                  <button type="button" className="btn-icon" onClick={() => setCalDate((d) => addMonths(d, 1))} aria-label="Next month">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setCalDate(new Date())}
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    onClick={() => setCalDate((d) => addMonths(d, 1))}
+                    aria-label="Next month"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
                   </button>
                 </div>
-                <h2 className="calendar-period" style={{ fontSize: '1rem', fontWeight: 600 }}>{formatMonthYear(calDate)}</h2>
+                <h2 className="calendar-period" style={{ fontSize: '1rem', fontWeight: 600 }}>
+                  {formatMonthYear(calDate)}
+                </h2>
               </div>
               <div className="calendar-grid">
                 {calHeaderDays.map((day) => (
-                  <div key={day.toISOString()} className="calendar-header-cell">{formatShortDay(day)}</div>
+                  <div key={day.toISOString()} className="calendar-header-cell">
+                    {formatShortDay(day)}
+                  </div>
                 ))}
                 {calDays.map((day) => {
                   const isCurrentMonth = day.getMonth() === calDate.getMonth();
@@ -1480,7 +1567,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         !isCurrentMonth && 'calendar-day--outside',
                         isToday && 'calendar-day--today',
                         dayOverdue && 'calendar-day--overdue',
-                      ].filter(Boolean).join(' ')}
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
                     >
                       <div className="calendar-day-header">
                         <span className="calendar-day-number">{formatDayNumber(day)}</span>
@@ -1493,10 +1582,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                             className={[
                               'calendar-entry',
                               entry.status === 'done_and_dusted' && 'calendar-entry--completed',
-                              isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') && 'calendar-entry--overdue',
-                            ].filter(Boolean).join(' ')}
+                              isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') &&
+                                'calendar-entry--overdue',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
                             title={getEntryTitle(entry)}
-                            onClick={() => navigate(`/project/${encodeURIComponent(entry.project_name)}`)}
+                            onClick={() =>
+                              navigate(`/project/${encodeURIComponent(entry.project_name)}`)
+                            }
                           >
                             <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
                             <span className="calendar-entry-project">{entry.project_name}</span>
@@ -1511,9 +1605,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 })}
               </div>
               <div className="calendar-legend">
-                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--overdue" />Overdue</span>
-                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--completed" />Completed</span>
-                <span className="calendar-legend-item"><span className="calendar-legend-dot calendar-legend-dot--upcoming" />Upcoming</span>
+                <span className="calendar-legend-item">
+                  <span className="calendar-legend-dot calendar-legend-dot--overdue" />
+                  Overdue
+                </span>
+                <span className="calendar-legend-item">
+                  <span className="calendar-legend-dot calendar-legend-dot--completed" />
+                  Completed
+                </span>
+                <span className="calendar-legend-item">
+                  <span className="calendar-legend-dot calendar-legend-dot--upcoming" />
+                  Upcoming
+                </span>
               </div>
             </div>
           </>

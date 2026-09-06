@@ -409,3 +409,43 @@
 - Every statement is idempotent (`IF NOT EXISTS`, `IF NOT EXISTS` guards).
 - Running it against an existing database is a no-op.
 - Running it against a fresh database produces a fully working schema.
+
+## Feature 6: OpenAPI 3 & Swagger UI
+
+### US-A01: Browse the API documentation
+
+**As a** developer,
+**I want** to open a browsable page that shows all API endpoints,
+**so that** I can understand the API without reading source code.
+
+**Acceptance criteria:**
+
+- Navigating to `/api-docs` on the project service shows a Swagger UI page.
+- The page lists all endpoints across all four microservices (project, dashboard, profile, auth).
+- Each endpoint shows its HTTP method, path, request body, and response schemas.
+
+### US-A02: Try an API endpoint from the docs page
+
+**As a** developer,
+**I want** to execute an API call directly from the docs page,
+**so that** I can verify the API works without switching to Postman.
+
+**Acceptance criteria:**
+
+- The "Authorize" button accepts a Bearer JWT token.
+- The "Try it out" button on any endpoint sends a real request to the running service.
+- The response body, status code, and headers are displayed in the docs page.
+- A request made from the docs page against the running application succeeds.
+
+### US-A03: Spec matches the implemented routes
+
+**As a** developer,
+**I want** the OpenAPI spec to match the implemented routes exactly,
+**so that** the docs page is a reliable source of truth.
+
+**Acceptance criteria:**
+
+- The spec has no path that the code does not implement.
+- The code has no route that the spec does not document.
+- Status codes and error bodies in the spec match what the code returns.
+- 12 automated tests verify spec structure, paths, and response schemas.

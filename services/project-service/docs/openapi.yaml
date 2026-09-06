@@ -1,0 +1,984 @@
+openapi: 3.0.3
+info:
+  title: Codacaine Digital Logbook API
+  version: 1.0.0
+  description: |
+    Complete REST API for the Codacaine Digital Logbook.
+    Uses an RPC-style dispatch pattern: POST to a resource endpoint
+    with `{ function, values }` to call specific operations.
+
+    **Services:**
+    - **Project Service** (port 5003) — projects, entries, fields, archives, activity, AI
+    - **Dashboard Service** (port 5002) — cross-project search and health monitoring
+    - **Profile Service** (port 5004) — user profiles, avatars, preferences
+    - **Auth Service** (port 5001) — health check (auth via Supabase client-side)
+  contact:
+    name: Codacaine Team
+
+servers:
+  - url: http://localhost:5003
+    description: Project Service (local)
+  - url: http://localhost:5002
+    description: Dashboard Service (local)
+  - url: http://localhost:5004
+    description: Profile Service (local)
+  - url: http://localhost:5001
+    description: Auth Service (local)
+  - url: https://project-service-96ml.onrender.com
+    description: Project Service (production)
+  - url: https://dashboard-service-bpc5.onrender.com
+    description: Dashboard Service (production)
+  - url: https://profile-service-0zk7.onrender.com
+    description: Profile Service (production)
+  - url: https://auth-service-hl52.onrender.com
+    description: Auth Service (production)
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT access token. Obtain from Supabase Auth after sign-in.
+
+  schemas:
+    RpcRequest:
+      type: object
+      required: [function, values]
+      properties:
+        function:
+          type: string
+          description: Operation name to dispatch to
+        values:
+          type: object
+          description: Parameters for the operation
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Internal Server Error
+        details:
+          type: string
+
+    EntryErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+
+    DataResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data: {}
+
+    HealthResponse:
+      type: object
+      properties:
+        service:
+          type: string
+          example: project-service
+        status:
+          type: string
+          example: healthy
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_email:
+          type: string
+          format: email
+        project_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Entry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_email:
+          type: string
+          format: email
+        project_name:
+          type: string
+        entries:
+          type: object
+          description: JSONB payload with entry content
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          type: integer
+          nullable: true
+          description: '0=urgent+important, 1=urgent, 2=not urgent'
+          enum: [0, 1, 2]
+        status:
+          type: string
+          enum: [up_next, in_motion, done_and_dusted]
+          default: up_next
+        archived:
+          type: boolean
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ProjectField:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        table_name:
+          type: string
+          description: Project name
+        field_name:
+          type: string
+        data_type:
+          type: string
+        is_required:
+          type: boolean
+
+    ActivityLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_email:
+          type: string
+          format: email
+        project_name:
+          type: string
+        entry_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+          enum:
+            - PROJECT_CREATED
+            - PROJECT_RENAMED
+            - PROJECT_DELETED
+            - PROJECT_ARCHIVED
+            - PROJECT_UNARCHIVED
+            - ENTRY_ADDED
+            - ENTRY_UPDATED
+            - ENTRY_DELETED
+            - ENTRY_ARCHIVED
+            - ENTRY_UNARCHIVED
+            - PRIORITY_SET
+            - FIELD_ADDED
+            - FIELD_EDITED
+        created_at:
+          type: string
+          format: date-time
+
+    ArchiveEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_name:
+          type: string
+        entries:
+          type: object
+        archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+        role:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+
+    SseEvent:
+      type: object
+      description: 'Server-Sent Event. Events: connected, entry_parsed, entry_error, ping'
+      properties:
+        event:
+          type: string
+        data:
+          type: string
+
+# ──────────────────────────────────────────────────────────────
+# PATHS
+# ──────────────────────────────────────────────────────────────
+paths:
+  # ── Project Service: Health ────────────────────────────────
+  /:
+    get:
+      operationId: projectHealth
+      summary: Project Service health check
+      tags: [Project Service]
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # ── Project Service: Project CRUD ──────────────────────────
+  /service/project:
+    post:
+      operationId: projectDispatch
+      summary: Project CRUD operations
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              add:
+                summary: Create a project
+                value:
+                  function: add
+                  values:
+                    project_name: 'My Project'
+                    description: 'Optional description'
+              edit:
+                summary: Rename a project
+                value:
+                  function: edit
+                  values:
+                    new_project_name: 'New Name'
+                    old_project_name: 'My Project'
+              delete:
+                summary: Delete a project
+                value:
+                  function: delete
+                  values:
+                    project_name: 'My Project'
+              getProjects:
+                summary: List all projects
+                value:
+                  function: getProjects
+                  values: {}
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '400':
+          description: Bad request — project already exists or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized — missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Project Service: Entry CRUD ────────────────────────────
+  /service/entry:
+    post:
+      operationId: entryDispatch
+      summary: Entry CRUD and sorting operations
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              add:
+                summary: Create an entry
+                value:
+                  function: add
+                  values:
+                    project_name: 'My Project'
+                    entry_object: { title: 'Task 1' }
+                    due_date: '2026-09-15T00:00:00Z'
+                    priority: 1
+                    status: up_next
+              update:
+                summary: Update an entry
+                value:
+                  function: update
+                  values:
+                    project_name: 'My Project'
+                    entry_id: 'uuid-here'
+                    new_entry: { title: 'Updated Task' }
+                    status: in_motion
+              deleteById:
+                summary: Delete an entry by ID
+                value:
+                  function: deleteById
+                  values:
+                    entry_id: 'uuid-here'
+              get:
+                summary: Get entries for a project
+                value:
+                  function: get
+                  values:
+                    project_name: 'My Project'
+              getAll:
+                summary: Get all entries
+                value:
+                  function: getAll
+                  values: {}
+              sortUnarchived:
+                summary: Sort unarchived entries
+                value:
+                  function: sortUnarchived
+                  values:
+                    project_name: 'My Project'
+                    sort_type: due_date
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryErrorResponse'
+
+  # ── Project Service: SSE Stream ────────────────────────────
+  /service/nl-stream:
+    get:
+      operationId: nlStream
+      summary: Server-Sent Events stream for real-time NL entry updates
+      description: |
+        Long-lived SSE connection. Authenticate via `?token=<JWT>` query parameter
+        (EventSource does not support custom headers).
+        Events pushed: `connected`, `entry_parsed`, `entry_error`, `: ping` (keep-alive every 30s).
+      tags: [Project Service]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: JWT access token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/SseEvent'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Project Service: Natural Language ──────────────────────
+  /service/natural-language-entry:
+    post:
+      operationId: naturalLanguageEntry
+      summary: Parse natural-language text into a structured entry
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  example: 'Worked on login feature for 2 hours'
+      responses:
+        '200':
+          description: Entry created from natural language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: AI parsing failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+
+  # ── Project Service: Priority ──────────────────────────────
+  /service/priority:
+    post:
+      operationId: priorityDispatch
+      summary: Set entry priority
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              set:
+                summary: Set priority
+                value:
+                  function: set
+                  values:
+                    project_name: 'My Project'
+                    entry_id: 'uuid-here'
+                    priorityValue: 0
+      responses:
+        '200':
+          description: Priority updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Project Service: Fields ────────────────────────────────
+  /service/field:
+    post:
+      operationId: fieldDispatch
+      summary: Custom field CRUD per project
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              add:
+                summary: Add a custom field
+                value:
+                  function: add
+                  values:
+                    table_name: 'My Project'
+                    field_name: 'Hours'
+                    data_type: number
+                    is_required: false
+              edit:
+                summary: Edit a custom field
+                value:
+                  function: edit
+                  values:
+                    table_name: 'My Project'
+                    field_name: 'Hours'
+                    data_type: text
+              get:
+                summary: Get fields for a project
+                value:
+                  function: get
+                  values:
+                    table_name: 'My Project'
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Project Service: Archives ──────────────────────────────
+  /service/archive:
+    post:
+      operationId: archiveDispatch
+      summary: Archive and unarchive projects and entries
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              archive_project:
+                summary: Archive a project
+                value:
+                  function: archive_project
+                  values:
+                    project_name: 'My Project'
+              unarchive_project:
+                summary: Unarchive a project
+                value:
+                  function: unarchive_project
+                  values:
+                    project_name: 'My Project'
+              archive_entry:
+                summary: Archive an entry
+                value:
+                  function: archive_entry
+                  values:
+                    project_name: 'My Project'
+                    entry_id: 'uuid-here'
+              getArchives:
+                summary: Get archived entries
+                value:
+                  function: getArchives
+                  values:
+                    project_name: 'My Project'
+              getArchivedProjects:
+                summary: Get archived projects
+                value:
+                  function: getArchivedProjects
+                  values:
+                    user_email: 'user@example.com'
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Project Service: Activity Log ──────────────────────────
+  /service/activity:
+    post:
+      operationId: activityDispatch
+      summary: Query the activity log
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              getActivities:
+                summary: Get recent activity
+                value:
+                  function: getActivities
+                  values:
+                    limit: 50
+      responses:
+        '200':
+          description: Activity log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Project Service: AI Prompt ─────────────────────────────
+  /service/ai:
+    post:
+      operationId: aiPrompt
+      summary: Send a generic AI prompt
+      tags: [Project Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  example: 'Summarise my recent activity'
+      responses:
+        '200':
+          description: AI response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  response:
+                    type: string
+        '400':
+          description: Missing prompt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: 'Prompt is required and must be a string'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: AI request failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+
+  # ── Dashboard Service: Search ──────────────────────────────
+  /service/search:
+    post:
+      operationId: searchDispatch
+      summary: Cross-project search
+      description: Dashboard Service endpoint. Select the Dashboard Service server before trying.
+      tags: [Dashboard Service]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              searchAll:
+                summary: Search across all projects
+                value:
+                  function: searchAll
+                  values:
+                    user_email: 'user@example.com'
+                    keyword: 'login'
+              searchProject:
+                summary: Search within a project
+                value:
+                  function: searchProject
+                  values:
+                    user_email: 'user@example.com'
+                    project_name: 'My Project'
+                    keyword: 'bug'
+              searchProjects:
+                summary: Search project names
+                value:
+                  function: searchProjects
+                  values:
+                    user_email: 'user@example.com'
+                    keyword: 'design'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '400':
+          description: Bad request — missing function or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Dashboard Service: Health Ping ─────────────────────────
+  /service/health-ping:
+    get:
+      operationId: healthPing
+      summary: Wake Render instance and ping database
+      description: Dashboard Service endpoint. Called by GitHub Actions every 10 minutes to keep the instance alive.
+      tags: [Dashboard Service]
+      security: []
+      responses:
+        '200':
+          description: All systems operational
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '503':
+          description: Degraded — database unreachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: degraded
+        '500':
+          description: Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  reason:
+                    type: string
+
+  # ── Profile Service: Login ─────────────────────────────────
+  /service/login:
+    post:
+      operationId: loginCheck
+      summary: Check if a user exists
+      description: Profile Service endpoint. Select the Profile Service server before trying.
+      tags: [Profile Service]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              checkUser:
+                summary: Check user existence
+                value:
+                  function: checkUser
+                  values:
+                    email: 'user@example.com'
+      responses:
+        '200':
+          description: User check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '400':
+          description: Missing email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Profile Service: Profile CRUD ──────────────────────────
+  /service/profile:
+    post:
+      operationId: profileDispatch
+      summary: Profile field operations
+      description: Profile Service endpoint. Select the Profile Service server before trying.
+      tags: [Profile Service]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RpcRequest'
+            examples:
+              getProfile:
+                summary: Get user profile
+                value:
+                  function: getProfile
+                  values:
+                    email: 'user@example.com'
+              name:
+                summary: Update display name
+                value:
+                  function: name
+                  values:
+                    email: 'user@example.com'
+                    new_name: 'Jane Doe'
+              username:
+                summary: Set username
+                value:
+                  function: username
+                  values:
+                    email: 'user@example.com'
+                    username: 'janedoe'
+              avatar:
+                summary: Set avatar URL
+                value:
+                  function: avatar
+                  values:
+                    email: 'user@example.com'
+                    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane'
+              deleteProfile:
+                summary: Soft-delete profile
+                value:
+                  function: deleteProfile
+                  values:
+                    email: 'user@example.com'
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataResponse'
+        '400':
+          description: Missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Auth Service: Health ───────────────────────────────────
+  /health:
+    get:
+      operationId: authHealth
+      summary: Auth Service health check
+      description: Auth Service endpoint. Select the Auth Service server before trying.
+      tags: [Auth Service]
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
