@@ -10,6 +10,7 @@ import { archiveEntry } from '@/functions/project/archives';
 import {
   buildExportBundle,
   exportToCSV,
+  exportToICS,
   exportToJSON,
   exportToMarkdown,
   type RawEntryRow,
@@ -34,7 +35,7 @@ export default function DataPortability() {
   // ── Export ──────────────────────────────────────────────────────────────────
 
   const handleExport = useCallback(
-    async (format: 'json' | 'csv' | 'md') => {
+    async (format: 'json' | 'csv' | 'md' | 'ics') => {
       if (!userEmail) return;
       setExporting(true);
       setExportSuccess(null);
@@ -124,6 +125,11 @@ export default function DataPortability() {
             content = exportToMarkdown(bundle);
             mimeType = 'text/markdown';
             ext = 'md';
+            break;
+          case 'ics':
+            content = exportToICS(bundle);
+            mimeType = 'text/calendar';
+            ext = 'ics';
             break;
         }
 
@@ -311,8 +317,10 @@ export default function DataPortability() {
           Export
         </h2>
         <p>
-          Download all your projects and entries, including archived items. The export is round-trip
-          safe — importing it into an empty database reproduces the original data exactly.
+          Download all your projects and entries, including archived items. JSON, CSV, and Markdown
+          exports are round-trip safe — importing them into an empty database reproduces the
+          original data exactly. The iCalendar export opens in Google Calendar, Outlook, and Apple
+          Calendar.
         </p>
         <div className="data-export-buttons">
           <button className="btn-primary" onClick={() => handleExport('json')} disabled={exporting}>
@@ -362,6 +370,26 @@ export default function DataPortability() {
               <polyline points="14 2 14 8 20 8" />
             </svg>
             {exporting ? 'Exporting…' : 'Export as Markdown'}
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => handleExport('ics')}
+            disabled={exporting}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            {exporting ? 'Exporting…' : 'Export as iCalendar'}
           </button>
         </div>
         {exportSuccess && (
