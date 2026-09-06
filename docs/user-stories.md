@@ -340,3 +340,72 @@
 - Priority is mapped to the iCalendar `PRIORITY` field (1–9 scale).
 - Special characters (semicolons, commas, newlines, backslashes) are escaped per RFC 5545.
 - Entries without any date are skipped and do not appear in the calendar.
+
+---
+
+## Feature 5: Backup, Restore & Migrations
+
+### US-B01: One-command database backup
+
+**As a** student,
+**I want** to back up my entire database with a single command,
+**so that** I can recover my data if something goes wrong.
+
+**Acceptance criteria:**
+
+- Running `npm run db:backup` creates a PostgreSQL custom-format dump file.
+- The backup includes all app tables (users, projects, entries, fields, activity_log, health_ping, ai_provider_cooldowns).
+- The backup file is saved with a timestamp in `scripts/backups/`.
+- A custom path can be provided: `npm run db:backup -- ./my-backup.dump`.
+
+### US-B02: One-command database restore
+
+**As a** student,
+**I want** to restore my database from a backup with a single command,
+**so that** I can recover after data loss.
+
+**Acceptance criteria:**
+
+- Running `npm run db:restore` restores from the most recent backup in `scripts/backups/`.
+- A specific file can be provided: `npm run db:restore -- ./my-backup.dump`.
+- The restore shows a 3-second warning before overwriting data.
+- After restore, running `npm run db:migrate` brings the schema up to date.
+
+### US-B03: Versioned schema migrations
+
+**As a** developer,
+**I want** to run versioned schema migrations that upgrade an existing database,
+**so that** I never have to drop and recreate tables when the schema changes.
+
+**Acceptance criteria:**
+
+- `npm run db:migrate` runs all pending migrations in order.
+- Each migration is tracked in a `schema_migrations` table with version and checksum.
+- Migrations already applied are skipped on subsequent runs.
+- Failed migrations stop execution and leave the database in a consistent state (transactional).
+- `npm run db:status` shows which migrations are applied and pending.
+
+### US-B04: Bootstrap existing database
+
+**As a** developer with a database created before the migration system,
+**I want** to mark existing migrations as already applied,
+**so that** the migration runner doesn't try to re-run them.
+
+**Acceptance criteria:**
+
+- `npm run db:bootstrap` marks all migration files as applied without executing them.
+- After bootstrap, `npm run db:migrate` only runs NEW migrations going forward.
+- A database made before recent schema changes still opens under the current build with data intact.
+
+### US-B05: Baseline full schema migration
+
+**As a** developer setting up a fresh Supabase project,
+**I want** a single baseline migration that creates the entire current schema,
+**so that** I don't have to run 8 separate migration files manually.
+
+**Acceptance criteria:**
+
+- `000_baseline_full_schema.sql` creates all tables, types, indexes, functions, triggers, and cron jobs.
+- Every statement is idempotent (`IF NOT EXISTS`, `IF NOT EXISTS` guards).
+- Running it against an existing database is a no-op.
+- Running it against a fresh database produces a fully working schema.

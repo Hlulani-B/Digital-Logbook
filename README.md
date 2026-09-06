@@ -88,6 +88,7 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Today view:** A focused screen that lists overdue entries first, then entries due today, then work already in progress, with a friendly empty state when there is nothing to do.
 - **Timeline:** Horizontal time view with bars spanning start to due date, dependency arrows between linked tasks, zoom/scroll controls, and an empty state when no dated tasks exist.
 - **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, or Markdown, and import them back in. Round-trip safe with malformed-row reporting.
+- **Backup, Restore & Migrations:** One-command `pg_dump`/`pg_restore` backup and restore, plus versioned schema migrations that upgrade an existing database without dropping and recreating it.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
