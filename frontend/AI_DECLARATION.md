@@ -60,6 +60,7 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested a friendly empty state when the Today view has nothing to show
 - I requested a Timeline view with horizontal bars spanning start to due date, dependency arrows, zoom, and scroll
 - I requested that the Timeline empty state explain how to add dated tasks and dependencies
+- I requested Import & Export in JSON, CSV, and Markdown with round-trip safety and malformed-row reporting
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -97,6 +98,10 @@ The AI generated the following code based on my instructions:
 | `src/pages/Timeline.tsx`                                    | Timeline view with bars and dependency arrows                                        | AI generated from my requirements     |
 | `src/pages/Timeline.css`                                    | Timeline styles                                                                      | AI generated from my design direction |
 | `src/lib/timeline.ts`                                       | Date resolution, row layout, and arrow geometry helpers                              | AI generated from my requirements     |
+| `src/pages/DataPortability.tsx`                             | Import & Export page with JSON, CSV, and Markdown support                            | AI generated from my requirements     |
+| `src/pages/DataPortability.css`                             | Import & Export page styles                                                          | AI generated from my design direction |
+| `src/lib/export.ts`                                         | Export serialisation helpers (JSON, CSV, Markdown)                                   | AI generated from my requirements     |
+| `src/lib/import.ts`                                         | Import parsing and validation helpers                                                | AI generated from my requirements     |
 | `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
 | `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
 | `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |

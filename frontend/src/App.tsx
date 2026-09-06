@@ -26,6 +26,7 @@ import { CalendarPage } from '@/pages/Calendar';
 import { KanbanPage } from '@/pages/Kanban';
 import { TodayPage } from '@/pages/Today';
 import { TimelinePage } from '@/pages/Timeline';
+import DataPortability from '@/pages/DataPortability';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -263,6 +264,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <TimelinePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/data-portability"
+              element={
+                <ProtectedRoute>
+                  <DataPortability />
                 </ProtectedRoute>
               }
             />
