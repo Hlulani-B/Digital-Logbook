@@ -95,6 +95,7 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and import them back in. Round-trip safe with malformed-row reporting. iCalendar export opens in Google Calendar, Outlook, and Apple Calendar.
 - **Backup, Restore & Migrations:** One-command `pg_dump`/`pg_restore` backup and restore, plus versioned schema migrations that upgrade an existing database without dropping and recreating it.
 - **OpenAPI 3 & Swagger UI:** Full REST API documented with an OpenAPI 3.0 specification covering all four microservices. Browsable interactive docs page at `/api-docs` on the project service with "Try it out" support.
+- **Mobile responsive:** Calendar auto-switches to week-strip layout on phones (≤480px). Kanban, Today, and Timeline views have dedicated phone breakpoints with reduced padding and touch-friendly sizing.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 

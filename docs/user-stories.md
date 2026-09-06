@@ -449,3 +449,43 @@
 - The code has no route that the spec does not document.
 - Status codes and error bodies in the spec match what the code returns.
 - 12 automated tests verify spec structure, paths, and response schemas.
+
+## Feature 7: Mobile Responsiveness
+
+### US-M01: Calendar shows a week-strip layout on phones
+
+**As a** student using my phone,
+**I want** the calendar to automatically switch to a week view when the screen is narrow,
+**so that** the 7-day grid fits properly without horizontal scrolling or overflow lines.
+
+**Acceptance criteria:**
+
+- On screens ≤480px, the calendar automatically displays week view (month toggle is hidden).
+- Days outside the current week are hidden.
+- Entry pills show compact titles instead of just coloured bars.
+- The toolbar reorganises horizontally for better phone layout.
+- Touch targets are at least 44px for comfortable tapping.
+
+### US-M02: Kanban board stacks vertically on phones
+
+**As a** student using my phone,
+**I want** the Kanban columns to stack vertically,
+**so that** I can swipe between status columns without horizontal scrolling.
+
+**Acceptance criteria:**
+
+- On screens ≤768px, Kanban columns switch from 3-column grid to single column.
+- Page padding is reduced on screens ≤480px.
+- Cards maintain readable font sizes and touch-friendly spacing.
+
+### US-M03: Today and Timeline views adapt to phone screens
+
+**As a** student using my phone,
+**I want** Today and Timeline views to fit within my phone's viewport,
+**so that** I can check my daily tasks and project timeline on the go.
+
+**Acceptance criteria:**
+
+- Today view cards stack vertically with reduced padding on screens ≤480px.
+- Timeline headers are smaller on phones for better content visibility.
+- All views maintain readable text and touch-friendly controls at 480px width.
