@@ -15,7 +15,7 @@ All backend services follow a consistent API pattern:
 
 ```
 POST /auth/signin
-Body: { email, password, captchaToken }
+Body: { email, password }
 Response: { success: boolean, session?: object, message?: string }
 ```
 
@@ -23,7 +23,7 @@ Response: { success: boolean, session?: object, message?: string }
 
 ```
 POST /auth/signup
-Body: { email, password, captchaToken }
+Body: { email, password }
 Response: { success: boolean, user?: object, message?: string }
 ```
 
@@ -372,3 +372,32 @@ Calls `restore_user()` RPC. Reverses soft-delete — sets `deleted = false` on u
 4. Frontend stores token and sends in `Authorization: Bearer <token>` header
 5. Each backend service verifies token via `requireAuth` middleware
 6. Middleware attaches `req.user` and `req.userEmail` to request
+
+## OpenAPI 3 Specification
+
+The full API is described by an [OpenAPI 3.0 specification](https://github.com/codacaine/Digital-Logbook/blob/main/services/project-service/docs/openapi.yaml) that documents all 15 endpoint paths across 4 microservices.
+
+### Browsable Documentation
+
+A Swagger UI is served at `/api-docs` on the project-service, allowing interactive testing of endpoints directly from the browser.
+
+**Local URL:** `http://localhost:5003/api-docs`
+
+**Production URL:** `https://project-service-96ml.onrender.com/api-docs`
+
+### Spec Validation
+
+12 automated tests in `services/project-service/src/__tests__/openapi.test.js` verify that:
+
+- The YAML parses correctly
+- All 15 expected paths are present
+- No phantom routes exist (spec has no path the code lacks)
+- All POST operations have request bodies
+- JWT-protected routes have 401 responses
+- Reusable schemas are defined
+
+### Key Files
+
+- `services/project-service/docs/openapi.yaml` — 985-line OpenAPI 3.0 spec
+- `services/project-service/src/index.js` — Swagger UI mount at `/api-docs`
+- `services/project-service/src/__tests__/openapi.test.js` — Spec validation tests

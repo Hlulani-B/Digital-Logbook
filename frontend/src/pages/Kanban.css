@@ -307,3 +307,33 @@
     width: 100%;
   }
 }
+
+/* ── Phones ── */
+@media (max-width: 480px) {
+  .kanban-page {
+    padding: 0.5rem 0.5rem 2rem;
+  }
+
+  .kanban-page-title {
+    font-size: 1.25rem;
+  }
+
+  .kanban-column {
+    min-height: 12rem;
+  }
+
+  .kanban-card {
+    padding: 0.625rem;
+  }
+
+  .kanban-card-title {
+    font-size: 0.875rem;
+  }
+
+  .kanban-toast {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    font-size: 0.8rem;
+  }
+}

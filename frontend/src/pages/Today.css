@@ -281,3 +281,30 @@
     flex-wrap: wrap;
   }
 }
+
+/* ── Phones ── */
+@media (max-width: 480px) {
+  .today-page {
+    padding: 0.5rem 0.5rem 2rem;
+  }
+
+  .today-page-title {
+    font-size: 1.25rem;
+  }
+
+  .today-page-date {
+    font-size: 0.75rem;
+  }
+
+  .today-card {
+    padding: 0.75rem;
+  }
+
+  .today-card-title {
+    font-size: 0.9rem;
+  }
+
+  .today-section-title {
+    font-size: 0.85rem;
+  }
+}
