@@ -301,6 +301,28 @@ After the 30-day grace period, a background process permanently removes the acco
 - `supabase/migrations/000_baseline_full_schema.sql` — Complete idempotent schema DDL
 - `frontend/src/lib/__tests__/migrations.test.ts` — Migration file and runner tests
 
+### 17. OpenAPI 3 & Swagger UI
+
+**What it does:** Documents the complete REST API across all four microservices with an OpenAPI 3.0 specification, served as an interactive Swagger UI page at `/api-docs` on the project service. Developers can browse endpoints, view request/response schemas, and execute API calls directly from the browser.
+
+**Why it was implemented:** The API uses an RPC-style dispatch pattern (POST with `{ function, values }`) that is not immediately obvious from route definitions alone. A browsable spec with examples makes the API self-documenting and allows developers (and external consumers) to understand and test endpoints without reading source code.
+
+**How it works:**
+
+- A single YAML spec (`docs/openapi.yaml`) covers all 15 endpoint paths across project-service, dashboard-service, profile-service, and auth-service
+- `swagger-ui-express` serves the spec as a browsable page with collapsible sections, schema viewers, and request examples
+- JWT authentication is supported via the Swagger UI "Authorize" button
+- CORS on all services allows localhost origins so "Try it out" works across services in development
+- 12 automated tests verify the spec structure, paths, and schema definitions
+- The spec has no route the code lacks, and the code has no route the spec does not document
+
+**Key files:**
+
+- `services/project-service/docs/openapi.yaml` — OpenAPI 3.0 specification (985 lines)
+- `services/project-service/src/index.js` — Swagger UI mount at `/api-docs`
+- `services/project-service/src/__tests__/openapi.test.js` — Spec validation tests
+- `frontend/src/pages/Dashboard.tsx` — "API Docs" drawer link
+
 ---
 
 ## Project & Entry Management

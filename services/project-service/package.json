@@ -25,9 +25,11 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jose": "^6.0.12",
+    "js-yaml": "^5.4.1",
     "leven": "^3.1.0",
     "openai": "^4.0.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

@@ -41,6 +41,7 @@ The following frontend features were implemented with AI acting as a code-genera
   - Timeline view with horizontal bars, dependency arrows, zoom/scroll, and empty state
   - Import & Export (data portability) with JSON, CSV, Markdown, and iCalendar (.ics) round-trip support
   - Database backup/restore scripts (`npm run db:backup`, `npm run db:restore`) and versioned schema migrations (`npm run db:migrate`, `npm run db:bootstrap`)
+  - OpenAPI 3.0 specification (`docs/openapi.yaml`) covering all four microservices, served as browsable Swagger UI at `/api-docs`
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)

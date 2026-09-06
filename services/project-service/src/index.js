@@ -2,6 +2,11 @@
 
 import express from 'express';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import yaml from 'js-yaml';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { requireAuth } from './middleware/auth.js';
 import projectRoutes from './Routes/project.js';
 import entryRoutes from './Routes/entries.js';
@@ -10,6 +15,9 @@ import fieldRoutes from './Routes/field.js';
 import archiveRoutes from './Routes/archive.js';
 import activityRoutes from './Routes/activity.js';
 import aiRoutes from './Routes/ai.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 5003;
 // Allowed origins for CORS
@@ -41,6 +49,19 @@ app.use(cors(corsOptions));
 // Safe preflight wildcard handler for Express 5 (regex instead of '*')
 app.options(/(.*)/, cors(corsOptions));
 app.use(express.json());
+
+// ── OpenAPI / Swagger UI ──────────────────────────────────────
+const openApiSpec = yaml.load(readFileSync(join(__dirname, '..', 'docs', 'openapi.yaml'), 'utf8'), {
+  schema: yaml.DEFAULT_SCHEMA,
+});
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    customSiteTitle: 'Codacaine API Docs',
+    swaggerOptions: { persistAuthorization: true },
+  })
+);
 app.get('/', (req, res) => {
   res.json({ service: 'project-service', status: 'healthy' });
 });
