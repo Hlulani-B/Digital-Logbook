@@ -322,3 +322,21 @@
 - Archived projects remain archived after import.
 - Archived entries are re-archived after import.
 - All entry fields (title, due date, priority, status, timestamps, JSONB payload) are preserved.
+
+---
+
+### US-D08: Export to iCalendar (.ics)
+
+**As a** student,
+**I want** to export my tasks as an iCalendar (.ics) file,
+**so that** I can open or subscribe to them in Google Calendar, Outlook, or Apple Calendar.
+
+**Acceptance criteria:**
+
+- The .ics file is RFC 5545 compliant and opens correctly in major calendar applications.
+- Entries with only a `due_date` are exported as all-day events (`DTSTART;VALUE=DATE`).
+- Entries with a `started_at` timestamp are exported as timed events (`DTSTART` with time).
+- The entry title is mapped to `SUMMARY`, project name to `CATEGORIES`, and status to `STATUS` (TENTATIVE/CONFIRMED/COMPLETED).
+- Priority is mapped to the iCalendar `PRIORITY` field (1–9 scale).
+- Special characters (semicolons, commas, newlines, backslashes) are escaped per RFC 5545.
+- Entries without any date are skipped and do not appear in the calendar.
