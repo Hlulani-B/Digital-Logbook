@@ -42,7 +42,8 @@
   --danger-text: #dc2626;
   --danger-text-dark: #991b1b;
   --btn-primary-hover: #333333;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ========== DARK THEME ========== */
@@ -2345,7 +2346,7 @@ img {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 .drawer-open {
   transform: translateX(0);
