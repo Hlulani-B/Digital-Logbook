@@ -40,6 +40,7 @@ The following frontend features were implemented with AI acting as a code-genera
   - Today view with deliberate ordering (overdue → due today → in progress) and empty state
   - Timeline view with horizontal bars, dependency arrows, zoom/scroll, and empty state
   - Import & Export (data portability) with JSON, CSV, and Markdown round-trip support
+  - Database backup/restore scripts (`npm run db:backup`, `npm run db:restore`) and versioned schema migrations (`npm run db:migrate`, `npm run db:bootstrap`)
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)

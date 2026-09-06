@@ -61,6 +61,7 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested a Timeline view with horizontal bars spanning start to due date, dependency arrows, zoom, and scroll
 - I requested that the Timeline empty state explain how to add dated tasks and dependencies
 - I requested Import & Export in JSON, CSV, and Markdown with round-trip safety and malformed-row reporting
+- I requested one-command backup/restore and versioned schema migrations with bootstrap support
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -102,6 +103,7 @@ The AI generated the following code based on my instructions:
 | `src/pages/DataPortability.css`                             | Import & Export page styles                                                          | AI generated from my design direction |
 | `src/lib/export.ts`                                         | Export serialisation helpers (JSON, CSV, Markdown)                                   | AI generated from my requirements     |
 | `src/lib/import.ts`                                         | Import parsing and validation helpers                                                | AI generated from my requirements     |
+| `src/lib/__tests__/migrations.test.ts`                      | Tests for migration files and runner structure                                       | AI generated from my requirements     |
 | `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
 | `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
 | `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |

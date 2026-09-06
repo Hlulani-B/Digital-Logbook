@@ -279,6 +279,27 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/lib/import.ts` — Parsing and validation helpers
 - `frontend/src/lib/__tests__/import-export.test.ts` — Round-trip and malformed-row tests
 
+### 16. Backup, Restore & Migrations
+
+**What it does:** One-command database backup (`npm run db:backup`) and restore (`npm run db:restore`) using `pg_dump`/`pg_restore`. Versioned schema migrations (`npm run db:migrate`) upgrade an existing database without dropping and recreating tables. A bootstrap command (`npm run db:bootstrap`) marks pre-existing migrations as already applied.
+
+**Why it was implemented:** The schema evolved through 8 manually-applied SQL files with no tracking mechanism. New developers or fresh Supabase projects had no way to set up the schema automatically, and there was no backup strategy for production data.
+
+**How it works:**
+
+- **Backup:** `pg_dump --format=custom --schema=public` produces a compressed, portable dump.
+- **Restore:** `pg_restore --clean --if-exists --schema=public` restores with a 3-second safety delay.
+- **Migrations:** A `schema_migrations` table tracks applied versions with SHA-256 checksums. Each migration runs in a transaction. The baseline migration `000_baseline_full_schema.sql` captures the entire current schema idempotently.
+- **Bootstrap:** For databases where migrations 001–007 were already run manually, `npm run db:bootstrap` marks them as applied without re-executing.
+
+**Key files:**
+
+- `scripts/migrate.js` — Migration runner (migrate, status, bootstrap commands)
+- `scripts/backup.js` — One-command backup
+- `scripts/restore.js` — One-command restore
+- `supabase/migrations/000_baseline_full_schema.sql` — Complete idempotent schema DDL
+- `frontend/src/lib/__tests__/migrations.test.ts` — Migration file and runner tests
+
 ---
 
 ## Project & Entry Management
