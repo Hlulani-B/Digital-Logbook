@@ -6,9 +6,9 @@ A comprehensive overview of all features implemented in the Digital Logbook, why
 
 ## Authentication & User Management
 
-The Digital Logbook uses Supabase Auth as its identity provider. Users can authenticate with existing Google or GitHub accounts, or create a dedicated email and password account. All authentication flows are protected by Cloudflare Turnstile to prevent automated abuse, and sessions are managed globally so protected pages automatically redirect unauthenticated visitors to the sign-in screen.
+The Digital Logbook uses Supabase Auth as its identity provider. Users can authenticate with existing Google or GitHub accounts, or create a dedicated email and password account. Sessions are managed globally so protected pages automatically redirect unauthenticated visitors to the sign-in screen.
 
-![Sign-in page showing the email and password form, Cloudflare Turnstile widget, and Google and GitHub OAuth buttons](assets/ui-images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg)
+![Sign-in page showing the email and password form and Google and GitHub OAuth buttons](assets/ui-images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg)
 
 ### Signing Up and Signing In
 
@@ -38,7 +38,7 @@ Users who forget their password can request a reset link from the sign-in page o
 
 The flow works as follows:
 
-- The user enters their email and completes the CAPTCHA.
+- The user enters their email to request a reset link.
 - Supabase sends a password reset link to the registered email address.
 - The link opens a secure page where the user enters a new password.
 - A strength meter gives immediate feedback on password quality.
@@ -327,7 +327,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Project & Entry Management
 
-### 12. Project Creation & Management
+### 18. Project Creation & Management
 
 **What it does:** Users can create projects, add entries to them, and manage project lifecycle.
 
@@ -346,7 +346,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/pages/ProjectsPage.tsx` — Projects list
 - `services/project-service/src/functions/project.js` — Backend project functions
 
-### 13. Custom Fields per Project
+### 19. Custom Fields per Project
 
 **What it does:** Each project can have its own set of custom fields (text, number, date, etc.) beyond the built-in fields.
 
@@ -363,7 +363,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `services/project-service/src/functions/field.js` — Backend field functions
 
-### 14. Quick Add (Natural Language Entry)
+### 20. Quick Add (Natural Language Entry)
 
 **What it does:** Add entries using natural language. The AI parses the text, matches it to an existing project or creates a new one, and extracts field values.
 
@@ -385,7 +385,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/components/QuickAdd.tsx` — Quick Add UI
 - `services/project-service/src/functions/entries.js` — `Natural_language.entry()` and `getDate()`
 
-### 15. Manual Entry Creation
+### 21. Manual Entry Creation
 
 **What it does:** Traditional form-based entry creation with project selection and field inputs.
 
@@ -402,7 +402,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `frontend/src/pages/NewEntry.tsx` — Manual entry form
 
-### 16. Entry Timeline & All Entries View
+### 22. Entry Timeline & All Entries View
 
 **What it does:** View all entries in a timeline or list format, with filtering and search.
 
@@ -421,7 +421,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/pages/AllEntries.tsx` — All entries view
 - `frontend/src/pages/Activity.tsx` — Timeline view
 
-### 17. Priority & Status Tracking
+### 23. Priority & Status Tracking
 
 **What it does:** Each entry has a priority (0=urgent+important, 1=urgent, 2=not urgent, null=none) and status.
 
@@ -434,7 +434,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - Filter entries by priority or status
 - Visual indicators (colors, icons) for quick identification
 
-### 18. Soft Delete & Archives
+### 24. Soft Delete & Archives
 
 **What it does:** Entries and projects can be soft-deleted and moved to archives instead of permanent deletion.
 
@@ -456,7 +456,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Analytics & Insights
 
-### 19. Project Statistics
+### 25. Project Statistics
 
 **What it does:** Shows stats for each project: total entries, time spent, completion rate.
 
@@ -472,7 +472,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `services/project-service/src/functions/stats.js` — Backend stats functions
 
-### 19. Streak Tracking
+### 26. Streak Tracking
 
 **What it does:** Tracks consecutive days of logging activity.
 
@@ -488,7 +488,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `frontend/src/pages/StreakView.tsx` — Streak visualization
 
-### 20. Dashboard Stats Service
+### 27. Dashboard Stats Service
 
 **What it does:** Cross-project summaries for the dashboard.
 
@@ -508,7 +508,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Advanced Features
 
-### 21. Voice Recording
+### 28. Voice Recording
 
 **What it does:** Record audio notes and attach them to entries.
 
@@ -526,7 +526,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/pages/VoiceFeature.jsx` — Voice recording UI
 - `docs-site/docs/architecture/voice-feature.md` — Voice feature documentation
 
-### 22. Data Export
+### 29. Data Export
 
 **What it does:** Export all entries as JSON for backup or external analysis.
 
@@ -538,7 +538,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - Formats as JSON
 - Triggers browser download
 
-### 23. Responsive Design
+### 30. Responsive Design
 
 **What it does:** UI works seamlessly on mobile, tablet, and desktop.
 
@@ -555,7 +555,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Security & Privacy
 
-### 24. Row-Level Security (RLS)
+### 31. Row-Level Security (RLS)
 
 **What it does:** Ensures users can only access their own data.
 
@@ -572,7 +572,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `supabase/setup.sql` — RLS policy definitions
 
-### 25. Environment Variable Management
+### 32. Environment Variable Management
 
 **What it does:** Secrets (API keys, database credentials) stored in environment variables, never committed to repo.
 
@@ -589,7 +589,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Developer Experience
 
-### 26. Hot Module Replacement (HMR)
+### 33. Hot Module Replacement (HMR)
 
 **What it does:** Frontend updates instantly without full page reload during development.
 
@@ -600,7 +600,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - Vite's built-in HMR
 - React Fast Refresh preserves component state
 
-### 27. Comprehensive Test Coverage
+### 34. Comprehensive Test Coverage
 
 **What it does:** Unit tests for backend functions, integration tests for API endpoints.
 
@@ -618,7 +618,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - `services/project-service/src/__tests__/` — Test files
 - `.gitea/workflows/test.yml` — CI test workflow
 
-### 28. CI/CD Pipeline
+### 35. CI/CD Pipeline
 
 **What it does:** Automated testing, coverage reporting, and deployment on every push.
 
@@ -641,4 +641,4 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ## Summary
 
-The Digital Logbook implements a comprehensive set of features covering authentication, profile management, project tracking, natural language entry, analytics, and developer experience. Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 35 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, and developer experience (OpenAPI 3 spec, CI/CD pipeline). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.

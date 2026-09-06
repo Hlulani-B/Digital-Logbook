@@ -247,3 +247,31 @@
     justify-content: flex-end;
   }
 }
+
+/* ── Phones ── */
+@media (max-width: 480px) {
+  .timeline-page {
+    padding: 0.5rem 0.5rem 2rem;
+  }
+
+  .timeline-page-title {
+    font-size: 1.25rem;
+  }
+
+  .timeline-page-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .timeline-empty-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .timeline-empty-title {
+    font-size: 1rem;
+  }
+
+  .timeline-empty-message {
+    font-size: 0.85rem;
+  }
+}

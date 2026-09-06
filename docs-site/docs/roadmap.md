@@ -283,6 +283,62 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Tone Setup now navigates to ThemeSetup instead of dashboard
 - Full onboarding flow: CreateProfile → Avatar → ToneSetup → ThemeSetup → FrequencySetup → Dashboard
 
+#### Calendar View
+
+- Month and week calendar views showing entries on their due dates
+- Drag-to-reschedule entries directly on the calendar
+- Colour-coded entries by priority
+- Key files: `frontend/src/pages/Calendar.tsx`, `frontend/src/pages/Calendar.css`
+
+#### Kanban Board
+
+- Status columns (Not Started, In Progress, Blocked, Done) with drag-to-change-status
+- Entries grouped by status with visual priority indicators
+- Click-to-edit entries inline from the board
+- Key files: `frontend/src/pages/Kanban.tsx`, `frontend/src/pages/Kanban.css`
+
+#### Today View
+
+- Prioritized daily work list showing entries due today or overdue
+- Grouped by urgency (overdue, today, this week)
+- Quick status toggles and inline editing
+- Key files: `frontend/src/pages/Today.tsx`, `frontend/src/pages/Today.css`
+
+#### Timeline View
+
+- Horizontal Gantt-style view showing entries on a time axis
+- Dependency arrows between linked entries
+- Zoom levels (day, week, month)
+- Key files: `frontend/src/pages/Timeline.tsx`, `frontend/src/pages/Timeline.css`
+
+#### Import & Export
+
+- Export all project data as JSON, CSV, or Markdown
+- Import from JSON to restore or migrate data between instances
+- Drawer menu links for quick access
+- Key files: `frontend/src/lib/exportUtils.ts`, `frontend/src/lib/importUtils.ts`, `frontend/src/pages/ExportPage.tsx`
+
+#### iCalendar (.ics) Export
+
+- Export entries as `.ics` files compatible with Google Calendar, Outlook, and Apple Calendar
+- Each entry becomes a calendar event with due date and priority
+- Key files: `frontend/src/lib/icalExport.ts`
+
+#### Backup, Restore & Versioned Schema Migrations
+
+- CLI tools for full database backup and restore (`npm run db:backup`, `npm run db:restore`)
+- Versioned migration files in `supabase/migrations/` applied in order
+- `npm run db:migrate` applies pending migrations
+- Key files: `scripts/backup.js`, `scripts/restore.js`, `scripts/migrate.js`
+
+#### OpenAPI 3 Specification & Swagger UI
+
+- 985-line OpenAPI 3.0 YAML specification covering all 15 endpoint paths across 4 microservices
+- Browsable Swagger UI served at `/api-docs` on project-service
+- 12 validation tests ensuring spec matches implemented routes
+- CORS updated on all services to allow localhost origins for cross-service "Try it out"
+- Key files: `services/project-service/docs/openapi.yaml`, `services/project-service/src/index.js`
+
 #### Bug Fixes
 
 - Entry card dropdown positioning — added `position: relative` to `.entry-box__menu-wrap`
@@ -291,13 +347,13 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Login route double-wrap fix — `res.json(result)` instead of `res.json({ exists: result })`
 - project-service `supabase.js` UTF-16 encoding crash — converted to UTF-8
 - AuthCallback TypeScript build error — added null guard for `email` parameter
+- Drawer overflow — Timeline and Import/Export links were clipped by `overflow: hidden` on the navigation drawer; fixed with `overflow-y: auto`
 
 ### Planned Features
 
 - Server-side caching (Redis)
 - Rate limiting middleware
 - API versioning
-- WebSocket for real-time updates
 - Background job queue for AI calls
 - Comprehensive logging (Winston/Pino)
 - Nudge engine implementation

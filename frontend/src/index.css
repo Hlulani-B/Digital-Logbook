@@ -2188,6 +2188,12 @@ select.field-input {
   }
 }
 
+@media (max-width: 480px) {
+  .dash-main {
+    padding: 1rem 0.75rem;
+  }
+}
+
 /* ========== SCROLLBAR ========== */
 ::-webkit-scrollbar {
   width: 6px;

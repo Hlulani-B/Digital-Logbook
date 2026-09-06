@@ -27,6 +27,21 @@ import './Calendar.css';
 
 const WEEK_STARTS_ON: 0 | 1 = 0; // Sunday
 const VISIBLE_TASKS_PER_CELL = 4;
+const MOBILE_BREAKPOINT = 480;
+
+/** Returns true when viewport is narrow (phone). Re-checks on resize. */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
 
 type DragState = {
   entry: CalendarEntry;
@@ -120,7 +135,10 @@ function CalendarDayCell({
           <button
             type="button"
             className="calendar-more-btn"
-            onClick={(e) => { e.stopPropagation(); onDayClick(date); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDayClick(date);
+            }}
             title={`${hiddenCount} more task${hiddenCount === 1 ? '' : 's'}`}
           >
             +{hiddenCount} more
@@ -191,6 +209,9 @@ export function CalendarPage() {
     if (saved === 'month' || saved === 'week') return saved;
     return 'month';
   });
+  const isMobile = useIsMobile();
+  // On phones, always render as week view regardless of user preference
+  const effectiveView: CalendarView = isMobile ? 'week' : view;
 
   useEffect(() => {
     localStorage.setItem('calendar-view', view);
@@ -225,9 +246,12 @@ export function CalendarPage() {
       // Also load projects for the add-entry dropdown
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
       if (cachedProjects?.data) {
-        const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : [])
-          .filter((p: Record<string, unknown>) => !p.archived);
-        setProjects(projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string })));
+        const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter(
+          (p: Record<string, unknown>) => !p.archived
+        );
+        setProjects(
+          projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string }))
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
@@ -241,10 +265,10 @@ export function CalendarPage() {
   }, [loadEntries]);
 
   const gridDays = useMemo(() => {
-    return view === 'month'
+    return effectiveView === 'month'
       ? buildMonthGrid(currentDate, WEEK_STARTS_ON)
       : buildWeekGrid(currentDate, WEEK_STARTS_ON);
-  }, [currentDate, view]);
+  }, [currentDate, effectiveView]);
 
   const headerDays = useMemo(() => {
     const start = gridDays[0];
@@ -258,11 +282,11 @@ export function CalendarPage() {
   }, []);
 
   const handlePrev = () => {
-    setCurrentDate((prev) => (view === 'month' ? addMonths(prev, -1) : addDays(prev, -7)));
+    setCurrentDate((prev) => (effectiveView === 'month' ? addMonths(prev, -1) : addDays(prev, -7)));
   };
 
   const handleNext = () => {
-    setCurrentDate((prev) => (view === 'month' ? addMonths(prev, 1) : addDays(prev, 7)));
+    setCurrentDate((prev) => (effectiveView === 'month' ? addMonths(prev, 1) : addDays(prev, 7)));
   };
 
   const handleToday = () => {
@@ -342,143 +366,142 @@ export function CalendarPage() {
       <main className="dash-main">
         <Header title="Calendar" entries={entries as unknown as Array<Record<string, unknown>>} />
         <div className="calendar-page">
-
-      <div className="calendar-toolbar">
-        <div className="calendar-nav">
-          <button type="button" className="btn-icon" onClick={handlePrev} aria-label="Previous">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <button type="button" className="btn-secondary" onClick={handleToday}>
-            Today
-          </button>
-          <button type="button" className="btn-icon" onClick={handleNext} aria-label="Next">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
-        <h2 className="calendar-period">{formatMonthYear(currentDate)}</h2>
-        <div className="calendar-view-toggle">
-          <button
-            type="button"
-            className={`btn-toggle ${view === 'month' ? 'active' : ''}`}
-            onClick={() => setView('month')}
-          >
-            Month
-          </button>
-          <button
-            type="button"
-            className={`btn-toggle ${view === 'week' ? 'active' : ''}`}
-            onClick={() => setView('week')}
-          >
-            Week
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="calendar-error" role="alert">
-          {error}
-          <button type="button" className="calendar-error-close" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {updating && (
-        <div className="calendar-updating" aria-live="polite">
-          <span className="calendar-spinner" />
-          Updating due date…
-        </div>
-      )}
-
-      {loading ? (
-        <div className="calendar-loading">
-          <span className="calendar-spinner" />
-          Loading entries…
-        </div>
-      ) : entries.length === 0 ? (
-        <div className="calendar-empty">
-          <p>No scheduled entries yet.</p>
-          <button className="btn-primary" onClick={() => navigate('/dashboard')}>
-            Add an entry
-          </button>
-        </div>
-      ) : (
-        <div
-          className={['calendar-grid', view === 'week' && 'calendar-grid--week']
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {headerDays.map((day) => (
-            <div key={day.toISOString()} className="calendar-header-cell">
-              {formatShortDay(day)}
+          <div className="calendar-toolbar">
+            <div className="calendar-nav">
+              <button type="button" className="btn-icon" onClick={handlePrev} aria-label="Previous">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <button type="button" className="btn-secondary" onClick={handleToday}>
+                Today
+              </button>
+              <button type="button" className="btn-icon" onClick={handleNext} aria-label="Next">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
             </div>
-          ))}
-          {gridDays.map((day) => {
-            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-            const dayEntries = getEntriesForDay(entries, day);
-            return (
-              <CalendarDayCell
-                key={day.toISOString()}
-                date={day}
-                isCurrentMonth={view === 'week' || isCurrentMonth}
-                entries={dayEntries}
-                dragging={dragging}
-                onDragStart={handleDragStart}
-                onDrop={handleDrop}
-                onEntryClick={handleEntryClick}
-                onDayClick={handleDayClick}
-                isOverdue={isDayOverdue}
-              />
-            );
-          })}
+            <h2 className="calendar-period">{formatMonthYear(currentDate)}</h2>
+            <div className="calendar-view-toggle">
+              <button
+                type="button"
+                className={`btn-toggle ${view === 'month' ? 'active' : ''}`}
+                onClick={() => setView('month')}
+              >
+                Month
+              </button>
+              <button
+                type="button"
+                className={`btn-toggle ${view === 'week' ? 'active' : ''}`}
+                onClick={() => setView('week')}
+              >
+                Week
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="calendar-error" role="alert">
+              {error}
+              <button type="button" className="calendar-error-close" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {updating && (
+            <div className="calendar-updating" aria-live="polite">
+              <span className="calendar-spinner" />
+              Updating due date…
+            </div>
+          )}
+
+          {loading ? (
+            <div className="calendar-loading">
+              <span className="calendar-spinner" />
+              Loading entries…
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="calendar-empty">
+              <p>No scheduled entries yet.</p>
+              <button className="btn-primary" onClick={() => navigate('/dashboard')}>
+                Add an entry
+              </button>
+            </div>
+          ) : (
+            <div
+              className={['calendar-grid', effectiveView === 'week' && 'calendar-grid--week']
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {headerDays.map((day) => (
+                <div key={day.toISOString()} className="calendar-header-cell">
+                  {formatShortDay(day)}
+                </div>
+              ))}
+              {gridDays.map((day) => {
+                const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                const dayEntries = getEntriesForDay(entries, day);
+                return (
+                  <CalendarDayCell
+                    key={day.toISOString()}
+                    date={day}
+                    isCurrentMonth={effectiveView === 'week' || isCurrentMonth}
+                    entries={dayEntries}
+                    dragging={dragging}
+                    onDragStart={handleDragStart}
+                    onDrop={handleDrop}
+                    onEntryClick={handleEntryClick}
+                    onDayClick={handleDayClick}
+                    isOverdue={isDayOverdue}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          <div className="calendar-legend">
+            <span className="calendar-legend-item">
+              <span className="calendar-legend-dot calendar-legend-dot--overdue" />
+              Overdue
+            </span>
+            <span className="calendar-legend-item">
+              <span className="calendar-legend-dot calendar-legend-dot--completed" />
+              Completed
+            </span>
+            <span className="calendar-legend-item">
+              <span className="calendar-legend-dot calendar-legend-dot--upcoming" />
+              Upcoming
+            </span>
+          </div>
         </div>
-      )}
 
-      <div className="calendar-legend">
-        <span className="calendar-legend-item">
-          <span className="calendar-legend-dot calendar-legend-dot--overdue" />
-          Overdue
-        </span>
-        <span className="calendar-legend-item">
-          <span className="calendar-legend-dot calendar-legend-dot--completed" />
-          Completed
-        </span>
-        <span className="calendar-legend-item">
-          <span className="calendar-legend-dot calendar-legend-dot--upcoming" />
-          Upcoming
-        </span>
-      </div>
-      </div>
-
-      {selectedDate && (
-        <CalendarDayModal
-          date={selectedDate}
-          entries={selectedDayEntries}
-          projects={projects}
-          userEmail={email}
-          onClose={handleModalClose}
-          onEntryAdded={handleEntryAdded}
-          onEntryClick={handleEntryClick}
-        />
-      )}
+        {selectedDate && (
+          <CalendarDayModal
+            date={selectedDate}
+            entries={selectedDayEntries}
+            projects={projects}
+            userEmail={email}
+            onClose={handleModalClose}
+            onEntryAdded={handleEntryAdded}
+            onEntryClick={handleEntryClick}
+          />
+        )}
       </main>
     </div>
   );

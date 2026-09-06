@@ -161,3 +161,40 @@ This design trades some query complexity — values have to be interpreted
 using their corresponding `fields` definition — for schema flexibility that
 directly matches the brief's requirement to let users "customise the format"
 of their logbook.
+
+## Schema Migrations
+
+Database changes are tracked through versioned SQL migration files in `supabase/migrations/`, applied in filename order.
+
+### Migration Files
+
+| File                             | Purpose                                                                     |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| `001_initial_schema.sql`         | Core tables: users, projects, fields, entries, activity_log                 |
+| `002_add_unique_name.sql`        | Per-user project slugs for URL-friendly references                          |
+| `003_add_description.sql`        | Optional project descriptions                                               |
+| `004_soft_delete.sql`            | Soft-delete support with `deleted` column on all tables                     |
+| `005_add_soft_delete_column.sql` | `deletion_scheduled_at` timestamp and `delete_user()`/`restore_user()` RPCs |
+
+### CLI Commands
+
+```bash
+# Apply all pending migrations (run from project root)
+npm run db:migrate
+
+# Full database backup (data + schema)
+npm run db:backup
+
+# Restore from backup
+npm run db:restore
+```
+
+All migration scripts are in the `scripts/` directory and require the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` environment variables.
+
+### Key Files
+
+- `supabase/setup.sql` — Original full schema (for fresh installs)
+- `supabase/migrations/` — Incremental migration files
+- `scripts/backup.js` — Backup utility
+- `scripts/restore.js` — Restore utility
+- `scripts/migrate.js` — Migration runner
