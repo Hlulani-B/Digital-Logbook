@@ -62,10 +62,15 @@ codacaine/
 │ ├── src/index.js
 │ ├── package.json
 │ └── .env
+├── scripts/ # Database backup, restore, and migration tools
+├── supabase/
+│ ├── setup.sql # One-shot Supabase setup
+│ └── migrations/ # Versioned SQL migrations (000–007+)
+├── docs/ # User stories and project documentation
+├── docs-site/ # MkDocs documentation site source
 ├── badges/ # Auto-generated coverage badge SVGs
-├── scripts/ # Utility scripts (badge generation, etc.)
 ├── render.yaml # Render deployment manifest
-├── docker-compose.yml
+├── package.json # Root monorepo config (npm scripts for db tools)
 ├── .gitignore
 └── README.md
 
@@ -87,7 +92,8 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Kanban board:** Three status columns (Up Next, In Motion, Done & Dusted) show entries as cards that can be dragged between columns to change status. The board supports project and search filters, and a failed save reverts the card to its original column.
 - **Today view:** A focused screen that lists overdue entries first, then entries due today, then work already in progress, with a friendly empty state when there is nothing to do.
 - **Timeline:** Horizontal time view with bars spanning start to due date, dependency arrows between linked tasks, zoom/scroll controls, and an empty state when no dated tasks exist.
-- **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, or Markdown, and import them back in. Round-trip safe with malformed-row reporting.
+- **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and import them back in. Round-trip safe with malformed-row reporting. iCalendar export opens in Google Calendar, Outlook, and Apple Calendar.
+- **Backup, Restore & Migrations:** One-command `pg_dump`/`pg_restore` backup and restore, plus versioned schema migrations that upgrade an existing database without dropping and recreating it.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
@@ -136,7 +142,31 @@ Create a `.env` file in each service folder and in the `frontend/` folder (see [
 
 ### 5. Set up the database
 
-Run the Supabase SQL migrations to create the required tables (`users`, `projects`, `fields`, `entries`, `activity_log`, etc.) and RPC functions (`delete_user()`, `restore_user()`, `purge_deleted_users()`).
+#### Option A: Automated (recommended)
+
+Install the migration tools and run the baseline migration:
+
+```powershell
+cd scripts
+npm install
+npm run db:migrate
+```
+
+This creates all tables, indexes, functions, triggers, and cron jobs idempotently. For an existing database where migrations were applied manually, use `npm run db:bootstrap` instead to mark them as already applied.
+
+#### Option B: Manual
+
+Run the SQL files in `supabase/migrations/` in order (000–007) in the Supabase SQL Editor:
+[https://supabase.com/dashboard/project/_/sql](https://supabase.com/dashboard/project/_/sql)
+
+#### Backup and restore
+
+```powershell
+cd scripts
+npm run db:backup       # backup to scripts/backups/
+npm run db:restore      # restore from latest backup
+npm run db:status       # show applied/pending migrations
+```
 
 ### 6. Run the project
 

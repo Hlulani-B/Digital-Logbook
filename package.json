@@ -6,7 +6,12 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:migrate": "node scripts/migrate.js migrate",
+    "db:status": "node scripts/migrate.js status",
+    "db:bootstrap": "node scripts/migrate.js bootstrap",
+    "db:backup": "node scripts/backup.js",
+    "db:restore": "node scripts/restore.js"
   },
   "devDependencies": {
     "husky": "^9.1.7",

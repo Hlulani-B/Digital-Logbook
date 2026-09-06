@@ -261,14 +261,15 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ### 15. Import & Export (Data Portability)
 
-**What it does:** Exports all projects and entries (including archived) to JSON, CSV, or Markdown, and imports them back in. Round-trip safe: an export-then-import cycle reproduces the original row count exactly. Malformed rows are reported by line number rather than failing halfway.
+**What it does:** Exports all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and imports them back in. Round-trip safe: an export-then-import cycle reproduces the original row count exactly. Malformed rows are reported by line number rather than failing halfway. iCalendar export produces RFC 5545 compliant .ics files that open in Google Calendar, Outlook, and Apple Calendar.
 
-**Why it was implemented:** Users need to back up their data, migrate between accounts, or move data in and out of the logbook without vendor lock-in.
+**Why it was implemented:** Users need to back up their data, migrate between accounts, move data in and out of the logbook without vendor lock-in, and integrate tasks with external calendar applications.
 
 **How it works:**
 
 - Export fetches all projects and entries via `getProjectsByEmail()`, `getArchivedProjects()`, `getAllEntries()`, and `getArchives()`
-- Serialises to the chosen format using `exportToJSON()`, `exportToCSV()`, or `exportToMarkdown()`
+- Serialises to the chosen format using `exportToJSON()`, `exportToCSV()`, `exportToMarkdown()`, or `exportToICS()`
+- iCalendar export maps title to `SUMMARY`, project to `CATEGORIES`, status to `STATUS` (TENTATIVE/CONFIRMED/COMPLETED), and priority to the 1–9 scale; all-day events use `VALUE=DATE`, timed events use ISO timestamps, and special characters are escaped per RFC 5545
 - Import parses the uploaded file with `parseImport()`, validates each row, and reports rejections with line numbers
 - Projects are created first (via `addProject()`), then entries (via `addEntry()`), then archived entries are re-archived (via `archiveEntry()`)
 
@@ -277,7 +278,28 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/pages/DataPortability.tsx` — Import & Export page
 - `frontend/src/lib/export.ts` — Serialisation helpers
 - `frontend/src/lib/import.ts` — Parsing and validation helpers
-- `frontend/src/lib/__tests__/import-export.test.ts` — Round-trip and malformed-row tests
+- `frontend/src/lib/__tests__/import-export.test.ts` — Round-trip, malformed-row, and iCalendar tests
+
+### 16. Backup, Restore & Migrations
+
+**What it does:** One-command database backup (`npm run db:backup`) and restore (`npm run db:restore`) using `pg_dump`/`pg_restore`. Versioned schema migrations (`npm run db:migrate`) upgrade an existing database without dropping and recreating tables. A bootstrap command (`npm run db:bootstrap`) marks pre-existing migrations as already applied.
+
+**Why it was implemented:** The schema evolved through 8 manually-applied SQL files with no tracking mechanism. New developers or fresh Supabase projects had no way to set up the schema automatically, and there was no backup strategy for production data.
+
+**How it works:**
+
+- **Backup:** `pg_dump --format=custom --schema=public` produces a compressed, portable dump.
+- **Restore:** `pg_restore --clean --if-exists --schema=public` restores with a 3-second safety delay.
+- **Migrations:** A `schema_migrations` table tracks applied versions with SHA-256 checksums. Each migration runs in a transaction. The baseline migration `000_baseline_full_schema.sql` captures the entire current schema idempotently.
+- **Bootstrap:** For databases where migrations 001–007 were already run manually, `npm run db:bootstrap` marks them as applied without re-executing.
+
+**Key files:**
+
+- `scripts/migrate.js` — Migration runner (migrate, status, bootstrap commands)
+- `scripts/backup.js` — One-command backup
+- `scripts/restore.js` — One-command restore
+- `supabase/migrations/000_baseline_full_schema.sql` — Complete idempotent schema DDL
+- `frontend/src/lib/__tests__/migrations.test.ts` — Migration file and runner tests
 
 ---
 
