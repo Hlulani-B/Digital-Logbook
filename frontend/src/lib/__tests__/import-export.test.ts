@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildExportBundle, exportToCSV, exportToJSON, exportToMarkdown } from '@/lib/export';
+import {
+  buildExportBundle,
+  exportToCSV,
+  exportToICS,
+  exportToJSON,
+  exportToMarkdown,
+} from '@/lib/export';
 import { parseCSVImport, parseJSONImport, parseMarkdownImport, parseImport } from '@/lib/import';
 
 const SAMPLE_PROJECTS = [
@@ -174,5 +180,132 @@ describe('parseImport format detection', () => {
   it('falls back to JSON when extension is missing', () => {
     const result = parseImport(exportToJSON(sampleBundle()), 'data');
     expect(result.projects).toHaveLength(2);
+  });
+});
+
+describe('iCalendar export', () => {
+  it('generates valid VCALENDAR structure', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toContain('VERSION:2.0');
+    expect(ics).toContain('PRODID:-//Digital Logbook//EN');
+    expect(ics).toContain('END:VCALENDAR');
+  });
+
+  it('creates VEVENT for entries with dates', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    // Both sample entries have dates (due_date or started_at)
+    expect(ics).toContain('BEGIN:VEVENT');
+    expect(ics).toContain('END:VEVENT');
+    expect(ics).toContain('SUMMARY:Task A');
+    expect(ics).toContain('SUMMARY:Task B');
+  });
+
+  it('uses all-day format for entries with only due_date', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    // Task A has only due_date, so it should be all-day (VALUE=DATE)
+    expect(ics).toContain('DTSTART;VALUE=DATE:20260910');
+    expect(ics).toContain('DTEND;VALUE=DATE:20260911');
+  });
+
+  it('uses datetime format for entries with started_at', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    // Task B has started_at, so it should use datetime format
+    expect(ics).toContain('DTSTART:20260911T100000Z');
+  });
+
+  it('maps status to iCalendar STATUS', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    // up_next -> TENTATIVE, in_motion -> CONFIRMED
+    expect(ics).toContain('STATUS:TENTATIVE');
+    expect(ics).toContain('STATUS:CONFIRMED');
+  });
+
+  it('maps priority to iCalendar PRIORITY', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    // "Urgent and important" -> PRIORITY:1
+    expect(ics).toContain('PRIORITY:1');
+  });
+
+  it('includes project name as CATEGORIES', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    expect(ics).toContain('CATEGORIES:Alpha');
+    expect(ics).toContain('CATEGORIES:Beta');
+  });
+
+  it('escapes special characters per RFC 5545', () => {
+    const bundle = buildExportBundle(
+      'test@example.com',
+      [],
+      [
+        {
+          project_name: 'Test;Project',
+          entries: { title: 'Meeting, with commas', description: 'Line 1\nLine 2' },
+          due_date: '2026-09-10',
+          priority: null,
+          status: 'up_next',
+          started_at: null,
+          ended_at: null,
+          duration: null,
+          archived: false,
+        },
+      ]
+    );
+
+    const ics = exportToICS(bundle);
+
+    // Semicolons, commas, and newlines should be escaped
+    expect(ics).toContain('CATEGORIES:Test\\;Project');
+    expect(ics).toContain('SUMMARY:Meeting\\, with commas');
+    expect(ics).toContain('DESCRIPTION:Line 1\\nLine 2');
+  });
+
+  it('skips entries without any date', () => {
+    const bundle = buildExportBundle(
+      'test@example.com',
+      [],
+      [
+        {
+          project_name: 'Test',
+          entries: { title: 'No date task' },
+          due_date: null,
+          priority: null,
+          status: 'up_next',
+          started_at: null,
+          ended_at: null,
+          duration: null,
+          archived: false,
+        },
+      ]
+    );
+
+    const ics = exportToICS(bundle);
+
+    // Should not contain a VEVENT for the dateless entry
+    expect(ics).not.toContain('BEGIN:VEVENT');
+    expect(ics).not.toContain('No date task');
+  });
+
+  it('uses CRLF line endings', () => {
+    const bundle = sampleBundle();
+    const ics = exportToICS(bundle);
+
+    // iCalendar requires CRLF
+    expect(ics).toContain('\r\n');
+    expect(ics).not.toMatch(/[^\r]\n/);
   });
 });
