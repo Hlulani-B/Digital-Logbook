@@ -259,6 +259,26 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/lib/timeline.ts` — Date resolution, row layout, and arrow geometry
 - `frontend/src/pages/Timeline.css` — Timeline styles
 
+### 15. Import & Export (Data Portability)
+
+**What it does:** Exports all projects and entries (including archived) to JSON, CSV, or Markdown, and imports them back in. Round-trip safe: an export-then-import cycle reproduces the original row count exactly. Malformed rows are reported by line number rather than failing halfway.
+
+**Why it was implemented:** Users need to back up their data, migrate between accounts, or move data in and out of the logbook without vendor lock-in.
+
+**How it works:**
+
+- Export fetches all projects and entries via `getProjectsByEmail()`, `getArchivedProjects()`, `getAllEntries()`, and `getArchives()`
+- Serialises to the chosen format using `exportToJSON()`, `exportToCSV()`, or `exportToMarkdown()`
+- Import parses the uploaded file with `parseImport()`, validates each row, and reports rejections with line numbers
+- Projects are created first (via `addProject()`), then entries (via `addEntry()`), then archived entries are re-archived (via `archiveEntry()`)
+
+**Key files:**
+
+- `frontend/src/pages/DataPortability.tsx` — Import & Export page
+- `frontend/src/lib/export.ts` — Serialisation helpers
+- `frontend/src/lib/import.ts` — Parsing and validation helpers
+- `frontend/src/lib/__tests__/import-export.test.ts` — Round-trip and malformed-row tests
+
 ---
 
 ## Project & Entry Management

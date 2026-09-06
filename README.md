@@ -87,6 +87,7 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Kanban board:** Three status columns (Up Next, In Motion, Done & Dusted) show entries as cards that can be dragged between columns to change status. The board supports project and search filters, and a failed save reverts the card to its original column.
 - **Today view:** A focused screen that lists overdue entries first, then entries due today, then work already in progress, with a friendly empty state when there is nothing to do.
 - **Timeline:** Horizontal time view with bars spanning start to due date, dependency arrows between linked tasks, zoom/scroll controls, and an empty state when no dated tasks exist.
+- **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, or Markdown, and import them back in. Round-trip safe with malformed-row reporting.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
