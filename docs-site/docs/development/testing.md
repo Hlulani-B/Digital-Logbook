@@ -1,164 +1,324 @@
-# Testing
+# Testing & User Feedback
 
-## Why testing mattered
+**Test lead:** Hlulani Baloyi — responsible for writing, reviewing, and maintaining the test suite across all frontend and backend services.
 
-The course brief (COMS3011A) requires evidence of both **automated testing**
-and a **formal user feedback process**. Testing ensures that the frontend
-behaves correctly as the codebase evolves across sprints, and the user
-feedback loop guarantees that the product actually solves the problems its
-stakeholders described.
+## Quality Assurance Overview
 
-## Testing policy
+This page documents three pillars of our quality assurance strategy:
 
-### Scope
+1. **Automated Testing Procedure** — how tests are structured, run, and enforced
+2. **Testing Policy** — the rules the team follows for test coverage
+3. **User Feedback Process** — how stakeholder input is collected, triaged, and actioned
 
-| Layer | What is tested | Tool |
+---
+
+## Automated Testing Procedure
+
+### Testing Tools and Frameworks
+
+| Layer | Tool | Purpose |
 |---|---|---|
-| Pure functions | Duration formatting, overdue detection, streak calculation, search API calls, tone preferences | Vitest |
-| API layer | `request()` helper (auth headers, error handling, JSON parsing), service health checks | Vitest + mocked `fetch` |
-| React components | ProtectedRoute (auth gating, redirects), QuickEntryBar (form submission, loading states, callbacks) | Vitest + Testing Library |
-| Auth context | Sign-in, sign-up, sign-out, OAuth, password reset, account deletion/restore | Vitest + Testing Library |
+| Test runner | **Vitest** | Unit and integration tests for frontend and backend |
+| Component rendering | **@testing-library/react** | Render React components, simulate user interactions |
+| DOM assertions | **@testing-library/jest-dom** | Semantic assertions (`toBeDisabled`, `toHaveTextContent`) |
+| IndexedDB polyfill | **fake-indexeddb** | Integration tests that exercise the real cache layer |
+| Backend HTTP tests | **Vitest + supertest** | Endpoint tests for each microservice |
+| CI pipeline | **Gitea Actions** | Automated test runs on every push and PR |
 
-### What is NOT tested (and why)
+### What Types of Tests Are Run
 
-- **Visual/styling correctness** — CSS is reviewed manually during development; pixel-perfect testing is brittle and low-value at this project's scale.
-- **Third-party library internals** — We mock Supabase, `react-router-dom`, and `fetch` rather than testing their implementations.
-- **Voice recording (Web Speech API)** — Requires browser APIs unavailable in jsdom; covered by manual testing only.
+#### Unit Tests
 
-### Policy rules
+Unit tests verify individual functions and components in isolation. All external dependencies (Supabase, fetch, IndexedDB) are mocked.
+
+**Examples:**
+- Pure functions: `formatDuration`, `isOverdue`, `calculateStreaks`, `searchAll`
+- API helpers: `request()` with auth headers and error handling
+- Auth context: sign-in, sign-up, OAuth, password reset, account deletion
+- Component logic: form submission, conditional rendering, event handlers
+
+#### Integration Tests
+
+Integration tests verify that multiple modules work together correctly. These use real IndexedDB (via `fake-indexeddb`) and test the full data flow.
+
+**Examples:**
+- **Cache layer** — `cacheSet` → `cacheGet` → `cacheSubscribe` event flow, isolation between users, `clearUserCache`
+- **Entry CRUD** — optimistic write → server sync → cache update, rollback on failure
+- **Sync service** — `syncAllData` populates all IndexedDB stores from server responses
+- **Auth + Cache** — sign-out clears IndexedDB, SSE disconnect on logout
+- **useCachedData hook** — reads from cache immediately, subscribes to changes, triggers background fetch
+
+#### End-to-End (Manual)
+
+End-to-end testing is done manually during development and sprint demos. Full browser E2E automation (e.g. Cypress) is planned but not yet implemented.
+
+### Test File Organisation
+
+```
+frontend/src/
+├── components/__tests__/        # Shared component tests
+│   ├── AppShell.test.tsx
+│   ├── Header.test.tsx
+│   ├── NavBar.test.tsx
+│   ├── ProfileMenu.test.tsx
+│   ├── ProtectedRoute.test.tsx
+│   ├── QuickEntryBar.test.tsx
+│   └── Stats.test.tsx
+├── pages/__tests__/             # Page-level tests
+│   ├── AllEntries.test.tsx
+│   └── SignIn.test.tsx
+├── Templates/__tests__/         # Template component tests
+│   ├── EntriesByDueDateBoard.test.tsx
+│   ├── EntryChecklist.test.tsx
+│   └── ProjectTable.test.tsx
+├── __integration__/             # Integration tests (separate from unit)
+│   ├── auth-cache.integration.test.js
+│   ├── cache.integration.test.js
+│   ├── entries-crud.integration.test.js
+│   ├── sync-service.integration.test.js
+│   └── use-cached-data.integration.test.tsx
+├── context/__tests__/           # Auth context tests
+├── functions/__tests__/         # Pure function tests
+├── functions/dashboard/__tests__/
+├── hooks/__tests__/             # Hook tests
+└── lib/__tests__/               # Library/utility tests
+```
+
+**Naming convention:** `{SourceName}.test.{ext}` — test files match the source file they cover. Integration tests use `.integration.test.{ext}` to distinguish them from unit tests.
+
+### Test Structure Pattern
+
+Every test follows **Arrange → Act → Assert**:
+
+```javascript
+import { describe, it, expect, vi } from 'vitest';
+
+describe('functionName', () => {
+  it('does the expected thing', () => {
+    // Arrange — set up inputs and mocks
+    // Act — call the function
+    // Assert — verify the result
+  });
+});
+```
+
+Component tests use `render` + `screen` queries:
+
+```tsx
+it('renders the project name on each checklist card', () => {
+  render(<ChecklistEntryCard entry={sampleEntry} />);
+  expect(screen.getByText('TestProject')).toBeTruthy();
+});
+```
+
+### How Tests Are Executed
+
+#### Locally
+
+```bash
+# From the frontend/ directory
+npm test                    # Run all tests once
+npm run test:watch          # Watch mode (re-runs on file change)
+npm run test:coverage       # Generate coverage report (v8)
+
+# Run only integration tests
+npx vitest run src/__integration__/
+
+# Run a specific test file
+npx vitest run src/components/__tests__/NavBar.test.tsx
+```
+
+#### In CI (Gitea Actions)
+
+The CI pipeline at `.gitea/workflows/test.yml` runs on every push and pull request to `main`. It has two separate jobs:
+
+| Job | What it runs |
+|---|---|
+| **Frontend Unit Tests** | All tests except `src/__integration__/` |
+| **Frontend Integration Tests** | Only `src/__integration__/` |
+
+```yaml
+jobs:
+  frontend-unit-tests:
+    steps:
+      - run: npx vitest run --exclude "src/__integration__/**"
+  frontend-integration-tests:
+    steps:
+      - run: npx vitest run src/__integration__/
+```
+
+Both jobs appear separately in the Gitea Actions UI. If any test fails, the pipeline fails and the push is flagged.
+
+### Mocking Approach
+
+| Dependency | Mock strategy | Reason |
+|---|---|---|
+| Supabase client | `vi.mock('@/lib/supabase')` | Prevents real database/auth calls |
+| `fetch` / `request()` | `vi.fn()` or `vi.mock('@/lib/api')` | Isolates from network |
+| React Router | `<MemoryRouter>` wrapper | Controls navigation in tests |
+| IndexedDB | `fake-indexeddb/auto` | Real IndexedDB API in jsdom for integration tests |
+| `localStorage` | `localStorage.clear()` in `beforeEach` | Prevents test pollution |
+| Child components | `vi.mock('../Component')` | Tests one component in isolation |
+| Auth context | `vi.mock('@/context/AuthContext')` | Provides mock user for component tests |
+
+### Coverage Expectations
+
+Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful coverage** of business logic and critical user flows, not 100% line coverage:
+
+- **Pure functions** (stats, overdue, streaks, search, tone) — fully covered
+- **Shared components** (NavBar, Header, ProfileMenu, Stats, AppShell) — render + interaction tests
+- **Critical flows** (auth, CRUD, cache sync, optimistic updates) — integration tested
+- **Pages** — key pages (SignIn, AllEntries) tested for display modes and navigation
+
+### What Happens When a Test Fails
+
+1. **CI blocks the push** — a failing test prevents the commit from passing the pipeline
+2. **The author fixes the test or the code** — depending on whether the test expectation or the implementation is wrong
+3. **No test is silently skipped** — disabled tests must include a comment explaining why and a tracking issue
+
+---
+
+## Testing Policy
+
+### Rules for Test Coverage
 
 1. **Every new pure function must have a corresponding test file** in a `__tests__/` directory adjacent to the source.
 2. **Every new React component that contains logic** (event handlers, conditional rendering, API calls) must have at least one render test and one interaction test.
 3. **Tests must not depend on external services.** All HTTP calls are mocked; no test may reach a live backend URL.
 4. **Tests must be deterministic.** No test may rely on `Date.now()` without accepting it as a parameter or mocking the clock. Time-dependent tests use fixed timestamps.
-5. **CI must pass before merge.** The Gitea Actions CI pipeline runs `npm test` for the frontend and all services; a failing test blocks the push.
+5. **CI must pass before merge.** The Gitea Actions pipeline runs all frontend tests (unit + integration) and backend tests; a failing test blocks the push.
+6. **Integration tests are required for data flow changes.** Any change to the cache layer, sync service, or CRUD functions must be covered by an integration test.
 
-## Automated testing procedure
+### Responsibilities
 
-### Running tests locally
+| Role | Responsibility |
+|---|---|
+| **Test lead (Hlulani Baloyi)** | Writes new tests for complex features, reviews test quality, maintains the test inventory, ensures CI stays green |
+| **Each developer** | Writes tests for their own feature alongside the implementation |
+| **PR reviewer** | Checks that new code has corresponding tests before approving |
 
-```bash
-# From the frontend/ directory
-npm test              # Run all tests once
-npm run test:watch    # Watch mode (re-runs on file change)
-npm run test:coverage # Generate coverage report (v8)
-```
+### Review Cadence
 
-### Running tests in CI
+- Tests are reviewed as part of every PR — the reviewer verifies that new features have tests
+- The full test inventory is updated at the end of each sprint
+- Integration tests are added when a new data flow or cross-module interaction is introduced
 
-The CI pipeline (`.gitea/workflows/ci.yml`) runs on every push and pull
-request to `main`:
+### What Is NOT Tested (and Why)
 
-```yaml
-- name: Install & Test Frontend
-  run: |
-    cd frontend
-    npm install
-    npm test --if-present
-```
+- **Visual/styling correctness** — CSS is reviewed manually during development; pixel-perfect testing is brittle and low-value at this project's scale.
+- **Third-party library internals** — We mock Supabase, `react-router-dom`, and `fetch` rather than testing their implementations.
+- **Voice recording (Web Speech API)** — Requires browser APIs unavailable in jsdom; covered by manual testing only.
 
-If any test fails, the pipeline fails and the push is flagged.
+---
 
-### Test file naming convention
+## Full Test Inventory
 
-- Test files live in `__tests__/` directories next to the code they test.
-- File names match the source: `stats.js` → `__tests__/stats.test.js`.
-- TypeScript tests use `.test.ts` or `.test.tsx` extensions.
-
-### Test structure
-
-Every test file follows the **Arrange → Act → Assert** pattern:
-
-```javascript
-import { describe, it, expect } from 'vitest';
-import { formatDuration } from '../stats';
-
-describe('formatDuration', () => {
-  it('formats hours and minutes', () => {
-    // Arrange
-    const ms = 2 * 3600000 + 30 * 60000;
-    // Act
-    const result = formatDuration(ms);
-    // Assert
-    expect(result).toBe('2h 30m');
-  });
-});
-```
-
-### Mocking strategy
-
-| What | How | Why |
-|---|---|---|
-| Supabase client | `vi.mock('@/lib/supabase')` | Prevents real database/auth calls |
-| `fetch` | `vi.stubGlobal('fetch', vi.fn())` | Isolates API tests from network |
-| React Router | `<MemoryRouter>` wrapper | Controls navigation in component tests |
-| `localStorage` | `localStorage.clear()` in `beforeEach` | Prevents test pollution |
-| Child components | `vi.mock('../Component')` | Tests one component in isolation |
-
-### Coverage
-
-Coverage is measured with `@vitest/coverage-v8` and reported in the
-terminal. The goal is **meaningful coverage** of business logic, not 100%
-line coverage. Pure functions (stats, overdue, streaks, tone) are fully
-covered; component tests focus on user-facing behaviour.
-
-## Test inventory
-
-### Frontend tests
+### Frontend Unit Tests (31 files, 397 tests)
 
 | Test file | What it covers | # tests |
 |---|---|---|
 | `functions/dashboard/__tests__/stats.test.js` | `formatDuration`, `formatInterval`, `calculateTotalTimeTracked`, `calculateProjectStats` | 18 |
 | `functions/dashboard/__tests__/overdue.test.js` | `isOverdue`, `getOverdueText` | 12 |
 | `functions/dashboard/__tests__/streaks.test.js` | `calculateStreaks`, `streakLabel` | 9 |
-| `functions/dashboard/__tests__/search.test.js` | `searchAll`, `searchProject`, `searchProjects` (with fetch mocking) | 7 |
+| `functions/dashboard/__tests__/search.test.js` | `searchAll`, `searchProject`, `searchProjects` | 7 |
 | `functions/__tests__/tone.test.ts` | `getTone`, `setTone`, `getToneInstruction`, `TONE_OPTIONS` | 11 |
+| `functions/__tests__/aiMessages.test.ts` | AI messages enabled/disabled toggle | 3 |
 | `lib/__tests__/api.test.ts` | `request()` (auth headers, errors, JSON), `api.*.health()` | 8 |
-| `context/__tests__/AuthContext.test.tsx` | Full auth flow: sign-in, sign-up, OAuth, password reset, delete/restore | 12 |
-| `components/__tests__/ProtectedRoute.test.tsx` | Auth gating, loading state, fallback session check, redirect | 5 |
-| `components/__tests__/QuickEntryBar.test.tsx` | Form submission, success/error messages, callbacks, voice button, Enter key | 11 |
+| `lib/__tests__/cache.test.js` | `cacheGet`, `cacheSet`, `cacheSubscribe`, `cacheDelete` | 12 |
+| `lib/__tests__/sse.test.js` | SSE connect, disconnect, event dispatch | 8 |
+| `lib/__tests__/sse.integration.test.js` | SSE → cache invalidation end-to-end flow | 8 |
+| `lib/__tests__/calendar.test.ts` | Calendar date calculations | 6 |
+| `lib/__tests__/today.test.ts` | Today view filtering logic | 5 |
+| `lib/__tests__/kanban.test.ts` | Kanban board grouping | 4 |
+| `lib/__tests__/timeline.test.ts` | Timeline sorting | 4 |
+| `lib/__tests__/validation.test.ts` | Input validation rules | 7 |
+| `lib/__tests__/import-export.test.ts` | Data import/export | 5 |
+| `lib/__tests__/migrations.test.ts` | IndexedDB schema migrations | 4 |
+| `context/__tests__/AuthContext.test.tsx` | Sign-in, sign-up, OAuth, password reset, delete/restore | 12 |
+| `hooks/__tests__/useInactivityLogout.test.tsx` | Inactivity logout timer | 4 |
+| `components/__tests__/ProtectedRoute.test.tsx` | Auth gating, loading state, redirect | 5 |
+| `components/__tests__/QuickEntryBar.test.tsx` | Form submission, success/error, voice, Enter key | 11 |
+| `components/__tests__/ProfileMenu.test.tsx` | Dropdown, avatar, keyboard, outside click | 12 |
+| `components/__tests__/NavBar.test.tsx` | Navigation, drawer, projects, settings event | 19 |
+| `components/__tests__/Header.test.tsx` | Title, settings event listener, Stats integration | 8 |
+| `components/__tests__/Stats.test.tsx` | Panel open/close, counts, activeProject | 10 |
+| `components/__tests__/AppShell.test.tsx` | Layout, navigation, drawer | 10 |
+| `pages/__tests__/AllEntries.test.tsx` | Display modes, sort, localStorage persistence | 13 |
+| `pages/__tests__/SignIn.test.tsx` | Form fields, OAuth, mode toggle | 14 |
+| `Templates/__tests__/EntryChecklist.test.tsx` | Card rendering, status, ChecklistView | 11 |
+| `Templates/__tests__/EntriesByDueDateBoard.test.tsx` | Columns, sorting, deleted entries | 8 |
+| `Templates/__tests__/ProjectTable.test.tsx` | Summaries, statuses, priorities, dates | 8 |
 
-### Backend tests
+### Frontend Integration Tests (5 files, 47 tests)
 
-Each microservice has its own test suite (run via `npm test` in the
-service directory):
+| Test file | What it covers | # tests |
+|---|---|---|
+| `__integration__/cache.integration.test.js` | IndexedDB round-trips, subscriptions, timestamps, `clearUserCache` isolation | 14 |
+| `__integration__/entries-crud.integration.test.js` | Optimistic add/update/delete, rollback on server failure, dual cache updates | 11 |
+| `__integration__/sync-service.integration.test.js` | `syncAllData` populates all stores, error resilience, `computeDueSoon`, `syncProjectEntries` | 10 |
+| `__integration__/auth-cache.integration.test.js` | Sign-out clears cache, SSE disconnect, delete account flow, user isolation | 4 |
+| `__integration__/use-cached-data.integration.test.tsx` | Hook reads cache immediately, background fetch, reactive updates, convenience hooks | 8 |
+
+### Backend Tests (17 files)
 
 | Service | Test file | What it covers |
 |---|---|---|
 | auth-service | `src/__tests__/index.test.js` | Health endpoint, Supabase auth integration |
-| dashboard-service | `src/__tests__/` | Search, stats, activity endpoints |
-| project-service | `src/__tests__/` | CRUD for entries, fields, projects, archives, priority |
+| dashboard-service | `src/__tests__/daemon.test.js` | Health ping daemon (table creation, insert, consume) |
+| dashboard-service | `src/__tests__/healthPing.test.js` | `/service/health-ping` endpoint |
+| dashboard-service | `src/__tests__/search.test.js` | Search endpoint |
+| profile-service | `src/__tests__/login.test.js` | User login/check endpoint |
+| profile-service | `src/__tests__/profile.test.js` | Profile CRUD |
+| project-service | `src/__tests__/entries.test.js` | Entry CRUD endpoints |
+| project-service | `src/__tests__/project.test.js` | Project CRUD endpoints |
+| project-service | `src/__tests__/field.test.js` | Custom field management |
+| project-service | `src/__tests__/archives.test.js` | Archive/unarchive endpoints |
+| project-service | `src/__tests__/priority.test.js` | Priority update endpoint |
+| project-service | `src/__tests__/activityLog.test.js` | Activity log endpoints |
+| project-service | `src/__tests__/getDate.test.js` | Date formatting utility |
+| project-service | `src/__tests__/natural_language.test.js` | NL parsing |
+| project-service | `src/__tests__/openapi.test.js` | OpenAPI spec validation |
+| project-service | `src/__tests__/sse.integration.test.js` | SSE connection and event broadcasting |
+| project-service | `src/__tests__/sseRegistry.test.js` | SSE client registry |
 
-## User feedback formal process
+### Summary
 
-### Overview
-
-User feedback is collected, triaged, and acted upon through a structured
-process that ensures stakeholder input directly shapes development
-priorities.
-
-### Feedback collection
-
-| Method | When | Who |
+| Category | Files | Tests |
 |---|---|---|
-| **Sprint client meetings** | End of each sprint | Full team + client stakeholder |
-| **Stakeholder demos** | After major feature completion | Team presents working software to client |
-| **Meeting minutes** | Every meeting | Recorded in `development/meetings.md` |
-| **Issue tracker** | Ongoing | Client and team log bugs/requests as issues |
+| Frontend unit tests | 31 | 397 |
+| Frontend integration tests | 5 | 47 |
+| Backend tests | 17 | — |
+| **Total** | **53** | **444+** |
 
-### Feedback triage process
+---
+
+## User Feedback Process
+
+### Feedback Collection Methods
+
+| Channel | Description | Frequency |
+|---|---|---|
+| Sprint client meetings | Structured demo and discussion with the stakeholder | End of each sprint |
+| Stakeholder demos | Working software presented after major feature completion | Per feature |
+| Issue tracker | Bugs, enhancement requests, and UX improvements logged as issues | Ongoing |
+| Meeting minutes | All discussions, decisions, and action items recorded | Every meeting |
+
+### How Feedback Is Triaged
+
+!!! note "Process overview"
+    Feedback follows a structured pipeline from receipt to verification.
 
 ```
-Feedback received
+Feedback received (meeting, demo, or issue)
        │
        ▼
-Logged as issue (with label: bug / enhancement / UX)
+Logged as a Gitea issue (labelled: bug / enhancement / UX)
        │
        ▼
-Discussed in next sprint planning
+Discussed in sprint planning
        │
        ▼
-Assigned to sprint backlog (or deferred with reason)
+Assigned to sprint backlog — or deferred with documented reason
        │
        ▼
 Implemented → tested → deployed
@@ -167,38 +327,31 @@ Implemented → tested → deployed
 Confirmed with stakeholder at next demo
 ```
 
-### Formal documentation
+### Formal Documentation of Feedback
 
-All feedback is documented in:
+All feedback is tracked in:
 
-- **Meeting logs** (`development/meetings.md`) — dated entries with attendees,
-  discussion points, and action items.
-- **Stakeholder interaction log** (`development/stakeholder-interaction.md`) —
-  summary of all client touchpoints and outcomes.
-- **User stories** (`development/user-stories.md`) — sprint-scoped stories
-  derived from feedback, written in "As a [user], I want [goal] so that
-  [reason]" format.
-- **Decisions log** (`development/decisions.md`) — architectural or product
-  decisions made in response to feedback, with rationale.
+- **Meeting logs** (`development/meetings.md`) — dated entries with attendees, discussion points, and action items
+- **Stakeholder interaction log** (`development/stakeholder-interaction.md`) — summary of all client touchpoints and outcomes
+- **User stories** (`development/user-stories.md`) — sprint-scoped stories derived from feedback
+- **Decisions log** (`development/decisions.md`) — architectural or product decisions made in response to feedback
 
-### Acceptance criteria
+### Acceptance Criteria for Feedback-Derived Stories
 
-Every user story derived from feedback must have:
+Every user story that originates from stakeholder feedback must have:
 
-1. **Clear acceptance criteria** — testable conditions that define "done".
-2. **A corresponding automated test** — if the story involves logic, a test
-   must verify the behaviour.
-3. **Stakeholder sign-off** — confirmed at the next sprint demo or meeting.
+1. **Testable acceptance criteria** — conditions that define "done"
+2. **A corresponding automated test** — if the story involves logic, a test verifies the behaviour
+3. **Stakeholder sign-off** — confirmed at the next sprint demo or meeting
 
-### Feedback loop closure
+### Closing the Feedback Loop
 
 After implementation, the team:
 
-1. Updates the original issue with a link to the commit/PR.
-2. Demonstrates the change to the stakeholder.
-3. Records the stakeholder's response (accepted / needs revision).
-4. If revision is needed, a new issue is created and the cycle repeats.
+1. Updates the original issue with a link to the commit or PR
+2. Demonstrates the change to the stakeholder
+3. Records the stakeholder's response (accepted / needs revision)
+4. If revision is needed, creates a new issue and the cycle repeats
 
 !!! note "Continuous improvement"
-    This process is not fixed — it is reviewed and refined at each
-    sprint retrospective based on what worked and what didn't.
+    The feedback process itself is reviewed and refined at each sprint retrospective based on what worked and what didn't.
