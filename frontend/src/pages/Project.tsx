@@ -6,7 +6,8 @@ import {
   deleteProject,
   getProjectsByEmail,
 } from "../functions/project/project.js";
-import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen } from "react-icons/fi";
+import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiSettings } from "react-icons/fi";
+import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
 
 type ProjectRecord = { project_name: string; archived?: boolean; created_at?: string; [key: string]: unknown };
 type EntryRecord = Record<string, unknown>;
@@ -47,6 +48,10 @@ export function ProjectsPage() {
   const [viewingArchived, setViewingArchived] = useState<string | null>(null);
   const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
+
+  // Project settings panel
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [settingsProjectName, setSettingsProjectName] = useState("");
 
   // Auto-seed test projects when the user has none (uses authenticated Supabase session)
   const seedTestProjects = useCallback(async () => {
@@ -498,6 +503,23 @@ export function ProjectsPage() {
                       <div style={{ display: "flex", gap: "0.4rem" }}>
                         <button
                           type="button"
+                          onClick={() => { setSettingsProjectName(name); setProjectSettingsOpen(true); }}
+                          aria-label={`Settings for ${name}`}
+                          title="Project Settings"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--border, rgba(0,0,0,0.12))",
+                            color: "var(--text-dim, #6b7280)",
+                            borderRadius: "0.5rem",
+                            padding: "0.4rem 0.6rem",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <FiSettings size={16} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => startEdit(name)}
                           aria-label={`Rename ${name}`}
                           title="Rename"
@@ -761,6 +783,16 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={settingsProjectName}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { loadProjects(); }}
+        onProjectDeleted={() => { loadProjects(); }}
+      />
     </div>
   );
 }
