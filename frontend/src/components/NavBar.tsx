@@ -188,9 +188,9 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
           <button
-            className={`drawer-item ${location.pathname === '/dashboard/all' || location.pathname === '/dashboard' ? 'active' : ''}`}
+            className={`drawer-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
             onClick={() => {
-              navigate('/dashboard/all');
+              navigate('/dashboard');
               setDrawerOpen(false);
             }}
           >
