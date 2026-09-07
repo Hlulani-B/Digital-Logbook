@@ -2470,9 +2470,6 @@ img {
   text-align: center;
 }
 
-.drawer-projects {
-  /* Let the whole drawer scroll, not just this section */
-}
 .drawer-project-list {
   display: flex;
   flex-direction: column;

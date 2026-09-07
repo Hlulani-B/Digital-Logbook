@@ -95,7 +95,7 @@ describe('ProfileMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /Alice/i }));
     const signOutBtn = screen.getByText('Signing out...');
     expect(signOutBtn).toBeTruthy();
-    expect(signOutBtn).toBeDisabled();
+    expect(signOutBtn.hasAttribute('disabled')).toBe(true);
   });
 
   it('closes dropdown on Escape key', async () => {
