@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getAllEntries } from '@/functions/project/entries';
@@ -17,6 +17,9 @@ import {
   type RawProjectRow,
 } from '@/lib/export';
 import { parseImport, type ImportResult } from '@/lib/import';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import './DataPortability.css';
 
 export default function DataPortability() {
@@ -31,6 +34,27 @@ export default function DataPortability() {
   const [importSuccess, setImportSuccess] = useState(false);
 
   const userEmail = user?.email ?? '';
+
+  // Cache data for NavBar / Header
+  const [cachedEntries, setCachedEntries] = useState<Array<Record<string, unknown>>>([]);
+  const [cachedProjects, setCachedProjects] = useState<Array<Record<string, unknown>>>([]);
+
+  useEffect(() => {
+    const loadCacheData = async () => {
+      if (!userEmail) return;
+      try {
+        const [ce, cp] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, userEmail),
+          cacheGet(CACHE_STORES.PROJECTS, userEmail),
+        ]);
+        if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
+        if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
+      } catch (err) {
+        console.error('[DataPortability] Failed to load cache for NavBar:', err);
+      }
+    };
+    loadCacheData();
+  }, [userEmail]);
 
   // ── Export ──────────────────────────────────────────────────────────────────
 
@@ -251,22 +275,26 @@ export default function DataPortability() {
 
   if (loading) {
     return (
-      <div className="data-page">
-        <div className="data-loading">
-          <svg
-            className="animate-spin"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-            <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-          </svg>
-          Loading…
-        </div>
+      <div className="dash-layout">
+        <div className="bg-mesh" />
+        <NavBar projects={cachedProjects} entries={cachedEntries} activeView="all" />
+        <main className="dash-main">
+          <div className="data-loading">
+            <svg
+              className="animate-spin"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+            </svg>
+            Loading…
+          </div>
+        </main>
       </div>
     );
   }
@@ -277,27 +305,19 @@ export default function DataPortability() {
   }
 
   return (
-    <div className="data-page">
-      <div className="data-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back
-        </button>
-        <div className="data-page-titles">
-          <h1 className="data-page-title">Import & Export</h1>
-          <p className="data-page-subtitle">Move your data in and out of the Digital Logbook</p>
-        </div>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+
+      <NavBar
+        projects={cachedProjects}
+        entries={cachedEntries}
+        activeView="all"
+      />
+
+      <main className="dash-main">
+        <Header title="Import & Export" entries={cachedEntries} projects={cachedProjects} />
+
+        <div className="data-page">
 
       {/* ── Export section ── */}
       <div className="data-section">
@@ -526,6 +546,8 @@ export default function DataPortability() {
           </div>
         )}
       </div>
+        </div>
+      </main>
     </div>
   );
 }
