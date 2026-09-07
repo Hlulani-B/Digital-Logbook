@@ -33,7 +33,10 @@ const allowedOrigins = [
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (
+      allowedOrigins.includes(origin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+    ) {
       callback(null, true);
     } else {
       console.warn(`CORS: Origin ${origin} not allowed`);
@@ -51,17 +54,23 @@ app.options(/(.*)/, cors(corsOptions));
 app.use(express.json());
 
 // ── OpenAPI / Swagger UI ──────────────────────────────────────
-const openApiSpec = yaml.load(readFileSync(join(__dirname, '..', 'docs', 'openapi.yaml'), 'utf8'), {
-  schema: yaml.DEFAULT_SCHEMA,
-});
-app.use(
-  '/api-docs',
-  swaggerUi.serve,
-  swaggerUi.setup(openApiSpec, {
-    customSiteTitle: 'Codacaine API Docs',
-    swaggerOptions: { persistAuthorization: true },
-  })
-);
+try {
+  const specPath = join(__dirname, '..', 'docs', 'openapi.yaml');
+  const openApiSpec = yaml.load(readFileSync(specPath, 'utf8'), {
+    schema: yaml.DEFAULT_SCHEMA,
+  });
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(openApiSpec, {
+      customSiteTitle: 'Codacaine API Docs',
+      swaggerOptions: { persistAuthorization: true },
+    })
+  );
+  console.log('Swagger UI available at /api-docs');
+} catch (err) {
+  console.warn('OpenAPI spec not found — /api-docs disabled:', err.message);
+}
 app.get('/', (req, res) => {
   res.json({ service: 'project-service', status: 'healthy' });
 });
