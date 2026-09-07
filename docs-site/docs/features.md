@@ -46,11 +46,9 @@ The flow works as follows:
 
 Reset links expire after one hour for security.
 
-### Automatic Sign-Out After Inactivity
+### Manual Sign-Out
 
-For security and shared-device safety, the application automatically signs a user out after 30 minutes of inactivity. Any mouse movement, key press, scroll, touch, or click resets the timer, so active users are never interrupted. Once the timeout is reached, the session is ended and the user is returned to the sign-in page.
-
-This prevents accounts from staying signed in indefinitely on public or shared computers, while still allowing users to remain logged in during normal use.
+Users remain signed in until they explicitly click **Sign Out**. The application does not automatically end sessions after a period of inactivity, so users stay authenticated across tab switches and short absences.
 
 ### Account Deletion and Restoration
 

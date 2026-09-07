@@ -83,7 +83,7 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **OAuth:** Google and GitHub one-click sign-in
 - **Email/password:** Sign-up with email confirmation and password reset
 - **Email validation:** Malformed addresses, disposable domains, and common typos are rejected before submission
-- **Session security:** Users are automatically signed out after 30 minutes of inactivity
+- **Session management:** Users remain signed in until they manually sign out
 - **Account deletion:** Soft-deleted accounts enter a 30-day grace period with email-link restoration
 
 ## Features
