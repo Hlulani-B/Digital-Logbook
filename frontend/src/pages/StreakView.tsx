@@ -105,18 +105,8 @@ export function StreakView() {
           {/* Streak Cards */}
           <div className="stats-cards-grid">
             <div className="stat-card glass">
-              <div
-                className="stat-card-icon"
-                style={{ background: 'linear-gradient(135deg, #f97316, #fb923c)' }}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+              <div className="stat-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
                   <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
                 </svg>
@@ -129,18 +119,8 @@ export function StreakView() {
             </div>
 
             <div className="stat-card glass">
-              <div
-                className="stat-card-icon"
-                style={{ background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)' }}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+              <div className="stat-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
                   <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
                 </svg>
@@ -153,18 +133,8 @@ export function StreakView() {
             </div>
 
             <div className="stat-card glass">
-              <div
-                className="stat-card-icon"
-                style={{ background: 'linear-gradient(135deg, #10b981, #34d399)' }}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+              <div className="stat-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                   <line x1="16" y1="2" x2="16" y2="6" />
                   <line x1="8" y1="2" x2="8" y2="6" />
@@ -179,18 +149,8 @@ export function StreakView() {
             </div>
 
             <div className="stat-card glass">
-              <div
-                className="stat-card-icon"
-                style={{ background: 'linear-gradient(135deg, #3b82f6, #60a5fa)' }}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+              <div className="stat-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="12 6 12 12 16 14" />
                 </svg>
@@ -247,13 +207,11 @@ function StreakHeatmap({ entries }: { entries: Entry[] }) {
   const maxCount = Math.max(...days.map(([, c]) => c), 1);
 
   function cellColor(count: number) {
-    if (count === 0) return 'var(--bg-secondary, #f1f5f9)';
+    if (count === 0) return 'var(--bg-subtle)';
     const intensity = Math.min(count / maxCount, 1);
-    // Orange gradient: light → dark
-    const r = Math.round(249 - intensity * 40);
-    const g = Math.round(115 + intensity * 30);
-    const b = Math.round(22 + intensity * 10);
-    return `rgb(${r}, ${g}, ${b})`;
+    /* Monochrome: use var(--accent) at varying opacity via color-mix */
+    const pct = Math.round(15 + intensity * 70);
+    return `color-mix(in srgb, var(--accent) ${pct}%, var(--bg-subtle))`;
   }
 
   // Group into weeks (columns of 7)

@@ -162,6 +162,78 @@ using their corresponding `fields` definition — for schema flexibility that
 directly matches the brief's requirement to let users "customise the format"
 of their logbook.
 
+## IndexedDB (Client-Side Local Store)
+
+The frontend maintains a local IndexedDB database that mirrors the
+PostgreSQL schema. This is the **primary data source** for all UI
+rendering — pages never query the server directly. The architecture is
+local-first: reads come from IndexedDB instantly, and mutations write to
+IndexedDB before syncing to the server.
+
+**Database name:** `digital-logbook-cache`
+**Version:** 3
+**Library:** [idb](https://www.npmjs.com/package/idb) (lightweight IndexedDB wrapper)
+**Source file:** `frontend/src/lib/cache.js`
+
+### Object Stores
+
+All stores use `key` as the keyPath. Data is scoped per user by storing
+records under the user's email as the key.
+
+| Store         | Key format                     | Contents                                                                                         | Mirrors PG table |
+| ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------- |
+| `projects`    | `{email}`                      | All projects for the user. Shape: `{ success, projects: [...], key }`                           | `projects`       |
+| `entries`     | `{email}:{project_name}`       | Per-project entries. Shape: `{ success, data: [...], key }`. Also `{email}:due-soon` for computed due-soon entries | `entries`        |
+| `all-entries` | `{email}`                      | All entries across all projects. Shape: `{ success, data: [...], key }`                         | `entries`        |
+| `profile`     | `{email}`                      | User profile (username, avatar, name). Shape: `{ success, data: {...}, key }`                   | `users`          |
+| `search`      | `{email}`                      | Cached search results                                                                           | —                |
+| `archives`    | `{email}:all`                  | Archived entries and projects. Also `archived-projects:{email}` and `unarchived-projects:{email}` | `projects`/`entries` (archived) |
+| `fields`      | `{email}`                      | Custom field definitions per table                                                               | `fields`         |
+| `cache-meta`  | `{key}`                        | Timestamps for stale-while-revalidate checks. Shape: `{ key, timestamp }`                       | —                |
+
+### How Stores Map to PostgreSQL Tables
+
+```
+PostgreSQL (Supabase)           IndexedDB (Browser)
+─────────────────────────       ─────────────────────────────
+users          ──────────→      profile store
+projects       ──────────→      projects store
+entries        ──────────→      all-entries store (all rows)
+                                entries store (per-project slices)
+fields         ──────────→      fields store
+activity_log   ──────────→      (not cached — server-only)
+```
+
+### Data Flow
+
+1. **App load** — `syncAllData(email)` fetches all data from the server and populates every IndexedDB store. This runs once on login before any page renders.
+2. **Reads** — Pages read exclusively from IndexedDB via the `useCachedData` hook. No server calls during navigation.
+3. **Mutations** — Write to IndexedDB first (optimistic update), then sync to the server. On server failure, the optimistic update is rolled back.
+4. **Real-time** — SSE (Server-Sent Events) invalidate relevant cache stores when other clients make changes.
+
+### Event Subscription System
+
+Components subscribe to cache changes via `cacheSubscribe(store, key, callback)`. When `cacheSet` is called, all subscribers for that store+key are notified with the new data. This is what makes the UI reactive without polling.
+
+```javascript
+// Example: subscribe to project changes
+const unsub = cacheSubscribe('projects', email, (newProjects) => {
+  // Re-render with new projects
+});
+// Later: unsub() to clean up
+```
+
+### Key Files
+
+| File                                        | Purpose                                                    |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `frontend/src/lib/cache.js`                 | IndexedDB layer: cacheGet, cacheSet, cacheSubscribe, etc.  |
+| `frontend/src/hooks/useCachedData.js`       | React hook: reads IndexedDB, subscribes, triggers fetch    |
+| `frontend/src/CacheFunctions/syncService.js`| Central sync: populates all stores from server             |
+| `frontend/src/functions/project/entries.js` | Entry CRUD with optimistic updates and rollback            |
+| `frontend/src/functions/project/project.js` | Project CRUD with IndexedDB-first pattern                  |
+| `frontend/src/functions/profile/profile.js` | Profile fetch with IndexedDB caching                       |
+
 ## Schema Migrations
 
 Database changes are tracked through versioned SQL migration files in `supabase/migrations/`, applied in filename order.

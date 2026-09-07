@@ -12,6 +12,9 @@ import {
   parseTimelineEntries,
   type TimelineRenderItem,
 } from '@/lib/timeline';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import './Timeline.css';
 
 const ROW_HEIGHT = 56;
@@ -82,6 +85,27 @@ export function TimelinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoomIndex, setZoomIndex] = useState(1);
+
+  // Cache data for NavBar / Header
+  const [cachedEntries, setCachedEntries] = useState<Array<Record<string, unknown>>>([]);
+  const [cachedProjects, setCachedProjects] = useState<Array<Record<string, unknown>>>([]);
+
+  useEffect(() => {
+    const loadCacheData = async () => {
+      if (!email) return;
+      try {
+        const [ce, cp] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
+        ]);
+        if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
+        if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
+      } catch (err) {
+        console.error('[Timeline] Failed to load cache for NavBar:', err);
+      }
+    };
+    loadCacheData();
+  }, [email]);
 
   const loadData = useCallback(async () => {
     if (!email) return;
@@ -173,52 +197,47 @@ export function TimelinePage() {
   };
 
   return (
-    <div className="timeline-page">
-      <div className="timeline-page-header">
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Dashboard
-        </button>
-        <div className="timeline-page-titles">
-          <h1 className="timeline-page-title">Timeline</h1>
-          <p className="timeline-page-subtitle">
-            Bars span start to due date; arrows show dependencies.
-          </p>
-        </div>
-        <div className="timeline-zoom">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleZoomOut}
-            disabled={zoomIndex === 0}
-            aria-label="Zoom out"
-          >
-            −
-          </button>
-          <span className="timeline-zoom-level">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleZoomIn}
-            disabled={zoomIndex === ZOOM_LEVELS.length - 1}
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-        </div>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+
+      <NavBar
+        projects={cachedProjects}
+        entries={cachedEntries}
+        activeView="all"
+      />
+
+      <main className="dash-main">
+        <Header title="Timeline" entries={cachedEntries} projects={cachedProjects} />
+
+        <div className="timeline-page">
+          <div className="timeline-toolbar">
+            <div className="timeline-titles">
+              <p className="timeline-subtitle">
+                Bars span start to due date; arrows show dependencies.
+              </p>
+            </div>
+            <div className="timeline-zoom">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleZoomOut}
+                disabled={zoomIndex === 0}
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <span className="timeline-zoom-level">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleZoomIn}
+                disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </div>
+          </div>
 
       {error && (
         <div className="timeline-error" role="alert">
@@ -341,6 +360,8 @@ export function TimelinePage() {
           </svg>
         </div>
       )}
+        </div>
+      </main>
     </div>
   );
 }
