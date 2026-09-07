@@ -53,19 +53,27 @@ router.post('/archive', async (req, res) => {
       }
       case 'archive_entry': {
         const { project_name, entry_id } = values;
-        if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        if (!project_name || !entry_id)
+          return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.archive_entry(user_email, project_name, entry_id);
         if (result.success) {
-          await logActivity(user_email, 'ENTRY_ARCHIVED', 'entry', String(entry_id), { project_name, entry_id });
+          await logActivity(user_email, 'ENTRY_ARCHIVED', 'entry', String(entry_id), {
+            project_name,
+            entry_id,
+          });
         }
         return res.json(result);
       }
       case 'unarchive_entry': {
         const { project_name, entry_id } = values;
-        if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
+        if (!project_name || !entry_id)
+          return res.status(400).json({ error: 'Missing required parameters' });
         const result = await archives.unarchive_entry(user_email, project_name, entry_id);
         if (result.success) {
-          await logActivity(user_email, 'ENTRY_UNARCHIVED', 'entry', String(entry_id), { project_name, entry_id });
+          await logActivity(user_email, 'ENTRY_UNARCHIVED', 'entry', String(entry_id), {
+            project_name,
+            entry_id,
+          });
         }
         return res.json(result);
       }
@@ -96,9 +104,9 @@ router.post('/archive', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/archive:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

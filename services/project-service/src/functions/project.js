@@ -15,7 +15,10 @@ export class Project {
     } catch (error) {
       // 23505 = unique_violation (e.g. duplicate project name for this user)
       if (error.code === '23505') {
-        return { success: false, message: 'A project with this name already exists for your account.' };
+        return {
+          success: false,
+          message: 'A project with this name already exists for your account.',
+        };
       }
       console.log(error);
       return { success: false, message: error.message };

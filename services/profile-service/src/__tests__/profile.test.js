@@ -166,7 +166,8 @@ describe('Profile service functions', () => {
 
     it('should return failure when delete fails and rollback', async () => {
       const mockClient = {
-        query: jest.fn()
+        query: jest
+          .fn()
           .mockResolvedValueOnce({ rows: [] }) // BEGIN
           .mockResolvedValueOnce({ rows: [] }) // entries
           .mockResolvedValueOnce({ rows: [] }) // fields

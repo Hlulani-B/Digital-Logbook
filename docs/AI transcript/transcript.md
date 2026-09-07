@@ -2,7 +2,7 @@
 
 **Date:** 14–16 August 2026  
 **Project:** Codacaine Digital Logbook (React frontend + Node/Express microservices + Supabase)  
-**Repository:** `https://github.com/Hlulani-B/Digital-Logbook.git` / Gitea mirror  
+**Repository:** `https://github.com/Hlulani-B/Digital-Logbook.git` / Gitea mirror
 
 This document records the changes made with the help of the AI coding assistant during the session.
 
@@ -17,6 +17,7 @@ This document records the changes made with the help of the AI coding assistant 
 ## 2. Profile Service
 
 ### Created
+
 - `services/profile-service/` matching the existing service pattern.
 - `services/profile-service/package.json` — Node/Express service with ESM (`"type": "module"`), Jest test script and Babel dev dependencies.
 - `services/profile-service/src/supabase.js` — Supabase client using `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY`.
@@ -24,6 +25,7 @@ This document records the changes made with the help of the AI coding assistant 
 - `services/profile-service/src/index.js` — Express server mounting routes under `/service`.
 
 ### Backend functions — `services/profile-service/src/functions/`
+
 - `login.js` — `Login.checkUser(email)` returns `true` if the user exists in the `users` table, otherwise `false`.
 - `profile.js` — preserved the user's class structure:
   - `Username.username(email, username)` — rejects if username is taken, otherwise updates the user's username.
@@ -34,20 +36,24 @@ This document records the changes made with the help of the AI coding assistant 
   - `Profile.deleteProfile(email)` — cascades deletion across `entries`, `fields`, `projects`, and `users`.
 
 ### Routes — `services/profile-service/src/Routes/`
+
 - `login.js` — `POST /service/login` with `function: "checkUser"`.
 - `profile.js` — `POST /service/profile` with `function`: `"username"`, `"email"`, `"name"`, `"avatar"`, `"getProfile"`, `"deleteProfile"`.
 
 ### Tests — `services/profile-service/src/__tests__/`
+
 - `login.test.js` — 3 tests for user-exists, user-not-found, and error cases.
 - `profile.test.js` — 13 tests covering all profile classes and success/failure paths.
 - `src/__mocks__/supabase.js` and `src/__mocks__/supabaseMock.js` — shared Supabase mock helpers.
 - `babel.config.js` — Babel/Jest ESM transform configuration.
 
 ### Frontend — `frontend/src/functions/profile/`
+
 - `login.js` — `checkUser(email)`.
 - `profile.js` — `updateUsername`, `addEmail`, `updateName`, `updateAvatar`, `getProfile`, `deleteProfile`.
 
 ### Result
+
 All profile-service tests pass:
 
 ```text
@@ -60,21 +66,25 @@ Tests:       16 passed, 16 total
 ## 3. Project Service Improvements
 
 ### ESM conversion
+
 - Converted `services/project-service` from CommonJS to ESM (`"type": "module"`).
 - Added `src/config.js` so `.env` loads before Supabase imports.
 - Rewrote `src/index.js` with ESM imports and mounted all routes under `/service`.
 - Updated `babel.config.js` for ESM Jest tests.
 
 ### Bug fixes
+
 - Fixed `project.js` to import `{ supabase }` from `../supabase.js` (was using undefined `supabase_client`).
 - Fixed `entries.js` and `priority.js` Supabase imports from default to named imports.
 - Fixed `priority.js` logic that confused the method parameter with a constant.
 
 ### Cascade on project changes
+
 - `deleteProject` now deletes related rows from `entries`, then `fields`, then `projects`.
 - `editProjectName` now updates `project_name` in `entries` and `table_name` in `fields` before renaming the project.
 
 ### Archive feature end-to-end
+
 - Implemented `services/project-service/src/functions/archives.js`:
   - `archive_project` / `unarchive_project` — sets `is_archived` on `projects`.
   - `archive_entry` / `unarchive_entry` — sets `archived` on `entries`.
@@ -84,10 +94,12 @@ Tests:       16 passed, 16 total
 - Added `services/project-service/src/__tests__/archives.test.js`.
 
 ### Field feature
+
 - Created `services/project-service/src/Routes/field.js` and connected it in `index.js`.
 - Created `frontend/src/functions/project/fields.js` (user's frontend update).
 
 ### Tests
+
 - `services/project-service` tests cover `project.js`, `entries.js`, `priority.js`, and `archives.js`.
 
 ```text
@@ -160,9 +172,11 @@ curl -X POST http://localhost:5004/service/login \
 ## 7. UI Theme Overhaul — White/Professional + Dark/Light Toggle (16 August 2026)
 
 ### Initial request: make UI white and professional
+
 The original UI used a dark glass-morphism theme (`#0a0a0f` background, translucent cards, neon accents). The user requested a clean, white, professional look.
 
 **Changes made (commit `d6c2b4d`):**
+
 - Replaced `:root` CSS variables: dark backgrounds → `#f8f9fb`, light text → `#1f2937`, etc.
 - Removed glass morphism (`backdrop-filter`) from cards; replaced with white `#ffffff` surfaces and subtle box shadows.
 - Updated navbar to white translucent background (`rgba(255,255,255,0.92)`).
@@ -174,9 +188,11 @@ The original UI used a dark glass-morphism theme (`#0a0a0f` background, transluc
 **Files changed:** `index.css`, `SignIn.tsx`, `ResetPassword.tsx`, `UpdatePassword.tsx`, `SettingsPanel.tsx`
 
 ### Follow-up request: add dark/light theme toggle
+
 The user then wanted both themes available as a user-selectable option.
 
 **Changes made (commit `eb08267`):**
+
 - Created `frontend/src/hooks/useTheme.ts` — a React hook that:
   - Reads saved theme from `localStorage` (key: `dl_theme`)
   - Defaults to `"light"` if no saved preference
@@ -192,6 +208,7 @@ The user then wanted both themes available as a user-selectable option.
 **Files changed:** `hooks/useTheme.ts` (new), `index.css`, `App.tsx`, `SettingsPanel.tsx`, `SignIn.tsx`, `ResetPassword.tsx`, `UpdatePassword.tsx`
 
 ### How the theme system works
+
 1. Default theme is **Light** (white).
 2. User goes to **Settings > Preferences > Theme** to switch.
 3. Selection is saved to `localStorage` and applied instantly via `data-theme` attribute.

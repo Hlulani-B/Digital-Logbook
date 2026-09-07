@@ -1,0 +1,508 @@
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { updateEntry } from '@/functions/project/entries.js';
+import { isOverdue } from '@/functions/dashboard/overdue.js';
+import { cacheGet, CACHE_STORES } from '@/lib/cache.js';
+import { syncAllData } from '@/CacheFunctions';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { CalendarDayModal } from '@/pages/CalendarDayModal';
+import {
+  type CalendarEntry,
+  type CalendarView,
+  buildMonthGrid,
+  buildWeekGrid,
+  formatMonthYear,
+  formatShortDay,
+  formatDayNumber,
+  getEntriesForDay,
+  getEntryTitle,
+  isSameDay,
+  addDays,
+  addMonths,
+  parseDueDate,
+} from '@/lib/calendar';
+import './Calendar.css';
+
+const WEEK_STARTS_ON: 0 | 1 = 0; // Sunday
+const VISIBLE_TASKS_PER_CELL = 4;
+const MOBILE_BREAKPOINT = 480;
+
+/** Returns true when viewport is narrow (phone). Re-checks on resize. */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
+type DragState = {
+  entry: CalendarEntry;
+  sourceDate: Date | null;
+} | null;
+
+function toISODate(date: Date): string {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+}
+
+function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
+  if (!entries) return {};
+  if (typeof entries === 'string') {
+    try {
+      return JSON.parse(entries);
+    } catch {
+      return {};
+    }
+  }
+  return entries;
+}
+
+function CalendarDayCell({
+  date,
+  isCurrentMonth,
+  entries,
+  dragging,
+  onDragStart,
+  onDrop,
+  onEntryClick,
+  onDayClick,
+  isOverdue: isDayOverdue,
+}: {
+  date: Date;
+  isCurrentMonth: boolean;
+  entries: CalendarEntry[];
+  dragging: DragState;
+  onDragStart: (entry: CalendarEntry, sourceDate: Date) => void;
+  onDrop: (date: Date) => void;
+  onEntryClick: (entry: CalendarEntry) => void;
+  onDayClick: (date: Date) => void;
+  isOverdue: (date: Date) => boolean;
+}) {
+  const isToday = isSameDay(date, new Date());
+  const isDropTarget = dragging !== null;
+  const visibleEntries = entries.slice(0, VISIBLE_TASKS_PER_CELL);
+  const hiddenCount = Math.max(0, entries.length - VISIBLE_TASKS_PER_CELL);
+  const dayOverdue = isDayOverdue(date);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    onDrop(date);
+  };
+
+  return (
+    <div
+      className={[
+        'calendar-day',
+        !isCurrentMonth && 'calendar-day--outside',
+        isToday && 'calendar-day--today',
+        isDropTarget && 'calendar-day--drop-target',
+        dayOverdue && 'calendar-day--overdue',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onClick={() => onDayClick(date)}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      data-date={date.toISOString()}
+      style={{ cursor: 'pointer' }}
+    >
+      <div className="calendar-day-header">
+        <span className="calendar-day-number">{formatDayNumber(date)}</span>
+        {isToday && <span className="calendar-day-today-label">Today</span>}
+      </div>
+      <div className="calendar-day-entries">
+        {visibleEntries.map((entry) => (
+          <CalendarEntryPill
+            key={entry.id}
+            entry={entry}
+            draggable
+            onDragStart={() => onDragStart(entry, date)}
+            onClick={() => onEntryClick(entry)}
+          />
+        ))}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            className="calendar-more-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDayClick(date);
+            }}
+            title={`${hiddenCount} more task${hiddenCount === 1 ? '' : 's'}`}
+          >
+            +{hiddenCount} more
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CalendarEntryPill({
+  entry,
+  draggable,
+  onDragStart,
+  onClick,
+}: {
+  entry: CalendarEntry;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onClick?: () => void;
+}) {
+  const status = entry.status ?? 'up_next';
+  const isCompleted = status === 'done_and_dusted';
+  const overdue = isOverdue(entry.due_date ?? null, status);
+
+  return (
+    <div
+      className={[
+        'calendar-entry',
+        isCompleted && 'calendar-entry--completed',
+        overdue && 'calendar-entry--overdue',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(entry.id));
+        onDragStart?.();
+      }}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onClick?.();
+      }}
+      title={`${getEntryTitle(entry)}${entry.project_name ? ` · ${entry.project_name}` : ''}`}
+    >
+      <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
+      <span className="calendar-entry-project">{entry.project_name}</span>
+    </div>
+  );
+}
+
+export function CalendarPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const email = user?.email ?? '';
+
+  const [entries, setEntries] = useState<CalendarEntry[]>([]);
+  const [projects, setProjects] = useState<{ project_name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  // Persist view in localStorage
+  const [view, setView] = useState<CalendarView>(() => {
+    const saved = localStorage.getItem('calendar-view');
+    if (saved === 'month' || saved === 'week') return saved;
+    return 'month';
+  });
+  const isMobile = useIsMobile();
+  // On phones, always render as week view regardless of user preference
+  const effectiveView: CalendarView = isMobile ? 'week' : view;
+
+  useEffect(() => {
+    localStorage.setItem('calendar-view', view);
+  }, [view]);
+  const [dragging, setDragging] = useState<DragState>(null);
+  const [updating, setUpdating] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // Load entries — read ONLY from IndexedDB. Mutations update it directly.
+  const loadEntries = useCallback(async () => {
+    if (!email) return;
+    setError(null);
+    try {
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
+        const data = cached.data.filter(
+          (entry: CalendarEntry) => !entry.archived && entry.due_date
+        );
+        setEntries(data);
+      } else {
+        // First visit ever — trigger initial sync
+        setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (fresh?.data && Array.isArray(fresh.data)) {
+          const data = fresh.data.filter(
+            (entry: CalendarEntry) => !entry.archived && entry.due_date
+          );
+          setEntries(data);
+        }
+      }
+      // Also load projects for the add-entry dropdown
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects?.data) {
+        const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter(
+          (p: Record<string, unknown>) => !p.archived
+        );
+        setProjects(
+          projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string }))
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load entries');
+    } finally {
+      setLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    loadEntries();
+  }, [loadEntries]);
+
+  const gridDays = useMemo(() => {
+    return effectiveView === 'month'
+      ? buildMonthGrid(currentDate, WEEK_STARTS_ON)
+      : buildWeekGrid(currentDate, WEEK_STARTS_ON);
+  }, [currentDate, effectiveView]);
+
+  const headerDays = useMemo(() => {
+    const start = gridDays[0];
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [gridDays]);
+
+  const isDayOverdue = useCallback((date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  }, []);
+
+  const handlePrev = () => {
+    setCurrentDate((prev) => (effectiveView === 'month' ? addMonths(prev, -1) : addDays(prev, -7)));
+  };
+
+  const handleNext = () => {
+    setCurrentDate((prev) => (effectiveView === 'month' ? addMonths(prev, 1) : addDays(prev, 7)));
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  const handleDragStart = (entry: CalendarEntry, sourceDate: Date) => {
+    setDragging({ entry, sourceDate });
+  };
+
+  const handleDrop = async (date: Date) => {
+    if (!dragging || !email) return;
+    const { entry } = dragging;
+    setDragging(null);
+
+    const originalDue = parseDueDate(entry.due_date);
+    if (originalDue && isSameDay(originalDue, date)) return;
+
+    setUpdating(true);
+    try {
+      const newDueDate = toISODate(date);
+      const result = await updateEntry(
+        email,
+        entry.project_name,
+        entry.id,
+        parseEntryObject(entry.entries),
+        newDueDate,
+        entry.priority,
+        entry.status ?? 'up_next',
+        entry.started_at ?? null,
+        entry.ended_at ?? null,
+        entry.duration ?? null
+      );
+
+      if (result?.success === false) {
+        setError(result.message || 'Failed to reschedule entry');
+        return;
+      }
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((e) => (e.id === entry.id ? { ...e, due_date: newDueDate } : e))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reschedule entry');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleEntryClick = (entry: CalendarEntry) => {
+    navigate(`/project/${encodeURIComponent(entry.project_name)}`);
+  };
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+  };
+
+  const handleModalClose = () => {
+    setSelectedDate(null);
+  };
+
+  const handleEntryAdded = () => {
+    loadEntries();
+  };
+
+  // Entries for the currently selected day
+  const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
+
+  return (
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Calendar" entries={entries as unknown as Array<Record<string, unknown>>} />
+        <div className="calendar-page">
+          <div className="calendar-toolbar">
+            <div className="calendar-nav">
+              <button type="button" className="btn-icon" onClick={handlePrev} aria-label="Previous">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <button type="button" className="btn-secondary" onClick={handleToday}>
+                Today
+              </button>
+              <button type="button" className="btn-icon" onClick={handleNext} aria-label="Next">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+            <h2 className="calendar-period">{formatMonthYear(currentDate)}</h2>
+            <div className="calendar-view-toggle">
+              <button
+                type="button"
+                className={`btn-toggle ${view === 'month' ? 'active' : ''}`}
+                onClick={() => setView('month')}
+              >
+                Month
+              </button>
+              <button
+                type="button"
+                className={`btn-toggle ${view === 'week' ? 'active' : ''}`}
+                onClick={() => setView('week')}
+              >
+                Week
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="calendar-error" role="alert">
+              {error}
+              <button type="button" className="calendar-error-close" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {updating && (
+            <div className="calendar-updating" aria-live="polite">
+              <span className="calendar-spinner" />
+              Updating due date…
+            </div>
+          )}
+
+          {loading ? (
+            <div className="calendar-loading">
+              <span className="calendar-spinner" />
+              Loading entries…
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="calendar-empty">
+              <p>No scheduled entries yet.</p>
+              <button className="btn-primary" onClick={() => navigate('/dashboard')}>
+                Add an entry
+              </button>
+            </div>
+          ) : (
+            <div
+              className={['calendar-grid', effectiveView === 'week' && 'calendar-grid--week']
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {headerDays.map((day) => (
+                <div key={day.toISOString()} className="calendar-header-cell">
+                  {formatShortDay(day)}
+                </div>
+              ))}
+              {gridDays.map((day) => {
+                const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                const dayEntries = getEntriesForDay(entries, day);
+                return (
+                  <CalendarDayCell
+                    key={day.toISOString()}
+                    date={day}
+                    isCurrentMonth={effectiveView === 'week' || isCurrentMonth}
+                    entries={dayEntries}
+                    dragging={dragging}
+                    onDragStart={handleDragStart}
+                    onDrop={handleDrop}
+                    onEntryClick={handleEntryClick}
+                    onDayClick={handleDayClick}
+                    isOverdue={isDayOverdue}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          <div className="calendar-legend">
+            <span className="calendar-legend-item">
+              <span className="calendar-legend-dot calendar-legend-dot--overdue" />
+              Overdue
+            </span>
+            <span className="calendar-legend-item">
+              <span className="calendar-legend-dot calendar-legend-dot--completed" />
+              Completed
+            </span>
+            <span className="calendar-legend-item">
+              <span className="calendar-legend-dot calendar-legend-dot--upcoming" />
+              Upcoming
+            </span>
+          </div>
+        </div>
+
+        {selectedDate && (
+          <CalendarDayModal
+            date={selectedDate}
+            entries={selectedDayEntries}
+            projects={projects}
+            userEmail={email}
+            onClose={handleModalClose}
+            onEntryAdded={handleEntryAdded}
+            onEntryClick={handleEntryClick}
+          />
+        )}
+      </main>
+    </div>
+  );
+}

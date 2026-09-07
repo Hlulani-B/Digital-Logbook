@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 interface Particle {
   x: number;
@@ -11,11 +11,11 @@ interface Particle {
 }
 
 const PALETTE = [
-  "#c9a96e", // warm gold
-  "#d4b896", // soft amber
-  "#a8b894", // sage
-  "#e8d4c4", // cream
-  "#d9b4a1", // dusty rose
+  '#c9a96e', // warm gold
+  '#d4b896', // soft amber
+  '#a8b894', // sage
+  '#e8d4c4', // cream
+  '#d9b4a1', // dusty rose
 ];
 
 export function ParticleField() {
@@ -28,7 +28,7 @@ export function ParticleField() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const resize = () => {
@@ -82,8 +82,8 @@ export function ParticleField() {
         height * 0.5,
         Math.max(width, height) * 0.7
       );
-      gradient.addColorStop(0, "rgba(201,169,110,0.08)");
-      gradient.addColorStop(1, "rgba(201,169,110,0)");
+      gradient.addColorStop(0, 'rgba(201,169,110,0.08)');
+      gradient.addColorStop(1, 'rgba(201,169,110,0)');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
 
@@ -149,16 +149,16 @@ export function ParticleField() {
     };
 
     resize();
-    window.addEventListener("resize", resize);
-    canvas.addEventListener("mousemove", handleMouseMove);
-    canvas.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener('resize', resize);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
     rafRef.current = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("mousemove", handleMouseMove);
-      canvas.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener('resize', resize);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
@@ -167,10 +167,10 @@ export function ParticleField() {
       ref={canvasRef}
       className="particle-field"
       style={{
-        position: "absolute",
+        position: 'absolute',
         inset: 0,
-        width: "100%",
-        height: "100%",
+        width: '100%',
+        height: '100%',
       }}
     />
   );

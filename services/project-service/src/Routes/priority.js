@@ -33,12 +33,22 @@ router.post('/priority', async (req, res) => {
     }
 
     switch (func) {
-      case "set": {
+      case 'set': {
         const { priorityValue, project_name, entry_id } = values;
-        if (!project_name || !entry_id) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await priority.setPriority(user_email, priorityValue, project_name, entry_id);
+        if (!project_name || !entry_id)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await priority.setPriority(
+          user_email,
+          priorityValue,
+          project_name,
+          entry_id
+        );
         if (result.success) {
-          await logActivity(user_email, 'PRIORITY_SET', 'entry', String(entry_id), { project_name, entry_id, priority: priorityValue });
+          await logActivity(user_email, 'PRIORITY_SET', 'entry', String(entry_id), {
+            project_name,
+            entry_id,
+            priority: priorityValue,
+          });
         }
         return res.json(result);
       }
@@ -47,9 +57,9 @@ router.post('/priority', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/priority:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

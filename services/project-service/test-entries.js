@@ -22,7 +22,7 @@ const API_BASE = 'http://localhost:5003';
 // ────────────────────────────────────────────────────────
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('\n❌  Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
@@ -34,9 +34,11 @@ function curl(url, headers = [], body = null) {
   return new Promise((resolve, reject) => {
     const args = [
       '-s',
-      '-w', '\n%{http_code}',
-      '-X', 'GET',
-      ...url.split(' ').length > 1 ? [] : [],
+      '-w',
+      '\n%{http_code}',
+      '-X',
+      'GET',
+      ...(url.split(' ').length > 1 ? [] : []),
     ];
 
     // Build args properly
@@ -69,10 +71,7 @@ function curl(url, headers = [], body = null) {
 // ── Step 1: Query Supabase REST API directly ────────────
 async function querySupabaseDirect() {
   const url = `${SUPABASE_URL}/rest/v1/entries?user_email=eq.${encodeURIComponent(USER_EMAIL)}&order=created_at.desc`;
-  const res = await curl(url, [
-    `apikey: ${SERVICE_KEY}`,
-    `Authorization: Bearer ${SERVICE_KEY}`,
-  ]);
+  const res = await curl(url, [`apikey: ${SERVICE_KEY}`, `Authorization: Bearer ${SERVICE_KEY}`]);
 
   if (res.httpCode !== 200) {
     throw new Error(`Supabase REST returned ${res.httpCode}: ${res.body.slice(0, 300)}`);
@@ -83,10 +82,11 @@ async function querySupabaseDirect() {
 // ── Step 2: Call project-service API via curl ───────────
 async function queryAPI() {
   const body = JSON.stringify({ function: 'getAll', values: {} });
-  const res = await curl(`${API_BASE}/service/entry`, [
-    'Content-Type: application/json',
-    `Authorization: Bearer ${SERVICE_KEY}`,
-  ], body);
+  const res = await curl(
+    `${API_BASE}/service/entry`,
+    ['Content-Type: application/json', `Authorization: Bearer ${SERVICE_KEY}`],
+    body
+  );
 
   if (res.httpCode === 200) {
     const json = JSON.parse(res.body);
@@ -112,7 +112,7 @@ function analyse(entries, source) {
     const diff = EXPECTED_COUNT - entries.length;
     console.log(
       `❌  Expected ${EXPECTED_COUNT}, got ${entries.length} — ` +
-      `${diff > 0 ? diff + ' entries missing' : Math.abs(diff) + ' extra entries'}`
+        `${diff > 0 ? diff + ' entries missing' : Math.abs(diff) + ' extra entries'}`
     );
   }
 

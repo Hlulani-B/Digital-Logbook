@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 interface Ribbon {
   points: { x: number; y: number }[];
@@ -12,12 +12,12 @@ interface Ribbon {
 }
 
 const RIBBON_COLORS = [
-  "#c9a96e", // warm gold
-  "#d4b896", // soft amber
-  "#a8b894", // sage
-  "#e8d4c4", // cream
-  "#d9b4a1", // dusty rose
-  "#b89a7a", // muted bronze
+  '#c9a96e', // warm gold
+  '#d4b896', // soft amber
+  '#a8b894', // sage
+  '#e8d4c4', // cream
+  '#d9b4a1', // dusty rose
+  '#b89a7a', // muted bronze
 ];
 
 export function AuroraRibbons() {
@@ -31,7 +31,7 @@ export function AuroraRibbons() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const resize = () => {
@@ -78,9 +78,9 @@ export function AuroraRibbons() {
 
       // Dark warm base
       const baseGradient = ctx.createLinearGradient(0, 0, 0, height);
-      baseGradient.addColorStop(0, "#161310");
-      baseGradient.addColorStop(0.5, "#1c1915");
-      baseGradient.addColorStop(1, "#12100d");
+      baseGradient.addColorStop(0, '#161310');
+      baseGradient.addColorStop(0.5, '#1c1915');
+      baseGradient.addColorStop(1, '#12100d');
       ctx.fillStyle = baseGradient;
       ctx.fillRect(0, 0, width, height);
 
@@ -118,8 +118,12 @@ export function AuroraRibbons() {
             // Smooth quadratic curves between points
             const prev = ribbon.points[i - 1];
             const prevX = ((i - 1) / (ribbon.points.length - 1)) * width;
-            const prevWave1 = Math.sin(prevX * 0.003 * ribbon.frequency + t * ribbon.speed + ribbon.offset);
-            const prevWave2 = Math.sin(prevX * 0.007 + t * ribbon.speed * 1.5 + ribbon.offset * 0.5);
+            const prevWave1 = Math.sin(
+              prevX * 0.003 * ribbon.frequency + t * ribbon.speed + ribbon.offset
+            );
+            const prevWave2 = Math.sin(
+              prevX * 0.007 + t * ribbon.speed * 1.5 + ribbon.offset * 0.5
+            );
             const prevWave3 = Math.sin(prevX * 0.0015 - t * ribbon.speed * 0.7);
             const prevY =
               prev.y +
@@ -134,8 +138,8 @@ export function AuroraRibbons() {
 
         // Wide soft stroke for glowing ribbon look
         ctx.save();
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
         // Outer glow
         ctx.shadowColor = ribbon.color;
@@ -163,8 +167,8 @@ export function AuroraRibbons() {
         height * 0.5,
         height * 0.9
       );
-      vignette.addColorStop(0, "rgba(22,19,16,0)");
-      vignette.addColorStop(1, "rgba(22,19,16,0.55)");
+      vignette.addColorStop(0, 'rgba(22,19,16,0)');
+      vignette.addColorStop(1, 'rgba(22,19,16,0.55)');
       ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, width, height);
 
@@ -172,14 +176,14 @@ export function AuroraRibbons() {
     };
 
     resize();
-    window.addEventListener("resize", resize);
-    canvas.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener('resize', resize);
+    canvas.addEventListener('mousemove', handleMouseMove);
     rafRef.current = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener('resize', resize);
+      canvas.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
 
@@ -188,10 +192,10 @@ export function AuroraRibbons() {
       ref={canvasRef}
       className="aurora-ribbons"
       style={{
-        position: "absolute",
+        position: 'absolute',
         inset: 0,
-        width: "100%",
-        height: "100%",
+        width: '100%',
+        height: '100%',
       }}
     />
   );

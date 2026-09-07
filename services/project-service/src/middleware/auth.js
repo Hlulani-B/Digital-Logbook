@@ -26,7 +26,11 @@ const jwks = jose.createRemoteJWKSet(new URL(JWKS_URL));
 
 export async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  // Support both Authorization header and query param (for SSE/EventSource)
+  let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token && req.query?.token) {
+    token = req.query.token;
+  }
 
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: missing access token' });

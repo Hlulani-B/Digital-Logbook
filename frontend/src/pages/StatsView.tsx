@@ -1,26 +1,25 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { getProjectsByEmail } from "@/functions/project/project.js";
-import { sortUnarchivedEntries } from "@/functions/project/entries.js";
-import { dueSoon } from "@/functions/dashboard.js";
+import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import {
   calculateTotalTimeTracked,
   calculateProjectStats,
   formatDuration,
-} from "@/functions/dashboard/stats.js";
+} from '@/functions/dashboard/stats.js';
+import { useNow } from '@/hooks/useNow';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData, computeDueSoon } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
 
-const CHART_COLORS = [
-  "#6366f1", "#ec4899", "#f59e0b", "#10b981",
-  "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6",
-  "#f97316", "#06b6d4", "#84cc16", "#a855f7",
-];
+/* Opacity levels for monochrome chart segments — uses var(--text) so it adapts to theme */
+const CHART_OPACITIES = [1, 0.7, 0.5, 0.35, 0.85, 0.6, 0.4, 0.25, 0.75, 0.55, 0.45, 0.3];
 
 function colorForIndex(i: number) {
-  return CHART_COLORS[i % CHART_COLORS.length];
+  const opacity = CHART_OPACITIES[i % CHART_OPACITIES.length];
+  return `color-mix(in srgb, var(--text) ${Math.round(opacity * 100)}%, transparent)`;
 }
 
 /* ---------- Donut Chart ---------- */
@@ -30,7 +29,13 @@ interface DonutSegment {
   color: string;
 }
 
-function DonutChart({ segments, totalDisplay }: { segments: DonutSegment[]; totalDisplay: string }) {
+function DonutChart({
+  segments,
+  totalDisplay,
+}: {
+  segments: DonutSegment[];
+  totalDisplay: string;
+}) {
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   const radius = 60;
   const circumference = 2 * Math.PI * radius;
@@ -40,27 +45,28 @@ function DonutChart({ segments, totalDisplay }: { segments: DonutSegment[]; tota
     <div className="donut-wrapper">
       <svg viewBox="0 0 160 160" className="donut-svg">
         <circle cx="80" cy="80" r={radius} fill="none" stroke="var(--border)" strokeWidth="14" />
-        {total > 0 && segments.map((seg, i) => {
-          const dash = (seg.value / total) * circumference;
-          const gap = circumference - dash;
-          const rotation = (offset / total) * 360 - 90;
-          offset += seg.value;
-          return (
-            <circle
-              key={i}
-              cx="80"
-              cy="80"
-              r={radius}
-              fill="none"
-              stroke={seg.color}
-              strokeWidth="14"
-              strokeDasharray={`${dash} ${gap}`}
-              transform={`rotate(${rotation} 80 80)`}
-              className="donut-segment"
-              strokeLinecap="round"
-            />
-          );
-        })}
+        {total > 0 &&
+          segments.map((seg, i) => {
+            const dash = (seg.value / total) * circumference;
+            const gap = circumference - dash;
+            const rotation = (offset / total) * 360 - 90;
+            offset += seg.value;
+            return (
+              <circle
+                key={i}
+                cx="80"
+                cy="80"
+                r={radius}
+                fill="none"
+                stroke={seg.color}
+                strokeWidth="14"
+                strokeDasharray={`${dash} ${gap}`}
+                transform={`rotate(${rotation} 80 80)`}
+                className="donut-segment"
+                strokeLinecap="round"
+              />
+            );
+          })}
       </svg>
       <div className="donut-center">
         <span className="donut-center-value">{totalDisplay}</span>
@@ -96,7 +102,8 @@ function BarChart({ data }: { data: BarDatum[] }) {
               className="bar-chart-fill"
               style={{
                 width: `${Math.max((d.value / max) * 100, 3)}%`,
-                background: `linear-gradient(90deg, ${d.color}, ${d.color}cc)`,
+                background: d.color,
+                opacity: 0.85,
               }}
             />
           </div>
@@ -113,17 +120,15 @@ function StatCard({
   value,
   label,
   sub,
-  gradient,
 }: {
   icon: React.ReactNode;
   value: string | number;
   label: string;
   sub?: string;
-  gradient: string;
 }) {
   return (
     <div className="stat-card glass">
-      <div className="stat-card-icon" style={{ background: gradient }}>
+      <div className="stat-card-icon">
         {icon}
       </div>
       <div className="stat-card-body">
@@ -138,8 +143,7 @@ function StatCard({
 /* ---------- Main Component ---------- */
 export function StatsView() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const email = user?.email || "";
+  const email = user?.email || '';
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -151,21 +155,32 @@ export function StatsView() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // Read ONLY from IndexedDB. Mutations update it directly.
       try {
-        const [projectsRes, entriesRes, dueSoonRes] = await Promise.allSettled([
-          getProjectsByEmail(email),
-          sortUnarchivedEntries(email, null, 0),
-          dueSoon(email, null),
+        const [cachedEntries, cachedProjects] = await Promise.all([
+          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+          cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
-
         if (cancelled) return;
-
-        if (projectsRes.status === "fulfilled") setProjects(projectsRes.value?.projects || []);
-        if (entriesRes.status === "fulfilled") setEntries(entriesRes.value?.data || []);
-        if (dueSoonRes.status === "fulfilled") setDueSoonCount(dueSoonRes.value?.data?.length || 0);
+        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+        if (cachedEntries?.data) {
+          setDueSoonCount(computeDueSoon(cachedEntries.data).length);
+        }
+        if (!cachedEntries?.data && !cachedProjects?.data) {
+          // First visit ever — trigger initial sync
+          await syncAllData(email);
+          if (cancelled) return;
+          const [freshEntries, freshProjects] = await Promise.all([
+            cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+            cacheGet(CACHE_STORES.PROJECTS, email),
+          ]);
+          if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+          if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+          if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
+        }
       } catch (err) {
-        console.error("[StatsView] Failed to load stats data:", err);
+        console.error('[StatsView] Failed to load stats data:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -174,8 +189,12 @@ export function StatsView() {
     return () => { cancelled = true; };
   }, [email]);
 
-  const totalTimeTracked = useMemo(() => calculateTotalTimeTracked(entries), [entries]);
-  const projectStats = useMemo(() => calculateProjectStats(entries), [entries]);
+  // Tick every second only while a task is running so in-progress totals stay live.
+  const hasInProgress = entries.some((e) => e.started_at && !e.ended_at);
+  const now = useNow(1000, hasInProgress);
+
+  const totalTimeTracked = useMemo(() => calculateTotalTimeTracked(entries, now), [entries, now]);
+  const projectStats = useMemo(() => calculateProjectStats(entries, now), [entries, now]);
   const totalMs = useMemo(
     () => projectStats.reduce((sum, ps) => sum + ps.totalMs, 0),
     [projectStats]
@@ -198,7 +217,7 @@ export function StatsView() {
         value: ps.totalMs,
         display: ps.display,
         color: colorForIndex(i),
-        extra: `${ps.entryCount} ${ps.entryCount === 1 ? "entry" : "entries"}`,
+        extra: `${ps.entryCount} ${ps.entryCount === 1 ? 'entry' : 'entries'}`,
       })),
     [projectStats]
   );
@@ -221,30 +240,52 @@ export function StatsView() {
 
   if (loading) {
     return (
-      <div className="stats-page">
-        <div className="feed-loading">
-          <div className="animate-spin" style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--accent)" }} />
-          <p>Loading stats...</p>
-        </div>
+      <div className="dash-layout">
+        <div className="bg-mesh" />
+        <NavBar projects={projects} entries={entries} activeView="all" />
+        <main className="dash-main">
+          <Header title="My Stats" entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+          <div className="stats-page">
+            <div className="feed-loading">
+              <div
+                className="animate-spin spinner-circle"
+                style={{
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <p>Loading stats...</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="stats-page">
-      {/* Header */}
-      <div className="stats-page-header">
-        <button className="btn-secondary" onClick={() => navigate("/dashboard")}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          Back to Dashboard
-        </button>
-        <h1 className="stats-page-title">My Stats</h1>
-      </div>
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects} entries={entries} activeView="all" />
+      <main className="dash-main">
+        <Header title="My Stats" entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+        <div className="stats-page">
 
       {projectStats.length === 0 ? (
         <div className="stats-empty glass">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
-            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ opacity: 0.4 }}
+          >
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
           <h2>No time-tracked entries yet</h2>
           <p>Start a timer on an entry to see beautiful stats here.</p>
@@ -254,29 +295,45 @@ export function StatsView() {
           {/* Overview Cards */}
           <div className="stats-cards-grid">
             <StatCard
-              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              }
               value={entries.length}
               label="Total Entries"
-              gradient="linear-gradient(135deg, #6366f1, #818cf8)"
             />
             <StatCard
-              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>}
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+              }
               value={projects.filter((p) => !p.archived).length}
               label="Active Projects"
-              gradient="linear-gradient(135deg, #10b981, #34d399)"
             />
             <StatCard
-              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              }
               value={dueSoonCount}
               label="Due Soon"
-              gradient="linear-gradient(135deg, #f59e0b, #fbbf24)"
             />
             <StatCard
-              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              }
               value={formatDuration(totalMs)}
               label="Time Tracked"
               sub={inProgressCount > 0 ? `${inProgressCount} in progress` : undefined}
-              gradient="linear-gradient(135deg, #ec4899, #f472b6)"
             />
           </div>
 
@@ -287,7 +344,7 @@ export function StatsView() {
               <DonutChart segments={donutSegments} totalDisplay={formatDuration(totalMs)} />
               <div className="donut-legend">
                 {projectStats.map((ps, i) => {
-                  const pct = totalMs > 0 ? ((ps.totalMs / totalMs) * 100).toFixed(1) : "0";
+                  const pct = totalMs > 0 ? ((ps.totalMs / totalMs) * 100).toFixed(1) : '0';
                   return (
                     <div key={ps.project_name} className="donut-legend-item">
                       <span className="donut-legend-dot" style={{ background: colorForIndex(i) }} />
@@ -304,19 +361,40 @@ export function StatsView() {
               <h3 className="stats-panel-title">Entry Status</h3>
               <div className="status-breakdown">
                 <div className="status-item">
-                  <div className="status-ring" style={{ "--pct": `${entries.length ? (completedCount / entries.length) * 100 : 0}%` } as React.CSSProperties}>
+                  <div
+                    className="status-ring"
+                    style={
+                      {
+                        '--pct': `${entries.length ? (completedCount / entries.length) * 100 : 0}%`,
+                      } as React.CSSProperties
+                    }
+                  >
                     <span className="status-count">{completedCount}</span>
                   </div>
                   <span className="status-label">Completed</span>
                 </div>
                 <div className="status-item">
-                  <div className="status-ring status-ring-active" style={{ "--pct": `${entries.length ? (inProgressCount / entries.length) * 100 : 0}%` } as React.CSSProperties}>
+                  <div
+                    className="status-ring status-ring-active"
+                    style={
+                      {
+                        '--pct': `${entries.length ? (inProgressCount / entries.length) * 100 : 0}%`,
+                      } as React.CSSProperties
+                    }
+                  >
                     <span className="status-count">{inProgressCount}</span>
                   </div>
                   <span className="status-label">In Progress</span>
                 </div>
                 <div className="status-item">
-                  <div className="status-ring status-ring-idle" style={{ "--pct": `${entries.length ? (noTimerCount / entries.length) * 100 : 0}%` } as React.CSSProperties}>
+                  <div
+                    className="status-ring status-ring-idle"
+                    style={
+                      {
+                        '--pct': `${entries.length ? (noTimerCount / entries.length) * 100 : 0}%`,
+                      } as React.CSSProperties
+                    }
+                  >
                     <span className="status-count">{noTimerCount}</span>
                   </div>
                   <span className="status-label">No Timer</span>
@@ -338,6 +416,8 @@ export function StatsView() {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
   );
 }

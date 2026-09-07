@@ -1,18 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { NavBar } from '@/components/NavBar';
+import { Header } from '@/components/Header';
+import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 import {
   editProjectName,
   deleteProject,
-  getProjectsByEmail,
-} from "../functions/project/project.js";
-import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiSettings } from "react-icons/fi";
-import { ProjectSettingsPanel } from "@/components/ProjectSettingsPanel";
+  addProject,
+} from '../functions/project/project.js';
+import { getArchivedProjects, archiveProject, unarchiveProject } from '../functions/project/archives.js';
+import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
 
-type ProjectRecord = { project_name: string; archived?: boolean; created_at?: string; [key: string]: unknown };
+type ProjectRecord = {
+  project_name: string;
+  archived?: boolean;
+  created_at?: string;
+  [key: string]: unknown;
+};
 type EntryRecord = Record<string, unknown>;
 
-const TAB_COLORS = ["#ec4899", "#8b5cf6", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444"];
+const TAB_COLORS = ['#ec4899', '#8b5cf6', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'];
 
 function colorForName(name: string) {
   let hash = 0;
@@ -22,17 +31,18 @@ function colorForName(name: string) {
 
 export function ProjectsPage() {
   const { user } = useAuth();
-  const email = user?.email || "";
+  const email = user?.email || '';
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectName, setNewProjectName] = useState('');
 
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [editValue, setEditValue] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
 
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -49,84 +59,46 @@ export function ProjectsPage() {
   const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
 
-  // Project settings panel
-  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
-  const [settingsProjectName, setSettingsProjectName] = useState("");
-
-  // Auto-seed test projects when the user has none (uses authenticated Supabase session)
-  const seedTestProjects = useCallback(async () => {
-    if (!email || !supabase) return;
-    const testProjects = [
-      { user_email: email, project_name: "Website Redesign", description: "Redesign the main company website with modern UI", archived: false },
-      { user_email: email, project_name: "Mobile App MVP", description: "Build the first version of the iOS/Android app", archived: false },
-      { user_email: email, project_name: "Q4 Marketing Plan", description: "Plan and execute Q4 marketing campaigns", archived: false },
-      { user_email: email, project_name: "Internal Tools Audit", description: "Audit all internal tools and consolidate", archived: false },
-      { user_email: email, project_name: "Database Migration", description: "Migrate legacy database to new architecture", archived: false },
-    ];
-    for (const p of testProjects) {
-      await supabase.from("projects").upsert(p, { onConflict: "user_email,project_name" }).select();
-    }
-  }, [email]);
-
   const loadProjects = useCallback(async () => {
     if (!email) return;
-    setLoading(true);
     setError(null);
+    // Read ONLY from IndexedDB. Mutations update it directly.
     try {
-      // Try Supabase directly first (works with authenticated session)
-      let list: ProjectRecord[] = [];
-      if (supabase) {
-        const { data, error: sbError } = await supabase
-          .from("projects")
-          .select("project_name, description, created_at, archived")
-          .eq("user_email", email)
-          .order("created_at", { ascending: false });
-        if (sbError) throw new Error(sbError.message);
-        list = (data || []).filter((p) => !p.archived);
-      } else {
-        // Fallback to backend API
-        const result = await getProjectsByEmail(email);
-        if (result?.error) throw new Error(result.error);
-        list = (Array.isArray(result)
-          ? result
-          : Array.isArray(result?.projects)
-            ? result.projects
-            : []
-        ).filter((p: ProjectRecord) => !p.archived);
-      }
-      setProjects(list);
-
-      // Always ensure test projects exist (upsert won't duplicate)
-      if (supabase && email) {
-        await seedTestProjects();
-        const { data: allData } = await supabase
-          .from("projects")
-          .select("project_name, description, created_at, archived")
-          .eq("user_email", email)
-          .order("created_at", { ascending: false });
-        list = (allData || []).filter((p) => !p.archived);
+      const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cached?.data || cached?.projects) {
+        const rawProjects = cached.data || cached.projects || [];
+        const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
         setProjects(list);
+      } else {
+        // First visit ever — trigger initial sync
+        setLoading(true);
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
+        if (fresh?.data || fresh?.projects) {
+          const rawProjects = fresh.data || fresh.projects || [];
+          const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
+          setProjects(list);
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load your projects");
+      setError(err instanceof Error ? err.message : 'Could not load your projects');
     } finally {
       setLoading(false);
     }
-  }, [email, seedTestProjects]);
+  }, [email]);
 
   const loadArchivedProjects = useCallback(async () => {
-    if (!email || !supabase) return;
+    if (!email) return;
     try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("project_name, created_at, archived")
-        .eq("user_email", email)
-        .eq("archived", true)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setArchivedProjects(data || []);
+      const result = await getArchivedProjects(email);
+      if (result?.success && result.data) {
+        setArchivedProjects(result.data);
+      } else {
+        setArchivedProjects([]);
+      }
     } catch (err) {
-      console.error("Failed to load archived projects:", err);
+      console.error('Failed to load archived projects:', err);
+      setArchivedProjects([]);
     }
   }, [email]);
 
@@ -140,18 +112,13 @@ export function ProjectsPage() {
     if (!trimmed || !email) return;
     setSaving(true);
     try {
-      if (supabase) {
-        const { error: createError } = await supabase
-          .from("projects")
-          .insert({ user_email: email, project_name: trimmed, description: "" })
-          .select();
-        if (createError) throw new Error(createError.message);
-      }
-      setNewProjectName("");
+      const result = await addProject(email, trimmed, '');
+      if (result?.error) throw new Error(result.error);
+      setNewProjectName('');
       setCreating(false);
       await loadProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create project");
+      setError(err instanceof Error ? err.message : 'Could not create project');
     } finally {
       setSaving(false);
     }
@@ -166,10 +133,7 @@ export function ProjectsPage() {
   const handleRename = async (oldName: string) => {
     const trimmed = editValue.trim();
     if (!trimmed || !email) return;
-    if (trimmed === oldName) {
-      setEditingName(null);
-      return;
-    }
+    if (trimmed === oldName) { setEditingName(null); return; }
     setSaving(true);
     setEditError(null);
     try {
@@ -178,7 +142,7 @@ export function ProjectsPage() {
       setEditingName(null);
       await loadProjects();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : "Could not rename project");
+      setEditError(err instanceof Error ? err.message : 'Could not rename project');
     } finally {
       setSaving(false);
     }
@@ -193,60 +157,52 @@ export function ProjectsPage() {
       setConfirmDelete(null);
       await loadProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete project");
+      setError(err instanceof Error ? err.message : 'Could not delete project');
     } finally {
       setDeleting(false);
     }
   };
 
   const handleArchive = async (name: string) => {
-    if (!email || !supabase) return;
+    if (!email) return;
     setArchiving(true);
     try {
-      const { error } = await supabase
-        .from("projects")
-        .update({ archived: true })
-        .eq("user_email", email)
-        .eq("project_name", name);
-      if (error) throw error;
+      const result = await archiveProject(email, name);
+      if (result?.error) throw new Error(result.error);
       setConfirmArchive(null);
       await Promise.all([loadProjects(), loadArchivedProjects()]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not archive project");
+      setError(err instanceof Error ? err.message : 'Could not archive project');
     } finally {
       setArchiving(false);
     }
   };
 
   const handleUnarchive = async (name: string) => {
-    if (!email || !supabase) return;
+    if (!email) return;
     try {
-      const { error } = await supabase
-        .from("projects")
-        .update({ archived: false })
-        .eq("user_email", email)
-        .eq("project_name", name);
-      if (error) throw error;
+      const result = await unarchiveProject(email, name);
+      if (result?.error) throw new Error(result.error);
       setViewingArchived(null);
       setArchivedEntries([]);
       await Promise.all([loadProjects(), loadArchivedProjects()]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not unarchive project");
+      setError(err instanceof Error ? err.message : 'Could not unarchive project');
     }
   };
 
   const handleViewArchivedEntries = async (name: string) => {
-    if (!email || !supabase) return;
+    if (!email) return;
     setViewingArchived(name);
     setLoadingEntries(true);
     try {
-      const { data, error } = await supabase
-        .from("entries")
-        .select("*")
-        .eq("user_email", email)
-        .eq("project_name", name);
-      if (error) throw error;
-      setArchivedEntries(data || []);
+      // Read from cache only
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, `${email}:${name}`);
+      if (cached?.data) {
+        setArchivedEntries(Array.isArray(cached.data) ? cached.data : []);
+      } else {
+        setArchivedEntries([]);
+      }
     } catch {
       setArchivedEntries([]);
     } finally {
@@ -255,544 +211,185 @@ export function ProjectsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 880, margin: "0 auto", padding: "2rem 1.5rem" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          marginBottom: "1.75rem",
-        }}
-      >
+    <div className="dash-layout">
+      <div className="bg-mesh" />
+      <NavBar projects={projects as Array<Record<string, unknown>>} activeView="all" />
+      <main className="dash-main">
+        <Header title="Your Projects" projects={projects as Array<Record<string, unknown>>} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h1 style={{ fontSize: "1.6rem", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
             Your projects
           </h1>
-          <p style={{ margin: "0.25rem 0 0", color: "var(--text-dim, #6b7280)", fontSize: "0.9rem" }}>
+          <p style={{ margin: '0.25rem 0 0', color: 'var(--text-dim, #6b7280)', fontSize: '0.9rem' }}>
             {projects.length === 0
-              ? "Nothing logged yet — start your first project."
-              : `${projects.length} project${projects.length === 1 ? "" : "s"} in progress`}
+              ? 'Nothing logged yet — start your first project.'
+              : `${projects.length} project${projects.length === 1 ? '' : 's'} in progress`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setCreating(true);
-          }}
-          className="btn-primary"
-          style={{ whiteSpace: "nowrap" }}
-        >
-          + New project
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => setCreating(true)} className="btn-primary" style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <FiPlus size={14} /> New project
+          </button>
+        </div>
       </div>
 
-      {error && <div className="auth-error" style={{ marginBottom: "1rem" }}>{error}</div>}
+      {error && <div className="auth-error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
+      {/* Create project inline */}
       {creating && (
-        <div
-          className="glass"
-          style={{
-            display: "flex",
-            gap: "0.75rem",
-            alignItems: "center",
-            padding: "1rem 1.25rem",
-            borderRadius: "0.85rem",
-            marginBottom: "1.25rem",
-            borderLeft: "6px solid #ec4899",
-          }}
-        >
-          <input
-            autoFocus
-            type="text"
-            value={newProjectName}
-            onChange={(e) => setNewProjectName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreateProject();
-              if (e.key === "Escape") { setCreating(false); setNewProjectName(""); }
-            }}
-            className="field-input"
-            style={{ flex: 1 }}
-            placeholder="Project name"
-          />
-          <button
-            type="button"
-            onClick={handleCreateProject}
-            disabled={saving || !newProjectName.trim()}
-            className="btn-primary"
-          >
-            {saving ? "Creating..." : "Create"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setCreating(false); setNewProjectName(""); }}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
+        <div className="glass" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', padding: '1rem 1.25rem', borderRadius: '0.85rem', marginBottom: '1.25rem', borderLeft: '6px solid #ec4899' }}>
+          <input autoFocus type="text" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateProject(); if (e.key === 'Escape') { setCreating(false); setNewProjectName(''); } }} className="field-input" style={{ flex: 1 }} placeholder="Project name" />
+          <button type="button" onClick={handleCreateProject} disabled={saving || !newProjectName.trim()} className="btn-primary">{saving ? 'Creating...' : 'Create'}</button>
+          <button type="button" onClick={() => { setCreating(false); setNewProjectName(''); }} className="btn-secondary">Cancel</button>
         </div>
       )}
 
       {loading && (
-        <div style={{ display: "grid", gap: "0.75rem" }}>
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
           {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="glass"
-              style={{
-                height: 64,
-                borderRadius: "0.85rem",
-                opacity: 0.5,
-                animation: "pulse 1.4s ease-in-out infinite",
-              }}
-            />
+            <div key={i} className="glass" style={{ height: 64, borderRadius: '0.85rem', opacity: 0.5, animation: 'pulse 1.4s ease-in-out infinite' }} />
           ))}
         </div>
       )}
 
       {!loading && projects.length === 0 && !creating && (
-        <div
-          className="glass"
-          style={{
-            textAlign: "center",
-            padding: "3rem 1.5rem",
-            borderRadius: "1rem",
-          }}
-        >
+        <div className="glass" style={{ textAlign: 'center', padding: '3rem 1.5rem', borderRadius: '1rem' }}>
           <FiBookOpen size={40} style={{ opacity: 0.5 }} />
-          <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem", fontWeight: 700 }}>
-            No projects yet
-          </h3>
-          <p style={{ margin: "0 0 1.25rem", color: "var(--text-dim, #6b7280)", fontSize: "0.875rem" }}>
-            Create a project to start logging entries against it.
-          </p>
-          <button type="button" onClick={() => setCreating(true)} className="btn-primary">
-            + New project
-          </button>
+          <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.05rem', fontWeight: 700 }}>No projects yet</h3>
+          <p style={{ margin: '0 0 1.25rem', color: 'var(--text-dim, #6b7280)', fontSize: '0.875rem' }}>Create a project to start logging entries against it.</p>
+          <button type="button" onClick={() => setCreating(true)} className="btn-primary">+ New project</button>
         </div>
       )}
 
+      {/* Project management cards (rename/archive/delete) */}
       {!loading && projects.length > 0 && (
-        <div style={{ display: "grid", gap: "0.75rem" }}>
-          {projects.map((p) => {
-            const name = p.project_name;
-            const color = colorForName(name);
-            const isEditing = editingName === name;
-            const isConfirming = confirmDelete === name;
-            const isConfirmingArchive = confirmArchive === name;
+        <div style={{ marginTop: '2rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text, #3b3226)' }}>Manage projects</h2>
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {projects.map((p) => {
+              const name = p.project_name;
+              const color = colorForName(name);
+              const isEditing = editingName === name;
+              const isConfirming = confirmDelete === name;
+              const isConfirmingArchive = confirmArchive === name;
 
-            return (
-              <div
-                key={name}
-                className="glass"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                  padding: "1rem 1.25rem",
-                  borderRadius: "0.85rem",
-                  borderLeft: `6px solid ${color}`,
-                }}
-              >
-                <div
-                  aria-hidden
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: color,
-                    flexShrink: 0,
-                  }}
-                />
+              return (
+                <div key={name} className="glass" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', borderLeft: `5px solid ${color}` }}>
+                  <div aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
 
-                {isEditing ? (
-                  <div style={{ flex: 1, display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                    <input
-                      autoFocus
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleRename(name);
-                        if (e.key === "Escape") setEditingName(null);
-                      }}
-                      className="field-input"
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRename(name)}
-                      disabled={saving}
-                      className="btn-primary"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingName(null)}
-                      className="btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                    {editError && (
-                      <span style={{ color: "#dc2626", fontSize: "0.8rem" }}>{editError}</span>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem" }}>{name}</span>
+                  {isEditing ? (
+                    <div style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input autoFocus type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleRename(name); if (e.key === 'Escape') setEditingName(null); }} className="field-input" style={{ flex: 1 }} />
+                      <button type="button" onClick={() => handleRename(name)} disabled={saving} className="btn-primary">Save</button>
+                      <button type="button" onClick={() => setEditingName(null)} className="btn-secondary">Cancel</button>
+                      {editError && <span style={{ color: '#dc2626', fontSize: '0.8rem' }}>{editError}</span>}
+                    </div>
+                  ) : (
+                    <>
+                      <span
+                        style={{ flex: 1, fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', color: 'var(--accent, #c49a2a)' }}
+                        onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                        title={`Open ${name}`}
+                      >
+                        {name}
+                      </span>
 
-                    {isConfirming ? (
-                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.8rem", color: "var(--text-dim, #6b7280)" }}>
-                          Delete this project?
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(name)}
-                          disabled={deleting}
-                          style={{
-                            background: "#dc2626",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "0.5rem",
-                            padding: "0.4rem 0.75rem",
-                            fontSize: "0.8rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {deleting ? "Deleting..." : "Yes, delete"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(null)}
-                          className="btn-secondary"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : isConfirmingArchive ? (
-                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.8rem", color: "var(--text-dim, #6b7280)" }}>
-                          Archive this project?
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleArchive(name)}
-                          disabled={archiving}
-                          style={{
-                            background: "#6366f1",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "0.5rem",
-                            padding: "0.4rem 0.75rem",
-                            fontSize: "0.8rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {archiving ? "Archiving..." : "Yes, archive"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmArchive(null)}
-                          className="btn-secondary"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", gap: "0.4rem" }}>
-                        <button
-                          type="button"
-                          onClick={() => { setSettingsProjectName(name); setProjectSettingsOpen(true); }}
-                          aria-label={`Settings for ${name}`}
-                          title="Project Settings"
-                          style={{
-                            background: "transparent",
-                            border: "1px solid var(--border, rgba(0,0,0,0.12))",
-                            color: "var(--text-dim, #6b7280)",
-                            borderRadius: "0.5rem",
-                            padding: "0.4rem 0.6rem",
-                            fontSize: "0.85rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <FiSettings size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(name)}
-                          aria-label={`Rename ${name}`}
-                          title="Rename"
-                          className="btn-secondary"
-                          style={{ padding: "0.4rem 0.6rem" }}
-                        >
-                          <FiEdit2 size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmArchive(name)}
-                          aria-label={`Archive ${name}`}
-                          title="Archive"
-                          style={{
-                            background: "transparent",
-                            border: "1px solid rgba(99,102,241,0.35)",
-                            color: "#6366f1",
-                            borderRadius: "0.5rem",
-                            padding: "0.4rem 0.6rem",
-                            fontSize: "0.85rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <FiArchive size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(name)}
-                          aria-label={`Delete ${name}`}
-                          title="Delete"
-                          style={{
-                            background: "transparent",
-                            border: "1px solid rgba(220,38,38,0.35)",
-                            color: "#dc2626",
-                            borderRadius: "0.5rem",
-                            padding: "0.4rem 0.6rem",
-                            fontSize: "0.85rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <FiTrash2 size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
+                      {isConfirming ? (
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim, #6b7280)' }}>Delete?</span>
+                          <button type="button" onClick={() => handleDelete(name)} disabled={deleting} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.35rem 0.65rem', fontSize: '0.8rem', cursor: 'pointer' }}>{deleting ? 'Deleting...' : 'Yes, delete'}</button>
+                          <button type="button" onClick={() => setConfirmDelete(null)} className="btn-secondary">Cancel</button>
+                        </div>
+                      ) : isConfirmingArchive ? (
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim, #6b7280)' }}>Archive?</span>
+                          <button type="button" onClick={() => handleArchive(name)} disabled={archiving} style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.35rem 0.65rem', fontSize: '0.8rem', cursor: 'pointer' }}>{archiving ? 'Archiving...' : 'Yes, archive'}</button>
+                          <button type="button" onClick={() => setConfirmArchive(null)} className="btn-secondary">Cancel</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <button type="button" onClick={() => startEdit(name)} aria-label={`Rename ${name}`} title="Rename" className="btn-secondary" style={{ padding: '0.35rem 0.5rem' }}><FiEdit2 size={14} /></button>
+                          <button type="button" onClick={() => setConfirmArchive(name)} aria-label={`Archive ${name}`} title="Archive" style={{ background: 'transparent', border: '1px solid rgba(99,102,241,0.35)', color: '#6366f1', borderRadius: '0.5rem', padding: '0.35rem 0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}><FiArchive size={14} /></button>
+                          <button type="button" onClick={() => setConfirmDelete(name)} aria-label={`Delete ${name}`} title="Delete" style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.35)', color: '#dc2626', borderRadius: '0.5rem', padding: '0.35rem 0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}><FiTrash2 size={14} /></button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Floating Archive button — corner of screen */}
+      {/* Floating Archive button */}
       {archivedProjects.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setShowArchive(true)}
-          style={{
-            position: "fixed",
-            bottom: "1.5rem",
-            right: "1.5rem",
-            background: "#6366f1",
-            color: "#fff",
-            border: "none",
-            borderRadius: "0.75rem",
-            padding: "0.75rem 1.25rem",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            zIndex: 100,
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
+        <button type="button" onClick={() => setShowArchive(true)} style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FiArchive size={16} /> Archive
-          <span
-            style={{
-              background: "rgba(255,255,255,0.25)",
-              borderRadius: "0.5rem",
-              padding: "0.1rem 0.4rem",
-              fontSize: "0.75rem",
-            }}
-          >
-            {archivedProjects.length}
-          </span>
+          <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: '0.5rem', padding: '0.1rem 0.4rem', fontSize: '0.75rem' }}>{archivedProjects.length}</span>
         </button>
       )}
 
       {/* Archived Projects overlay */}
       {showArchive && (
-        <div
-          onClick={() => { setShowArchive(false); setViewingArchived(null); }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 200,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="glass"
-            style={{
-              width: "100%",
-              maxWidth: 640,
-              maxHeight: "80vh",
-              overflowY: "auto",
-              borderRadius: "1rem",
-              padding: "1.5rem",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-                <FiArchive size={18} /> Archived Projects
-              </h2>
-              <button
-                type="button"
-                onClick={() => { setShowArchive(false); setViewingArchived(null); }}
-                className="btn-secondary"
-                style={{ padding: "0.4rem 0.6rem" }}
-              >
-                <FiX size={16} />
-              </button>
+        <div onClick={() => { setShowArchive(false); setViewingArchived(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div onClick={(e) => e.stopPropagation()} className="glass" style={{ width: '100%', maxWidth: 640, maxHeight: '80vh', overflowY: 'auto', borderRadius: '1rem', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}><FiArchive size={18} /> Archived Projects</h2>
+              <button type="button" onClick={() => { setShowArchive(false); setViewingArchived(null); }} className="btn-secondary" style={{ padding: '0.4rem 0.6rem' }}><FiX size={16} /></button>
             </div>
 
             {archivedProjects.length === 0 ? (
-              <p style={{ textAlign: "center", color: "var(--text-dim, #6b7280)", padding: "2rem 0" }}>
-                No archived projects.
-              </p>
+              <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '2rem 0' }}>No archived projects.</p>
             ) : !viewingArchived ? (
-              <div style={{ display: "grid", gap: "0.75rem" }}>
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
                 {archivedProjects.map((p) => {
                   const name = p.project_name;
                   const color = colorForName(name);
                   return (
-                    <div
-                      key={name}
-                      className="glass"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "1rem",
-                        padding: "1rem 1.25rem",
-                        borderRadius: "0.85rem",
-                        borderLeft: `6px solid ${color}`,
-                      }}
-                    >
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontWeight: 600, fontSize: "0.98rem" }}>{name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleViewArchivedEntries(name)}
-                        className="btn-secondary"
-                        style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
-                      >
-                        View entries
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUnarchive(name)}
-                        style={{
-                          background: "transparent",
-                          border: "1px solid rgba(99,102,241,0.4)",
-                          color: "#6366f1",
-                          borderRadius: "0.5rem",
-                          padding: "0.4rem 0.6rem",
-                          fontSize: "0.85rem",
-                          cursor: "pointer",
-                        }}
-                        title="Unarchive"
-                      >
-                        ↩ Unarchive
-                      </button>
+                    <div key={name} className="glass" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', borderRadius: '0.85rem', borderLeft: `6px solid ${color}` }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontWeight: 600, fontSize: '0.98rem' }}>{name}</span>
+                      <button type="button" onClick={() => handleViewArchivedEntries(name)} className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>View entries</button>
+                      <button type="button" onClick={() => handleUnarchive(name)} style={{ background: 'transparent', border: '1px solid rgba(99,102,241,0.4)', color: '#6366f1', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', fontSize: '0.85rem', cursor: 'pointer' }} title="Unarchive">↩ Unarchive</button>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              /* Archived project detail: entries view (read-only) */
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => { setViewingArchived(null); setArchivedEntries([]); }}
-                    className="btn-secondary"
-                    style={{ padding: "0.4rem 0.6rem" }}
-                  >
-                    ← Back
-                  </button>
-                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
-                    {viewingArchived}
-                  </h3>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
-                    (read-only)
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <button type="button" onClick={() => { setViewingArchived(null); setArchivedEntries([]); }} className="btn-secondary" style={{ padding: '0.4rem 0.6rem' }}>← Back</button>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{viewingArchived}</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>(read-only)</span>
                 </div>
-
                 {loadingEntries ? (
-                  <p style={{ textAlign: "center", color: "var(--text-dim, #6b7280)", padding: "1.5rem" }}>
-                    Loading entries...
-                  </p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '1.5rem' }}>Loading entries...</p>
                 ) : archivedEntries.length === 0 ? (
-                  <p style={{ textAlign: "center", color: "var(--text-dim, #6b7280)", padding: "2rem 0" }}>
-                    No entries in this project.
-                  </p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '2rem 0' }}>No entries in this project.</p>
                 ) : (
-                  <div style={{ display: "grid", gap: "0.5rem" }}>
+                  <div style={{ display: 'grid', gap: '0.5rem' }}>
                     {archivedEntries.map((entry, i) => (
-                      <div
-                        key={String(entry.id || i)}
-                        className="glass"
-                        style={{
-                          padding: "0.75rem 1rem",
-                          borderRadius: "0.65rem",
-                        }}
-                      >
-                        <p style={{ margin: 0, fontSize: "0.9rem" }}>
-                          {String(entry.entries || "Untitled entry")}
-                        </p>
-                        {!!entry.due_date && (
-                          <p style={{ margin: "0.25rem 0 0", fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
-                            Due: {new Date(entry.due_date as string).toLocaleDateString()}
-                          </p>
-                        )}
-                        {entry.priority != null && (
-                          <p style={{ margin: "0.15rem 0 0", fontSize: "0.75rem", color: "var(--text-dim, #6b7280)" }}>
-                            Priority: {String(entry.priority)}
-                          </p>
-                        )}
+                      <div key={String(entry.id || i)} className="glass" style={{ padding: '0.75rem 1rem', borderRadius: '0.65rem' }}>
+                        <p style={{ margin: 0, fontSize: '0.9rem' }}>{String(entry.entries || 'Untitled entry')}</p>
+                        {!!entry.due_date && <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>Due: {new Date(entry.due_date as string).toLocaleDateString()}</p>}
+                        {entry.priority != null && <p style={{ margin: '0.15rem 0 0', fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>Priority: {String(entry.priority)}</p>}
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* Unarchive button at bottom of entry view */}
-                <div style={{ marginTop: "1.25rem", textAlign: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => handleUnarchive(viewingArchived)}
-                    style={{
-                      background: "#6366f1",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "0.5rem",
-                      padding: "0.5rem 1rem",
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                    }}
-                  >
-                    ↩ Unarchive this project
-                  </button>
+                <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+                  <button type="button" onClick={() => handleUnarchive(viewingArchived)} style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer' }}>↩ Unarchive this project</button>
                 </div>
               </div>
             )}
           </div>
         </div>
       )}
-
-      {/* Project Settings Panel */}
-      <ProjectSettingsPanel
-        open={projectSettingsOpen}
-        projectName={settingsProjectName}
-        userEmail={email}
-        onClose={() => setProjectSettingsOpen(false)}
-        onProjectUpdated={() => { loadProjects(); }}
-        onProjectDeleted={() => { loadProjects(); }}
-      />
+        </div>
+      </main>
     </div>
   );
 }

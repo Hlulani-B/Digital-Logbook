@@ -6,7 +6,18 @@ import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 import leven from 'leven';
 
 export class Entries {
-  async addEntry(user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration) {
+  async addEntry(
+    user_email,
+    project_name,
+    entry_object,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration,
+    summary
+  ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
 
@@ -17,12 +28,13 @@ export class Entries {
       if (started_at !== undefined && started_at !== null) insertData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) insertData.ended_at = ended_at;
       if (duration !== undefined && duration !== null) insertData.duration = duration;
+      if (summary !== undefined && summary !== null) insertData.summary = summary;
 
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
 
       const columns = Object.keys(insertData);
-      const values = Object.values(insertData).map(v =>
-        (v !== null && typeof v === 'object') ? JSON.stringify(v) : v
+      const values = Object.values(insertData).map((v) =>
+        v !== null && typeof v === 'object' ? JSON.stringify(v) : v
       );
       const placeholders = columns.map((_, i) => `$${i + 1}`);
 
@@ -41,7 +53,19 @@ export class Entries {
     }
   }
 
-  async updateEntry(user_email, project_name, entry_id, new_entry, due_date, priority, status, started_at, ended_at, duration) {
+  async updateEntry(
+    user_email,
+    project_name,
+    entry_id,
+    new_entry,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration,
+    summary
+  ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
 
@@ -55,18 +79,24 @@ export class Entries {
       if (status !== undefined) updateData.status = status;
       if (started_at !== undefined && started_at !== null) updateData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) updateData.ended_at = ended_at;
+      if (summary !== undefined && summary !== null) updateData.summary = summary;
 
       if (Object.keys(updateData).length === 0) {
         return { success: true, message: 'No changes to update' };
       }
 
-      console.log('[updateEntry] Updating entry_id:', entry_id, 'data:', JSON.stringify(updateData));
+      console.log(
+        '[updateEntry] Updating entry_id:',
+        entry_id,
+        'data:',
+        JSON.stringify(updateData)
+      );
 
       const setClauses = [];
       const params = [];
       let idx = 1;
       for (const [key, value] of Object.entries(updateData)) {
-        const val = (value !== null && typeof value === 'object') ? JSON.stringify(value) : value;
+        const val = value !== null && typeof value === 'object' ? JSON.stringify(value) : value;
         setClauses.push(`${key} = $${idx++}`);
         params.push(val);
       }
@@ -80,8 +110,18 @@ export class Entries {
       );
 
       if (!rows || rows.length === 0) {
-        console.error('[updateEntry] No rows matched. id:', entry_id, 'user:', user_email, 'project:', project_name);
-        return { success: false, message: 'Entry not found. Check that the entry exists and belongs to this user/project.' };
+        console.error(
+          '[updateEntry] No rows matched. id:',
+          entry_id,
+          'user:',
+          user_email,
+          'project:',
+          project_name
+        );
+        return {
+          success: false,
+          message: 'Entry not found. Check that the entry exists and belongs to this user/project.',
+        };
       }
 
       console.log('[updateEntry] Success, id:', rows[0].id);
@@ -198,7 +238,11 @@ export class Entries {
               }
             });
           });
-          return { success: true, message: 'Unarchived entries sorted successfully', data: results };
+          return {
+            success: true,
+            message: 'Unarchived entries sorted successfully',
+            data: results,
+          };
         }
         default:
           return { success: true, message: 'Unarchived entries sorted successfully', data };
@@ -273,15 +317,31 @@ const PRIORITY_LABELS = {
 // This way we NEVER rely on the AI for date math — we calculate it ourselves.
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const MONTH_NAMES = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
 
 // All known date keywords — used as the dictionary for fuzzy matching
 const DATE_KEYWORDS = [
-  'today', 'tomorrow', 'yesterday',
-  'week', 'month',
+  'today',
+  'tomorrow',
+  'yesterday',
+  'week',
+  'month',
   ...DAY_NAMES,
   ...MONTH_NAMES,
-  ...MONTH_NAMES.map(m => m.substring(0, 3)), // short month names: jan, feb, mar, etc.
+  ...MONTH_NAMES.map((m) => m.substring(0, 3)), // short month names: jan, feb, mar, etc.
 ];
 
 /**
@@ -292,31 +352,33 @@ const DATE_KEYWORDS = [
  */
 function correctDateKeywords(text) {
   const words = text.split(/(\s+)/);
-  return words.map(word => {
-    const alpha = word.replace(/[^a-z]/g, '');
-    if (!alpha || alpha.length < 4) return word; // skip short words (too many false positives)
-    // If it's already an exact keyword, keep as-is
-    if (DATE_KEYWORDS.includes(alpha)) return word;
-    
-    // Find the closest keyword match using Levenshtein distance
-    let bestMatch = null;
-    let bestDistance = Infinity;
-    const maxDistance = Math.floor(alpha.length * 0.4); // Allow up to 40% edit distance (1 for 4-char, 2 for 5-7-char, 3 for 8+)
-    
-    for (const keyword of DATE_KEYWORDS) {
-      const distance = leven(alpha, keyword);
-      if (distance <= maxDistance && distance < bestDistance) {
-        bestDistance = distance;
-        bestMatch = keyword;
+  return words
+    .map((word) => {
+      const alpha = word.replace(/[^a-z]/g, '');
+      if (!alpha || alpha.length < 4) return word; // skip short words (too many false positives)
+      // If it's already an exact keyword, keep as-is
+      if (DATE_KEYWORDS.includes(alpha)) return word;
+
+      // Find the closest keyword match using Levenshtein distance
+      let bestMatch = null;
+      let bestDistance = Infinity;
+      const maxDistance = Math.floor(alpha.length * 0.4); // Allow up to 40% edit distance (1 for 4-char, 2 for 5-7-char, 3 for 8+)
+
+      for (const keyword of DATE_KEYWORDS) {
+        const distance = leven(alpha, keyword);
+        if (distance <= maxDistance && distance < bestDistance) {
+          bestDistance = distance;
+          bestMatch = keyword;
+        }
       }
-    }
-    
-    if (bestMatch) {
-      // Replace only the alpha part, preserve surrounding punctuation
-      return word.replace(alpha, bestMatch);
-    }
-    return word;
-  }).join('');
+
+      if (bestMatch) {
+        // Replace only the alpha part, preserve surrounding punctuation
+        return word.replace(alpha, bestMatch);
+      }
+      return word;
+    })
+    .join('');
 }
 
 function toISODate(date) {
@@ -480,6 +542,69 @@ export function getDate(text) {
 }
 
 export class Natural_language {
+  /**
+   * Generate a one-sentence summary for an entry using AI.
+   * @param {string} projectName - The project the entry belongs to
+   * @param {object} entryObject - The entry fields (key-value pairs)
+   * @returns {Promise<string>} One-sentence summary, or projectName as fallback
+   */
+  async generateSummary(projectName, entryObject) {
+    try {
+      // If entry has no meaningful fields, just use project name
+      const hasContent = entryObject && typeof entryObject === 'object' &&
+        Object.values(entryObject).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (!hasContent) return projectName;
+
+      const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
+
+Project: ${projectName}
+Entry: ${JSON.stringify(entryObject)}
+
+You MUST respond with ONLY a JSON object in this exact format, nothing else:
+{"summary": "your one sentence here"}
+
+If the entry has no real content, use the project name as the summary.`;
+
+      const result = await AI(prompt);
+      if (!result || !result.trim()) return projectName;
+
+      const raw = result.trim().replace(/^["']|["']$/g, '');
+
+      // Parse the JSON response
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.summary && typeof parsed.summary === 'string' && parsed.summary.trim()) {
+          return parsed.summary.trim();
+        }
+      } catch {
+        // Not valid JSON — try regex extraction
+        const match = raw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
+        if (match) return match[1].trim();
+      }
+
+      // Retry once if parsing failed
+      try {
+        const retry = await AI(prompt);
+        if (retry && retry.trim()) {
+          const retryRaw = retry.trim().replace(/^["']|["']$/g, '');
+          try {
+            const retryParsed = JSON.parse(retryRaw);
+            if (retryParsed.summary) return retryParsed.summary.trim();
+          } catch {
+            const match = retryRaw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
+            if (match) return match[1].trim();
+          }
+        }
+      } catch { /* retry failed */ }
+
+      // Final fallback: project name
+      return projectName;
+    } catch (err) {
+      console.error('[generateSummary] Failed:', err.message);
+      return projectName;
+    }
+  }
+
   async entry(email, text) {
     try {
       const project = new Project();
@@ -492,7 +617,7 @@ export class Natural_language {
         return { success: false, message: 'Could not fetch projects: ' + projectsResult.message };
       }
 
-      const projectList = (projectsResult.projects || []).filter(p => !p.archived);
+      const projectList = (projectsResult.projects || []).filter((p) => !p.archived);
 
       // 2. Get fields for every existing project
       const projectsWithFields = [];
@@ -512,8 +637,8 @@ export class Natural_language {
       const today = toISODate(new Date());
 
       const commentInstruction = calculatedDate
-        ? `Write a detailed, warm, and human comment (3-5 sentences) back to the user. Be specific about what was done. If matched=1, mention the project name, acknowledge the task, and add a thoughtful remark about the work. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not just a generic bucket), what fields were set up, and encourage the user to keep logging entries there. Always be specific — never say something vague like "Added your entry" or "Created a project".`
-        : `Write a detailed, warm, and human comment (4-6 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", "in 3 days", "2 days from now", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, mention the project name, acknowledge the task, and add a thoughtful remark about the work. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not just a generic bucket), what fields were set up, and encourage the user to keep logging entries there. Always be specific — never say something vague like "Added your entry" or "Created a project".`;
+        ? `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly, detailed message they'll read on screen — 3-5 sentences, casual and warm, like a text from a friend. NEVER say "The user" — talk TO them directly. Be SPECIFIC about what was done: mention the project name by name, acknowledge the actual task, and add a thoughtful remark about the work. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not a generic bucket), what fields were set up, and encourage them to keep logging there. If matched=1, mention the project name, acknowledge the task, and add a thoughtful remark. NEVER say something vague like "Added your entry" or "Created a project" — always be specific.\n- CORRECT: "Skydiving lessons and cooking classes — both sorted! Created 'Skydiving Training' for your jump sessions and 'Kitchen Experiments' for the chips recipe. Both projects have their own fields so future entries will slot in nicely."\n- WRONG: "Created new projects for each activity."\n- CORRECT: "Added to WebApp — looks like a solid bug fix on the login page. Didn't catch a due date in there, so it's blank for now but you can always edit it."\n- WRONG: "The user mentioned a bug fix so I added it to the WebApp project."\nIf matched=1: "Added to [project] — [detailed friendly comment about the specific task]." If matched=0: "Created [project] — [explain why this project name, what fields were set up, encourage future entries]." If matched=2: "Created [project] for you — [detailed comment]." If matched=3: "Split your entry into [N] parts — [explain each part briefly and warmly]."`
+        : `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly, detailed message they'll read on screen — 4-6 sentences, casual and warm. Let them know no due date was set because no date reference (like "today", "tomorrow", "Monday", "in 3 days", "2 days from now", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. NEVER say "The user" — talk TO them directly. Be SPECIFIC about what was done: mention the project name by name, acknowledge the actual task. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not a generic bucket), what fields were set up, and encourage them to keep logging there. NEVER say something vague like "Added your entry" or "Created a project" — always be specific.\n- CORRECT: "Added to WebApp — nice bug fix on the login page! Didn't catch a due date in there though, so it's blank for now — you can always edit it to add one later."\n- WRONG: "The user wants to fix a bug in WebApp. I added the entry but no due date was set."\nIf matched=1: "Added to [project] — [detailed friendly comment]. No due date picked up from your text, feel free to edit it later." If matched=0: "Created [project] — [explain why, what fields, encourage entries]. No due date set, you can add one later." If matched=2: "Created [project] for you — [detailed comment]." If matched=3: "Split your entry into [N] parts — [explain each]. No due dates detected, but you can edit any of them."`;
 
       const projectListInfo = projectsWithFields.length > 0
         ? JSON.stringify(projectsWithFields)
@@ -526,17 +651,54 @@ ${projectListInfo}
 
 Entry to parse: "${cleanedText}"
 
-STRICT PROJECT MATCHING RULES:
+=== STEP 0: UNDERSTAND THE INPUT (CRITICAL) ===
+Read the ENTIRE user input carefully. PARAPHRASE neatly into clear, well-written task descriptions.
+- Do NOT just extract random words or copy the raw text verbatim. REWRITE it as a clean, concise description that captures the full meaning.
+- If the user says "gonna grab some food real quick", write "Grabbed a quick meal" — NOT "gonna grab some food" (raw copy) and NOT "food" (too short).
+- If the user says "Make sure it's done and send the email to John", write "Ensure task is completed and send email to John" — NOT "Make sure it's" (truncated).
+- Use COMMON SENSE. Think about what the user actually means and express it clearly.
+- Do NOT be lazy. Read every word, understand the full context, then write a neat description.
+
+=== STEP 1: REASONING (MANDATORY) ===
+Before responding, you MUST think step-by-step in your "comment" field. Show your reasoning:
+1. What did the user ACTUALLY say? Quote the full intent, not just keywords.
+2. What DISTINCT activities/tasks are mentioned? List each one separately.
+3. For each activity, which existing project does it belong to? If NONE match clearly, say "NEW PROJECT needed".
+4. Are any activities being forced together that don't belong? If yes, SPLIT them.
+5. Final decision: matched=0, 1, 2, or 3?
+
+=== STEP 2: SPLITTING RULES (STRICT) ===
+You MUST split into separate entries when the input contains MULTIPLE DISTINCT activities.
+
+SPLIT these into separate entries:
+- "going to the gym and making chips" → TWO entries: Gym (going to the gym) + Cooking (making chips) — COMPLETELY DIFFERENT activities
+- "fixed login bug and updated docs for WebApp" → TWO entries in same project
+- "buy groceries, cook dinner, clean kitchen" → THREE entries
+- "study maths and go for a run" → TWO entries: Maths + Fitness
+- "call the dentist and email the professor" → TWO entries: Health + Education
+
+DO NOT split these (single activity):
+- "worked on the login feature for WebApp" → ONE entry
+- "studied chapter 5 and 6 for maths" → ONE entry (studying covers both)
+- "meeting with the team about API redesign" → ONE entry
+
+HARD RULE: If two activities would naturally belong to DIFFERENT projects/categories, they MUST be separate. NEVER create combined project names like "Gym and Cooking" — that is WRONG.
+
+=== STEP 3: PROJECT MATCHING RULES (VERY STRICT) ===
 - You MUST carefully compare the entry against EACH existing project's name, description, and fields.
 - Set "matched" to 1 ONLY when the entry's subject matter CLEARLY and DIRECTLY relates to an existing project. The entry must be about the same domain, topic, or work area as the project.
 - DO NOT force a match when the connection is vague, tangential, or based on a single shared keyword. For example, "fix the login page" should NOT match a project called "Marketing" just because both involve a website.
-- When in doubt, prefer matched=0 (create a new project) over a wrong match. A wrong match is worse than a new project.
-- If matched=1: set "project" to the EXACT project_name from the list (character-for-character), and "fields" to field_name:value pairs using ONLY that project's existing fields.
+- If you are UNSURE which existing project a task belongs to, DO NOT GUESS.
+- Instead, create a NEW project for that task (use matched=3 with "new" array).
+- In your comment, explain: "I wasn't sure which project this belonged to, so I created a new one."
+- If the task mentions a project name EXPLICITLY (e.g., "for WebApp"), use that project.
+- If the task is VAGUE and could fit multiple projects, create a NEW project.
+- GUESSING IS FORBIDDEN. When in doubt, create new. A wrong match is WORSE than a new project.
 
-NEW PROJECT CREATION RULES (when matched=0):
+=== STEP 3b: NEW PROJECT CREATION RULES (STRICT) ===
 - The new project name MUST be specific and descriptive of the actual work described in the entry. Think about what kind of work this is and name the project accordingly.
-- GOOD project names: "Backend API Refactor", "Client Website Redesign", "Thesis Chapter 3 Research", "Grocery Shopping Errands"
-- BAD project names (NEVER use these): "General", "Tasks", "Project", "Misc", "Other", "Work", "Personal", "New Project", "Stuff", "Things", "Activity"
+- GOOD project names: "Backend API Refactor", "Client Website Redesign", "Thesis Chapter 3 Research", "Grocery Shopping Errands", "Kitchen Experiment"
+- BAD project names (NEVER use these): "General", "Tasks", "Project", "Misc", "Other", "Work", "Personal", "New Project", "Stuff", "Things", "Activity", "Daily", "Routine", "Random", "Miscellaneous"
 - The project name should reflect the SPECIFIC entry, not be a catch-all category.
 - Set "new_fields" as an array of 1-3 field definitions shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Fields should capture meaningful details specific to this type of work — not generic metadata.
 - Set "fields" as an object of field_name:value pairs filled in from the entry text, matching the field_names in new_fields.
@@ -547,13 +709,73 @@ DO NOT include a "due_date" field in your response — the system handles dates 
 
 ${commentInstruction}
 
-Respond with ONLY this JSON structure, nothing else:
-{"matched":1,"project":"name","fields":{"field":"value"},"new_fields":[],"priority":0,"comment":"..."}`;
+=== STEP 4: MATCHED VALUES ===
+- matched=0: Single task, NO existing project matches. Create ONE new project + entry.
+- matched=1: Single task, fits ONE existing project EXACTLY. You are CERTAIN it belongs there.
+- matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
+- matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
+
+=== STEP 5: FIELD NAMES AND VALUES — PARAPHRASE NEATLY (STRICT) ===
+
+FIELD NAMES: You MUST choose meaningful, descriptive field names that describe what the value represents. NEVER use generic names like "field", "value", "data", "text", "content", "entry", or "item".
+- Think about what the value IS. Is it a task? A description? A note? An activity? A goal? A decision?
+- CORRECT field names: "task", "description", "activity", "note", "goal", "decision", "outcome", "topic", "subject", "discussion"
+- WRONG field names: "field", "value", "data", "text", "content", "entry", "item", "info", "stuff"
+- If the project already has fields, USE those existing field names. Only invent new ones for new projects.
+
+FIELD VALUES: You MUST write clean, well-phrased descriptions. This is NOT optional.
+- DO NOT just copy the user's raw words. DO NOT just extract keywords. REWRITE as a clear, neat description.
+- NEVER use first-person pronouns (I, my, me, mine, we, us, our) in field values. Write in a neutral, impersonal style — as if someone else is reading the log later.
+  - CORRECT: {"task": "Finish the report and email it to John"}
+  - WRONG: {"task": "I need to finish my report and email John"} ← contains "I" and "my"
+  - CORRECT: {"activity": "Gym session followed by preparing chips for dinner"}
+  - WRONG: {"activity": "I went to the gym and then I made chips"} ← contains "I"
+- If the user mentions ANOTHER person, pronouns for that person are fine (e.g., "he", "she", "they", "his", "her").
+  - CORRECT: {"task": "Call John and remind him about his presentation"}
+- CORRECT: {"task": "Ensure the report is finished and email it to John"}
+- WRONG: {"field": "make sure its done and send the email to john"} ← generic field name + raw copy
+- WRONG: {"task": "send email"} ← lost meaning, too short
+- CORRECT: {"activity": "Gym session followed by preparing chips for dinner"}
+- WRONG: {"data": "gym and chips"} ← generic field name + too vague
+
+The field value must be a COMPLETE, WELL-WRITTEN sentence or phrase that someone reading it later will immediately understand.
+
+=== STEP 6: HANDLING NONSENSE OR INCOMPLETE INPUT ===
+Sometimes the user's input may be incomplete, garbled, or nonsensical (e.g., "I need to go and.Make sure it's and then after that I have t" — a run-on sentence that cuts off mid-word).
+- If part of the input is clearly incomplete or doesn't make sense, you should STILL try to extract what you can.
+- In your "comment" field, EXPLAIN what you did: e.g., "The input appears to be cut off mid-sentence. I extracted 'I need to go and' as the task, but the rest ('Make sure it's and then after that I have t') was incomplete/garbled so I left it out."
+- If the ENTIRE input is nonsensical and you cannot extract any meaningful task, still create the entry but explain in the comment: "The input did not contain a clear, complete task. I created the entry with the raw text as-is because..."
+- NEVER silently discard text. If you leave something out, say WHY in the comment.
+
+=== STEP 7: RESPONSE FORMAT ===
+IMPORTANT: Replace "task" with a MEANINGFUL field name (see Step 5). Never use "field" as a key.
+If matched=0: {"matched":0,"project":"NewProjectName","fields":{"task":"Paraphrased description"},"new_fields":[{"field_name":"task","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
+If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"task":"Paraphrased description"},"priority":null,"comment":"Your reasoning here..."}
+If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
+If matched=3: {"matched":3,"old":[{"ExactProjectName":{"task":"Paraphrased description"}}],"new":[{"project_name":"BrandNewProject","fields":{"task":"Paraphrased description"},"new_fields":[{"field_name":"task","data_type":"text","is_required":false}]}],"priority":null,"comment":"Your reasoning here..."}
+
+CRITICAL FORMAT FOR matched=3:
+- "old" array: Each item is an object with ONE key = the EXACT existing project name, value = fields object. Example: [{"WebApp":{"task":"fixed login bug"}},{"Gym":{"task":"ran 5km"}}]
+- "new" array: Each item has "project_name" and "fields" keys. Example: [{"project_name":"Cooking","fields":{"recipe":"pasta"},"new_fields":[]}]
+- DO NOT use "project_name" as a key inside "old" items. The key MUST be the actual project name string.
+
+RULES:
+- NEVER include "due_date", "priority", or "status" as custom fields — these are built-in.
+- Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
+- DO NOT include a "due_date" field — the system handles dates separately.
+- ${commentInstruction}
+- In your comment, EXPLAIN your reasoning: what the user meant, why you split tasks the way you did, why you chose certain projects, why you created new ones when unsure, and if you left out any part of the input, explain WHY it was nonsense/incomplete.
+
+Respond with ONLY this JSON, nothing else:`;
 
       const aiResponse = await AI(prompt);
 
       if (!aiResponse || aiResponse.trim() === '') {
-        return { success: false, message: 'All AI providers failed. Please check that API keys are configured and try again.' };
+        return {
+          success: false,
+          message:
+            'All AI providers failed. Please check that API keys are configured and try again.',
+        };
       }
 
       let parsed;
@@ -565,26 +787,42 @@ Respond with ONLY this JSON structure, nothing else:
       }
 
       console.log('[Natural_language] AI response parsed:', JSON.stringify(parsed, null, 2));
-      console.log('[Natural_language] matched =', parsed.matched, '(type:', typeof parsed.matched + ')');
+      console.log(
+        '[Natural_language] matched =',
+        parsed.matched,
+        '(type:',
+        typeof parsed.matched + ')'
+      );
 
-      const priorityLabel = parsed.priority !== null && parsed.priority !== undefined
-        ? PRIORITY_LABELS[parsed.priority]
-        : null;
+      const priorityLabel =
+        parsed.priority !== null && parsed.priority !== undefined
+          ? PRIORITY_LABELS[parsed.priority]
+          : null;
 
       // ── Case: matched an existing project ──
       if (parsed.matched === 1) {
         console.log('[Natural_language] Taking matched=1 branch');
-        const matchedProject = projectsWithFields.find(p => p.project_name === parsed.project);
+        const matchedProject = projectsWithFields.find((p) => p.project_name === parsed.project);
         if (!matchedProject) {
-          return { success: false, message: 'AI claimed a match but the project was not found.', suggestion: parsed };
+          return {
+            success: false,
+            message: 'AI claimed a match but the project was not found.',
+            suggestion: parsed,
+          };
         }
 
+        const summary = await this.generateSummary(parsed.project, parsed.fields);
         const addResult = await entries.addEntry(
           email,
           parsed.project,
           parsed.fields,
           calculatedDate || null,
           priorityLabel,
+          null, // status
+          null, // started_at
+          null, // ended_at
+          null, // duration
+          summary
         );
 
         return {
@@ -594,23 +832,248 @@ Respond with ONLY this JSON structure, nothing else:
           fields: parsed.fields,
           priority: priorityLabel,
           due_date: calculatedDate || null,
+          summary,
           comment: parsed.comment || null,
           created_new_project: false,
         };
       }
 
-      // ── Case: no match, create a new project + its fields, then add the entry ──
+      // ── Case: matched=2, user only wants to create a project (no entry) ──
+      if (parsed.matched === 2) {
+        // ── Case: user only wants to create a project (no entry) ──
+        console.log('[Natural_language] Taking matched=2 (create project only) branch');
+        const newProjectName = parsed.project;
+        if (!newProjectName) {
+          return {
+            success: false,
+            message: 'AI could not determine a project name.',
+            suggestion: parsed,
+          };
+        }
+
+        console.log('[Natural_language] Creating project only:', newProjectName);
+        const createProjectResult = await project.addProject(email, newProjectName, null);
+        console.log('[Natural_language] Create project result:', createProjectResult);
+        if (!createProjectResult.success) {
+          return {
+            success: false,
+            message: 'Failed to create project: ' + createProjectResult.message,
+          };
+        }
+
+        const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
+        console.log('[Natural_language] Creating', newFields.length, 'fields:', newFields);
+        for (const f of newFields) {
+          if (!f.field_name) continue;
+          const addFieldResult = await fields.addField(
+            email,
+            newProjectName,
+            f.field_name,
+            f.data_type || 'text',
+            !!f.is_required
+          );
+          console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
+        }
+
+        return {
+          success: true,
+          message: `Project "${newProjectName}" created successfully.`,
+          project: newProjectName,
+          fields: {},
+          priority: null,
+          due_date: null,
+          comment: parsed.comment || `Created project "${newProjectName}" for you.`,
+          created_new_project: true,
+          project_only: true,
+          new_fields: newFields,
+        };
+      }
+
+      // ── Case: matched=3, multiple entries across different projects ──
+      if (parsed.matched === 3) {
+        console.log('[Natural_language] Taking matched=3 (multi-project) branch');
+
+        const oldEntries = Array.isArray(parsed.old) ? parsed.old : [];
+        const newEntries = Array.isArray(parsed.new) ? parsed.new : [];
+        const results = { old: [], new: [], errors: [] };
+
+        // Process entries for existing projects
+        for (const item of oldEntries) {
+          // Handle both formats:
+          // Format A (expected): [{"ProjectName": {field: value}}] — key is the project name
+          // Format B (AI sometimes returns): [{"project_name": "ProjectName", "fields": {field: value}}]
+          let projName, fieldValues;
+
+          if (item.project_name && item.fields !== undefined) {
+            // Format B: AI returned {project_name: "...", fields: {...}}
+            projName = item.project_name;
+            fieldValues = item.fields || {};
+          } else {
+            // Format A: AI returned {"ProjectName": {field: value}}
+            const projectNames = Object.keys(item);
+            if (projectNames.length === 0) continue;
+            projName = projectNames[0];
+            fieldValues = item[projName] || {};
+          }
+
+          const matchedProject = projectsWithFields.find((p) => p.project_name === projName);
+          if (!matchedProject) {
+            results.errors.push(`Project "${projName}" not found, skipping.`);
+            continue;
+          }
+          try {
+            const summary = await this.generateSummary(projName, fieldValues);
+            const addResult = await entries.addEntry(
+              email,
+              projName,
+              fieldValues,
+              calculatedDate || null,
+              priorityLabel,
+              null, // status
+              null, // started_at
+              null, // ended_at
+              null, // duration
+              summary
+            );
+            if (addResult.success) {
+              results.old.push({ project_name: projName, fields: fieldValues, summary });
+            } else {
+              results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
+            }
+          } catch (err) {
+            results.errors.push(`Error adding entry to "${projName}": ${err.message}`);
+          }
+        }
+
+        // Process entries for new projects
+        for (const item of newEntries) {
+          const projName = item.project_name;
+          if (!projName) {
+            results.errors.push('New project entry missing project_name, skipping.');
+            continue;
+          }
+          const fieldValues = item.fields || {};
+          const newFields = Array.isArray(item.new_fields) ? item.new_fields : [];
+
+          try {
+            // Check if project already exists — if so, add entry to existing project instead
+            const existingProject = projectsWithFields.find((p) => p.project_name === projName);
+            if (existingProject) {
+              // Project already exists, just add the entry
+              const summary = await this.generateSummary(projName, fieldValues);
+              const addResult = await entries.addEntry(
+                email,
+                projName,
+                fieldValues,
+                calculatedDate || null,
+                priorityLabel,
+                null, // status
+                null, // started_at
+                null, // ended_at
+                null, // duration
+                summary
+              );
+              if (addResult.success) {
+                results.old.push({ project_name: projName, fields: fieldValues, summary });
+              } else {
+                results.errors.push(
+                  `Project "${projName}" already exists but failed to add entry: ${addResult.message}`
+                );
+              }
+              continue;
+            }
+
+            // Create the new project
+            const createProjectResult = await project.addProject(email, projName, null);
+            if (!createProjectResult.success) {
+              results.errors.push(
+                `Failed to create project "${projName}": ${createProjectResult.message}`
+              );
+              continue;
+            }
+
+            // Create fields for the new project
+            for (const f of newFields) {
+              if (!f.field_name) continue;
+              await fields.addField(
+                email,
+                projName,
+                f.field_name,
+                f.data_type || 'text',
+                !!f.is_required
+              );
+            }
+
+            // Add the entry
+            const summary = await this.generateSummary(projName, fieldValues);
+            const addResult = await entries.addEntry(
+              email,
+              projName,
+              fieldValues,
+              calculatedDate || null,
+              priorityLabel,
+              null, // status
+              null, // started_at
+              null, // ended_at
+              null, // duration
+              summary
+            );
+            if (addResult.success) {
+              results.new.push({
+                project_name: projName,
+                fields: fieldValues,
+                summary,
+                new_fields: newFields,
+              });
+            } else {
+              results.errors.push(
+                `Created project "${projName}" but failed to add entry: ${addResult.message}`
+              );
+            }
+          } catch (err) {
+            results.errors.push(`Error processing "${projName}": ${err.message}`);
+          }
+        }
+
+        const totalOld = results.old.length;
+        const totalNew = results.new.length;
+        const successCount = totalOld + totalNew;
+
+        if (successCount === 0 && results.errors.length > 0) {
+          return { success: false, message: results.errors.join('; ') };
+        }
+
+        return {
+          success: true,
+          message: `Added ${successCount} ${successCount === 1 ? 'entry' : 'entries'} across ${totalNew > 0 ? totalNew + ' new project' + (totalNew > 1 ? 's' : '') + ' and ' : ''}${totalOld > 0 ? totalOld + ' existing project' + (totalOld > 1 ? 's' : '') : ''}.`,
+          multi: true,
+          results,
+          priority: priorityLabel,
+          due_date: calculatedDate || null,
+          comment: parsed.comment || null,
+          created_new_project: totalNew > 0,
+        };
+      }
+
+      // ── Case: matched=0, no match — create a new project + its fields, then add the entry ──
       console.log('[Natural_language] Taking matched=0 (create new project) branch');
       const newProjectName = parsed.project;
       if (!newProjectName) {
-        return { success: false, message: 'AI could not determine a project for this entry.', suggestion: parsed };
+        return {
+          success: false,
+          message: 'AI could not determine a project for this entry.',
+          suggestion: parsed,
+        };
       }
 
       console.log('[Natural_language] Creating new project:', newProjectName);
       const createProjectResult = await project.addProject(email, newProjectName, null);
       console.log('[Natural_language] Create project result:', createProjectResult);
       if (!createProjectResult.success) {
-        return { success: false, message: 'Failed to create new project: ' + createProjectResult.message };
+        return {
+          success: false,
+          message: 'Failed to create new project: ' + createProjectResult.message,
+        };
       }
 
       const newFields = Array.isArray(parsed.new_fields) ? parsed.new_fields : [];
@@ -622,17 +1085,23 @@ Respond with ONLY this JSON structure, nothing else:
           newProjectName,
           f.field_name,
           f.data_type || 'text',
-          !!f.is_required,
+          !!f.is_required
         );
         console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
       }
 
+      const summary = await this.generateSummary(newProjectName, parsed.fields);
       const addResult = await entries.addEntry(
         email,
         newProjectName,
         parsed.fields,
         calculatedDate || null,
         priorityLabel,
+        null, // status
+        null, // started_at
+        null, // ended_at
+        null, // duration
+        summary
       );
 
       return {
@@ -642,6 +1111,7 @@ Respond with ONLY this JSON structure, nothing else:
         fields: parsed.fields,
         priority: priorityLabel,
         due_date: calculatedDate || null,
+        summary,
         comment: parsed.comment || null,
         created_new_project: true,
         new_fields: newFields,

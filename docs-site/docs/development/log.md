@@ -9,7 +9,7 @@ working end result.
 ## Repository & authentication setup
 
 **Issue:** Pushing to the Gitea remote failed with an authentication error.
-The token *label* ("hlulani") was mistaken for the actual secret token —
+The token _label_ ("hlulani") was mistaken for the actual secret token —
 Gitea only shows the real generated token once, at creation.
 
 **Fix:** Generated a new access token under **Gitea → Applications**, then
@@ -64,6 +64,65 @@ pushed, `git fetch && git checkout main && git pull` picked it up correctly.
 teammates confirming a push happened (not just a local commit) before
 assuming something is "done."
 
+## Google OAuth users and the `public.users` foreign key
+
+**Issue:** Users who signed up with Google OAuth could not create projects.
+The insert into `public.projects` failed with a foreign-key violation because
+OAuth sign-in skips the create-profile page, so the user existed in
+`auth.users` but not in `public.users`.
+
+**Fix:** Two layers:
+
+1. A migration (`002_auto_provision_public_users_for_auth.sql`) backfills
+   existing auth users into `public.users` and adds an `AFTER INSERT` trigger
+   on `auth.users` so future OAuth sign-ups are provisioned automatically.
+2. The project-service auth middleware only tries to upsert a `public.users`
+   row when `SUPABASE_SERVICE_ROLE_KEY` is set, avoiding permission errors
+   when the service is configured with the anon key.
+
+**Takeaway:** any authentication flow that can create an `auth.users` row must
+also guarantee the matching application-level user row, or every foreign key
+that references it will break for some users.
+
+## Gitea → GitHub mirror delays
+
+**Issue:** The team pushes to Gitea as the source of truth, but Render deploys
+from the mirrored GitHub repo. After one push, the live site was still serving
+the old build because the mirror had not forwarded the latest commit to GitHub.
+
+**Fix:** Added GitHub as a second remote locally so any team member can push
+straight to GitHub when the mirror stalls:
+
+```bash
+git remote add github https://github.com/Hlulani-B/Digital-Logbook.git
+git push github main
+```
+
+This triggers Render immediately. The mirror still runs for normal pushes, but
+the manual fallback removes the deployment bottleneck.
+
+**Takeaway:** a push mirror is convenient but not instant; have a direct-push
+fallback ready for demos and deadlines.
+
+## Localhost testing limitations
+
+**Issue:** The team could not reliably run the full stack locally, which made
+it hard to test changes before committing. Code had to be pushed to confirm it
+worked in the deployed environment.
+
+**Fix:** No single fix yet. Mitigations include:
+
+- Running services individually on their assigned ports and checking health
+  routes (`/`) before starting the frontend.
+- Using the deployed environment as the acceptance test while trying to keep
+  local unit/service tests passing.
+- Documenting the exact local ports and startup order in
+  [Getting Started](../getting-started.md).
+
+**Takeaway:** when local integration is painful, clear port assignments and
+health-check habits become even more important. A containerised local setup
+(Docker Compose) is a candidate improvement if time allows.
+
 ## Soft-delete ambiguous column error
 
 **Issue:** Calling `delete_user()` RPC threw `column reference user_email is ambiguous`.
@@ -82,7 +141,7 @@ assuming something is "done."
 
 **Fix:** Added `position: relative` to `.entry-box__menu-wrap`.
 
-**Takeaway:** `position: absolute` resolves against the nearest *positioned* ancestor — if a wrapper has no `position`, the absolute child skips past it.
+**Takeaway:** `position: absolute` resolves against the nearest _positioned_ ancestor — if a wrapper has no `position`, the absolute child skips past it.
 
 ## Raw Postgres interval displayed in UI
 

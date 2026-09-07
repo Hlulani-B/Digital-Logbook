@@ -43,9 +43,7 @@ describe('ActivityLog', () => {
       // Should not throw
       await ActivityLog.log('a@b.com', 'PROJECT_CREATED', 'project', 'MyProject');
 
-      expect(console.error).toHaveBeenCalledWith(
-        '[activityLog] Exception:', 'Network failure'
-      );
+      expect(console.error).toHaveBeenCalledWith('[activityLog] Exception:', 'Network failure');
     });
   });
 

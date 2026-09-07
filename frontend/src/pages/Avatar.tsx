@@ -1,63 +1,60 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { updateAvatar } from '../functions/profile/profile.js';
 
-
-
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { updateAvatar } from "../functions/profile/profile.js";
- 
 // Preset avatar options (DiceBear "identicon" / "shapes" style seeds)
 const AVATAR_OPTIONS = [
   // Women (10 Avatars)
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Bella&backgroundColor=ffd6e8",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Rosa&backgroundColor=ffe0f0",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Luna&backgroundColor=f3d9fa",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia&backgroundColor=ffe4ec",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Ivy&backgroundColor=fbe4ff",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco&backgroundColor=ffe9f3",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Daisy&backgroundColor=ffd1dc",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Chloe&backgroundColor=f3c5ff",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Ruby&backgroundColor=ffe3ec",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=RetroGirl&backgroundColor=fbbf24",
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella&backgroundColor=ffd6e8',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Rosa&backgroundColor=ffe0f0',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Luna&backgroundColor=f3d9fa',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Mia&backgroundColor=ffe4ec',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Ivy&backgroundColor=fbe4ff',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Coco&backgroundColor=ffe9f3',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Daisy&backgroundColor=ffd1dc',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Chloe&backgroundColor=f3c5ff',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Ruby&backgroundColor=ffe3ec',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=RetroGirl&backgroundColor=fbbf24',
 
   // Boys (10 Avatars)
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&backgroundColor=c084fc",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Ethan&backgroundColor=60a5fa",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Liam&backgroundColor=34d399",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Noah&backgroundColor=fbbf24",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mason&backgroundColor=f87171",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Lucas&backgroundColor=38bdf8",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Oliver&backgroundColor=a78bfa",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Aiden&backgroundColor=4ade80",
-  "https://api.dicebear.com/7.x/open-peeps/svg?seed=PixelSam&backgroundColor=f87171",
-  "https://api.dicebear.com/7.x/open-peeps/svg?seed=GameBoy&backgroundColor=34d399",
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&backgroundColor=c084fc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Ethan&backgroundColor=60a5fa',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Liam&backgroundColor=34d399',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Noah&backgroundColor=fbbf24',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Mason&backgroundColor=f87171',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Lucas&backgroundColor=38bdf8',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Oliver&backgroundColor=a78bfa',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Aiden&backgroundColor=4ade80',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=PixelSam&backgroundColor=f87171',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=GameBoy&backgroundColor=34d399',
 
   // Queer, Trans Women & Non-Binary (10 Avatars)
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=River&backgroundColor=f472b6",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Soren&backgroundColor=a855f7",
-  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Kai&backgroundColor=fb7185",
-  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Rowan&backgroundColor=38bdf8",
-  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Quinn&backgroundColor=c084fc",
-  "https://api.dicebear.com/7.x/open-peeps/svg?seed=Alex&backgroundColor=facc15",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Eden&backgroundColor=f43f5e",
-  "https://api.dicebear.com/7.x/lorelei/svg?seed=Jules&backgroundColor=818cf8",
-  "https://api.dicebear.com/7.x/big-ears/svg?seed=CyberPunk&backgroundColor=60a5fa",
-  "https://api.dicebear.com/7.x/big-ears/svg?seed=8BitHero&backgroundColor=a78bfa"
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=River&backgroundColor=f472b6',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Soren&backgroundColor=a855f7',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=Kai&backgroundColor=fb7185',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=Rowan&backgroundColor=38bdf8',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=Quinn&backgroundColor=c084fc',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=Alex&backgroundColor=facc15',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Eden&backgroundColor=f43f5e',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=Jules&backgroundColor=818cf8',
+  'https://api.dicebear.com/7.x/big-ears/svg?seed=CyberPunk&backgroundColor=60a5fa',
+  'https://api.dicebear.com/7.x/big-ears/svg?seed=8BitHero&backgroundColor=a78bfa',
 ];
 interface AvatarPageProps {
   currentAvatar?: string;
   onUpdated?: (avatarUrl: string) => void;
 }
- 
+
 export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
   const { user } = useAuth();
-  const email = user?.email || "";
+  const email = user?.email || '';
   const navigate = useNavigate();
   const [selected, setSelected] = useState(currentAvatar || AVATAR_OPTIONS[0]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
- 
+
   const handleSelect = async (avatarUrl: string) => {
     if (!email || saving) return;
     setSelected(avatarUrl);
@@ -70,14 +67,14 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
       setSuccess(true);
       onUpdated?.(avatarUrl);
       setTimeout(() => setSuccess(false), 2000);
-      navigate("/tone-setup");
+      navigate('/tone-setup');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update avatar");
+      setError(err instanceof Error ? err.message : 'Failed to update avatar');
     } finally {
       setSaving(false);
     }
   };
- 
+
   return (
     <>
       <div className="bg-mesh">
@@ -86,21 +83,25 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
       <div className="auth-container">
         <div className="glass auth-card animate-in" style={{ maxWidth: 480 }}>
           <div className="auth-logo">
-            <img src="/notebook.jpeg" alt="Digital Logbook" style={{ width: 48, height: 48, borderRadius: "14px", objectFit: "cover" }} />
+            <img
+              src="/notebook.jpeg"
+              alt="Digital Logbook"
+              style={{ width: 48, height: 48, borderRadius: '14px', objectFit: 'cover' }}
+            />
           </div>
           <h1 className="auth-title">Choose your avatar</h1>
           <p className="auth-subtitle">Pick one that represents you</p>
- 
+
           {error && <div className="auth-error">{error}</div>}
           {success && <div className="auth-success">Avatar updated!</div>}
- 
+
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))",
-              gap: "0.75rem",
-              marginTop: "0.75rem",
-              justifyContent: "center",
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))',
+              gap: '0.75rem',
+              marginTop: '0.75rem',
+              justifyContent: 'center',
             }}
           >
             {AVATAR_OPTIONS.map((avatarUrl) => {
@@ -115,16 +116,14 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
                   style={{
                     width: 64,
                     height: 64,
-                    borderRadius: "50%",
-                    overflow: "hidden",
+                    borderRadius: '50%',
+                    overflow: 'hidden',
                     padding: 0,
-                    border: isSelected
-                      ? "3px solid var(--accent)"
-                      : "3px solid transparent",
-                    background: "var(--surface)",
-                    cursor: saving ? "not-allowed" : "pointer",
+                    border: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
+                    background: 'var(--surface)',
+                    cursor: saving ? 'not-allowed' : 'pointer',
                     opacity: saving && !isSelected ? 0.6 : 1,
-                    transition: "border-color 0.15s ease, opacity 0.15s ease",
+                    transition: 'border-color 0.15s ease, opacity 0.15s ease',
                   }}
                 >
                   <img
@@ -132,7 +131,7 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
                     alt=""
                     width={64}
                     height={64}
-                    style={{ display: "block", width: "100%", height: "100%" }}
+                    style={{ display: 'block', width: '100%', height: '100%' }}
                   />
                 </button>
               );
@@ -143,4 +142,3 @@ export function AvatarPage({ currentAvatar, onUpdated }: AvatarPageProps) {
     </>
   );
 }
- 

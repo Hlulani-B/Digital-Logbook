@@ -1,0 +1,67 @@
+name: Backend Unit Tests
+
+on:
+  push:
+    branches: [main, hlulani]
+  pull_request:
+    branches: [main, hlulani]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  backend-unit-tests:
+    name: ${{ matrix.service }} Unit Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - dashboard-service
+          - profile-service
+          - project-service
+
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests (exclude integration)
+        run: npx jest --testPathIgnorePatterns="integration" --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./
+          JEST_JUNIT_OUTPUT_NAME: test-results.xml
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: ${{ matrix.service }} Unit Tests
+          path: services/${{ matrix.service }}/test-results.xml
+          reporter: jest-junit
+          fail-on-error: false
+
+      - name: Upload test results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-unit-test-results
+          path: services/${{ matrix.service }}/test-results.xml
+          retention-days: 30

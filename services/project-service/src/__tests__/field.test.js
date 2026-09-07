@@ -87,7 +87,11 @@ describe('Fields', () => {
 
       const result = await fields.getFields('a@b.com', 'entries');
 
-      expect(result).toEqual({ success: true, message: 'Fields retrieved successfully', data: mockData });
+      expect(result).toEqual({
+        success: true,
+        message: 'Fields retrieved successfully',
+        data: mockData,
+      });
     });
 
     it('should return empty array when no fields exist', async () => {

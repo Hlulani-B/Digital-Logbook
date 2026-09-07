@@ -1,26 +1,55 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/hooks/useTheme";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { SignIn } from "@/pages/SignIn";
-import { AuthCallback } from "@/pages/AuthCallback";
-import { ResetPassword } from "@/pages/ResetPassword";
-import { UpdatePassword } from "@/pages/UpdatePassword";
-import { Dashboard } from "@/pages/Dashboard";
-import { AllEntriesPage } from "@/pages/AllEntries";
-import { ArchivesPage } from "@/pages/Archives";
-import { ActivityPage } from "@/pages/Activity";
-import { CreateProfile } from "@/pages/CreateProfile";
-import { AvatarPage } from "@/pages/Avatar";
-import { ToneSetup } from "@/pages/ToneSetup";
-import { ThemeSetup } from "@/pages/ThemeSetup";
-import { FrequencySetup } from "@/pages/FrequencySetup";
-import { ProjectsPage } from "@/pages/Project";
-import { StatsView } from "@/pages/StatsView";
-import { StreakView } from "@/pages/StreakView";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/hooks/useTheme';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { syncAllData } from '@/CacheFunctions';
+import { SignIn } from '@/pages/SignIn';
+import { AuthCallback } from '@/pages/AuthCallback';
+import { AuthRestore } from '@/pages/AuthRestore';
+import { ResetPassword } from '@/pages/ResetPassword';
+import { UpdatePassword } from '@/pages/UpdatePassword';
+import { Dashboard } from '@/pages/Dashboard';
+import { AllEntriesPage } from '@/pages/AllEntries';
+import { ArchivesPage } from '@/pages/Archives';
+import { ActivityPage } from '@/pages/Activity';
+import { CreateProfile } from '@/pages/CreateProfile';
+import { AvatarPage } from '@/pages/Avatar';
+import { ToneSetup } from '@/pages/ToneSetup';
+import { ThemeSetup } from '@/pages/ThemeSetup';
+import { FrequencySetup } from '@/pages/FrequencySetup';
+import { ProjectsPage } from '@/pages/Project';
+import { ProjectDetailPage } from '@/pages/ProjectDetailPage';
+import { StatsView } from '@/pages/StatsView';
+import { StreakView } from '@/pages/StreakView';
+import { CalendarPage } from '@/pages/Calendar';
+import { KanbanPage } from '@/pages/Kanban';
+import { TodayPage } from '@/pages/Today';
+import { TimelinePage } from '@/pages/Timeline';
+import DataPortability from '@/pages/DataPortability';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
+  return <>{children}</>;
+}
+
+/**
+ * DataSyncInitializer — triggers a full IndexedDB sync when the user logs in.
+ * This warms up the local cache so all pages can read from IndexedDB immediately.
+ */
+function DataSyncInitializer({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const email = user?.email;
+
+  useEffect(() => {
+    if (email) {
+      // Fire-and-forget: sync all data from server → IndexedDB
+      syncAllData(email).catch((err) => {
+        console.warn('[App] Initial data sync failed:', err);
+      });
+    }
+  }, [email]);
+
   return <>{children}</>;
 }
 
@@ -31,21 +60,16 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
       <>
         <div className="bg-mesh" />
         <div className="auth-container">
-          <div className="glass auth-card" style={{ textAlign: "center" }}>
+          <div className="glass auth-card" style={{ textAlign: 'center' }}>
             <div
-              className="animate-spin"
+              className="animate-spin spinner-circle"
               style={{
                 width: 32,
                 height: 32,
-                margin: "0 auto 1rem",
-                borderRadius: "50%",
-                border: "3px solid var(--border)",
-                borderTopColor: "var(--accent)",
+                margin: '0 auto 1rem',
               }}
             />
-            <p style={{ fontSize: "0.875rem", color: "var(--text-dim)" }}>
-              Loading...
-            </p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-dim)' }}>Loading...</p>
           </div>
         </div>
       </>
@@ -62,136 +86,200 @@ export function App() {
     <BrowserRouter>
       <ThemeInitializer>
         <AuthProvider>
-        <Routes>
-          <Route
-            path="/"
-            element={<Navigate to="/signin" replace />}
-          />
-          <Route
-            path="/signin"
-            element={
-              <PublicRoute>
-                <SignIn />
-              </PublicRoute>
-            }
-          />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route
-            path="/reset-password"
-            element={
-              <PublicRoute>
-                <ResetPassword />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/auth/update-password"
-            element={
-              <PublicRoute>
-                <UpdatePassword />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/all"
-            element={
-              <ProtectedRoute>
-                <AllEntriesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/archives"
-            element={
-              <ProtectedRoute>
-                <ArchivesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/activity"
-            element={
-              <ProtectedRoute>
-                <ActivityPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-profile"
-            element={
-              <ProtectedRoute>
-                <CreateProfile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/avatar"
-            element={
-              <ProtectedRoute>
-                <AvatarPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/tone-setup"
-            element={
-              <ProtectedRoute>
-                <ToneSetup />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/theme-setup"
-            element={
-              <ProtectedRoute>
-                <ThemeSetup />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/frequency-setup"
-            element={
-              <ProtectedRoute>
-                <FrequencySetup />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/projects"
-            element={
-              <ProtectedRoute>
-                <ProjectsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/stats"
-            element={
-              <ProtectedRoute>
-                <StatsView />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/streaks"
-            element={
-              <ProtectedRoute>
-                <StreakView />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/signin" replace />} />
-        </Routes>
-      </AuthProvider>
-    </ThemeInitializer>
-  </BrowserRouter>
+          <DataSyncInitializer>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <SignIn />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/signin"
+              element={
+                <PublicRoute>
+                  <SignIn />
+                </PublicRoute>
+              }
+            />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/restore" element={<AuthRestore />} />
+            <Route
+              path="/reset-password"
+              element={
+                <PublicRoute>
+                  <ResetPassword />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/auth/update-password"
+              element={
+                <PublicRoute>
+                  <UpdatePassword />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/all"
+              element={
+                <ProtectedRoute>
+                  <AllEntriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/entries"
+              element={
+                <ProtectedRoute>
+                  <AllEntriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/archives"
+              element={
+                <ProtectedRoute>
+                  <ArchivesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/activity"
+              element={
+                <ProtectedRoute>
+                  <ActivityPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/create-profile"
+              element={
+                <ProtectedRoute>
+                  <CreateProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/avatar"
+              element={
+                <ProtectedRoute>
+                  <AvatarPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tone-setup"
+              element={
+                <ProtectedRoute>
+                  <ToneSetup />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/theme-setup"
+              element={
+                <ProtectedRoute>
+                  <ThemeSetup />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/frequency-setup"
+              element={
+                <ProtectedRoute>
+                  <FrequencySetup />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/projects"
+              element={
+                <ProtectedRoute>
+                  <ProjectsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/project/:projectName"
+              element={
+                <ProtectedRoute>
+                  <ProjectDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/stats"
+              element={
+                <ProtectedRoute>
+                  <StatsView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/streaks"
+              element={
+                <ProtectedRoute>
+                  <StreakView />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/template" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <CalendarPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kanban"
+              element={
+                <ProtectedRoute>
+                  <KanbanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/today"
+              element={
+                <ProtectedRoute>
+                  <TodayPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/timeline"
+              element={
+                <ProtectedRoute>
+                  <TimelinePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/data-portability"
+              element={
+                <ProtectedRoute>
+                  <DataPortability />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/signin" replace />} />
+          </Routes>
+          </DataSyncInitializer>
+        </AuthProvider>
+      </ThemeInitializer>
+    </BrowserRouter>
   );
 }

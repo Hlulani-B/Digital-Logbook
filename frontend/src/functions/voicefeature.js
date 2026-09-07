@@ -1,4 +1,4 @@
-import { addNaturalLanguageEntry } from "@/functions/project/natural_language.js";
+import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 
 /**
  * Create a live speech transcriber using the browser's Web Speech API.
@@ -11,20 +11,20 @@ export function createTranscriber() {
 
   if (!SpeechRecognition) {
     throw new Error(
-      "Speech recognition is not supported in this browser. Try Chrome, Edge, or Safari."
+      'Speech recognition is not supported in this browser. Try Chrome, Edge, or Safari.'
     );
   }
 
   const recognition = new SpeechRecognition();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = "en-US";
+  recognition.lang = 'en-US';
 
-  let finalTranscript = "";
+  let finalTranscript = '';
   let resultCallback = null;
 
   recognition.onresult = (event) => {
-    let interim = "";
+    let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const t = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
@@ -39,7 +39,7 @@ export function createTranscriber() {
   };
 
   recognition.onerror = (event) => {
-    console.error("Speech recognition error:", event.error);
+    console.error('Speech recognition error:', event.error);
   };
 
   recognition.onend = () => {
@@ -48,7 +48,7 @@ export function createTranscriber() {
 
   return {
     start() {
-      finalTranscript = "";
+      finalTranscript = '';
       recognition.start();
     },
     stop() {

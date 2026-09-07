@@ -1,9 +1,19 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" width="116" height="20">
-  <linearGradient x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
-  <mask id="a"><rect width="116" height="20" rx="3" fill="#fff"/></mask>
-  <g mask="url(#a)"><path fill="#555" d="M0 0h66v20H0z"/><path fill="#e05d44" d="M66 0h50v20H66z"/><path fill="url(#b)" d="M0 0h116v20H0z"/></g>
-  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
-    <text x="33" y="15" fill="#010101" fill-opacity=".3">branches</text><text x="33" y="14">branches</text>
-    <text x="91" y="15" fill="#010101" fill-opacity=".3">52%</text><text x="91" y="14">52%</text>
+<svg width="106.6" height="20" viewBox="0 0 1066 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="branches: 52.38%">
+  <title>branches: 52.38%</title>
+  <linearGradient id="g" x2="0" y2="100%">
+    <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <mask id="m"><rect width="1066" height="200" rx="30" fill="#FFF"/></mask>
+  <g mask="url(#m)">
+    <rect width="556" height="200" fill="#555"/>
+    <rect width="510" height="200" fill="#df8a0e" x="556"/>
+    <rect width="1066" height="200" fill="url(#g)"/>
+  </g>
+  <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
+    <text x="60" y="148" textLength="456" fill="#000" opacity="0.25">branches</text>
+    <text x="50" y="138" textLength="456">branches</text>
+    <text x="611" y="148" textLength="410" fill="#000" opacity="0.25">52.38%</text>
+    <text x="601" y="138" textLength="410">52.38%</text>
   </g>
 </svg>

@@ -44,7 +44,7 @@ router.post('/activity', async (req, res) => {
     console.error('Error in POST /service/activity:', error);
     return res.status(500).json({
       error: 'Internal Server Error',
-      details: error.message
+      details: error.message,
     });
   }
 });

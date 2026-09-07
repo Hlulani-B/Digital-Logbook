@@ -2,23 +2,23 @@
 
 ## Student Details
 
-| Field | Value |
-|---|---|
-| **Name** | Nasiphi Ntontela |
-| **Student Number** | 2673619 |
-| **Project** | Codacaine — Digital Logbook |
-| **Date** | 13 August 2026 |
+| Field              | Value                                     |
+| ------------------ | ----------------------------------------- |
+| **Name**           | Nasiphi Ntontela                          |
+| **Student Number** | 2673619                                   |
+| **Project**        | Codacaine — Digital Logbook               |
+| **Date**           | 13 August 2026 (updated 3 September 2026) |
 
 ---
 
 ## AI Tool Used
 
-| Field | Value |
-|---|---|
-| **Tool** | Qoder (AI Coding Assistant integrated with VS Code) |
-| **Underlying Model** | Not disclosed by the tool |
-| **Access Method** | VS Code extension (Qoder IDE) |
-| **Session Duration** | 12–13 August 2026 (extended multi-turn session) |
+| Field                | Value                                                                         |
+| -------------------- | ----------------------------------------------------------------------------- |
+| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                           |
+| **Underlying Model** | Not disclosed by the tool                                                     |
+| **Access Method**    | VS Code extension (Qoder IDE)                                                 |
+| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026 (extended multi-turn sessions) |
 
 ---
 
@@ -39,10 +39,29 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I specified that authentication should use Supabase with Google OAuth
 - I requested GitHub be added as a second OAuth provider
 - I requested email/password sign-in and sign-up be added to support the password reset flow
-- I requested Cloudflare Turnstile CAPTCHA be integrated
+- I requested Cloudflare Turnstile CAPTCHA be integrated, and later requested it be removed from the login/auth flow
 - I directed the UI redesign ("make it look like a million bucks")
 - I requested the avatar-based profile menu and settings panel
+- I requested the profile details be displayed in a clean, non-code-like card
+- I requested the User ID be hidden from the Account tab
+- I requested a 30-day account deletion grace period with restore capability
+- I requested dynamic login page concepts (particle field, aurora ribbons) and ultimately chose to revert to the original video background
 - I identified the "Welcome back" bug for new users
+- I requested that scheduling deletion sign the user out immediately and that restoration require a secure email confirmation link
+- I directed the removal of the in-dashboard "Restore Account" button so restore only happens from the sign-in page
+- I requested email format and disposable-domain validation before sign-up/sign-in submission
+- I requested email typo detection (for example, catching gmail.comm and suggesting gmail.com)
+- I requested automatic sign-out after a period of inactivity so sessions do not stay open indefinitely
+- I requested a calendar view that places entries on their due dates, supports month/week switching, and allows dragging an entry to another day to reschedule it
+- I requested that overdue and completed entries be visually distinct on the calendar
+- I requested a Kanban board with status columns, drag-to-change-status, project and search filters, and automatic started_at/ended_at timestamps
+- I requested that a failed status write revert the dragged card to its original column
+- I requested a Today view that orders work deliberately: overdue first, then due today, then in progress
+- I requested a friendly empty state when the Today view has nothing to show
+- I requested a Timeline view with horizontal bars spanning start to due date, dependency arrows, zoom, and scroll
+- I requested that the Timeline empty state explain how to add dated tasks and dependencies
+- I requested Import & Export in JSON, CSV, and Markdown with round-trip safety and malformed-row reporting
+- I requested one-command backup/restore and versioned schema migrations with bootstrap support
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
 
@@ -50,24 +69,47 @@ I am the sole person responsible for the frontend authentication work. All featu
 
 The AI generated the following code based on my instructions:
 
-| File | Description | AI Contribution |
-|---|---|---|
-| `src/pages/SignIn.tsx` | Sign-in page with Google/GitHub OAuth, email/password, and CAPTCHA | AI generated from my requirements |
-| `src/pages/Dashboard.tsx` | Dashboard with stats, greeting, quick actions | AI generated from my requirements |
-| `src/pages/AuthCallback.tsx` | OAuth redirect handler | AI generated |
-| `src/pages/ResetPassword.tsx` | Password reset request page | AI generated |
-| `src/pages/UpdatePassword.tsx` | New password form with strength meter | AI generated |
-| `src/components/ProfileMenu.tsx` | Avatar dropdown menu | AI generated from my requirements |
-| `src/components/SettingsPanel.tsx` | Slide-out settings panel (3 tabs) | AI generated from my requirements |
-| `src/components/ProtectedRoute.tsx` | Route guard for authenticated pages | AI generated |
-| `src/context/AuthContext.tsx` | Auth state management + Supabase integration | AI generated |
-| `src/lib/supabase.ts` | Supabase client initialisation | AI generated |
-| `src/lib/api.ts` | Backend API helper with auth token | AI generated |
-| `src/App.tsx` | Router configuration with all routes | AI generated |
-| `src/index.css` | Complete premium UI stylesheet | AI generated from my design direction |
-| `index.html` | HTML entry with favicon and meta tags | AI generated |
-| `supabase/setup.sql` | SQL for delete_user() RPC function | AI generated |
-| `.env.example` | Environment variable template | AI generated |
+| File                                                        | Description                                                                          | AI Contribution                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------- |
+| `src/pages/SignIn.tsx`                                      | Sign-in page with Google/GitHub OAuth, email/password, and original video background | AI generated from my requirements     |
+| `src/pages/Dashboard.tsx`                                   | Dashboard with stats, greeting, quick actions                                        | AI generated from my requirements     |
+| `src/pages/AuthCallback.tsx`                                | OAuth redirect handler                                                               | AI generated                          |
+| `src/pages/ResetPassword.tsx`                               | Password reset request page                                                          | AI generated                          |
+| `src/pages/UpdatePassword.tsx`                              | New password form with strength meter                                                | AI generated                          |
+| `src/pages/AuthRestore.tsx`                                 | Email-link account restoration handler                                               | AI generated                          |
+| `src/components/ProfileMenu.tsx`                            | Avatar dropdown menu                                                                 | AI generated from my requirements     |
+| `src/components/SettingsPanel.tsx`                          | Slide-out settings panel (3 tabs)                                                    | AI generated from my requirements     |
+| `src/components/ProtectedRoute.tsx`                         | Route guard for authenticated pages                                                  | AI generated                          |
+| `src/components/ParticleField.tsx`                          | Interactive particle field login background concept                                  | AI generated from my direction        |
+| `src/components/AuroraRibbons.tsx`                          | Flowing aurora ribbons login background concept                                      | AI generated from my direction        |
+| `src/context/AuthContext.tsx`                               | Auth state management + Supabase integration                                         | AI generated                          |
+| `src/lib/supabase.ts`                                       | Supabase client initialisation with `getSupabase()` helper                           | AI generated                          |
+| `src/lib/api.ts`                                            | Backend API helper with auth token                                                   | AI generated                          |
+| `src/lib/validation.ts`                                     | Email format, disposable-domain, and typo-correction helpers                         | AI generated from my requirements     |
+| `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity                                             | AI generated from my requirements     |
+| `src/pages/Calendar.tsx`                                    | Month/week calendar with drag-to-reschedule                                          | AI generated from my requirements     |
+| `src/pages/Calendar.css`                                    | Calendar component styles                                                            | AI generated from my design direction |
+| `src/lib/calendar.ts`                                       | Date utilities and entry grouping for the calendar                                   | AI generated from my requirements     |
+| `src/pages/Kanban.tsx`                                      | Kanban board with drag-to-change-status                                              | AI generated from my requirements     |
+| `src/pages/Kanban.css`                                      | Kanban board styles                                                                  | AI generated from my design direction |
+| `src/lib/kanban.ts`                                         | Status grouping, filtering, and status-update helpers                                | AI generated from my requirements     |
+| `src/pages/Today.tsx`                                       | Today view with overdue/due-today/in-progress ordering                               | AI generated from my requirements     |
+| `src/pages/Today.css`                                       | Today view styles                                                                    | AI generated from my design direction |
+| `src/lib/today.ts`                                          | Date partitioning helpers for the Today view                                         | AI generated from my requirements     |
+| `src/pages/Timeline.tsx`                                    | Timeline view with bars and dependency arrows                                        | AI generated from my requirements     |
+| `src/pages/Timeline.css`                                    | Timeline styles                                                                      | AI generated from my design direction |
+| `src/lib/timeline.ts`                                       | Date resolution, row layout, and arrow geometry helpers                              | AI generated from my requirements     |
+| `src/pages/DataPortability.tsx`                             | Import & Export page with JSON, CSV, and Markdown support                            | AI generated from my requirements     |
+| `src/pages/DataPortability.css`                             | Import & Export page styles                                                          | AI generated from my design direction |
+| `src/lib/export.ts`                                         | Export serialisation helpers (JSON, CSV, Markdown)                                   | AI generated from my requirements     |
+| `src/lib/import.ts`                                         | Import parsing and validation helpers                                                | AI generated from my requirements     |
+| `src/lib/__tests__/migrations.test.ts`                      | Tests for migration files and runner structure                                       | AI generated from my requirements     |
+| `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
+| `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
+| `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |
+| `supabase/setup.sql`                                        | SQL for delete_user/restore_user/purge_deleted_users RPC functions                   | AI generated                          |
+| `supabase/migrations/004_account_deletion_grace_period.sql` | Migration for 30-day deletion grace period                                           | AI generated                          |
+| `.env.example`                                              | Environment variable template                                                        | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
 
@@ -75,21 +117,33 @@ I made all configuration decisions and directed the AI to execute the following:
 
 - **Supabase OAuth setup**: I decided to use Google and GitHub OAuth; AI provided step-by-step instructions and I performed the configuration in the Supabase dashboard
 - **Google Cloud Console**: I decided the redirect URIs; AI provided the correct values and I entered them manually
-- **Cloudflare Turnstile**: I decided to integrate CAPTCHA; AI guided the widget setup and I created the widget and provided the site key
-- **Resend SMTP**: I decided to use Resend for auth emails and configured the integration in both Resend and Supabase
+- **Cloudflare Turnstile**: I decided to integrate CAPTCHA; AI guided the widget setup and I created the widget and provided the site key. I later directed the AI to remove Turnstile from the auth UI and method signatures
+- **SMTP email provider**: I initially decided to use Resend, then switched to **Brevo** for auth emails. I configured the integration in both Brevo and Supabase
 - **Gitea push**: I directed the branch strategy; AI initialised the git repo, created the .gitignore, and executed the push under my supervision
 - **Branch management**: I decided to use the Authentication branch; AI created it and cleaned up the erroneous master push
 
 ### 4. Debugging and Fixes (Collaborative)
 
-| Issue | Who Identified | Who Fixed |
-|---|---|---|
-| "Welcome back" showing for new users | Me (student) | AI (changed from useEffect to useMemo for synchronous check) |
-| Supabase permissions (couldn't edit redirect URLs) | Me (student) | AI (advised asking project admin or creating own Supabase project) |
-| Google Cloud Console redirect URIs | Me (student, asked) | AI (provided correct values) |
-| GitHub provider addition | Me (student, requested) | AI (added signInWithGitHub to AuthContext and SignIn page) |
-| Email/password auth addition | Me (student, requested) | AI (added signInWithEmail and signUpWithEmail forms to SignIn page) |
-| Reset password inaccessible from UI | Me (student, identified) | AI (added "Trouble signing in?" link and settings panel option) |
+| Issue                                                           | Who Identified                    | Who Fixed                                                                                     |
+| --------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
+| "Welcome back" showing for new users                            | Me (student)                      | AI (changed from useEffect to useMemo for synchronous check)                                  |
+| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                      | AI (advised asking project admin or creating own Supabase project)                            |
+| Google Cloud Console redirect URIs                              | Me (student, asked)               | AI (provided correct values)                                                                  |
+| GitHub provider addition                                        | Me (student, requested)           | AI (added signInWithGitHub to AuthContext and SignIn page)                                    |
+| Email/password auth addition                                    | Me (student, requested)           | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)                           |
+| Reset password inaccessible from UI                             | Me (student, identified)          | AI (added "Trouble signing in?" link and settings panel option)                               |
+| Profile details displayed as raw JSON/code                      | Me (student)                      | AI (redesigned into a clean profile summary card)                                             |
+| User ID visible in Account tab                                  | Me (student)                      | AI (removed the User ID row)                                                                  |
+| Account deletion had no grace period                            | Me (student, requested)           | AI (implemented 30-day grace period with schedule/restore/purge)                              |
+| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error)  | AI (renamed variable to `v_email`, qualified column references)                               |
+| Soft-deleted users could not sign back in cleanly               | Me (student, requested)           | AI (added auto-restore on sign-in in SignIn.tsx)                                              |
+| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)          | AI (changed `deleteAccount` to sign out, moved restore to email-link flow)                    |
+| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)           | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)                      |
+| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)           | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)                      |
+| Sessions remained signed in indefinitely on shared devices      | Me (student, requested)           | AI (added `useInactivityLogout` with 30-minute timeout)                                       |
+| No visual calendar view for entry due dates                     | Me (student, requested)           | AI (added `/calendar` page with month/week views and drag-to-reschedule)                      |
+| Rescheduling entries required editing each entry individually   | Me (student, requested)           | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)                         |
+| Calendar grid overflowed phone screens causing a visible line   | Me (student, identified on phone) | AI (added `useIsMobile()` hook, week-strip layout at ≤480px, phone breakpoints for all views) |
 
 ---
 
@@ -115,8 +169,8 @@ I am solely responsible for the frontend authentication component of this projec
 1. **Reviewed all generated code** before accepting it
 2. **Tested features manually** in the browser after each change
 3. **Made all design decisions** — directed the premium UI aesthetic, chose feature scope, and selected all third-party services
-4. **Identified bugs** — caught the "Welcome back" greeting issue and the missing reset password access
-5. **Configured external services** — manually set up Supabase providers, Google Cloud Console, Cloudflare Turnstile, and Resend SMTP
+4. **Identified bugs and feature gaps** — caught the "Welcome back" greeting issue, missing reset password access, ambiguous `user_email` error, soft-delete restore flow (including the need to sign out immediately after scheduling deletion), lack of email validation on sign-up/sign-in, and sessions remaining open indefinitely on inactive devices
+5. **Configured external services** — manually set up Supabase providers, Google Cloud Console, Cloudflare Turnstile, and **Brevo SMTP** (after switching from Resend)
 6. **Controlled deployment** — decided when and where to push code, and managed the merge into main myself
 
 ---
@@ -128,4 +182,4 @@ The AI was used as a **code generation and technical guidance tool** under my di
 ---
 
 **Signed:** Nasiphi Ntontela  
-**Date:** 13 August 2026
+**Date:** 3 September 2026

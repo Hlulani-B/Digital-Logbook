@@ -42,7 +42,10 @@ describe('Project', () => {
 
       const result = await project.addProject('a@b.com', 'My Project');
 
-      expect(result).toEqual({ success: false, message: 'A project with this name already exists for your account.' });
+      expect(result).toEqual({
+        success: false,
+        message: 'A project with this name already exists for your account.',
+      });
     });
 
     it('should return failure when db returns an error', async () => {
@@ -81,7 +84,8 @@ describe('Project', () => {
 
     it('should return failure when entries update fails', async () => {
       const mockClient = {
-        query: jest.fn()
+        query: jest
+          .fn()
           .mockResolvedValueOnce({ rows: [] }) // BEGIN
           .mockRejectedValueOnce(new Error('entries update failed')),
         release: jest.fn(),

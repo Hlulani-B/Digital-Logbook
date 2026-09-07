@@ -19,11 +19,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": ["src"],
-  "exclude": ["src/**/__tests__", "src/test"]
+  "exclude": ["src/**/__tests__", "src/**/__integration__", "src/test"]
 }

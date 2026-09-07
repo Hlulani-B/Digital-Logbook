@@ -1,4 +1,3 @@
-
 const url = import.meta.env.VITE_DASHBOARD_SERVICE_URL || "https://dashboard-service-bpc5.onrender.com";
 
 async function safeFetch(endpoint, body) {
@@ -36,9 +35,15 @@ export async function searchAll(user_email, keyword) {
 }
 
 export async function searchProject(user_email, project_name, keyword) {
-  return safeFetch('/service/search', { function: 'searchProject', values: { user_email, project_name, keyword } });
+  return safeFetch('/service/search', {
+    function: 'searchProject',
+    values: { user_email, project_name, keyword },
+  });
 }
 
 export async function searchProjects(user_email, keyword) {
-  return safeFetch('/service/search', { function: 'searchProjects', values: { user_email, keyword } });
+  return safeFetch('/service/search', {
+    function: 'searchProjects',
+    values: { user_email, keyword },
+  });
 }

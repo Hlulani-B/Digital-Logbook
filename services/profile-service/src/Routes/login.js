@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
         if (!values || !values.email) {
           return res.status(400).json({ error: 'Email value missing' });
         }
-        
+
         const result = await login.checkUser(values.email);
         return res.json(result);
       }
@@ -41,9 +41,9 @@ router.post('/login', async (req, res) => {
     }
   } catch (error) {
     console.error('Error inside POST /service/login:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

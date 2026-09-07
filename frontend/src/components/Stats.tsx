@@ -1,7 +1,9 @@
-import { useMemo, useState, useEffect } from "react";
-import { calculateTotalTimeTracked, calculateProjectStats } from "@/functions/dashboard/stats.js";
-import { askAI } from "@/functions/ai.js";
-import { getToneInstruction } from "@/functions/tone";
+import { useMemo, useState, useEffect } from 'react';
+import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
+import { useNow } from '@/hooks/useNow';
+import { askAI } from '@/functions/ai.js';
+import { getToneInstruction } from '@/functions/tone';
+import { getAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -16,18 +18,22 @@ interface StatsProps {
 
 export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsProps) {
   const [statsOpen, setStatsOpen] = useState(false);
-  const [reflection, setReflection] = useState("");
+  const [reflection, setReflection] = useState('');
+  // Defensive: ensure entries/projects are always arrays
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  const safeProjects = Array.isArray(projects) ? projects : [];
 
   // Generate AI reflection when stats panel is opened
   useEffect(() => {
     if (!statsOpen || reflection || activeProject) return;
+    if (!getAiMessagesEnabled()) return;
 
     const generateReflection = async () => {
       try {
         // Calculate quick stats
         const now = new Date();
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const recentEntries = entries.filter((e) => {
+        const recentEntries = safeEntries.filter((e) => {
           const created = new Date(e.created_at as string);
           return created >= weekAgo;
         });
@@ -39,7 +45,7 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
         });
 
         const topProject = Object.entries(projectCounts).sort((a, b) => b[1] - a[1])[0];
-        const totalEntries = entries.length;
+        const totalEntries = safeEntries.length;
         const weekEntries = recentEntries.length;
 
         // Build prompt for AI
@@ -47,26 +53,33 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
         const prompt = `Generate a brief, friendly stats reflection (under 25 words) for a user with:
 - ${totalEntries} total entries
 - ${weekEntries} entries in the past week
-- ${projects.length} projects
-${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[1]} entries)` : ""}
+- ${safeProjects.length} projects
+${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[1]} entries)` : ''}
 
 Make it insightful and encouraging. ${tone}`;
 
         const aiResult = await askAI(prompt);
-        console.log("[Stats] AI result:", aiResult);
+        console.log('[Stats] AI result:', aiResult);
         if (aiResult.success && aiResult.response) {
           // Parse AI response
           try {
             const parsed = JSON.parse(aiResult.response);
-            if (typeof parsed === "object" && parsed !== null) {
-              for (const key of ["message", "instruction", "response", "text", "content", "reply"]) {
-                if (typeof parsed[key] === "string") {
+            if (typeof parsed === 'object' && parsed !== null) {
+              for (const key of [
+                'message',
+                'instruction',
+                'response',
+                'text',
+                'content',
+                'reply',
+              ]) {
+                if (typeof parsed[key] === 'string') {
                   setReflection(parsed[key]);
                   return;
                 }
               }
               for (const val of Object.values(parsed)) {
-                if (typeof val === "string") {
+                if (typeof val === 'string') {
                   setReflection(val);
                   return;
                 }
@@ -80,19 +93,19 @@ Make it insightful and encouraging. ${tone}`;
           // Fallback if AI fails
           setReflection(
             topProject
-              ? `You've got ${totalEntries} entries across ${projects.length} projects. ${topProject[0]} is leading with ${topProject[1]} entries this week — keep it up!`
-              : `You've got ${totalEntries} entries across ${projects.length} projects. Log more this week to build momentum!`
+              ? `You've got ${totalEntries} entries across ${safeProjects.length} projects. ${topProject[0]} is leading with ${topProject[1]} entries this week — keep it up!`
+              : `You've got ${totalEntries} entries across ${safeProjects.length} projects. Log more this week to build momentum!`
           );
         }
       } catch (err) {
-        console.error("[Stats] Reflection error:", err);
+        console.error('[Stats] Reflection error:', err);
         // Fallback on error
-        const totalEntries = entries.length;
-        const topProject = projects.length > 0 ? projects[0] : null;
+        const totalEntries = safeEntries.length;
+        const topProject = safeProjects.length > 0 ? safeProjects[0] : null;
         setReflection(
           topProject
-            ? `You've got ${totalEntries} entries across ${projects.length} projects. ${(topProject as any).project_name} is your most active — nice work!`
-            : `You've got ${totalEntries} entries across ${projects.length} projects. Keep logging to build your streak!`
+            ? `You've got ${totalEntries} entries across ${safeProjects.length} projects. ${(topProject as any).project_name} is your most active — nice work!`
+            : `You've got ${totalEntries} entries across ${safeProjects.length} projects. Keep logging to build your streak!`
         );
       }
     };
@@ -100,15 +113,22 @@ Make it insightful and encouraging. ${tone}`;
     generateReflection();
   }, [statsOpen, reflection, activeProject, entries, projects]);
 
-  // Calculate total time tracked (including in-progress tasks)
+  // Detect in-progress entries so the live timer only ticks when needed.
+  const hasInProgress = useMemo(() => safeEntries.some((e) => e.started_at && !e.ended_at), [safeEntries]);
+  // Ticking timestamp — re-renders every second while a task is running,
+  // paused otherwise to avoid unnecessary work.
+  const now = useNow(1000, hasInProgress);
+
+  // Calculate total time tracked (including in-progress tasks). Passes the
+  // ticking `now` so in-progress durations count up live.
   const totalTimeTracked = useMemo(() => {
-    return calculateTotalTimeTracked(entries);
-  }, [entries]);
+    return calculateTotalTimeTracked(safeEntries, now);
+  }, [safeEntries, now]);
 
   // Per-project breakdown
   const projectStats = useMemo(() => {
-    return calculateProjectStats(entries);
-  }, [entries]);
+    return calculateProjectStats(safeEntries, now);
+  }, [safeEntries, now]);
 
   // Stats scoped to the active project
   const activeProjectStats = useMemo(() => {
@@ -118,8 +138,8 @@ Make it insightful and encouraging. ${tone}`;
 
   const activeProjectEntries = useMemo(() => {
     if (!activeProject) return [];
-    return entries.filter((e) => e.project_name === activeProject);
-  }, [entries, activeProject]);
+    return safeEntries.filter((e) => e.project_name === activeProject);
+  }, [safeEntries, activeProject]);
 
   return (
     <div className="feed-stats-box">
@@ -127,14 +147,21 @@ Make it insightful and encouraging. ${tone}`;
         <div className="feed-stats-panel">
           <div className="feed-stats-panel-header">
             <span className="feed-stats-panel-title">
-              {activeProject ? `${activeProject} — Stats` : "Quick Stats"}
+              {activeProject ? `${activeProject} — Stats` : 'Quick Stats'}
             </span>
             <button
               className="feed-stats-panel-close"
               onClick={() => setStatsOpen(false)}
               aria-label="Close stats"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -152,7 +179,7 @@ Make it insightful and encouraging. ${tone}`;
                   <span className="feed-stat-label">
                     Total Time
                     {activeProjectStats.inProgressCount > 0 && (
-                      <span style={{ fontSize: "0.7rem", opacity: 0.7, marginLeft: "0.25rem" }}>
+                      <span style={{ fontSize: '0.7rem', opacity: 0.7, marginLeft: '0.25rem' }}>
                         ({activeProjectStats.inProgressCount} in progress)
                       </span>
                     )}
@@ -162,11 +189,11 @@ Make it insightful and encouraging. ${tone}`;
             ) : (
               <>
                 <div className="feed-stat-item">
-                  <span className="feed-stat-value">{entries.length}</span>
+                  <span className="feed-stat-value">{safeEntries.length}</span>
                   <span className="feed-stat-label">Total Entries</span>
                 </div>
                 <div className="feed-stat-item">
-                  <span className="feed-stat-value">{projects.length}</span>
+                  <span className="feed-stat-value">{safeProjects.length}</span>
                   <span className="feed-stat-label">Projects</span>
                 </div>
                 <div className="feed-stat-item">
@@ -178,7 +205,7 @@ Make it insightful and encouraging. ${tone}`;
                   <span className="feed-stat-label">
                     Time Tracked
                     {totalTimeTracked.inProgressCount > 0 && (
-                      <span style={{ fontSize: "0.7rem", opacity: 0.7, marginLeft: "0.25rem" }}>
+                      <span style={{ fontSize: '0.7rem', opacity: 0.7, marginLeft: '0.25rem' }}>
                         ({totalTimeTracked.inProgressCount} in progress)
                       </span>
                     )}
@@ -196,7 +223,7 @@ Make it insightful and encouraging. ${tone}`;
                 <div key={ps.project_name} className="feed-stats-breakdown-row">
                   <span className="feed-stats-breakdown-name">{ps.project_name}</span>
                   <span className="feed-stats-breakdown-detail">
-                    {ps.display} · {ps.entryCount} entr{ps.entryCount === 1 ? "y" : "ies"}
+                    {ps.display} · {ps.entryCount} entr{ps.entryCount === 1 ? 'y' : 'ies'}
                   </span>
                 </div>
               ))}
@@ -215,12 +242,19 @@ Make it insightful and encouraging. ${tone}`;
         </div>
       ) : (
         <button className="feed-stats-btn" onClick={() => setStatsOpen(true)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <line x1="18" y1="20" x2="18" y2="10" />
             <line x1="12" y1="20" x2="12" y2="4" />
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
-          {activeProject ? "Project Stats" : "View Stats"}
+          {activeProject ? 'Project Stats' : 'View Stats'}
         </button>
       )}
     </div>

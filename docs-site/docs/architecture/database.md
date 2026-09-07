@@ -17,57 +17,61 @@ field.
 
 ## users
 
-| Column | Type | Notes |
-|---|---|---|
-| email | VARCHAR(255) | PK, NOT NULL, UNIQUE |
-| username | VARCHAR(50) | NOT NULL, UNIQUE |
-| name | VARCHAR(100) | NOT NULL |
-| avatar | TEXT | |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| deletion_scheduled_at | TIMESTAMPTZ | set when user soft-deletes their account |
-| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+| Column                | Type         | Notes                                        |
+| --------------------- | ------------ | -------------------------------------------- |
+| email                 | VARCHAR(255) | PK, NOT NULL, UNIQUE                         |
+| username              | VARCHAR(50)  | UNIQUE, nullable                             |
+| name                  | VARCHAR(100) | nullable                                     |
+| avatar                | TEXT         | nullable                                     |
+| created_at            | TIMESTAMPTZ  | default now()                                |
+| deletion_scheduled_at | TIMESTAMPTZ  | set when the user schedules account deletion |
+| deleted               | BOOLEAN      | NOT NULL default false — soft-delete flag    |
 
 ## projects
 
-| Column | Type | Notes |
-|---|---|---|
-| project_name | VARCHAR(150) | PK, NOT NULL |
-| user_email | VARCHAR(255) | NOT NULL, FK → users(email) |
-| description | TEXT | optional project description |
-| unique_name | VARCHAR(150) | unique per-user project slug |
-| archived | BOOLEAN | default false |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| created_at | TIMESTAMP | default CURRENT_TIMESTAMP |
+| Column       | Type         | Notes                                     |
+| ------------ | ------------ | ----------------------------------------- |
+| id           | BIGSERIAL    | PK, auto-generated                        |
+| project_name | VARCHAR(255) | NOT NULL                                  |
+| user_email   | VARCHAR(255) | NOT NULL, FK → users(email)               |
+| description  | TEXT         | nullable                                  |
+| archived     | BOOLEAN      | default false                             |
+| deleted      | BOOLEAN      | NOT NULL default false — soft-delete flag |
+| created_at   | TIMESTAMPTZ  | default now()                             |
+
+The pair `(user_email, project_name)` is unique, so one user cannot have two
+projects with the same name. `description` was added after the initial schema
+to let users record a short project summary.
 
 ## fields
 
-| Column | Type | Notes |
-|---|---|---|
-| id | UUID | PK, default gen_random_uuid() |
-| user_email | VARCHAR(255) | NOT NULL |
-| table_name | VARCHAR(100) | NOT NULL |
-| field_name | VARCHAR(100) | NOT NULL |
-| data_type | VARCHAR(50) | e.g. text, number, boolean, date |
-| is_required | BOOLEAN | default false |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
+| Column      | Type         | Notes                            |
+| ----------- | ------------ | -------------------------------- |
+| id          | UUID         | PK, default gen_random_uuid()    |
+| user_email  | VARCHAR(255) | NOT NULL                         |
+| table_name  | VARCHAR(100) | NOT NULL                         |
+| field_name  | VARCHAR(100) | NOT NULL                         |
+| data_type   | VARCHAR(50)  | e.g. text, number, boolean, date |
+| is_required | BOOLEAN      | default false                    |
+| deleted     | BOOLEAN      | default false — soft-delete flag |
+| created_at  | TIMESTAMPTZ  | default CURRENT_TIMESTAMP        |
 
 ## entries
 
-| Column | Type | Notes |
-|---|---|---|
-| id | UUID | PK, default gen_random_uuid() |
-| user_email | VARCHAR(255) | NOT NULL, indexed |
-| project_name | VARCHAR(255) | NOT NULL, indexed |
-| entries | JSONB | NOT NULL, dynamic field values |
-| due_date | TIMESTAMPTZ | nullable, indexed |
-| priority | priority_level (ENUM) | nullable |
-| archived | BOOLEAN | default false |
-| started_at | TIMESTAMPTZ | nullable, set when user starts a work session |
-| ended_at | TIMESTAMPTZ | nullable, set when user stops the session |
-| duration | INTERVAL | generated, `ended_at - started_at` |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
+| Column       | Type                  | Notes                                         |
+| ------------ | --------------------- | --------------------------------------------- |
+| id           | UUID                  | PK, default gen_random_uuid()                 |
+| user_email   | VARCHAR(255)          | NOT NULL, indexed                             |
+| project_name | VARCHAR(255)          | NOT NULL, indexed                             |
+| entries      | JSONB                 | NOT NULL, dynamic field values                |
+| due_date     | TIMESTAMPTZ           | nullable, indexed                             |
+| priority     | priority_level (ENUM) | nullable                                      |
+| archived     | BOOLEAN               | default false                                 |
+| started_at   | TIMESTAMPTZ           | nullable, set when user starts a work session |
+| ended_at     | TIMESTAMPTZ           | nullable, set when user stops the session     |
+| duration     | INTERVAL              | generated, `ended_at - started_at`            |
+| deleted      | BOOLEAN               | default false — soft-delete flag              |
+| created_at   | TIMESTAMPTZ           | default CURRENT_TIMESTAMP                     |
 
 ```sql
 ALTER TABLE entries
@@ -101,50 +105,54 @@ ADD COLUMN duration INTERVAL GENERATED ALWAYS AS (ended_at - started_at) STORED;
 
 ## Design rationale
 
-| Decision | Why |
-|---|---|
-| `email` as PK on `users` | Supabase Auth already identifies sessions by email rather than an internal id, so making it the PK removes a redundant surrogate key and matches how other tables already reference users |
-| `id` as `UUID` on `fields`/`entries` | These rows get referenced from the frontend and possibly across services, so UUIDs avoid leaking a guessable sequential count and avoid collisions if entries are ever created offline before syncing |
-| `projects` has no surrogate `id` | Now that `users` is keyed by `email`, `projects` doesn't need its own auto-incrementing id either — `user_email` + `project_name` is enough to identify a project without carrying an extra unused key |
-| `user_email` FK with `ON DELETE CASCADE` on `projects` | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup |
-| `user_email` directly on `fields`/`entries` (not a FK) | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email |
-| `table_name` on `fields` | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one |
-| Field definitions stored as **rows**, not columns | Avoids `ALTER TABLE` migrations every time a user adds or changes a custom field — the database structure itself never has to change |
-| `entries` stored as `JSONB` | The shape of an entry varies per user/project, so a fixed set of SQL columns can't represent it. JSONB stores the submitted values as one flexible object while staying natively indexable and queryable in Postgres |
-| `due_date` as a real column, not inside `entries` JSONB | Overdue checks need to run a fast, indexed comparison against `now()` across every row. A value buried in JSONB can't be indexed the same way, so pulling it out keeps "show me anything overdue" cheap even as entries grow |
-| `priority` as a Postgres ENUM, not inside `entries` JSONB | Priority is a fixed, small set of values shared by every project regardless of their custom fields, so it belongs alongside `due_date` as a real column rather than something the user defines per-project. An ENUM also stops bad values from ever being written, which JSONB can't guarantee |
-| `priority` nullable | Not every entry needs a priority assigned, so the column has no default and no `NOT NULL` — it's opt-in |
-| `started_at` / `ended_at` as real columns, not inside `entries` JSONB | Time tracking totals need fast, native date-math (`SUM(duration)` per project), which JSONB values can't do efficiently. Keeping them as real timestamp columns also lets `duration` be a generated column instead of something recalculated manually every time |
-| `duration` as a `GENERATED ALWAYS AS ... STORED` column | Postgres computes `ended_at - started_at` automatically whenever those two columns are set, so the app never risks the stored duration going stale or being calculated inconsistently across different code paths |
-| `started_at` / `ended_at` both nullable | Supports two logging styles: a live "start/stop" timer flow (set `started_at` immediately, `ended_at` on stop) and a manual after-the-fact entry (both set at once when saving) — neither is forced on the user |
-| Indexes on `user_email` and `project_name` | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows |
-| Index on `due_date` | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table |
-| `archived` on `projects`/`entries` | Soft-archive support lets users hide projects/entries without deleting data. Both default `false` so existing rows remain visible |
-| Indexes on `archived` | Keeps "show only active" / "show only archived" filters fast as data grows |
-| `deleted` on all tables | Soft-delete support — users can delete their account and restore it within a grace period. All related rows (entries, fields, projects, activity_log) are marked `deleted = true` instead of being hard-deleted, so the data can be recovered if the user signs back in |
-| `deletion_scheduled_at` on `users` | Records when the soft-delete happened, enabling future expiry logic (e.g. hard-delete after 30 days) |
-| `description` on `projects` | Optional free-text description so users can note what a project is about |
-| `unique_name` on `projects` | A per-user slug for URL-friendly project references |
+| Decision                                                              | Why                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `email` as PK on `users`                                              | Supabase Auth already identifies sessions by email rather than an internal id, so making it the PK removes a redundant surrogate key and matches how other tables already reference users                                                                                                      |
+| `id` as `UUID` on `fields`/`entries`                                  | These rows get referenced from the frontend and possibly across services, so UUIDs avoid leaking a guessable sequential count and avoid collisions if entries are ever created offline before syncing                                                                                          |
+| `projects` has a surrogate `id` plus a unique natural key             | A `BIGSERIAL` `id` keeps internal references simple, while the `(user_email, project_name)` unique constraint enforces the business rule that one user cannot have two projects with the same name                                                                                             |
+| `(user_email, project_name)` unique on `projects`                     | Prevents duplicate project names per user and gives the frontend a stable, human-readable identifier                                                                                                                                                                                           |
+| `description` on `projects`                                           | Added to support a short project summary shown on the dashboard and project page                                                                                                                                                                                                               |
+| `user_email` FK with `ON DELETE CASCADE` on `projects`                | If a user account is deleted, their projects have no owner and no reason to exist, so cascading avoids orphaned rows and manual cleanup                                                                                                                                                        |
+| `user_email` directly on `fields`/`entries` (not a FK)                | Keeps lookups simple at this project's scale, rather than joining through `users` every time; also matches Supabase Auth, which identifies sessions by email                                                                                                                                   |
+| `table_name` on `fields`                                              | Scopes multiple field-sets independently per user (e.g. `logbook` vs `profile`) without needing a separate physical table for each one                                                                                                                                                         |
+| Field definitions stored as **rows**, not columns                     | Avoids `ALTER TABLE` migrations every time a user adds or changes a custom field — the database structure itself never has to change                                                                                                                                                           |
+| `entries` stored as `JSONB`                                           | The shape of an entry varies per user/project, so a fixed set of SQL columns can't represent it. JSONB stores the submitted values as one flexible object while staying natively indexable and queryable in Postgres                                                                           |
+| `due_date` as a real column, not inside `entries` JSONB               | Overdue checks need to run a fast, indexed comparison against `now()` across every row. A value buried in JSONB can't be indexed the same way, so pulling it out keeps "show me anything overdue" cheap even as entries grow                                                                   |
+| `priority` as a Postgres ENUM, not inside `entries` JSONB             | Priority is a fixed, small set of values shared by every project regardless of their custom fields, so it belongs alongside `due_date` as a real column rather than something the user defines per-project. An ENUM also stops bad values from ever being written, which JSONB can't guarantee |
+| `priority` nullable                                                   | Not every entry needs a priority assigned, so the column has no default and no `NOT NULL` — it's opt-in                                                                                                                                                                                        |
+| `started_at` / `ended_at` as real columns, not inside `entries` JSONB | Time tracking totals need fast, native date-math (`SUM(duration)` per project), which JSONB values can't do efficiently. Keeping them as real timestamp columns also lets `duration` be a generated column instead of something recalculated manually every time                               |
+| `duration` as a `GENERATED ALWAYS AS ... STORED` column               | Postgres computes `ended_at - started_at` automatically whenever those two columns are set, so the app never risks the stored duration going stale or being calculated inconsistently across different code paths                                                                              |
+| `started_at` / `ended_at` both nullable                               | Supports two logging styles: a live "start/stop" timer flow (set `started_at` immediately, `ended_at` on stop) and a manual after-the-fact entry (both set at once when saving) — neither is forced on the user                                                                                |
+| Indexes on `user_email` and `project_name`                            | These are the two columns entries will constantly be filtered by (a user viewing their own logbook, scoped to one project), so indexing keeps those lookups fast as data grows                                                                                                                 |
+| Index on `due_date`                                                   | Lets the app flag overdue entries with a simple query like `WHERE due_date < now()` without scanning the whole table                                                                                                                                                                           |
+| `archived` on `projects`/`entries`                                    | Soft-archive support lets users hide projects/entries without deleting data. Both default `false` so existing rows remain visible                                                                                                                                                              |
+| Indexes on `archived`                                                 | Keeps "show only active" / "show only archived" filters fast as data grows                                                                                                                                                                                                                     |
+| `deleted` on all tables                                               | Soft-delete support — users can delete their account and restore it within a grace period. All related rows (entries, fields, projects, activity_log) are marked `deleted = true` instead of being hard-deleted, so the data can be recovered if the user signs back in                        |
+| `deletion_scheduled_at` on `users`                                    | Records when the soft-delete happened, enabling future expiry logic (e.g. hard-delete after 30 days)                                                                                                                                                                                           |
+| `description` on `projects`                                           | Optional free-text description so users can note what a project is about                                                                                                                                                                                                                       |
+| `unique_name` on `projects`                                           | A per-user slug for URL-friendly project references                                                                                                                                                                                                                                            |
 
 ## activity_log
 
-| Column | Type | Notes |
-|---|---|---|
-| id | UUID | PK, default gen_random_uuid() |
-| user_email | VARCHAR(255) | NOT NULL |
-| action | VARCHAR(50) | e.g. CREATE, UPDATE, DELETE |
-| entity_type | VARCHAR(50) | e.g. PROJECT, ENTRY |
-| entity_name | VARCHAR(150) | name of the affected entity |
-| details | JSONB | optional structured metadata |
-| deleted | BOOLEAN | default false — soft-delete flag |
-| created_at | TIMESTAMPTZ | default CURRENT_TIMESTAMP |
+| Column      | Type         | Notes                            |
+| ----------- | ------------ | -------------------------------- |
+| id          | UUID         | PK, default gen_random_uuid()    |
+| user_email  | VARCHAR(255) | NOT NULL                         |
+| action      | VARCHAR(50)  | e.g. CREATE, UPDATE, DELETE      |
+| entity_type | VARCHAR(50)  | e.g. PROJECT, ENTRY              |
+| entity_name | VARCHAR(150) | name of the affected entity      |
+| details     | JSONB        | optional structured metadata     |
+| deleted     | BOOLEAN      | default false — soft-delete flag |
+| created_at  | TIMESTAMPTZ  | default CURRENT_TIMESTAMP        |
 
 ## RPC Functions
 
 ### delete_user()
+
 Soft-deletes the authenticated user's account. Marks all related rows (entries, fields, projects, activity_log) as `deleted = true` and inserts/updates the user row with `deleted = true` and `deletion_scheduled_at = now()`. Uses `v_email` variable to avoid PL/pgSQL ambiguity with the `user_email` column name.
 
 ### restore_user()
+
 Reverses a soft-delete. Sets `deleted = false` and clears `deletion_scheduled_at` on the user row and all related rows. Called automatically when a soft-deleted user signs back in.
 
 ## Trade-off
@@ -153,3 +161,112 @@ This design trades some query complexity — values have to be interpreted
 using their corresponding `fields` definition — for schema flexibility that
 directly matches the brief's requirement to let users "customise the format"
 of their logbook.
+
+## IndexedDB (Client-Side Local Store)
+
+The frontend maintains a local IndexedDB database that mirrors the
+PostgreSQL schema. This is the **primary data source** for all UI
+rendering — pages never query the server directly. The architecture is
+local-first: reads come from IndexedDB instantly, and mutations write to
+IndexedDB before syncing to the server.
+
+**Database name:** `digital-logbook-cache`
+**Version:** 3
+**Library:** [idb](https://www.npmjs.com/package/idb) (lightweight IndexedDB wrapper)
+**Source file:** `frontend/src/lib/cache.js`
+
+### Object Stores
+
+All stores use `key` as the keyPath. Data is scoped per user by storing
+records under the user's email as the key.
+
+| Store         | Key format                     | Contents                                                                                         | Mirrors PG table |
+| ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------- |
+| `projects`    | `{email}`                      | All projects for the user. Shape: `{ success, projects: [...], key }`                           | `projects`       |
+| `entries`     | `{email}:{project_name}`       | Per-project entries. Shape: `{ success, data: [...], key }`. Also `{email}:due-soon` for computed due-soon entries | `entries`        |
+| `all-entries` | `{email}`                      | All entries across all projects. Shape: `{ success, data: [...], key }`                         | `entries`        |
+| `profile`     | `{email}`                      | User profile (username, avatar, name). Shape: `{ success, data: {...}, key }`                   | `users`          |
+| `search`      | `{email}`                      | Cached search results                                                                           | —                |
+| `archives`    | `{email}:all`                  | Archived entries and projects. Also `archived-projects:{email}` and `unarchived-projects:{email}` | `projects`/`entries` (archived) |
+| `fields`      | `{email}`                      | Custom field definitions per table                                                               | `fields`         |
+| `cache-meta`  | `{key}`                        | Timestamps for stale-while-revalidate checks. Shape: `{ key, timestamp }`                       | —                |
+
+### How Stores Map to PostgreSQL Tables
+
+```
+PostgreSQL (Supabase)           IndexedDB (Browser)
+─────────────────────────       ─────────────────────────────
+users          ──────────→      profile store
+projects       ──────────→      projects store
+entries        ──────────→      all-entries store (all rows)
+                                entries store (per-project slices)
+fields         ──────────→      fields store
+activity_log   ──────────→      (not cached — server-only)
+```
+
+### Data Flow
+
+1. **App load** — `syncAllData(email)` fetches all data from the server and populates every IndexedDB store. This runs once on login before any page renders.
+2. **Reads** — Pages read exclusively from IndexedDB via the `useCachedData` hook. No server calls during navigation.
+3. **Mutations** — Write to IndexedDB first (optimistic update), then sync to the server. On server failure, the optimistic update is rolled back.
+4. **Real-time** — SSE (Server-Sent Events) invalidate relevant cache stores when other clients make changes.
+
+### Event Subscription System
+
+Components subscribe to cache changes via `cacheSubscribe(store, key, callback)`. When `cacheSet` is called, all subscribers for that store+key are notified with the new data. This is what makes the UI reactive without polling.
+
+```javascript
+// Example: subscribe to project changes
+const unsub = cacheSubscribe('projects', email, (newProjects) => {
+  // Re-render with new projects
+});
+// Later: unsub() to clean up
+```
+
+### Key Files
+
+| File                                        | Purpose                                                    |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `frontend/src/lib/cache.js`                 | IndexedDB layer: cacheGet, cacheSet, cacheSubscribe, etc.  |
+| `frontend/src/hooks/useCachedData.js`       | React hook: reads IndexedDB, subscribes, triggers fetch    |
+| `frontend/src/CacheFunctions/syncService.js`| Central sync: populates all stores from server             |
+| `frontend/src/functions/project/entries.js` | Entry CRUD with optimistic updates and rollback            |
+| `frontend/src/functions/project/project.js` | Project CRUD with IndexedDB-first pattern                  |
+| `frontend/src/functions/profile/profile.js` | Profile fetch with IndexedDB caching                       |
+
+## Schema Migrations
+
+Database changes are tracked through versioned SQL migration files in `supabase/migrations/`, applied in filename order.
+
+### Migration Files
+
+| File                             | Purpose                                                                     |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| `001_initial_schema.sql`         | Core tables: users, projects, fields, entries, activity_log                 |
+| `002_add_unique_name.sql`        | Per-user project slugs for URL-friendly references                          |
+| `003_add_description.sql`        | Optional project descriptions                                               |
+| `004_soft_delete.sql`            | Soft-delete support with `deleted` column on all tables                     |
+| `005_add_soft_delete_column.sql` | `deletion_scheduled_at` timestamp and `delete_user()`/`restore_user()` RPCs |
+
+### CLI Commands
+
+```bash
+# Apply all pending migrations (run from project root)
+npm run db:migrate
+
+# Full database backup (data + schema)
+npm run db:backup
+
+# Restore from backup
+npm run db:restore
+```
+
+All migration scripts are in the `scripts/` directory and require the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` environment variables.
+
+### Key Files
+
+- `supabase/setup.sql` — Original full schema (for fresh installs)
+- `supabase/migrations/` — Incremental migration files
+- `scripts/backup.js` — Backup utility
+- `scripts/restore.js` — Restore utility
+- `scripts/migrate.js` — Migration runner

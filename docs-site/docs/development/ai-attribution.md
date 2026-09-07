@@ -22,10 +22,10 @@ Throughout this project, AI tooling has been used to assist with:
 
 ## AI Tools Used
 
-| Tool | Model | Purpose |
-|------|-------|---------|
-| Qoder (AI Coding Assistant) | Claude | Code generation, editing, debugging, documentation |
-| ChatGPT | GPT-4/5 | Code review, architecture discussions |
+| Tool                        | Model   | Purpose                                            |
+| --------------------------- | ------- | -------------------------------------------------- |
+| Qoder (AI Coding Assistant) | Claude  | Code generation, editing, debugging, documentation |
+| ChatGPT                     | GPT-4/5 | Code review, architecture discussions              |
 
 ## Responsibility
 

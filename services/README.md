@@ -7,41 +7,42 @@ A microservices-based digital logbook app built with React (frontend) and Node.j
 
 > Badges are auto-updated by CI on every push to `main`.
 
-| Service | Lines | Statements | Functions | Branches |
-| :--- | :---: | :---: | :---: | :---: |
-| **Project Service** | ![Lines](../badges/project-service/lines.svg) | ![Statements](../badges/project-service/statements.svg) | ![Functions](../badges/project-service/functions.svg) | ![Branches](../badges/project-service/branches.svg) |
-| **Profile Service** | ![Lines](../badges/profile-service/lines.svg) | ![Statements](../badges/profile-service/statements.svg) | ![Functions](../badges/profile-service/functions.svg) | ![Branches](../badges/profile-service/branches.svg) |
+| Service               |                      Lines                      |                        Statements                         |                        Functions                        |                       Branches                        |
+| :-------------------- | :---------------------------------------------: | :-------------------------------------------------------: | :-----------------------------------------------------: | :---------------------------------------------------: |
+| **Project Service**   |  ![Lines](../badges/project-service/lines.svg)  |  ![Statements](../badges/project-service/statements.svg)  |  ![Functions](../badges/project-service/functions.svg)  |  ![Branches](../badges/project-service/branches.svg)  |
+| **Profile Service**   |  ![Lines](../badges/profile-service/lines.svg)  |  ![Statements](../badges/profile-service/statements.svg)  |  ![Functions](../badges/profile-service/functions.svg)  |  ![Branches](../badges/profile-service/branches.svg)  |
 | **Dashboard Service** | ![Lines](../badges/dashboard-service/lines.svg) | ![Statements](../badges/dashboard-service/statements.svg) | ![Functions](../badges/dashboard-service/functions.svg) | ![Branches](../badges/dashboard-service/branches.svg) |
 
 ## Architecture
 
 This is a monorepo containing independent backend services and a React frontend. Each service runs as its own process on its own port.
-
 ```
+
 codacaine/
-├── frontend/                  # React app (Vite)
-│   └── src/
+├── frontend/ # React app (Vite)
+│ └── src/
 ├── services/
-│   ├── auth-service/          # Handles login/signup via Supabase Auth
-│   │   ├── index.js
-│   │   ├── package.json
-│   │   └── .env
-│   ├── dashboard-service/     # Cross-project summaries (dashboard only)
-│   │   ├── index.js
-│   │   ├── package.json
-│   │   └── .env
-│   ├── project-service/       # Project entries, timeline, search, stats
-│   │   ├── index.js
-│   │   ├── package.json
-│   │   └── .env
-│   └── profile-service/       # User profile management
-│       ├── index.js
-│       ├── package.json
-│       └── .env
+│ ├── auth-service/ # Handles login/signup via Supabase Auth
+│ │ ├── index.js
+│ │ ├── package.json
+│ │ └── .env
+│ ├── dashboard-service/ # Cross-project summaries (dashboard only)
+│ │ ├── index.js
+│ │ ├── package.json
+│ │ └── .env
+│ ├── project-service/ # Project entries, timeline, search, stats
+│ │ ├── index.js
+│ │ ├── package.json
+│ │ └── .env
+│ └── profile-service/ # User profile management
+│ ├── index.js
+│ ├── package.json
+│ └── .env
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md
-```
+
+````
 
 ## Prerequisites
 
@@ -56,7 +57,7 @@ codacaine/
 ```powershell
 git clone https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook.git
 cd Digital-Logbook
-```
+````
 
 ### 2. Install dependencies for each service
 
@@ -101,12 +102,12 @@ PORT=4001
 
 Use the same `SUPABASE_URL` and `SUPABASE_KEY` across all three services (shared database), but give each service a different `PORT`:
 
-| Service | Port |
-|---|---|
-| auth-service | 4001 |
+| Service           | Port |
+| ----------------- | ---- |
+| auth-service      | 4001 |
 | dashboard-service | 4002 |
-| project-service | 4003 |
-| profile-service | 4004 |
+| project-service   | 4003 |
+| profile-service   | 4004 |
 
 Get the Supabase URL and key from the team lead or Supabase project settings — do not commit these values to the repo.
 
@@ -159,4 +160,7 @@ Then open a pull request on Gitea into `main` (or `services` for backend-only wo
 
 - Project entries and their statistics stay scoped to that project (`project-service`).
 - The dashboard (`dashboard-service`) only shows cross-project summaries — it does not read individual entry tables directly.
+
+```
+
 ```

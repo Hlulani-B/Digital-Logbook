@@ -50,14 +50,14 @@ Toast notification confirms entry creation (15 s)
 The main component lives at `frontend/src/pages/VoiceFeature.tsx` and is
 rendered as a modal overlay on the Dashboard.
 
-| Responsibility | Implementation |
-|---|---|
-| Auto-start recording on mount | `useEffect` calls `startRecording()` from `useReactMediaRecorder` |
-| Recording animation | CSS keyframe `pulse-ring` — concentric circles expanding outward from a central mic icon |
-| Stop / Retry / Retake / Send buttons | `react-icons` (`FiMic`, `FiRefreshCw`, `FiSkipBack`, `FiSend`) |
-| AI prompt display | Calls `askAI()` on mount to generate a spoken prompt for the user |
-| Transcription | `getTranscript()` converts the recorded `Blob` to text via the project-service `/service/transcribe` endpoint |
-| Submit to quick add | Calls `quickAdd(transcript)` which delegates to `addNaturalLanguageEntry()` |
+| Responsibility                       | Implementation                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Auto-start recording on mount        | `useEffect` calls `startRecording()` from `useReactMediaRecorder`                                             |
+| Recording animation                  | CSS keyframe `pulse-ring` — concentric circles expanding outward from a central mic icon                      |
+| Stop / Retry / Retake / Send buttons | `react-icons` (`FiMic`, `FiRefreshCw`, `FiSkipBack`, `FiSend`)                                                |
+| AI prompt display                    | Calls `askAI()` on mount to generate a spoken prompt for the user                                             |
+| Transcription                        | `getTranscript()` converts the recorded `Blob` to text via the project-service `/service/transcribe` endpoint |
+| Submit to quick add                  | Calls `quickAdd(transcript)` which delegates to `addNaturalLanguageEntry()`                                   |
 
 ### State Machine
 
@@ -99,16 +99,16 @@ and returns the transcribed text.
 ```javascript
 export async function getTranscript(audioBlob) {
   const formData = new FormData();
-  formData.append("audio", audioBlob, "recording.webm");
+  formData.append('audio', audioBlob, 'recording.webm');
 
   const response = await fetch(`${PROJECT_URL}/service/transcribe`, {
-    method: "POST",
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
 
   const data = await response.json();
-  return data.transcript || "";
+  return data.transcript || '';
 }
 ```
 
@@ -129,10 +129,10 @@ Imported from `frontend/src/functions/ai.js`. Called when the VoiceFeature
 modal opens to give the user a contextual cue about what to say.
 
 ```javascript
-import { askAI } from "@/functions/ai.js";
+import { askAI } from '@/functions/ai.js';
 
 const prompt = await askAI(
-  "Generate a short, friendly instruction telling the user to speak a log entry or describe a new project."
+  'Generate a short, friendly instruction telling the user to speak a log entry or describe a new project.'
 );
 ```
 
@@ -167,7 +167,7 @@ AI-generated confirmation comment.
 
 ```typescript
 // In QuickEntryBar, when voice-sourced:
-setTimeout(() => setToast(""), 15000);  // 15 seconds
+setTimeout(() => setToast(''), 15000); // 15 seconds
 ```
 
 ## Recording Animation
@@ -177,41 +177,56 @@ microphone icon using CSS keyframes:
 
 ```css
 @keyframes pulse-ring {
-  0%   { transform: scale(0.8); opacity: 0.8; }
-  50%  { transform: scale(1.4); opacity: 0.2; }
-  100% { transform: scale(0.8); opacity: 0.8; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
 }
 
-.voice-recording-ring:nth-child(1) { animation: pulse-ring 2.0s ease-in-out infinite; }
-.voice-recording-ring:nth-child(2) { animation: pulse-ring 2.0s ease-in-out infinite 0.4s; }
-.voice-recording-ring:nth-child(3) { animation: pulse-ring 2.0s ease-in-out infinite 0.8s; }
+.voice-recording-ring:nth-child(1) {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+.voice-recording-ring:nth-child(2) {
+  animation: pulse-ring 2s ease-in-out infinite 0.4s;
+}
+.voice-recording-ring:nth-child(3) {
+  animation: pulse-ring 2s ease-in-out infinite 0.8s;
+}
 ```
 
 The rings use the `--accent` CSS variable so they match the active theme.
 
 ## Dependencies
 
-| Package | Purpose |
-|---|---|
-| `react-media-recorder` | Cross-browser audio capture with `Blob` output |
-| `react-icons` | Consistent icon set for Retry, Retake, Send, and Mic buttons |
+| Package                | Purpose                                                      |
+| ---------------------- | ------------------------------------------------------------ |
+| `react-media-recorder` | Cross-browser audio capture with `Blob` output               |
+| `react-icons`          | Consistent icon set for Retry, Retake, Send, and Mic buttons |
 
 ## API Endpoints
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/service/ai` | POST | Generate spoken prompt via `askAI()` |
-| `/service/transcribe` | POST | Convert audio blob to text via `getTranscript()` |
-| `/service/natural-language-entry` | POST | Create entry from transcribed text via `quickAdd()` |
+| Endpoint                          | Method | Purpose                                             |
+| --------------------------------- | ------ | --------------------------------------------------- |
+| `/service/ai`                     | POST   | Generate spoken prompt via `askAI()`                |
+| `/service/transcribe`             | POST   | Convert audio blob to text via `getTranscript()`    |
+| `/service/natural-language-entry` | POST   | Create entry from transcribed text via `quickAdd()` |
 
 ## Error Handling
 
-| Scenario | Behaviour |
-|---|---|
-| Microphone permission denied | Show inline error with a "Retry" button that re-requests permission |
-| Transcription fails | Display "Could not transcribe — try again" and allow retake |
-| Network error during quick add | Toast with error message; recording is preserved so user can retry |
-| Empty transcript | Disable Send button; prompt user to retake the recording |
+| Scenario                       | Behaviour                                                           |
+| ------------------------------ | ------------------------------------------------------------------- |
+| Microphone permission denied   | Show inline error with a "Retry" button that re-requests permission |
+| Transcription fails            | Display "Could not transcribe — try again" and allow retake         |
+| Network error during quick add | Toast with error message; recording is preserved so user can retry  |
+| Empty transcript               | Disable Send button; prompt user to retake the recording            |
 
 ## Future Enhancements
 

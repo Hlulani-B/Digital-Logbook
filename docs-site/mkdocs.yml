@@ -68,12 +68,19 @@ nav:
       - Tech Stack: architecture/teck-stack.md
       - UI Design: architecture/ui-design.md
       - Voice Recording: architecture/voice-feature.md
+      - IndexedDB Caching: architecture/caching.md
+      - SSE Real-Time Updates: architecture/sse.md
+      - Keep-Alive Daemons: architecture/daemon.md
+      - Entry Summaries: architecture/entry-summaries.md
+      - UML Architecture Diagrams: architecture/uml-diagrams.md
   - Roadmap: roadmap.md
   - Development:
       - Development Log: development/log.md
       - Methodology & Git Workflow: development/methodology.md
       - Meeting Log: development/meetings.md
       - Sprint 1 User Stories: development/user-stories.md
+      - Sprint 2 User Stories: development/sprint-2-user-stories.md
+      - Work Tracker: development/work-tracker.md
       - Stakeholder Interaction: development/stakeholder-interaction.md
       - Open Questions & Decisions: development/decisions.md
       - Issues & Troubleshooting: development/issues.md

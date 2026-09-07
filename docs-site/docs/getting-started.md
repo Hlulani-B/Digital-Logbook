@@ -20,8 +20,8 @@ local copy of the project.
    Token under **Gitea → Settings → Applications**.
 
    !!! warning
-       The token is only shown once, at creation. Copy it immediately — the
-       token *label* (e.g. "hlulani") is not the secret itself.
+   The token is only shown once, at creation. Copy it immediately — the
+   token _label_ (e.g. "hlulani") is not the secret itself.
 
 ## 2. Clone the repository
 
@@ -38,9 +38,9 @@ git remote set-url origin https://<TOKEN>@sdp.ms.wits.ac.za/codacaine/Digital-Lo
 ```
 
 !!! danger "Never commit your token"
-    The token must never be committed to a tracked file. It's stored only in
-    your local `.git/config` (which is not tracked) and, separately, in a
-    private note. Anyone holding it could push to or modify the repository.
+The token must never be committed to a tracked file. It's stored only in
+your local `.git/config` (which is not tracked) and, separately, in a
+private note. Anyone holding it could push to or modify the repository.
 
 ## 3. Set up the database
 
@@ -63,8 +63,8 @@ postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
 ```
 
 !!! tip
-    If your password contains special characters (e.g. `@`, `#`, `?`),
-    URL-encode them — otherwise `pg` will fail to parse the connection string.
+If your password contains special characters (e.g. `@`, `#`, `?`),
+URL-encode them — otherwise `pg` will fail to parse the connection string.
 
 ## 4. Configure environment variables
 
@@ -81,8 +81,8 @@ VITE_PROFILE_SERVICE_URL=http://localhost:5004
 ```
 
 !!! note "Dev mode bypass"
-    Setting `VITE_DEV_BYPASS=true` in `.env` skips Supabase auth for local
-    testing (uses a hardcoded test user). Only works in `vite dev` mode.
+Setting `VITE_DEV_BYPASS=true` in `.env` skips Supabase auth for local
+testing (uses a hardcoded test user). Only works in `vite dev` mode.
 
 ### Backend services — one `.env` per service
 
@@ -175,17 +175,17 @@ npm start
 
 ### Service ports
 
-| Service            | Default port | Description                                    |
-|--------------------|-------------|------------------------------------------------|
-| `auth-service`     | 5001        | User authentication (Supabase auth)            |
-| `dashboard-service`| 5002        | Dashboard analytics, search, stats             |
-| `project-service`  | 5003        | Projects, entries, fields, AI parsing, archives|
-| `profile-service`  | 5004        | User profiles, login check, avatar, settings   |
+| Service             | Default port | Description                                     |
+| ------------------- | ------------ | ----------------------------------------------- |
+| `auth-service`      | 5001         | User authentication (Supabase auth)             |
+| `dashboard-service` | 5002         | Dashboard analytics, search, stats              |
+| `project-service`   | 5003         | Projects, entries, fields, AI parsing, archives |
+| `profile-service`   | 5004         | User profiles, login check, avatar, settings    |
 
 !!! tip
-    You don't need all four services running to develop the frontend. At
-    minimum, `project-service` covers most entry/project CRUD. The frontend
-    will still load even if some services are unreachable.
+You don't need all four services running to develop the frontend. At
+minimum, `project-service` covers most entry/project CRUD. The frontend
+will still load even if some services are unreachable.
 
 ## 7. Run the tests
 
@@ -210,9 +210,29 @@ Contributors should check the board before starting work, move tasks as they
 progress, and ensure completed work is reflected on the board for Sprint 1
 evidence and tracking.
 
+The `auth-service` uses `SUPABASE_SERVICE_ROLE_KEY` instead of `SUPABASE_KEY`
+for privileged account operations.
+
+The frontend needs a `.env` file in `frontend/` with:
+
+```
+VITE_SUPABASE_URL=<same Supabase URL>
+VITE_SUPABASE_ANON_KEY=<Supabase anon key>
+VITE_PROJECT_SERVICE_URL=http://localhost:5003
+VITE_PROFILE_SERVICE_URL=http://localhost:5004
+```
+
+See each folder's `.env.example` for the exact variables that service expects.
+
 ## Branches
 
-- `main` — the current working branch. All new work targets `main`.
+- `main` — the default branch. All completed work is merged here.
+- Feature branches — create a branch off `main` for each feature or fix, then
+  open a merge request back into `main`.
+
+!!! tip
+Keep feature branches short-lived and focused on one change. This makes
+reviews easier and reduces merge conflicts.
 
 ## Project structure
 

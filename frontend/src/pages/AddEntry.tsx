@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { addEntry } from "../functions/project/entries.js";
-import { getFields } from "../functions/project/fields.js";
+import React, { useState, useEffect } from 'react';
+import { addEntry } from '../functions/project/entries.js';
+import { getFields } from '../functions/project/fields.js';
 
 const PRIORITY_LABELS: Record<string, string> = {
-  "0": "Urgent and important",
-  "1": "Urgent but not important",
-  "2": "Not urgent, not important",
-  "3": "No priority",
+  '0': 'Urgent and important',
+  '1': 'Urgent but not important',
+  '2': 'Not urgent, not important',
+  '3': 'No priority',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  up_next: "Up Next",
-  in_motion: "In Motion",
-  done_and_dusted: "Done & Dusted",
+  up_next: 'Up Next',
+  in_motion: 'In Motion',
+  done_and_dusted: 'Done & Dusted',
 };
 
 interface FieldDef {
@@ -29,12 +29,12 @@ interface AddEntryProps {
 }
 
 function parseFieldValue(value: string, dataType: string): unknown {
-  if (dataType === "number" || dataType === "integer" || dataType === "float") {
+  if (dataType === 'number' || dataType === 'integer' || dataType === 'float') {
     const num = Number(value);
     return isNaN(num) ? value : num;
   }
-  if (dataType === "boolean") {
-    return value === "true";
+  if (dataType === 'boolean') {
+    return value === 'true';
   }
   try {
     return JSON.parse(value);
@@ -45,16 +45,16 @@ function parseFieldValue(value: string, dataType: string): unknown {
 
 function inputTypeForDataType(dataType: string): string {
   switch (dataType) {
-    case "number":
-    case "integer":
-    case "float":
-      return "number";
-    case "date":
-      return "date";
-    case "boolean":
-      return "text";
+    case 'number':
+    case 'integer':
+    case 'float':
+      return 'number';
+    case 'date':
+      return 'date';
+    case 'boolean':
+      return 'text';
     default:
-      return "text";
+      return 'text';
   }
 }
 
@@ -62,8 +62,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 16));
-  const [priorityValue, setPriorityValue] = useState("3");
-  const [statusValue, setStatusValue] = useState("up_next");
+  const [priorityValue, setPriorityValue] = useState('3');
+  const [statusValue, setStatusValue] = useState('up_next');
   const [saving, setSaving] = useState(false);
   const [loadingFields, setLoadingFields] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,24 +78,26 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         if (!cancelled) {
           const defs: FieldDef[] = (result?.data || []).map((f: any) => ({
             field_name: f.field_name,
-            data_type: f.data_type || "text",
+            data_type: f.data_type || 'text',
             is_required: !!f.is_required,
           }));
           setFields(defs);
           // Initialize empty values for each field (booleans default to "false")
           const initial: Record<string, string> = {};
           for (const f of defs) {
-            initial[f.field_name] = f.data_type === "boolean" ? "false" : "";
+            initial[f.field_name] = f.data_type === 'boolean' ? 'false' : '';
           }
           setFieldValues(initial);
         }
       } catch (err) {
-        if (!cancelled) setError("Failed to load fields");
+        if (!cancelled) setError('Failed to load fields');
       } finally {
         if (!cancelled) setLoadingFields(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user_email, project_name]);
 
   const handleValueChange = (fieldName: string, value: string) => {
@@ -109,8 +111,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
     // Validate required fields
     for (const f of fields) {
       if (!f.is_required) continue;
-      if (f.data_type === "boolean") {
-        if (fieldValues[f.field_name] !== "true") {
+      if (f.data_type === 'boolean') {
+        if (fieldValues[f.field_name] !== 'true') {
           setError(`"${f.field_name}" is required`);
           return;
         }
@@ -127,12 +129,12 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       const entryObject: Record<string, unknown> = {};
       for (const f of fields) {
         const val = fieldValues[f.field_name];
-        if (val !== undefined && val.trim() !== "") {
+        if (val !== undefined && val.trim() !== '') {
           entryObject[f.field_name] = parseFieldValue(val, f.data_type);
         }
       }
       // Convert priority index to label (null = no priority)
-      const priorityLabel = priorityValue === "3" ? null : PRIORITY_LABELS[priorityValue];
+      const priorityLabel = priorityValue === '3' ? null : PRIORITY_LABELS[priorityValue];
 
       const result = await addEntry(
         user_email,
@@ -143,11 +145,11 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         statusValue,
         null, // started_at - set via Start Task button
         null, // ended_at - set via End Task button
-        null  // duration - calculated in Supabase
+        null // duration - calculated in Supabase
       );
 
       if (result?.success === false) {
-        throw new Error(result.message || "Failed to add entry");
+        throw new Error(result.message || 'Failed to add entry');
       }
       if (result?.error) {
         throw new Error(result.error);
@@ -155,7 +157,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
 
       onAdded?.(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add entry");
+      setError(err instanceof Error ? err.message : 'Failed to add entry');
     } finally {
       setSaving(false);
     }
@@ -188,16 +190,18 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           {fields.map((field) => (
             <div className="add-entry__field-row" key={field.field_name}>
               <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
-                {field.field_name.replace(/_/g, " ")}
+                {field.field_name.replace(/_/g, ' ')}
                 {field.is_required && <span className="add-entry__required">*</span>}
               </label>
-              {field.data_type === "boolean" ? (
+              {field.data_type === 'boolean' ? (
                 <input
                   id={`field-${field.field_name}`}
                   type="checkbox"
                   className="add-entry__field-input"
-                  checked={fieldValues[field.field_name] === "true"}
-                  onChange={(e) => handleValueChange(field.field_name, e.target.checked ? "true" : "false")}
+                  checked={fieldValues[field.field_name] === 'true'}
+                  onChange={(e) =>
+                    handleValueChange(field.field_name, e.target.checked ? 'true' : 'false')
+                  }
                   disabled={saving}
                 />
               ) : (
@@ -205,8 +209,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                   id={`field-${field.field_name}`}
                   type={inputTypeForDataType(field.data_type)}
                   className="add-entry__field-input"
-                  placeholder={`Enter ${field.field_name.replace(/_/g, " ")}`}
-                  value={fieldValues[field.field_name] || ""}
+                  placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
+                  value={fieldValues[field.field_name] || ''}
                   onChange={(e) => handleValueChange(field.field_name, e.target.value)}
                   disabled={saving}
                   required={field.is_required}
@@ -293,7 +297,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           className="add-entry__btn add-entry__btn--submit"
           disabled={saving || loadingFields}
         >
-          {saving ? "Adding..." : "Add Entry"}
+          {saving ? 'Adding...' : 'Add Entry'}
         </button>
       </div>
     </form>

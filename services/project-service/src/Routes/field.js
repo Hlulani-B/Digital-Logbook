@@ -35,19 +35,41 @@ router.post('/field', async (req, res) => {
     switch (func) {
       case 'add': {
         const { table_name, field_name, data_type, is_required } = values;
-        if (!table_name || !field_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await fields.addField(user_email, table_name, field_name, data_type, is_required);
+        if (!table_name || !field_name)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await fields.addField(
+          user_email,
+          table_name,
+          field_name,
+          data_type,
+          is_required
+        );
         if (result.success) {
-          await logActivity(user_email, 'FIELD_ADDED', 'field', field_name, { project_name: table_name, data_type, is_required });
+          await logActivity(user_email, 'FIELD_ADDED', 'field', field_name, {
+            project_name: table_name,
+            data_type,
+            is_required,
+          });
         }
         return res.json(result);
       }
       case 'edit': {
         const { table_name, field_name, data_type, is_required } = values;
-        if (!table_name || !field_name) return res.status(400).json({ error: 'Missing required parameters' });
-        const result = await fields.editField(user_email, table_name, field_name, data_type, is_required);
+        if (!table_name || !field_name)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await fields.editField(
+          user_email,
+          table_name,
+          field_name,
+          data_type,
+          is_required
+        );
         if (result.success) {
-          await logActivity(user_email, 'FIELD_EDITED', 'field', field_name, { project_name: table_name, data_type, is_required });
+          await logActivity(user_email, 'FIELD_EDITED', 'field', field_name, {
+            project_name: table_name,
+            data_type,
+            is_required,
+          });
         }
         return res.json(result);
       }
@@ -62,9 +84,9 @@ router.post('/field', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in POST /service/field:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
     });
   }
 });

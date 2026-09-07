@@ -1,0 +1,11 @@
+{
+  "name": "codacaine-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Database migration, backup, and restore scripts",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pg": "^8.16.3"
+  }
+}
