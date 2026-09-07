@@ -188,9 +188,9 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
           <button
-            className={`drawer-item ${location.pathname === '/dashboard/all' || location.pathname === '/dashboard' ? 'active' : ''}`}
+            className={`drawer-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
             onClick={() => {
-              navigate('/dashboard/all');
+              navigate('/dashboard');
               setDrawerOpen(false);
             }}
           >
@@ -353,6 +353,48 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
               <polyline points="12 6 12 12 16 14" />
             </svg>
             Today
+          </button>
+          <button
+            className={`drawer-item ${isActive('/timeline') ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/timeline');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <polyline points="8 8 12 4 16 8" />
+              <polyline points="8 16 12 20 16 16" />
+            </svg>
+            Timeline
+          </button>
+          <button
+            className={`drawer-item ${isActive('/data-portability') ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/data-portability');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Import & Export
           </button>
         </div>
 

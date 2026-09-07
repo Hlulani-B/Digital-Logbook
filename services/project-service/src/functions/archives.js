@@ -4,15 +4,24 @@ export class Archives {
   async archive_project(user_email, project_name) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
+      // Archive the project AND all its entries in one transaction
+      await pool.query('BEGIN');
       await pool.query(
         `UPDATE projects SET archived = true
          WHERE user_email = $1 AND project_name = $2`,
         [user_email, project_name]
       );
+      await pool.query(
+        `UPDATE entries SET archived = true
+         WHERE user_email = $1 AND project_name = $2`,
+        [user_email, project_name]
+      );
+      await pool.query('COMMIT');
 
-      console.log('Project archived successfully');
+      console.log('Project and its entries archived successfully');
       return { success: true, message: 'Project archived successfully' };
     } catch (error) {
+      await pool.query('ROLLBACK').catch(() => {});
       console.log(error);
       return { success: false, message: error.message };
     }
@@ -21,15 +30,24 @@ export class Archives {
   async unarchive_project(user_email, project_name) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
+      // Unarchive the project AND all its entries in one transaction
+      await pool.query('BEGIN');
       await pool.query(
         `UPDATE projects SET archived = false
          WHERE user_email = $1 AND project_name = $2`,
         [user_email, project_name]
       );
+      await pool.query(
+        `UPDATE entries SET archived = false
+         WHERE user_email = $1 AND project_name = $2`,
+        [user_email, project_name]
+      );
+      await pool.query('COMMIT');
 
-      console.log('Project unarchived successfully');
+      console.log('Project and its entries unarchived successfully');
       return { success: true, message: 'Project unarchived successfully' };
     } catch (error) {
+      await pool.query('ROLLBACK').catch(() => {});
       console.log(error);
       return { success: false, message: error.message };
     }

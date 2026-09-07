@@ -442,6 +442,32 @@ export function getDate(text) {
     return { dueDate, cleanedText: cleaned.trim() };
   }
 
+  // ── 5b. "X days/weeks from now" ──
+  const xFromNowMatch = cleaned.match(/\b(\d+|a|an)\s+(day|days|week|weeks)\s+from\s+now\b/);
+  if (xFromNowMatch) {
+    const num = xFromNowMatch[1] === 'a' || xFromNowMatch[1] === 'an' ? 1 : parseInt(xFromNowMatch[1], 10);
+    const unit = xFromNowMatch[2];
+    const daysToAdd = unit.startsWith('week') ? num * 7 : num;
+    dueDate = toISODate(addDays(today, daysToAdd));
+    cleaned = cleaned.replace(xFromNowMatch[0], '');
+    return { dueDate, cleanedText: cleaned.trim() };
+  }
+
+  // ── 5c. "X days/weeks from [day name]" e.g. "2 days from friday" ──
+  for (let i = 0; i < DAY_NAMES.length; i++) {
+    const xFromDayMatch = cleaned.match(new RegExp(`\\b(\\d+|a|an)\\s+(day|days|week|weeks)\\s+from\\s+${DAY_NAMES[i]}\\b`));
+    if (xFromDayMatch) {
+      const num = xFromDayMatch[1] === 'a' || xFromDayMatch[1] === 'an' ? 1 : parseInt(xFromDayMatch[1], 10);
+      const unit = xFromDayMatch[2];
+      const offsetDays = unit.startsWith('week') ? num * 7 : num;
+      // Find the next occurrence of the named day, then add the offset
+      const baseDate = nextDay(today, i);
+      dueDate = toISODate(addDays(baseDate, offsetDays));
+      cleaned = cleaned.replace(xFromDayMatch[0], '');
+      return { dueDate, cleanedText: cleaned.trim() };
+    }
+  }
+
   // ── 6. "next monday", "next tuesday", etc. (check BEFORE bare day names) ──
   for (let i = 0; i < DAY_NAMES.length; i++) {
     const regex = new RegExp(`\\bnext\\s+${DAY_NAMES[i]}\\b`);
@@ -611,15 +637,19 @@ If the entry has no real content, use the project name as the summary.`;
       const today = toISODate(new Date());
 
       const commentInstruction = calculatedDate
-        ? `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly message they'll read on screen — 1-2 sentences, casual and warm, like a text from a friend. NEVER say "The user" — talk TO them directly.\n- CORRECT: "Skydiving and cooking lessons — both sorted! Created new projects for each."\n- WRONG: "The user wants to engage in two distinct activities. I created new projects for each activity."\n- CORRECT: "Added to WebApp — looks like a solid bug fix."\n- WRONG: "The user mentioned a bug fix so I added it to the WebApp project."\nIf matched=1: "Added to [project] — [friendly comment]." If matched=0: "Created [project] and added your first entry — [friendly comment]." If matched=2: "Created [project] for you — [friendly comment]." If matched=3: briefly say what was added in a natural way.`
-        : `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly message they'll read on screen — 2-3 sentences, casual and warm. Let them know no due date was set. NEVER say "The user" — talk TO them directly.\n- CORRECT: "Added to WebApp — nice bug fix! Didn't catch a due date though, so it's blank for now. You can edit it later."\n- WRONG: "The user wants to fix a bug in WebApp. I added the entry but no due date was set."\nIf matched=1: "Added to [project] — [friendly comment]. No due date picked up, feel free to edit." If matched=0: "Created [project] — [friendly comment]. No due date set, you can add one later." If matched=2: "Created [project] for you — [friendly comment]." If matched=3: briefly say what was added and mention no due date.`;
+        ? `The "comment" field is a DIRECT MESSAGE shown to the user as a notification on screen. You MUST write 5-8 full sentences — this is NOT optional. Write like a warm, thoughtful friend texting them back. NEVER say "The user" — talk TO them directly using "you" and "your". You MUST mention the specific project name by name. You MUST acknowledge the specific task they described. You MUST add a genuine, thoughtful remark about the work itself — not generic filler. If matched=0 (new project created), you MUST explain: (1) what the new project is called, (2) why you chose that specific name instead of a generic one, (3) what custom fields you set up and why, (4) encourage them to keep logging entries there. If matched=1 (existing project), you MUST explain: (1) which project it was added to, (2) what the entry contains, (3) a thoughtful remark about the work. NEVER write anything vague like "Added your entry" or "Created a project" — always be specific and detailed.\n- CORRECT (5+ sentences): "Added to WebApp — that login page fix sounds like it was much needed! Bug fixes on auth flows are always satisfying because users feel the impact immediately. I didn't catch a due date in your text though, so it's left blank for now — you can always edit the entry to add one when you know the deadline. Keep those fixes coming!"\n- WRONG (too short/vague): "Added to WebApp. Nice bug fix."\n- WRONG (talking about 'the user'): "The user mentioned a bug fix so I added it to the WebApp project."\n- CORRECT for new project (5+ sentences): "Created 'Backend API Refactor' for you — I chose this name because your entry specifically mentions refactoring the REST endpoints, which is distinct from your other projects. I set up fields like 'endpoint_name' and 'refactor_type' so future entries will have meaningful structure. This kind of work deserves its own space rather than being lumped into a generic bucket. Feel free to log more refactoring work there!"\n- WRONG for new project (too generic): "Created a new project and added your entry."`
+        : `The "comment" field is a DIRECT MESSAGE shown to the user as a notification on screen. You MUST write 6-10 full sentences — this is NOT optional. Write like a warm, thoughtful friend texting them back. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", "in 3 days", "2 days from now", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. NEVER say "The user" — talk TO them directly using "you" and "your". You MUST mention the specific project name by name. You MUST acknowledge the specific task they described. You MUST add a genuine, thoughtful remark about the work itself — not generic filler. If matched=0 (new project created), you MUST explain: (1) what the new project is called, (2) why you chose that specific name instead of a generic one, (3) what custom fields you set up and why, (4) encourage them to keep logging entries there. If matched=1 (existing project), you MUST explain: (1) which project it was added to, (2) what the entry contains, (3) a thoughtful remark about the work.\n- CORRECT (6+ sentences): "Added to WebApp — that login page fix sounds like it was much needed! Bug fixes on auth flows are always satisfying because users feel the impact immediately. I didn't catch a due date in your text though, since you didn't mention anything like 'today', 'tomorrow', or a specific day. No worries though — you can always edit the entry later to add a deadline when you know it. The entry is safely logged and you can come back to set the date whenever it makes sense. Keep up the good work!"\n- WRONG (too short/vague): "Added to WebApp. No due date set."\n- WRONG (talking about 'the user'): "The user wants to fix a bug in WebApp. I added the entry but no due date was set."\n- CORRECT for new project (6+ sentences): "Created 'Backend API Refactor' for you — I chose this name because your entry specifically mentions refactoring the REST endpoints, which is quite different from your other projects like WebApp or MobileApp. I set up custom fields like 'endpoint_name' and 'refactor_type' so that future refactoring entries will have proper structure and be easy to find later. This kind of focused work really deserves its own dedicated space rather than being thrown into a generic 'Tasks' or 'Work' bucket. I didn't pick up a due date from your text, so it's unset for now — but you can always edit it later when you have a deadline in mind. Feel free to keep logging your refactoring progress there!"\n- WRONG for new project (too generic): "Created a new project and added your entry. No due date set."`;
 
-      const prompt = `Parse this log entry into JSON. Today is ${today}.
+      const projectListInfo = projectsWithFields.length > 0
+        ? JSON.stringify(projectsWithFields)
+        : '(none — the user has no projects yet)';
 
-Existing projects with fields:
-${JSON.stringify(projectsWithFields)}
+      const prompt = `You are parsing a quick natural-language log entry into structured data. Today is ${today}.
 
-Entry: "${cleanedText}"
+User's existing projects:
+${projectListInfo}
+
+Entry to parse: "${cleanedText}"
 
 === STEP 0: UNDERSTAND THE INPUT (CRITICAL) ===
 Read the ENTIRE user input carefully. PARAPHRASE neatly into clear, well-written task descriptions.
@@ -654,13 +684,69 @@ DO NOT split these (single activity):
 
 HARD RULE: If two activities would naturally belong to DIFFERENT projects/categories, they MUST be separate. NEVER create combined project names like "Gym and Cooking" — that is WRONG.
 
-=== STEP 3: PROJECT MATCHING RULES (STRICT) ===
-- If you are UNSURE which existing project a task belongs to, DO NOT GUESS.
-- Instead, create a NEW project for that task (use matched=3 with "new" array).
-- In your comment, explain: "I wasn't sure which project this belonged to, so I created a new one."
-- If the task mentions a project name EXPLICITLY (e.g., "for WebApp"), use that project.
-- If the task is VAGUE and could fit multiple projects, create a NEW project.
-- GUESSING IS FORBIDDEN. When in doubt, create new.
+=== STEP 3: PROJECT MATCHING RULES (EXTREMELY STRICT — READ CAREFULLY) ===
+STOP AND THINK before matching. Most entries should NOT be matched to existing projects. Creating a new project is ALWAYS better than a wrong match.
+
+MATCHING CHECKLIST — you MUST do ALL of these before setting matched=1:
+1. Read the entry text carefully. What is the SPECIFIC subject matter?
+2. For EACH existing project, ask: "Is this entry CLEARLY about the same domain/topic/work area as this project?"
+3. A match is ONLY valid when the entry's core subject directly overlaps with the project's purpose. Sharing a single keyword is NOT enough.
+4. If you have ANY doubt, DO NOT MATCH. Create a new project instead.
+
+CONCRETE EXAMPLES OF WRONG MATCHES (NEVER DO THESE):
+- Entry: "fix the login page bug" → WRONG to match project "Marketing" (both involve websites but are completely different work)
+- Entry: "write unit tests for the API" → WRONG to match project "Documentation" (both are technical but different activities)
+- Entry: "buy groceries" → WRONG to match project "Cooking" (buying ingredients ≠ cooking a meal)
+- Entry: "call the dentist" → WRONG to match project "Gym" (both are health-related but completely different)
+- Entry: "read chapter 5" → WRONG to match project "Thesis" unless the project is specifically about reading/studying that book
+
+CONCRETE EXAMPLES OF CORRECT MATCHES:
+- Entry: "fix login page redirect bug" → CORRECT to match project "WebApp" (if WebApp is about web development and the bug is clearly about the web app)
+- Entry: "write thesis introduction" → CORRECT to match project "Thesis" (directly about writing the thesis)
+- Entry: "run 5km" → CORRECT to match project "Fitness" or "Running" (if such a project exists)
+
+RULE: When in doubt, ALWAYS prefer matched=0 or matched=3 (create new project) over a wrong match. A wrong match corrupts the user's project data. A new project is always fixable and never destructive.
+
+=== STEP 3b: NEW PROJECT CREATION RULES (EXTREMELY STRICT) ===
+When creating a new project, the name MUST be SPECIFIC, DESCRIPTIVE, and DIRECTLY RELATED to the entry content. Think of the project name as a label you'll see hundreds of times — it must immediately tell you what kind of work lives there.
+
+NAMING RULES:
+- The project name MUST describe the SPECIFIC type of work in the entry. NOT a broad category.
+- Extract the core activity/topic from the entry and build the name around that.
+- If the entry says "refactor the REST API endpoints", the project should be called something like "REST API Refactor" — NOT "Work" or "Tasks" or "Development".
+- If the entry says "buy groceries for the week", the project should be "Weekly Grocery Run" — NOT "Errands" or "Shopping".
+
+BANNED PROJECT NAMES — NEVER use any of these (or anything similar):
+"General", "Tasks", "Task", "Project", "New Project", "Misc", "Miscellaneous", "Other", "Work", "Personal", "Life", "Stuff", "Things", "Activity", "Activities", "Daily", "Routine", "Random", "Notes", "Todo", "Todos", "Items", "Entries", "Log", "Journal", "Category", "Uncategorized", "Default", "Temp", "Temporary"
+
+GOOD PROJECT NAMES (use these as inspiration):
+- "Backend API Refactor" — specific to the work described
+- "Client Website Redesign" — names the client and the activity
+- "Thesis Chapter 3 Research" — names the exact chapter and type of work
+- "Grocery Shopping Errands" — specific activity
+- "Kitchen Experiment" — creative and specific
+- "Dentist Appointment" — specific event
+- "Morning Run Club" — specific recurring activity
+
+BAD PROJECT NAMES (NEVER create these):
+- "Work" ← too generic, could mean anything
+- "Tasks" ← catch-all bucket, meaningless
+- "Project" ← literally just the word project
+- "Personal" ← too broad, what KIND of personal work?
+
+FIELD RULES:
+- Set "new_fields" as an array of 1-3 field definitions shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Fields MUST capture meaningful details specific to this type of work — NOT generic metadata like "notes", "info", "details", or "description".
+- Think: "What would someone want to know about THIS TYPE of work when reading the log later?"
+- For "REST API Refactor": fields like "endpoint_name", "refactor_type", "breaking_change"
+- For "Grocery Shopping": fields like "store", "budget", "items_category"
+- For "Dentist Appointment": fields like "reason", "follow_up_needed"
+- Set "fields" as an object of field_name:value pairs filled in from the entry text, matching the field_names in new_fields.
+- NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are built-in columns on every entry.
+
+PRIORITY: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
+DO NOT include a "due_date" field in your response — the system handles dates separately.
+
+${commentInstruction}
 
 === STEP 4: MATCHED VALUES ===
 - matched=0: Single task, NO existing project matches. Create ONE new project + entry.
@@ -702,6 +788,16 @@ Sometimes the user's input may be incomplete, garbled, or nonsensical (e.g., "I 
 
 === STEP 7: RESPONSE FORMAT ===
 IMPORTANT: Replace "task" with a MEANINGFUL field name (see Step 5). Never use "field" as a key.
+
+=== FINAL CHECK BEFORE RESPONDING (MANDATORY) ===
+Before you output your JSON, verify ALL of these:
+□ Did I write a comment that is at least 5 sentences long? If not, REWRITE it.
+□ Does my comment mention the project name by name? If not, ADD it.
+□ Does my comment speak directly to the user ("you", "your")? If I used "the user", REWRITE.
+□ Is my project name SPECIFIC and descriptive? If it's a generic word like "Work", "Tasks", or "General", RENAME it.
+□ Am I matching to an existing project ONLY because the entry is CLEARLY about the same domain? If I'm guessing, SWITCH to matched=0 or matched=3.
+□ Do the field values read as clean, well-written descriptions (not raw copy-paste from user input)?
+□ Did I avoid first-person pronouns (I, my, me) in field values?
 If matched=0: {"matched":0,"project":"NewProjectName","fields":{"task":"Paraphrased description"},"new_fields":[{"field_name":"task","data_type":"text","is_required":false}],"priority":null,"comment":"Your reasoning here..."}
 If matched=1: {"matched":1,"project":"ExistingProjectName","fields":{"task":"Paraphrased description"},"priority":null,"comment":"Your reasoning here..."}
 If matched=2: {"matched":2,"project":"NewProjectName","new_fields":[],"fields":{},"priority":null,"comment":"Your reasoning here..."}
@@ -718,6 +814,7 @@ RULES:
 - DO NOT include a "due_date" field — the system handles dates separately.
 - ${commentInstruction}
 - In your comment, EXPLAIN your reasoning: what the user meant, why you split tasks the way you did, why you chose certain projects, why you created new ones when unsure, and if you left out any part of the input, explain WHY it was nonsense/incomplete.
+- REMEMBER: Your comment MUST be at least 5 sentences. Your project name MUST be specific. Your match MUST be correct — never guess.
 
 Respond with ONLY this JSON, nothing else:`;
 

@@ -10,6 +10,12 @@ const THEME_OPTIONS: { value: Theme; label: string; color: string; bg: string }[
   { value: 'purple', label: 'Pale Lilac', color: '#4a3660', bg: '#f3e5f5' },
   { value: 'green', label: 'Sage Mist', color: '#2e4a3e', bg: '#e8f5e9' },
   { value: 'brown', label: 'Soft Tan', color: '#4e3b2a', bg: '#efebe9' },
+  { value: 'navy', label: 'Navy', color: '#8fa4c4', bg: '#0f1a2e' },
+  { value: 'darkpurple', label: 'Dark Plum', color: '#b8a0d0', bg: '#1a1028' },
+  { value: 'coffee', label: 'Coffee', color: '#c8b090', bg: '#1e1610' },
+  { value: 'oled', label: 'True Black', color: '#a0a0a0', bg: '#000000' },
+  { value: 'teal', label: 'Dark Teal', color: '#7eb8b0', bg: '#0a1e1e' },
+  { value: 'solarized', label: 'Solarized', color: '#93a1a1', bg: '#002b36' },
 ];
 
 const FONT_OPTIONS: { value: string; label: string; family: string }[] = [

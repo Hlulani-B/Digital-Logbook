@@ -621,6 +621,12 @@ export function SettingsPanel({
                     <option value="purple">Pale Lilac</option>
                     <option value="green">Sage Mist</option>
                     <option value="brown">Soft Tan</option>
+                    <option value="navy">Navy</option>
+                    <option value="darkpurple">Dark Plum</option>
+                    <option value="coffee">Coffee</option>
+                    <option value="oled">True Black (OLED)</option>
+                    <option value="teal">Dark Teal</option>
+                    <option value="solarized">Solarized Dark</option>
                   </select>
                   <p className="field-hint">Choose how the logbook looks to you.</p>
                 </div>

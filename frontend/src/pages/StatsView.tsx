@@ -14,23 +14,12 @@ import { syncAllData, computeDueSoon } from '@/CacheFunctions';
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
 
-const CHART_COLORS = [
-  '#6366f1',
-  '#ec4899',
-  '#f59e0b',
-  '#10b981',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ef4444',
-  '#14b8a6',
-  '#f97316',
-  '#06b6d4',
-  '#84cc16',
-  '#a855f7',
-];
+/* Opacity levels for monochrome chart segments — uses var(--text) so it adapts to theme */
+const CHART_OPACITIES = [1, 0.7, 0.5, 0.35, 0.85, 0.6, 0.4, 0.25, 0.75, 0.55, 0.45, 0.3];
 
 function colorForIndex(i: number) {
-  return CHART_COLORS[i % CHART_COLORS.length];
+  const opacity = CHART_OPACITIES[i % CHART_OPACITIES.length];
+  return `color-mix(in srgb, var(--text) ${Math.round(opacity * 100)}%, transparent)`;
 }
 
 /* ---------- Donut Chart ---------- */
@@ -113,7 +102,8 @@ function BarChart({ data }: { data: BarDatum[] }) {
               className="bar-chart-fill"
               style={{
                 width: `${Math.max((d.value / max) * 100, 3)}%`,
-                background: `linear-gradient(90deg, ${d.color}, ${d.color}cc)`,
+                background: d.color,
+                opacity: 0.85,
               }}
             />
           </div>
@@ -130,17 +120,15 @@ function StatCard({
   value,
   label,
   sub,
-  gradient,
 }: {
   icon: React.ReactNode;
   value: string | number;
   label: string;
   sub?: string;
-  gradient: string;
 }) {
   return (
     <div className="stat-card glass">
-      <div className="stat-card-icon" style={{ background: gradient }}>
+      <div className="stat-card-icon">
         {icon}
       </div>
       <div className="stat-card-body">
@@ -308,67 +296,36 @@ export function StatsView() {
           <div className="stats-cards-grid">
             <StatCard
               icon={
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
               }
               value={entries.length}
               label="Total Entries"
-              gradient="linear-gradient(135deg, #6366f1, #818cf8)"
             />
             <StatCard
               icon={
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
               }
               value={projects.filter((p) => !p.archived).length}
               label="Active Projects"
-              gradient="linear-gradient(135deg, #10b981, #34d399)"
             />
             <StatCard
               icon={
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="12 6 12 12 16 14" />
                 </svg>
               }
               value={dueSoonCount}
               label="Due Soon"
-              gradient="linear-gradient(135deg, #f59e0b, #fbbf24)"
             />
             <StatCard
               icon={
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="20" x2="18" y2="10" />
                   <line x1="12" y1="20" x2="12" y2="4" />
                   <line x1="6" y1="20" x2="6" y2="14" />
@@ -377,7 +334,6 @@ export function StatsView() {
               value={formatDuration(totalMs)}
               label="Time Tracked"
               sub={inProgressCount > 0 ? `${inProgressCount} in progress` : undefined}
-              gradient="linear-gradient(135deg, #ec4899, #f472b6)"
             />
           </div>
 
