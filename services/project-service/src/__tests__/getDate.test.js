@@ -17,6 +17,10 @@ function expectedNextDay(dayIndex) {
   return format(nextDay(startOfDay(new Date()), dayIndex), 'yyyy-MM-dd');
 }
 
+function expectedNextDayPlusOffset(dayIndex, offsetDays) {
+  return format(addDays(nextDay(startOfDay(new Date()), dayIndex), offsetDays), 'yyyy-MM-dd');
+}
+
 function expectedEndOfMonth() {
   return format(endOfMonth(startOfDay(new Date())), 'yyyy-MM-dd');
 }
@@ -67,6 +71,63 @@ describe('getDate', () => {
       const result = getDate('in 1 day');
       expect(result.dueDate).toBe(expectedDate(1));
       expect(result.cleanedText).toBe('');
+    });
+
+    it('7a. should detect "2 days from now"', () => {
+      const result = getDate('2 days from now');
+      expect(result.dueDate).toBe(expectedDate(2));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7b. should detect "5 days from now"', () => {
+      const result = getDate('submit report 5 days from now');
+      expect(result.dueDate).toBe(expectedDate(5));
+      expect(result.cleanedText).toBe('submit report');
+    });
+
+    it('7c. should detect "a week from now"', () => {
+      const result = getDate('a week from now');
+      expect(result.dueDate).toBe(expectedDate(7));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7d. should detect "3 weeks from now"', () => {
+      const result = getDate('3 weeks from now');
+      expect(result.dueDate).toBe(expectedDate(21));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7e. should detect "1 day from now"', () => {
+      const result = getDate('1 day from now');
+      expect(result.dueDate).toBe(expectedDate(1));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7f. should detect "2 days from friday"', () => {
+      const result = getDate('2 days from friday');
+      // next friday + 2 days
+      expect(result.dueDate).toBe(expectedNextDayPlusOffset(5, 2));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7g. should detect "3 days from monday"', () => {
+      const result = getDate('3 days from monday');
+      expect(result.dueDate).toBe(expectedNextDayPlusOffset(1, 3));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7h. should detect "a week from wednesday"', () => {
+      const result = getDate('a week from wednesday');
+      // next wednesday + 7 days
+      expect(result.dueDate).toBe(expectedNextDayPlusOffset(3, 7));
+      expect(result.cleanedText).toBe('');
+    });
+
+    it('7i. should detect "2 weeks from tuesday"', () => {
+      const result = getDate('finish task 2 weeks from tuesday');
+      // next tuesday + 14 days
+      expect(result.dueDate).toBe(expectedNextDayPlusOffset(2, 14));
+      expect(result.cleanedText).toBe('finish task');
     });
   });
 

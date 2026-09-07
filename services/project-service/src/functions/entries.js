@@ -442,6 +442,32 @@ export function getDate(text) {
     return { dueDate, cleanedText: cleaned.trim() };
   }
 
+  // ── 5b. "X days/weeks from now" ──
+  const xFromNowMatch = cleaned.match(/\b(\d+|a|an)\s+(day|days|week|weeks)\s+from\s+now\b/);
+  if (xFromNowMatch) {
+    const num = xFromNowMatch[1] === 'a' || xFromNowMatch[1] === 'an' ? 1 : parseInt(xFromNowMatch[1], 10);
+    const unit = xFromNowMatch[2];
+    const daysToAdd = unit.startsWith('week') ? num * 7 : num;
+    dueDate = toISODate(addDays(today, daysToAdd));
+    cleaned = cleaned.replace(xFromNowMatch[0], '');
+    return { dueDate, cleanedText: cleaned.trim() };
+  }
+
+  // ── 5c. "X days/weeks from [day name]" e.g. "2 days from friday" ──
+  for (let i = 0; i < DAY_NAMES.length; i++) {
+    const xFromDayMatch = cleaned.match(new RegExp(`\\b(\\d+|a|an)\\s+(day|days|week|weeks)\\s+from\\s+${DAY_NAMES[i]}\\b`));
+    if (xFromDayMatch) {
+      const num = xFromDayMatch[1] === 'a' || xFromDayMatch[1] === 'an' ? 1 : parseInt(xFromDayMatch[1], 10);
+      const unit = xFromDayMatch[2];
+      const offsetDays = unit.startsWith('week') ? num * 7 : num;
+      // Find the next occurrence of the named day, then add the offset
+      const baseDate = nextDay(today, i);
+      dueDate = toISODate(addDays(baseDate, offsetDays));
+      cleaned = cleaned.replace(xFromDayMatch[0], '');
+      return { dueDate, cleanedText: cleaned.trim() };
+    }
+  }
+
   // ── 6. "next monday", "next tuesday", etc. (check BEFORE bare day names) ──
   for (let i = 0; i < DAY_NAMES.length; i++) {
     const regex = new RegExp(`\\bnext\\s+${DAY_NAMES[i]}\\b`);
@@ -611,15 +637,19 @@ If the entry has no real content, use the project name as the summary.`;
       const today = toISODate(new Date());
 
       const commentInstruction = calculatedDate
-        ? `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly message they'll read on screen — 1-2 sentences, casual and warm, like a text from a friend. NEVER say "The user" — talk TO them directly.\n- CORRECT: "Skydiving and cooking lessons — both sorted! Created new projects for each."\n- WRONG: "The user wants to engage in two distinct activities. I created new projects for each activity."\n- CORRECT: "Added to WebApp — looks like a solid bug fix."\n- WRONG: "The user mentioned a bug fix so I added it to the WebApp project."\nIf matched=1: "Added to [project] — [friendly comment]." If matched=0: "Created [project] and added your first entry — [friendly comment]." If matched=2: "Created [project] for you — [friendly comment]." If matched=3: briefly say what was added in a natural way.`
-        : `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly message they'll read on screen — 2-3 sentences, casual and warm. Let them know no due date was set. NEVER say "The user" — talk TO them directly.\n- CORRECT: "Added to WebApp — nice bug fix! Didn't catch a due date though, so it's blank for now. You can edit it later."\n- WRONG: "The user wants to fix a bug in WebApp. I added the entry but no due date was set."\nIf matched=1: "Added to [project] — [friendly comment]. No due date picked up, feel free to edit." If matched=0: "Created [project] — [friendly comment]. No due date set, you can add one later." If matched=2: "Created [project] for you — [friendly comment]." If matched=3: briefly say what was added and mention no due date.`;
+        ? `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly, detailed message they'll read on screen — 3-5 sentences, casual and warm, like a text from a friend. NEVER say "The user" — talk TO them directly. Be SPECIFIC about what was done: mention the project name by name, acknowledge the actual task, and add a thoughtful remark about the work. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not a generic bucket), what fields were set up, and encourage them to keep logging there. If matched=1, mention the project name, acknowledge the task, and add a thoughtful remark. NEVER say something vague like "Added your entry" or "Created a project" — always be specific.\n- CORRECT: "Skydiving lessons and cooking classes — both sorted! Created 'Skydiving Training' for your jump sessions and 'Kitchen Experiments' for the chips recipe. Both projects have their own fields so future entries will slot in nicely."\n- WRONG: "Created new projects for each activity."\n- CORRECT: "Added to WebApp — looks like a solid bug fix on the login page. Didn't catch a due date in there, so it's blank for now but you can always edit it."\n- WRONG: "The user mentioned a bug fix so I added it to the WebApp project."\nIf matched=1: "Added to [project] — [detailed friendly comment about the specific task]." If matched=0: "Created [project] — [explain why this project name, what fields were set up, encourage future entries]." If matched=2: "Created [project] for you — [detailed comment]." If matched=3: "Split your entry into [N] parts — [explain each part briefly and warmly]."`
+        : `The "comment" field is a MESSAGE shown to the user as a notification. Write it as a friendly, detailed message they'll read on screen — 4-6 sentences, casual and warm. Let them know no due date was set because no date reference (like "today", "tomorrow", "Monday", "in 3 days", "2 days from now", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. NEVER say "The user" — talk TO them directly. Be SPECIFIC about what was done: mention the project name by name, acknowledge the actual task. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not a generic bucket), what fields were set up, and encourage them to keep logging there. NEVER say something vague like "Added your entry" or "Created a project" — always be specific.\n- CORRECT: "Added to WebApp — nice bug fix on the login page! Didn't catch a due date in there though, so it's blank for now — you can always edit it to add one later."\n- WRONG: "The user wants to fix a bug in WebApp. I added the entry but no due date was set."\nIf matched=1: "Added to [project] — [detailed friendly comment]. No due date picked up from your text, feel free to edit it later." If matched=0: "Created [project] — [explain why, what fields, encourage entries]. No due date set, you can add one later." If matched=2: "Created [project] for you — [detailed comment]." If matched=3: "Split your entry into [N] parts — [explain each]. No due dates detected, but you can edit any of them."`;
 
-      const prompt = `Parse this log entry into JSON. Today is ${today}.
+      const projectListInfo = projectsWithFields.length > 0
+        ? JSON.stringify(projectsWithFields)
+        : '(none — the user has no projects yet)';
 
-Existing projects with fields:
-${JSON.stringify(projectsWithFields)}
+      const prompt = `You are parsing a quick natural-language log entry into structured data. Today is ${today}.
 
-Entry: "${cleanedText}"
+User's existing projects:
+${projectListInfo}
+
+Entry to parse: "${cleanedText}"
 
 === STEP 0: UNDERSTAND THE INPUT (CRITICAL) ===
 Read the ENTIRE user input carefully. PARAPHRASE neatly into clear, well-written task descriptions.
@@ -654,13 +684,30 @@ DO NOT split these (single activity):
 
 HARD RULE: If two activities would naturally belong to DIFFERENT projects/categories, they MUST be separate. NEVER create combined project names like "Gym and Cooking" — that is WRONG.
 
-=== STEP 3: PROJECT MATCHING RULES (STRICT) ===
+=== STEP 3: PROJECT MATCHING RULES (VERY STRICT) ===
+- You MUST carefully compare the entry against EACH existing project's name, description, and fields.
+- Set "matched" to 1 ONLY when the entry's subject matter CLEARLY and DIRECTLY relates to an existing project. The entry must be about the same domain, topic, or work area as the project.
+- DO NOT force a match when the connection is vague, tangential, or based on a single shared keyword. For example, "fix the login page" should NOT match a project called "Marketing" just because both involve a website.
 - If you are UNSURE which existing project a task belongs to, DO NOT GUESS.
 - Instead, create a NEW project for that task (use matched=3 with "new" array).
 - In your comment, explain: "I wasn't sure which project this belonged to, so I created a new one."
 - If the task mentions a project name EXPLICITLY (e.g., "for WebApp"), use that project.
 - If the task is VAGUE and could fit multiple projects, create a NEW project.
-- GUESSING IS FORBIDDEN. When in doubt, create new.
+- GUESSING IS FORBIDDEN. When in doubt, create new. A wrong match is WORSE than a new project.
+
+=== STEP 3b: NEW PROJECT CREATION RULES (STRICT) ===
+- The new project name MUST be specific and descriptive of the actual work described in the entry. Think about what kind of work this is and name the project accordingly.
+- GOOD project names: "Backend API Refactor", "Client Website Redesign", "Thesis Chapter 3 Research", "Grocery Shopping Errands", "Kitchen Experiment"
+- BAD project names (NEVER use these): "General", "Tasks", "Project", "Misc", "Other", "Work", "Personal", "New Project", "Stuff", "Things", "Activity", "Daily", "Routine", "Random", "Miscellaneous"
+- The project name should reflect the SPECIFIC entry, not be a catch-all category.
+- Set "new_fields" as an array of 1-3 field definitions shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Fields should capture meaningful details specific to this type of work — not generic metadata.
+- Set "fields" as an object of field_name:value pairs filled in from the entry text, matching the field_names in new_fields.
+- NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are built-in columns.
+
+PRIORITY: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
+DO NOT include a "due_date" field in your response — the system handles dates separately.
+
+${commentInstruction}
 
 === STEP 4: MATCHED VALUES ===
 - matched=0: Single task, NO existing project matches. Create ONE new project + entry.
