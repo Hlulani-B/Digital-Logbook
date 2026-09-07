@@ -109,7 +109,7 @@ export async function getUnarchivedProjects(user_email) {
 // ── POST functions — optimistic IndexedDB first ──────────────
 
 /**
- * Archive a project.
+ * Archive a project (and all its entries).
  * Updates IndexedDB immediately, then syncs to server.
  */
 export async function archiveProject(user_email, project_name) {
@@ -130,6 +130,11 @@ export async function archiveProject(user_email, project_name) {
       await getProjectsByEmail(user_email);
       await getArchivedProjects(user_email);
       await getUnarchivedProjects(user_email);
+      // Also refresh entries and archives for this project
+      const { getEntries } = await import('./entries.js');
+      await getEntries(user_email, project_name);
+      await getArchives(user_email, project_name);
+      await getUnarchived(user_email, project_name);
     }
     return result;
   } catch (err) {
@@ -139,7 +144,7 @@ export async function archiveProject(user_email, project_name) {
 }
 
 /**
- * Unarchive a project.
+ * Unarchive a project (and all its entries).
  */
 export async function unarchiveProject(user_email, project_name) {
   try {
@@ -156,6 +161,11 @@ export async function unarchiveProject(user_email, project_name) {
       await getProjectsByEmail(user_email);
       await getArchivedProjects(user_email);
       await getUnarchivedProjects(user_email);
+      // Also refresh entries and archives for this project
+      const { getEntries } = await import('./entries.js');
+      await getEntries(user_email, project_name);
+      await getArchives(user_email, project_name);
+      await getUnarchived(user_email, project_name);
     }
     return result;
   } catch (err) {

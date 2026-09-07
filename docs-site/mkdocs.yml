@@ -73,6 +73,7 @@ nav:
       - Keep-Alive Daemons: architecture/daemon.md
       - Entry Summaries: architecture/entry-summaries.md
       - UML Architecture Diagrams: architecture/uml-diagrams.md
+      - Third-Party Dependencies: architecture/third-party.md
   - Roadmap: roadmap.md
   - Development:
       - Development Log: development/log.md

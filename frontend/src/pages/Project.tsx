@@ -11,7 +11,8 @@ import {
   addProject,
 } from '../functions/project/project.js';
 import { getArchivedProjects, archiveProject, unarchiveProject } from '../functions/project/archives.js';
-import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus, FiSettings } from 'react-icons/fi';
+import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 
 type ProjectRecord = {
   project_name: string;
@@ -58,6 +59,10 @@ export function ProjectsPage() {
   const [viewingArchived, setViewingArchived] = useState<string | null>(null);
   const [archivedEntries, setArchivedEntries] = useState<EntryRecord[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
+  
+    // Project settings panel
+    const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+    const [settingsProjectName, setSettingsProjectName] = useState("");
 
   const loadProjects = useCallback(async () => {
     if (!email) return;
@@ -310,6 +315,7 @@ export function ProjectsPage() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <button type="button" onClick={() => { setSettingsProjectName(name); setProjectSettingsOpen(true); }} aria-label={`Settings for ${name}`} title="Project Settings" style={{ background: 'transparent', border: '1px solid var(--border, rgba(0,0,0,0.12))', color: 'var(--text-dim, #6b7280)', borderRadius: '0.5rem', padding: '0.35rem 0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}><FiSettings size={14} /></button>
                           <button type="button" onClick={() => startEdit(name)} aria-label={`Rename ${name}`} title="Rename" className="btn-secondary" style={{ padding: '0.35rem 0.5rem' }}><FiEdit2 size={14} /></button>
                           <button type="button" onClick={() => setConfirmArchive(name)} aria-label={`Archive ${name}`} title="Archive" style={{ background: 'transparent', border: '1px solid rgba(99,102,241,0.35)', color: '#6366f1', borderRadius: '0.5rem', padding: '0.35rem 0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}><FiArchive size={14} /></button>
                           <button type="button" onClick={() => setConfirmDelete(name)} aria-label={`Delete ${name}`} title="Delete" style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.35)', color: '#dc2626', borderRadius: '0.5rem', padding: '0.35rem 0.5rem', fontSize: '0.8rem', cursor: 'pointer' }}><FiTrash2 size={14} /></button>
@@ -388,6 +394,16 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
+
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={settingsProjectName}
+        userEmail={email}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => { loadProjects(); }}
+        onProjectDeleted={() => { loadProjects(); }}
+      />
         </div>
       </main>
     </div>
