@@ -124,25 +124,26 @@ I made all configuration decisions and directed the AI to execute the following:
 
 ### 4. Debugging and Fixes (Collaborative)
 
-| Issue                                                           | Who Identified                   | Who Fixed                                                                  |
-| --------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- |
-| "Welcome back" showing for new users                            | Me (student)                     | AI (changed from useEffect to useMemo for synchronous check)               |
-| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                     | AI (advised asking project admin or creating own Supabase project)         |
-| Google Cloud Console redirect URIs                              | Me (student, asked)              | AI (provided correct values)                                               |
-| GitHub provider addition                                        | Me (student, requested)          | AI (added signInWithGitHub to AuthContext and SignIn page)                 |
-| Email/password auth addition                                    | Me (student, requested)          | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)        |
-| Reset password inaccessible from UI                             | Me (student, identified)         | AI (added "Trouble signing in?" link and settings panel option)            |
-| Profile details displayed as raw JSON/code                      | Me (student)                     | AI (redesigned into a clean profile summary card)                          |
-| User ID visible in Account tab                                  | Me (student)                     | AI (removed the User ID row)                                               |
-| Account deletion had no grace period                            | Me (student, requested)          | AI (implemented 30-day grace period with schedule/restore/purge)           |
-| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error) | AI (renamed variable to `v_email`, qualified column references)            |
-| Soft-deleted users could not sign back in cleanly               | Me (student, requested)          | AI (added auto-restore on sign-in in SignIn.tsx)                           |
-| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)         | AI (changed `deleteAccount` to sign out, moved restore to email-link flow) |
-| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)          | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)   |
-| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)          | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)   |
-| Sessions remained signed in indefinitely on shared devices      | Me (student, requested)          | AI (added `useInactivityLogout` with 30-minute timeout)                    |
-| No visual calendar view for entry due dates                     | Me (student, requested)          | AI (added `/calendar` page with month/week views and drag-to-reschedule)   |
-| Rescheduling entries required editing each entry individually   | Me (student, requested)          | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)      |
+| Issue                                                           | Who Identified                    | Who Fixed                                                                                     |
+| --------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
+| "Welcome back" showing for new users                            | Me (student)                      | AI (changed from useEffect to useMemo for synchronous check)                                  |
+| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                      | AI (advised asking project admin or creating own Supabase project)                            |
+| Google Cloud Console redirect URIs                              | Me (student, asked)               | AI (provided correct values)                                                                  |
+| GitHub provider addition                                        | Me (student, requested)           | AI (added signInWithGitHub to AuthContext and SignIn page)                                    |
+| Email/password auth addition                                    | Me (student, requested)           | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)                           |
+| Reset password inaccessible from UI                             | Me (student, identified)          | AI (added "Trouble signing in?" link and settings panel option)                               |
+| Profile details displayed as raw JSON/code                      | Me (student)                      | AI (redesigned into a clean profile summary card)                                             |
+| User ID visible in Account tab                                  | Me (student)                      | AI (removed the User ID row)                                                                  |
+| Account deletion had no grace period                            | Me (student, requested)           | AI (implemented 30-day grace period with schedule/restore/purge)                              |
+| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error)  | AI (renamed variable to `v_email`, qualified column references)                               |
+| Soft-deleted users could not sign back in cleanly               | Me (student, requested)           | AI (added auto-restore on sign-in in SignIn.tsx)                                              |
+| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)          | AI (changed `deleteAccount` to sign out, moved restore to email-link flow)                    |
+| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)           | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)                      |
+| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)           | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)                      |
+| Sessions remained signed in indefinitely on shared devices      | Me (student, requested)           | AI (added `useInactivityLogout` with 30-minute timeout)                                       |
+| No visual calendar view for entry due dates                     | Me (student, requested)           | AI (added `/calendar` page with month/week views and drag-to-reschedule)                      |
+| Rescheduling entries required editing each entry individually   | Me (student, requested)           | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)                         |
+| Calendar grid overflowed phone screens causing a visible line   | Me (student, identified on phone) | AI (added `useIsMobile()` hook, week-strip layout at ≤480px, phone breakpoints for all views) |
 
 ---
 
