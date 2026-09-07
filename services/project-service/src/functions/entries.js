@@ -380,6 +380,32 @@ export function getDate(text) {
     return { dueDate, cleanedText: cleaned.trim() };
   }
 
+  // ── 5b. "X days/weeks from now" ──
+  const xFromNowMatch = cleaned.match(/\b(\d+|a|an)\s+(day|days|week|weeks)\s+from\s+now\b/);
+  if (xFromNowMatch) {
+    const num = xFromNowMatch[1] === 'a' || xFromNowMatch[1] === 'an' ? 1 : parseInt(xFromNowMatch[1], 10);
+    const unit = xFromNowMatch[2];
+    const daysToAdd = unit.startsWith('week') ? num * 7 : num;
+    dueDate = toISODate(addDays(today, daysToAdd));
+    cleaned = cleaned.replace(xFromNowMatch[0], '');
+    return { dueDate, cleanedText: cleaned.trim() };
+  }
+
+  // ── 5c. "X days/weeks from [day name]" e.g. "2 days from friday" ──
+  for (let i = 0; i < DAY_NAMES.length; i++) {
+    const xFromDayMatch = cleaned.match(new RegExp(`\\b(\\d+|a|an)\\s+(day|days|week|weeks)\\s+from\\s+${DAY_NAMES[i]}\\b`));
+    if (xFromDayMatch) {
+      const num = xFromDayMatch[1] === 'a' || xFromDayMatch[1] === 'an' ? 1 : parseInt(xFromDayMatch[1], 10);
+      const unit = xFromDayMatch[2];
+      const offsetDays = unit.startsWith('week') ? num * 7 : num;
+      // Find the next occurrence of the named day, then add the offset
+      const baseDate = nextDay(today, i);
+      dueDate = toISODate(addDays(baseDate, offsetDays));
+      cleaned = cleaned.replace(xFromDayMatch[0], '');
+      return { dueDate, cleanedText: cleaned.trim() };
+    }
+  }
+
   // ── 6. "next monday", "next tuesday", etc. (check BEFORE bare day names) ──
   for (let i = 0; i < DAY_NAMES.length; i++) {
     const regex = new RegExp(`\\bnext\\s+${DAY_NAMES[i]}\\b`);
@@ -486,25 +512,40 @@ export class Natural_language {
       const today = toISODate(new Date());
 
       const commentInstruction = calculatedDate
-        ? `Write a warm, human comment (1-2 sentences) back to the user. Keep it natural and low-key — no need to mention the date unless it feels relevant. If matched=1, say something like "Added to [project name] — [warm comment about the task]." If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]."`
-        : `Write a warm, human comment (2-3 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, say something like "Added to [project name] — [warm comment about the task]. I couldn't pick up a due date from your text though, so it's been left blank for now — you can always edit it to add one.". If matched=0, say something like "Created new project [project name] and added your first entry — [warm comment]. I didn't catch a due date in there, so it's unset for now — feel free to edit it later if you need one."`;
+        ? `Write a detailed, warm, and human comment (3-5 sentences) back to the user. Be specific about what was done. If matched=1, mention the project name, acknowledge the task, and add a thoughtful remark about the work. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not just a generic bucket), what fields were set up, and encourage the user to keep logging entries there. Always be specific — never say something vague like "Added your entry" or "Created a project".`
+        : `Write a detailed, warm, and human comment (4-6 sentences) back to the user. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", "in 3 days", "2 days from now", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. If matched=1, mention the project name, acknowledge the task, and add a thoughtful remark about the work. If matched=0, explain clearly what new project was created, why it made sense as a separate project (not just a generic bucket), what fields were set up, and encourage the user to keep logging entries there. Always be specific — never say something vague like "Added your entry" or "Created a project".`;
 
-      const prompt = `Parse this log entry into JSON. Today is ${today}.
+      const projectListInfo = projectsWithFields.length > 0
+        ? JSON.stringify(projectsWithFields)
+        : '(none — the user has no projects yet)';
 
-Existing projects with fields:
-${JSON.stringify(projectsWithFields)}
+      const prompt = `You are parsing a quick natural-language log entry into structured data. Today is ${today}.
 
-Entry: "${cleanedText}"
+User's existing projects:
+${projectListInfo}
 
-Rules:
-- Try to match this entry to one of the existing projects above.
-- Set "matched" to 1 if you found a matching project, or 0 if none of the existing projects fit.
-- If matched=1: set "project" to the EXACT matching project_name from the list above, and "fields" to an object of field_name:value pairs filled from the entry text using ONLY that project's existing fields.
-- If matched=0: You MUST create a new project. Set "project" to a short sensible new project name. Set "new_fields" as an array of field definitions this new project should have, each shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Keep it to 1-3 fields that make sense. Set "fields" as an object of field_name:value pairs filled in for this entry, matching the field_names in new_fields.
-- NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are already built-in columns on every entry.
-- Priority: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
-- DO NOT include a "due_date" field in your response. The due date is handled separately by the system.
-- ${commentInstruction}
+Entry to parse: "${cleanedText}"
+
+STRICT PROJECT MATCHING RULES:
+- You MUST carefully compare the entry against EACH existing project's name, description, and fields.
+- Set "matched" to 1 ONLY when the entry's subject matter CLEARLY and DIRECTLY relates to an existing project. The entry must be about the same domain, topic, or work area as the project.
+- DO NOT force a match when the connection is vague, tangential, or based on a single shared keyword. For example, "fix the login page" should NOT match a project called "Marketing" just because both involve a website.
+- When in doubt, prefer matched=0 (create a new project) over a wrong match. A wrong match is worse than a new project.
+- If matched=1: set "project" to the EXACT project_name from the list (character-for-character), and "fields" to field_name:value pairs using ONLY that project's existing fields.
+
+NEW PROJECT CREATION RULES (when matched=0):
+- The new project name MUST be specific and descriptive of the actual work described in the entry. Think about what kind of work this is and name the project accordingly.
+- GOOD project names: "Backend API Refactor", "Client Website Redesign", "Thesis Chapter 3 Research", "Grocery Shopping Errands"
+- BAD project names (NEVER use these): "General", "Tasks", "Project", "Misc", "Other", "Work", "Personal", "New Project", "Stuff", "Things", "Activity"
+- The project name should reflect the SPECIFIC entry, not be a catch-all category.
+- Set "new_fields" as an array of 1-3 field definitions shaped like {"field_name":"...", "data_type":"text", "is_required":false}. Fields should capture meaningful details specific to this type of work — not generic metadata.
+- Set "fields" as an object of field_name:value pairs filled in from the entry text, matching the field_names in new_fields.
+- NEVER include "due_date", "due date", "day", "date", "when", "priority", or "status" as custom fields — these are built-in columns.
+
+PRIORITY: 0=urgent+important, 1=urgent only, 2=not urgent, null=none
+DO NOT include a "due_date" field in your response — the system handles dates separately.
+
+${commentInstruction}
 
 Respond with ONLY this JSON structure, nothing else:
 {"matched":1,"project":"name","fields":{"field":"value"},"new_fields":[],"priority":0,"comment":"..."}`;
