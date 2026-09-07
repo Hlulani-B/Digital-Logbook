@@ -17,7 +17,7 @@ import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
-import { FiMic } from 'react-icons/fi';
+import { FiMic, FiSettings } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 
 /** Parse AI response — handles JSON or plain text */
@@ -514,6 +514,19 @@ export function ProjectDetailPage() {
               Board
             </button>
           </div>
+
+          {/* Project Settings button */}
+          <button
+            type="button"
+            className="sort-btn"
+            onClick={() => setProjectSettingsOpen(true)}
+            aria-label="Project settings"
+            title="Project settings"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <FiSettings size={12} />
+            Settings
+          </button>
         </div>
 
         {/* Quick Entry Bar — scoped to this project */}
