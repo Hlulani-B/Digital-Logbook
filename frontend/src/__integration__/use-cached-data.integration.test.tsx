@@ -94,7 +94,7 @@ describe('useCachedData Hook Integration', () => {
       }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data).toBeTruthy();
         expect(data[0].project_name).toBe('CachedProject');
       });
@@ -117,7 +117,7 @@ describe('useCachedData Hook Integration', () => {
       }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data).toBeTruthy();
         expect(data[0].project_name).toBe('FreshProject');
       });
@@ -136,7 +136,7 @@ describe('useCachedData Hook Integration', () => {
       render(createElement(TestProjectsComponent, { fetchFn: null }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data.length).toBe(2);
         expect(data[0].project_name).toBe('Alpha');
       });
@@ -154,7 +154,7 @@ describe('useCachedData Hook Integration', () => {
       render(createElement(TestEntriesComponent, { projectName: 'MyProject', fetchFn: null }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data.length).toBe(1);
         expect(data[0].summary).toBe('Task A');
       });
@@ -169,7 +169,7 @@ describe('useCachedData Hook Integration', () => {
       render(createElement(TestEntriesComponent, { projectName: null, fetchFn: null }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data.length).toBe(1);
         expect(data[0].summary).toBe('All Task');
       });
@@ -186,7 +186,7 @@ describe('useCachedData Hook Integration', () => {
       render(createElement(TestProfileComponent, { fetchFn: null }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data.username).toBe('hookuser');
       });
     });
@@ -203,7 +203,7 @@ describe('useCachedData Hook Integration', () => {
       render(createElement(TestProjectsComponent, { fetchFn: null }));
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data[0].project_name).toBe('Initial');
       });
 
@@ -216,7 +216,7 @@ describe('useCachedData Hook Integration', () => {
       });
 
       await waitFor(() => {
-        const data = JSON.parse(screen.getByTestId('data').textContent);
+        const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
         expect(data.length).toBe(2);
         expect(data[1].project_name).toBe('NewProject');
       });
