@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-export type Theme = 'light' | 'dark' | 'pink' | 'blue' | 'purple' | 'green' | 'brown';
+export type Theme = 'light' | 'dark' | 'pink' | 'blue' | 'purple' | 'green' | 'brown' | 'navy' | 'darkpurple' | 'coffee' | 'oled' | 'teal' | 'solarized';
 
-const VALID_THEMES: Theme[] = ['light', 'dark', 'pink', 'blue', 'purple', 'green', 'brown'];
+const VALID_THEMES: Theme[] = ['light', 'dark', 'pink', 'blue', 'purple', 'green', 'brown', 'navy', 'darkpurple', 'coffee', 'oled', 'teal', 'solarized'];
 const STORAGE_KEY = 'dl_theme';
 
 function getInitialTheme(): Theme {
@@ -38,7 +38,7 @@ export function useTheme() {
     setTheme(theme === 'light' ? 'dark' : 'light');
   }, [theme, setTheme]);
 
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark' || theme === 'navy' || theme === 'darkpurple' || theme === 'coffee' || theme === 'oled' || theme === 'teal' || theme === 'solarized';
 
   return useMemo(
     () => ({ theme, setTheme, toggleTheme, isDark }),
