@@ -1,43 +1,26 @@
 .timeline-page {
-  min-height: 100vh;
-  padding: 1.5rem 1.5rem 3rem;
+  padding: 0 0 2rem;
   display: flex;
   flex-direction: column;
 }
 
-.timeline-page-header {
+.timeline-toolbar {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
-.timeline-page-header .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-}
-
-.timeline-page-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.timeline-titles {
   flex: 1 1 auto;
 }
 
-.timeline-page-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  margin: 0;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover, #4f46e5));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.timeline-page-subtitle {
+.timeline-subtitle {
   margin: 0;
   font-size: 0.875rem;
   color: var(--text-dim);
@@ -152,7 +135,7 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 0.5rem);
-  background: var(--card-bg, var(--bg-elevated));
+  background: var(--surface);
 }
 
 .timeline-svg {
@@ -237,7 +220,7 @@
 }
 
 @media (max-width: 640px) {
-  .timeline-page-header {
+  .timeline-toolbar {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -250,15 +233,7 @@
 
 /* ── Phones ── */
 @media (max-width: 480px) {
-  .timeline-page {
-    padding: 0.5rem 0.5rem 2rem;
-  }
-
-  .timeline-page-title {
-    font-size: 1.25rem;
-  }
-
-  .timeline-page-subtitle {
+  .timeline-subtitle {
     font-size: 0.75rem;
   }
 
