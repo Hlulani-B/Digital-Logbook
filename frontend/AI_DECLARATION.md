@@ -51,7 +51,7 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I directed the removal of the in-dashboard "Restore Account" button so restore only happens from the sign-in page
 - I requested email format and disposable-domain validation before sign-up/sign-in submission
 - I requested email typo detection (for example, catching gmail.comm and suggesting gmail.com)
-- I requested automatic sign-out after a period of inactivity so sessions do not stay open indefinitely
+- I requested automatic sign-out after a period of inactivity, but later reverted this so sessions persist until manual sign-out
 - I requested a calendar view that places entries on their due dates, supports month/week switching, and allows dragging an entry to another day to reschedule it
 - I requested that overdue and completed entries be visually distinct on the calendar
 - I requested a Kanban board with status columns, drag-to-change-status, project and search filters, and automatic started_at/ended_at timestamps
@@ -86,7 +86,7 @@ The AI generated the following code based on my instructions:
 | `src/lib/supabase.ts`                                       | Supabase client initialisation with `getSupabase()` helper                           | AI generated                          |
 | `src/lib/api.ts`                                            | Backend API helper with auth token                                                   | AI generated                          |
 | `src/lib/validation.ts`                                     | Email format, disposable-domain, and typo-correction helpers                         | AI generated from my requirements     |
-| `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity                                             | AI generated from my requirements     |
+| `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity (currently disabled)                        | AI generated from my requirements     |
 | `src/pages/Calendar.tsx`                                    | Month/week calendar with drag-to-reschedule                                          | AI generated from my requirements     |
 | `src/pages/Calendar.css`                                    | Calendar component styles                                                            | AI generated from my design direction |
 | `src/lib/calendar.ts`                                       | Date utilities and entry grouping for the calendar                                   | AI generated from my requirements     |
@@ -124,26 +124,26 @@ I made all configuration decisions and directed the AI to execute the following:
 
 ### 4. Debugging and Fixes (Collaborative)
 
-| Issue                                                           | Who Identified                    | Who Fixed                                                                                     |
-| --------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
-| "Welcome back" showing for new users                            | Me (student)                      | AI (changed from useEffect to useMemo for synchronous check)                                  |
-| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                      | AI (advised asking project admin or creating own Supabase project)                            |
-| Google Cloud Console redirect URIs                              | Me (student, asked)               | AI (provided correct values)                                                                  |
-| GitHub provider addition                                        | Me (student, requested)           | AI (added signInWithGitHub to AuthContext and SignIn page)                                    |
-| Email/password auth addition                                    | Me (student, requested)           | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)                           |
-| Reset password inaccessible from UI                             | Me (student, identified)          | AI (added "Trouble signing in?" link and settings panel option)                               |
-| Profile details displayed as raw JSON/code                      | Me (student)                      | AI (redesigned into a clean profile summary card)                                             |
-| User ID visible in Account tab                                  | Me (student)                      | AI (removed the User ID row)                                                                  |
-| Account deletion had no grace period                            | Me (student, requested)           | AI (implemented 30-day grace period with schedule/restore/purge)                              |
-| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error)  | AI (renamed variable to `v_email`, qualified column references)                               |
-| Soft-deleted users could not sign back in cleanly               | Me (student, requested)           | AI (added auto-restore on sign-in in SignIn.tsx)                                              |
-| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)          | AI (changed `deleteAccount` to sign out, moved restore to email-link flow)                    |
-| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)           | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)                      |
-| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)           | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)                      |
-| Sessions remained signed in indefinitely on shared devices      | Me (student, requested)           | AI (added `useInactivityLogout` with 30-minute timeout)                                       |
-| No visual calendar view for entry due dates                     | Me (student, requested)           | AI (added `/calendar` page with month/week views and drag-to-reschedule)                      |
-| Rescheduling entries required editing each entry individually   | Me (student, requested)           | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)                         |
-| Calendar grid overflowed phone screens causing a visible line   | Me (student, identified on phone) | AI (added `useIsMobile()` hook, week-strip layout at ≤480px, phone breakpoints for all views) |
+| Issue                                                           | Who Identified                         | Who Fixed                                                                                       |
+| --------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| "Welcome back" showing for new users                            | Me (student)                           | AI (changed from useEffect to useMemo for synchronous check)                                    |
+| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                           | AI (advised asking project admin or creating own Supabase project)                              |
+| Google Cloud Console redirect URIs                              | Me (student, asked)                    | AI (provided correct values)                                                                    |
+| GitHub provider addition                                        | Me (student, requested)                | AI (added signInWithGitHub to AuthContext and SignIn page)                                      |
+| Email/password auth addition                                    | Me (student, requested)                | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)                             |
+| Reset password inaccessible from UI                             | Me (student, identified)               | AI (added "Trouble signing in?" link and settings panel option)                                 |
+| Profile details displayed as raw JSON/code                      | Me (student)                           | AI (redesigned into a clean profile summary card)                                               |
+| User ID visible in Account tab                                  | Me (student)                           | AI (removed the User ID row)                                                                    |
+| Account deletion had no grace period                            | Me (student, requested)                | AI (implemented 30-day grace period with schedule/restore/purge)                                |
+| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error)       | AI (renamed variable to `v_email`, qualified column references)                                 |
+| Soft-deleted users could not sign back in cleanly               | Me (student, requested)                | AI (added auto-restore on sign-in in SignIn.tsx)                                                |
+| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)               | AI (changed `deleteAccount` to sign out, moved restore to email-link flow)                      |
+| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)                | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)                        |
+| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)                | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)                        |
+| Sessions remained signed in indefinitely on shared devices      | Me (student, requested, then reverted) | AI (added `useInactivityLogout`, then disabled it per my request; manual sign-out now required) |
+| No visual calendar view for entry due dates                     | Me (student, requested)                | AI (added `/calendar` page with month/week views and drag-to-reschedule)                        |
+| Rescheduling entries required editing each entry individually   | Me (student, requested)                | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)                           |
+| Calendar grid overflowed phone screens causing a visible line   | Me (student, identified on phone)      | AI (added `useIsMobile()` hook, week-strip layout at ≤480px, phone breakpoints for all views)   |
 
 ---
 
