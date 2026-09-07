@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { PROJECT_URL } from '@/lib/api';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
@@ -965,34 +964,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Import & Export
           </button>
-          <a
-            className="drawer-item"
-            href={`${PROJECT_URL}/api-docs`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              textDecoration: 'none',
-              color: 'inherit',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            API Docs
-          </a>
         </div>
 
         <div className="drawer-section drawer-projects">
