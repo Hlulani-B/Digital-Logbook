@@ -10,9 +10,7 @@ rather than replaces, the existing [Architecture Overview](overview.md),
 [System Design](system-design.md), [Database Schema](database.md), and
 [API Contracts](api-contracts.md).
 
-The diagrams use Mermaid source. The current MkDocs configuration does not
-register a Mermaid renderer, so this page deliberately does not change the
-documentation configuration as part of this documentation-only addition.
+The diagrams use Mermaid source and are rendered client-side by the Mermaid library via `docs/javascripts/mermaid.js`.
 
 ## Component diagram
 
