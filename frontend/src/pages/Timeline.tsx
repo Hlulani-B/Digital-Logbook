@@ -135,7 +135,7 @@ export function TimelinePage() {
   const { timelineEntries, range, renderLayout, arrows } = useMemo(() => {
     const timelineEntries = parseTimelineEntries(entries);
     const bounds = getTimelineBounds(timelineEntries);
-    const range = bounds ? ensureMinimumRange(bounds, 35) : null;
+    const range = bounds ? ensureMinimumRange(bounds, 150) : null;
 
     if (!range) {
       return { timelineEntries: [], range: null, renderLayout: null, arrows: [] };
