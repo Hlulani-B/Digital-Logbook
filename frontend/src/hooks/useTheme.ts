@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-export type Theme = 'light' | 'dark' | 'pink' | 'blue' | 'purple' | 'green' | 'brown' | 'navy' | 'darkpurple' | 'coffee' | 'oled' | 'teal' | 'solarized';
+export type Theme = 'light' | 'dark' | 'pink' | 'blue' | 'purple' | 'green' | 'brown' | 'navy' | 'darkpurple' | 'coffee' | 'oled' | 'teal' | 'solarized' | 'darkpink';
 
-const VALID_THEMES: Theme[] = ['light', 'dark', 'pink', 'blue', 'purple', 'green', 'brown', 'navy', 'darkpurple', 'coffee', 'oled', 'teal', 'solarized'];
+const VALID_THEMES: Theme[] = ['light', 'dark', 'pink', 'blue', 'purple', 'green', 'brown', 'navy', 'darkpurple', 'coffee', 'oled', 'teal', 'solarized', 'darkpink'];
 const STORAGE_KEY = 'dl_theme';
 
 function getInitialTheme(): Theme {
@@ -38,7 +38,7 @@ export function useTheme() {
     setTheme(theme === 'light' ? 'dark' : 'light');
   }, [theme, setTheme]);
 
-  const isDark = theme === 'dark' || theme === 'navy' || theme === 'darkpurple' || theme === 'coffee' || theme === 'oled' || theme === 'teal' || theme === 'solarized';
+  const isDark = theme === 'dark' || theme === 'navy' || theme === 'darkpurple' || theme === 'coffee' || theme === 'oled' || theme === 'teal' || theme === 'solarized' || theme === 'darkpink';
 
   return useMemo(
     () => ({ theme, setTheme, toggleTheme, isDark }),
