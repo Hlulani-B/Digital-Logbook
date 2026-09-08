@@ -98,9 +98,85 @@ An intermediate approach had pages call `syncAllData` in the background after re
 1. User triggers action (e.g., add entry, change priority)
 2. Function writes to IndexedDB immediately (optimistic update)
 3. UI updates instantly from IndexedDB
-4. Function syncs to server in background
+4. Function checks navigator.onLine:
+   - Online: syncs to server in background
+   - Offline: queues action in IndexedDB offline-queue store
 5. On success: IndexedDB already has the data (or refreshes)
-6. On failure: Roll back IndexedDB to previous state
+6. On failure: queue action for retry (no rollback)
+```
+
+## Offline Sync Queue ("The Queue")
+
+When the app is offline, mutations are queued in IndexedDB and synced when connectivity returns.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Offline Flow                               │
+│                                                              │
+│  1. User triggers action while offline                       │
+│  2. IndexedDB updated optimistically (instant UI)            │
+│  3. Action queued in offline-queue store                     │
+│     { action: 'addEntry', module: 'entries',                 │
+│       payload: {...}, timestamp, attempts: 0 }               │
+│  4. When online: processQueue() processes FIFO               │
+│  5. Each action dispatched via actionDispatcher              │
+│  6. On success: removed from queue, toast shown              │
+│  7. On failure: retry up to 3 attempts                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Queue Store Schema
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | auto-increment | Unique identifier |
+| `action` | string | Action name (e.g., 'addEntry') |
+| `module` | string | Module name (e.g., 'entries', 'project') |
+| `payload` | object | Serialized action data |
+| `timestamp` | number | When the action was queued |
+| `attempts` | number | Number of sync attempts (max 3) |
+
+### Registered Actions
+
+| Action | Module | Description |
+|---|---|---|
+| `addEntry` | entries | Add a new entry |
+| `updateEntry` | entries | Update an existing entry |
+| `deleteEntry` | entries | Delete an entry |
+| `deleteEntryById` | entries | Delete entry by ID |
+| `addProject` | project | Create a new project |
+| `editProjectName` | project | Rename a project |
+| `deleteProject` | project | Delete a project |
+| `archiveProject` | archives | Archive a project |
+| `unarchiveProject` | archives | Unarchive a project |
+| `archiveEntry` | archives | Archive an entry |
+| `unarchiveEntry` | archives | Unarchive an entry |
+| `setPriority` | priority | Set entry priority |
+| `updateUsername` | profile | Update username |
+| `updateName` | profile | Update display name |
+| `updateAvatar` | profile | Update avatar |
+
+### Toast Notifications
+
+When the app comes back online, `OfflineSyncToasts` displays progress:
+
+- "Back online! Syncing X pending actions..."
+- "Saved entry to projectName" (per action)
+- "All X actions synced successfully!"
+
+### Queue Processing
+
+```javascript
+// Automatic processing when connectivity returns
+import { processQueue } from '@/CacheFunctions';
+
+// processQueue processes all queued actions in FIFO order
+// Max 3 attempts per action before marking as failed
+await processQueue((progress) => {
+  // progress: { type: 'success' | 'failed' | 'retry' | 'complete', ... }
+});
 ```
 
 ## CacheFunctions Module (`src/CacheFunctions/`)
@@ -154,6 +230,7 @@ Pure function that filters entries to find those due within 3 days. Used by both
 | `archives` | Various | Archived projects/entries |
 | `fields` | `user@email.com:table_name` | Custom field definitions |
 | `due-soon` (entries store) | `user@email.com:due-soon` | Entries due within 3 days (computed) |
+| `offline-queue` | auto-increment | Queued offline actions |
 
 ## Page Implementation Pattern
 
@@ -193,20 +270,20 @@ useEffect(() => { loadData(); }, [loadData]);
 
 ## Mutation Functions (Optimistic Updates)
 
-All mutation functions write to IndexedDB first, then sync to the server:
+All mutation functions write to IndexedDB first, then sync to the server. If offline or server sync fails, the action is queued for retry:
 
 | Function | IndexedDB Behavior |
 |---|---|
-| `addEntry()` | Optimistic write → server sync → replace or rollback |
-| `updateEntry()` | Optimistic patch → server sync → replace or rollback |
-| `deleteEntry()` | Optimistic remove → server sync → rollback on failure |
-| `addProject()` | Optimistic write → server sync → refresh or rollback |
-| `editProjectName()` | Optimistic rename → server sync → refresh or rollback |
-| `deleteProject()` | Optimistic remove → server sync → rollback on failure |
-| `setPriority()` | Optimistic patch → server sync → rollback on failure |
-| `updateUsername()` | Optimistic update → server sync → refresh or rollback |
-| `updateName()` | Optimistic update → server sync → refresh or rollback |
-| `updateAvatar()` | Optimistic update → server sync → refresh or rollback |
+| `addEntry()` | Optimistic write → server sync → queue on failure |
+| `updateEntry()` | Optimistic patch → server sync → queue on failure |
+| `deleteEntry()` | Optimistic remove → server sync → queue on failure |
+| `addProject()` | Optimistic write → server sync → queue on failure |
+| `editProjectName()` | Optimistic rename → server sync → queue on failure |
+| `deleteProject()` | Optimistic remove → server sync → queue on failure |
+| `setPriority()` | Optimistic patch → server sync → queue on failure |
+| `updateUsername()` | Optimistic update → server sync → queue on failure |
+| `updateName()` | Optimistic update → server sync → queue on failure |
+| `updateAvatar()` | Optimistic update → server sync → queue on failure |
 
 ### Example: setPriority (IndexedDB-first)
 
@@ -273,10 +350,11 @@ function DataSyncInitializer({ children }) {
 
 | Event | Action |
 |---|---|
-| Write operation | Optimistic IndexedDB update → server sync → rollback on failure |
+| Write operation | Optimistic IndexedDB update → server sync → queue on failure |
 | Sign out | `clearUserCache(email)` wipes all IndexedDB data |
 | Delete account | `clearUserCache(email)` wipes all IndexedDB data |
 | SSE push | Invalidate cache → call `loadData()` to re-read from IndexedDB |
+| Back online | `processQueue()` syncs all queued offline actions |
 
 ## Performance Impact
 
@@ -297,12 +375,18 @@ function DataSyncInitializer({ children }) {
 | File | Purpose |
 |---|---|
 | `src/CacheFunctions/syncService.js` | Central sync — fetches all data → IndexedDB |
+| `src/CacheFunctions/offlineQueue.js` | Offline queue CRUD operations |
+| `src/CacheFunctions/queueProcessor.js` | Queue processing with retry logic |
+| `src/CacheFunctions/actionDispatcher.js` | Maps action strings to function calls |
 | `src/CacheFunctions/index.js` | Barrel export |
 | `src/lib/cache.js` | IndexedDB CRUD + event subscriptions |
 | `src/hooks/useCachedData.js` | React hook for IndexedDB-first loading |
-| `src/functions/project/project.js` | Project mutations (optimistic) |
-| `src/functions/project/entries.js` | Entry mutations (optimistic) |
-| `src/functions/project/priority.js` | Priority mutation (optimistic) |
-| `src/functions/profile/profile.js` | Profile mutations (optimistic) |
+| `src/hooks/useNetworkStatus.js` | React hook for online/offline detection |
+| `src/components/OfflineSyncToasts.tsx` | Toast notifications for queue sync |
+| `src/functions/project/project.js` | Project mutations (optimistic + queue) |
+| `src/functions/project/entries.js` | Entry mutations (optimistic + queue) |
+| `src/functions/project/priority.js` | Priority mutation (optimistic + queue) |
+| `src/functions/project/archives.js` | Archive mutations (optimistic + queue) |
+| `src/functions/profile/profile.js` | Profile mutations (optimistic + queue) |
 | `src/functions/dashboard.js` | `dueSoon()` — reads from cache |
-| `src/App.tsx` | `DataSyncInitializer` — triggers sync on login |
+| `src/App.tsx` | `DataSyncInitializer` + `OfflineSyncToasts` |

@@ -193,9 +193,7 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 
 | Role | Responsibility |
 |---|---|
-| **Test lead (Hlulani Baloyi)** | Writes new tests for complex features, reviews test quality, maintains the test inventory, ensures CI stays green |
-| **Each developer** | Writes tests for their own feature alongside the implementation |
-| **PR reviewer** | Checks that new code has corresponding tests before approving |
+| **Test lead (Hlulani Baloyi)** | Writes all tests across frontend and backend services, reviews test quality, maintains the test inventory, ensures CI stays green |
 
 ### Review Cadence
 

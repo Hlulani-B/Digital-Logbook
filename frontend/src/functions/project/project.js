@@ -1,5 +1,6 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
+import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 // ── GET functions ──────────────────────────────────────────────
 
@@ -54,7 +55,19 @@ export async function addProject(user_email, project_name, description) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[addProject] Offline, queuing action');
+    await addToQueue('addProject', 'project', {
+      user_email,
+      project_name,
+      description,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/project`, {
       method: 'POST',
@@ -69,9 +82,14 @@ export async function addProject(user_email, project_name, description) {
     }
     return result;
   } catch (err) {
-    console.error('[addProject] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROJECTS, user_email, cached);
-    return { success: false, message: err.message || 'Failed to add project' };
+    // 4. On failure, queue for retry (don't rollback)
+    console.error('[addProject] Server sync failed, queuing for retry:', err);
+    await addToQueue('addProject', 'project', {
+      user_email,
+      project_name,
+      description,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -94,7 +112,19 @@ export async function editProjectName(user_email, new_project_name, old_project_
     await cacheSet(CACHE_STORES.PROJECTS, user_email, { success: true, projects: renamed });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[editProjectName] Offline, queuing action');
+    await addToQueue('editProjectName', 'project', {
+      user_email,
+      new_project_name,
+      old_project_name,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/project`, {
       method: 'POST',
@@ -112,9 +142,14 @@ export async function editProjectName(user_email, new_project_name, old_project_
     }
     return result;
   } catch (err) {
-    console.error('[editProjectName] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROJECTS, user_email, cached);
-    return { success: false, message: err.message || 'Failed to rename project' };
+    // 4. On failure, queue for retry (don't rollback)
+    console.error('[editProjectName] Server sync failed, queuing for retry:', err);
+    await addToQueue('editProjectName', 'project', {
+      user_email,
+      new_project_name,
+      old_project_name,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -133,7 +168,18 @@ export async function deleteProject(user_email, project_name) {
     await cacheSet(CACHE_STORES.PROJECTS, user_email, { success: true, projects: filtered });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[deleteProject] Offline, queuing action');
+    await addToQueue('deleteProject', 'project', {
+      user_email,
+      project_name,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/project`, {
       method: 'POST',
@@ -150,8 +196,12 @@ export async function deleteProject(user_email, project_name) {
     }
     return result;
   } catch (err) {
-    console.error('[deleteProject] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROJECTS, user_email, cached);
-    return { success: false, message: err.message || 'Failed to delete project' };
+    // 4. On failure, queue for retry (don't rollback)
+    console.error('[deleteProject] Server sync failed, queuing for retry:', err);
+    await addToQueue('deleteProject', 'project', {
+      user_email,
+      project_name,
+    });
+    return { success: true, queued: true };
   }
 }

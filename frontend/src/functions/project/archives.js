@@ -1,5 +1,6 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 // ── GET functions ──────────────────────────────────────────────
 
@@ -113,7 +114,18 @@ export async function getUnarchivedProjects(user_email) {
  * Updates IndexedDB immediately, then syncs to server.
  */
 export async function archiveProject(user_email, project_name) {
-  // 1. Sync to server (archive is a state change, hard to do optimistic)
+  // Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[archiveProject] Offline, queuing action');
+    await addToQueue('archiveProject', 'archives', {
+      user_email,
+      project_name,
+    });
+    return { success: true, queued: true };
+  }
+
+  // Online: sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
       method: 'POST',
@@ -123,7 +135,7 @@ export async function archiveProject(user_email, project_name) {
       }),
     });
 
-    // 2. On success, refresh caches
+    // On success, refresh caches
     if (result?.success) {
       // Re-fetch projects and archives to update caches
       const { getProjectsByEmail } = await import('./project.js');
@@ -138,8 +150,13 @@ export async function archiveProject(user_email, project_name) {
     }
     return result;
   } catch (err) {
-    console.error('[archiveProject] Failed:', err);
-    return { success: false, message: err.message || 'Failed to archive project' };
+    // On failure, queue for retry
+    console.error('[archiveProject] Failed, queuing for retry:', err);
+    await addToQueue('archiveProject', 'archives', {
+      user_email,
+      project_name,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -147,6 +164,16 @@ export async function archiveProject(user_email, project_name) {
  * Unarchive a project (and all its entries).
  */
 export async function unarchiveProject(user_email, project_name) {
+  // Check online status
+  if (!navigator.onLine) {
+    console.log('[unarchiveProject] Offline, queuing action');
+    await addToQueue('unarchiveProject', 'archives', {
+      user_email,
+      project_name,
+    });
+    return { success: true, queued: true };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
       method: 'POST',
@@ -161,7 +188,6 @@ export async function unarchiveProject(user_email, project_name) {
       await getProjectsByEmail(user_email);
       await getArchivedProjects(user_email);
       await getUnarchivedProjects(user_email);
-      // Also refresh entries and archives for this project
       const { getEntries } = await import('./entries.js');
       await getEntries(user_email, project_name);
       await getArchives(user_email, project_name);
@@ -169,8 +195,12 @@ export async function unarchiveProject(user_email, project_name) {
     }
     return result;
   } catch (err) {
-    console.error('[unarchiveProject] Failed:', err);
-    return { success: false, message: err.message || 'Failed to unarchive project' };
+    console.error('[unarchiveProject] Failed, queuing for retry:', err);
+    await addToQueue('unarchiveProject', 'archives', {
+      user_email,
+      project_name,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -178,6 +208,17 @@ export async function unarchiveProject(user_email, project_name) {
  * Archive an entry.
  */
 export async function archiveEntry(user_email, project_name, entry_id) {
+  // Check online status
+  if (!navigator.onLine) {
+    console.log('[archiveEntry] Offline, queuing action');
+    await addToQueue('archiveEntry', 'archives', {
+      user_email,
+      project_name,
+      entry_id,
+    });
+    return { success: true, queued: true };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
       method: 'POST',
@@ -194,8 +235,13 @@ export async function archiveEntry(user_email, project_name, entry_id) {
     }
     return result;
   } catch (err) {
-    console.error('[archiveEntry] Failed:', err);
-    return { success: false, message: err.message || 'Failed to archive entry' };
+    console.error('[archiveEntry] Failed, queuing for retry:', err);
+    await addToQueue('archiveEntry', 'archives', {
+      user_email,
+      project_name,
+      entry_id,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -203,6 +249,17 @@ export async function archiveEntry(user_email, project_name, entry_id) {
  * Unarchive an entry.
  */
 export async function unarchiveEntry(user_email, project_name, entry_id) {
+  // Check online status
+  if (!navigator.onLine) {
+    console.log('[unarchiveEntry] Offline, queuing action');
+    await addToQueue('unarchiveEntry', 'archives', {
+      user_email,
+      project_name,
+      entry_id,
+    });
+    return { success: true, queued: true };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
       method: 'POST',
@@ -218,7 +275,12 @@ export async function unarchiveEntry(user_email, project_name, entry_id) {
     }
     return result;
   } catch (err) {
-    console.error('[unarchiveEntry] Failed:', err);
-    return { success: false, message: err.message || 'Failed to unarchive entry' };
+    console.error('[unarchiveEntry] Failed, queuing for retry:', err);
+    await addToQueue('unarchiveEntry', 'archives', {
+      user_email,
+      project_name,
+      entry_id,
+    });
+    return { success: true, queued: true };
   }
 }

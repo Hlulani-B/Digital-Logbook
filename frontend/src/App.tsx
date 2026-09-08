@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { syncAllData } from '@/CacheFunctions';
+import { OfflineSyncToasts } from '@/components/OfflineSyncToasts';
 import { SignIn } from '@/pages/SignIn';
 import { AuthCallback } from '@/pages/AuthCallback';
 import { AuthRestore } from '@/pages/AuthRestore';
@@ -277,6 +278,7 @@ export function App() {
             />
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
+          <OfflineSyncToasts />
           </DataSyncInitializer>
         </AuthProvider>
       </ThemeInitializer>

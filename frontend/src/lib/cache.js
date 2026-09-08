@@ -12,7 +12,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // Cache store names
 const STORES = {
@@ -23,6 +23,7 @@ const STORES = {
   SEARCH: 'search',
   ARCHIVES: 'archives',
   FIELDS: 'fields',
+  OFFLINE_QUEUE: 'offline-queue',
 };
 
 // Cache metadata (timestamps for stale checks)
@@ -75,7 +76,7 @@ function getDB() {
         // v2 -> v3: unified all stores to use 'key' as keyPath
         if (oldVersion < 3) {
           // Delete old stores with wrong keyPath
-          const storeNames = Object.values(STORES);
+          const storeNames = Object.values(STORES).filter(s => s !== 'offline-queue');
           storeNames.forEach((storeName) => {
             if (db.objectStoreNames.contains(storeName)) {
               db.deleteObjectStore(storeName);
@@ -85,6 +86,15 @@ function getDB() {
         }
         if (!db.objectStoreNames.contains(META_STORE)) {
           db.createObjectStore(META_STORE, { keyPath: 'key' });
+        }
+        // v3 -> v4: add offline queue store with auto-increment
+        if (oldVersion < 4) {
+          if (!db.objectStoreNames.contains(STORES.OFFLINE_QUEUE)) {
+            db.createObjectStore(STORES.OFFLINE_QUEUE, { 
+              keyPath: 'id', 
+              autoIncrement: true 
+            });
+          }
         }
       },
     });
