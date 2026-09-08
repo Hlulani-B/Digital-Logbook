@@ -5935,3 +5935,36 @@ img {
     grid-template-columns: 1fr;
   }
 }
+
+/* ========== DATA DISCLAIMER PAGE ========== */
+.disclaimer-section {
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-xs, 8px);
+  background: var(--surface, rgba(0,0,0,0.03));
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+}
+.disclaimer-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.625rem;
+  color: var(--text, #111);
+}
+.disclaimer-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: var(--text-secondary, #444);
+}
+.disclaimer-list li::marker {
+  color: var(--border, #ccc);
+}
+.disclaimer-accept:hover span:first-child {
+  border-color: var(--accent, #111) !important;
+}

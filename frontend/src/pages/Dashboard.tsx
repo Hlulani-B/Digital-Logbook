@@ -288,6 +288,19 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     loadData();
   }, [loadData]);
 
+  // Re-read from IndexedDB when the tab/page becomes visible again.
+  // This catches the case where the user creates a project on another page
+  // (e.g. Projects page) and navigates back to the Dashboard.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [loadData]);
+
   // Load archived entries when archives view is active
   useEffect(() => {
     if (activeView !== 'archives' || !email) return;
@@ -555,6 +568,20 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const projectName = newProjectName.trim();
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
+      // Immediately add the project to local state so the entry picker sees it
+      setProjects((prev) => {
+        if (prev.some((p) => p.project_name === projectName)) return prev;
+        return [
+          ...prev,
+          {
+            project_name: projectName,
+            description: newProjectDescription.trim() || '',
+            archived: false,
+            created_at: new Date().toISOString(),
+          },
+        ];
+      });
+
       // Save any non-empty project fields (best-effort after project is created)
       if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
@@ -566,7 +593,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           .map((r, i) => (r.status === 'rejected' ? nonEmptyFields[i].field_name : null))
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
-          window.alert(
+          setNewProjectError(
             `Project created, but these fields could not be saved: ${failures.join(', ')}`
           );
         }

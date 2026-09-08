@@ -150,6 +150,7 @@ export function EntryBox({
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -324,7 +325,6 @@ export function EntryBox({
 
   const handleDelete = async () => {
     if (!user_email || deleting) return;
-    if (!window.confirm('Delete this entry? You can recover it later.')) return;
     setDeleting(true);
     setError(null);
     setMenuOpen(false);
@@ -336,6 +336,7 @@ export function EntryBox({
       setError(err instanceof Error ? err.message : 'Failed to delete entry');
     } finally {
       setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -574,14 +575,53 @@ export function EntryBox({
                     ? 'Unarchive'
                     : 'Archive'}
               </button>
-              <button
-                type="button"
-                className="entry-box__menu-item entry-box__menu-item--danger"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
+              {confirmDelete ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.25rem 0',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>
+                    Delete?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    style={{
+                      background: '#dc2626',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '0.35rem',
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {deleting ? 'Deleting...' : 'Yes, delete'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    className="btn-secondary"
+                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="entry-box__menu-item entry-box__menu-item--danger"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={deleting}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           )}
         </div>
