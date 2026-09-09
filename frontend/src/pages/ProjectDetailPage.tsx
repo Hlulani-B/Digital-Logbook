@@ -702,7 +702,7 @@ export function ProjectDetailPage() {
         {/* All entries */}
         {!searchQuery && (
           <div className="project-content">
-            {entries.length === 0 ? (
+            {!loading && entries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
                   <svg
