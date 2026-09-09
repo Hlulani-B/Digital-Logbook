@@ -18,6 +18,7 @@ import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
   if (!entries) return {};
@@ -47,10 +48,12 @@ function KanbanCard({
   entry,
   onDragStart,
   onClick,
+  projectColor,
 }: {
   entry: CalendarEntry;
   onDragStart: () => void;
   onClick: () => void;
+  projectColor?: string;
 }) {
   const status = getEntryStatus(entry);
   const due = parseDueDate(entry.due_date);
@@ -74,6 +77,7 @@ function KanbanCard({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onClick();
       }}
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
       <div className="kanban-card-title">{getEntryTitle(entry)}</div>
       <div className="kanban-card-meta">
@@ -100,6 +104,7 @@ function KanbanColumn({
   onDragStart,
   onDrop,
   onEntryClick,
+  colorMap,
 }: {
   status: EntryStatus;
   entries: CalendarEntry[];
@@ -107,6 +112,7 @@ function KanbanColumn({
   onDragStart: (entry: CalendarEntry) => void;
   onDrop: (status: EntryStatus) => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  colorMap?: Record<string, string | null>;
 }) {
   const isDropTarget = dragging !== null && getEntryStatus(dragging) !== status;
 
@@ -139,6 +145,7 @@ function KanbanColumn({
             entry={entry}
             onDragStart={() => onDragStart(entry)}
             onClick={() => onEntryClick(entry)}
+            projectColor={colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined}
           />
         ))}
       </div>
@@ -211,6 +218,7 @@ export function KanbanPage() {
   );
 
   const groupedEntries = useMemo(() => groupEntriesByStatus(filteredEntries), [filteredEntries]);
+  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
 
   const handleDragStart = (entry: CalendarEntry) => {
     setDragging(entry);
@@ -349,6 +357,7 @@ export function KanbanPage() {
               onDragStart={handleDragStart}
               onDrop={handleDrop}
               onEntryClick={handleEntryClick}
+              colorMap={colorMap}
             />
           ))}
         </div>

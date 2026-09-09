@@ -16,6 +16,7 @@ import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -402,6 +403,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Project colour map — computed once per projects change
+  const dashColorMap = useMemo(
+    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
+    [projects]
+  );
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
@@ -1363,6 +1370,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
                     }
                   }}
+                  projectColor={resolveProjectColor(
+                    (row.project_name as string) || '',
+                    dashColorMap
+                  )}
                 />
               ))
             )}
@@ -1514,6 +1525,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     }))}
                     onUpdated={() => loadData()}
                     onDelete={() => loadData()}
+                    colorMap={dashColorMap}
                   />
                 ) : displayMode === 'board' ? (
                   <EntriesByDueDateBoard
@@ -1530,6 +1542,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     }))}
                     onUpdated={() => loadData()}
                     onDelete={() => loadData()}
+                    colorMap={dashColorMap}
                   />
                 ) : (
                   filteredEntries.map((row, i) => (
@@ -1539,6 +1552,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       onUpdated={() => loadData()}
                       onPriorityChanged={handleSetPriority}
                       onDelete={() => loadData()}
+                      projectColor={resolveProjectColor(
+                        (row.project_name as string) || '',
+                        dashColorMap
+                      )}
                     />
                   ))
                 )}
@@ -1624,7 +1641,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         {isToday && <span className="calendar-day-today-label">Today</span>}
                       </div>
                       <div className="calendar-day-entries">
-                        {dayEntries.slice(0, 3).map((entry) => (
+                        {dayEntries.slice(0, 3).map((entry) => {
+                          const entryColor = resolveProjectColor(entry.project_name || '', dashColorMap);
+                          return (
                           <div
                             key={entry.id}
                             className={[
@@ -1639,11 +1658,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                             onClick={() =>
                               navigate(`/project/${encodeURIComponent(entry.project_name)}`)
                             }
+                            style={{ borderLeft: `3px solid ${entryColor}` }}
                           >
                             <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
                             <span className="calendar-entry-project">{entry.project_name}</span>
                           </div>
-                        ))}
+                          );
+                        })}
                         {dayEntries.length > 3 && (
                           <span className="calendar-more-label">+{dayEntries.length - 3} more</span>
                         )}

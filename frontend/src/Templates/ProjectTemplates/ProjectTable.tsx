@@ -444,6 +444,7 @@ function ProjectGroup({
   hideHeader,
   selectedIds,
   onToggleSelect,
+  projectColor,
 }: {
   project: any;
   viewMode: "entry" | "summary";
@@ -453,6 +454,7 @@ function ProjectGroup({
   hideHeader?: boolean;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
+  projectColor?: string;
 }) {
   const [open, setOpen] = useState(true);
   // Derive columns from the entries jsonb keys directly
@@ -498,6 +500,13 @@ function ProjectGroup({
             style={onProjectNameClick ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
             title={onProjectNameClick ? `Open ${project.name}` : undefined}
           >
+            {projectColor && (
+              <span
+                className="ptt-group-dot"
+                style={{ backgroundColor: projectColor }}
+                aria-hidden="true"
+              />
+            )}
             {project.name}
           </span>
           <span className="ptt-group-count">{project.entries.length}</span>
@@ -569,6 +578,7 @@ export default function ProjectTaskTable({
   projectNames,
   showToggle = true,
   onDeleteSelected,
+  colorMap,
 }: {
   rows?: any[];
   viewMode?: "entry" | "summary";
@@ -577,6 +587,7 @@ export default function ProjectTaskTable({
   projectNames?: string[]; // Optional: filter to show only these projects' entries
   showToggle?: boolean; // Show Entry/Summary toggle buttons
   onDeleteSelected?: (ids: string[]) => void; // Bulk delete callback
+  colorMap?: Record<string, string | null>;
 }) {
   const [internalViewMode, setInternalViewMode] = useState<"entry" | "summary">("entry");
   // Use external viewMode if provided, otherwise use internal state
@@ -669,6 +680,7 @@ export default function ProjectTaskTable({
           hideHeader={projectNames?.length === 1}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
+          projectColor={colorMap ? (colorMap[project.name] || undefined) : undefined}
         />
       ))}
     </div>

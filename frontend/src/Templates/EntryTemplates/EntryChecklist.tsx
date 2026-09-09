@@ -18,6 +18,7 @@ interface ChecklistEntryCardProps {
   entry: ChecklistEntry;
   onUpdated?: () => void;
   onDelete?: (entryId: string) => void;
+  projectColor?: string;
 }
 
 const DONE_STATUS: EntryStatus = 'done_and_dusted';
@@ -55,7 +56,7 @@ function getSummary(entry: ChecklistEntry): string {
   return 'Untitled entry';
 }
 
-export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: ChecklistEntryCardProps) {
+export default function ChecklistEntryCard({ entry, onUpdated, onDelete, projectColor }: ChecklistEntryCardProps) {
   const isDone = entry.status === DONE_STATUS;
   const [checking, setChecking] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -172,6 +173,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete }: Check
         className={`checklist-card ${isDone ? 'checklist-card--done' : ''}`}
         data-status={entry.status}
         onClick={handleCardClick}
+        style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
       >
         <span className="checklist-project">{entry.project_name}</span>
         <div className="checklist-card-row">
@@ -299,9 +301,10 @@ interface ChecklistViewProps {
   entries: ChecklistEntry[];
   onUpdated?: () => void;
   onDelete?: (entryId: string) => void;
+  colorMap?: Record<string, string | null>;
 }
 
-export function ChecklistView({ entries, onUpdated, onDelete }: ChecklistViewProps) {
+export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: ChecklistViewProps) {
   if (!entries || entries.length === 0) {
     return (
       <div className="checklist-empty">
@@ -326,6 +329,7 @@ export function ChecklistView({ entries, onUpdated, onDelete }: ChecklistViewPro
           entry={entry}
           onUpdated={onUpdated}
           onDelete={onDelete}
+          projectColor={colorMap ? (colorMap[entry.project_name] || null) : undefined}
         />
       ))}
     </div>

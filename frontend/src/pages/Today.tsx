@@ -9,6 +9,7 @@ import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', {
@@ -29,16 +30,22 @@ function getPriorityClass(priority: string | null): string {
 interface TodayCardProps {
   entry: CalendarEntry;
   onClick: () => void;
+  projectColor?: string;
 }
 
-function TodayCard({ entry, onClick }: TodayCardProps) {
+function TodayCard({ entry, onClick, projectColor }: TodayCardProps) {
   const status = entry.status ?? 'up_next';
   const due = parseDueDate(entry.due_date);
   const overdue = isOverdue(entry.due_date ?? null, status);
   const priorityClass = getPriorityClass(entry.priority ?? null);
 
   return (
-    <button className="today-card" onClick={onClick} type="button">
+    <button
+      className="today-card"
+      onClick={onClick}
+      type="button"
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
+    >
       <div className="today-card-main">
         <span
           className={['today-card-title', overdue && 'today-card-title--overdue']
@@ -74,9 +81,10 @@ interface TodaySectionProps {
   entries: CalendarEntry[];
   variant: 'urgent' | 'today' | 'progress';
   onEntryClick: (entry: CalendarEntry) => void;
+  colorMap?: Record<string, string | null>;
 }
 
-function TodaySection({ title, subtitle, entries, variant, onEntryClick }: TodaySectionProps) {
+function TodaySection({ title, subtitle, entries, variant, onEntryClick, colorMap }: TodaySectionProps) {
   if (entries.length === 0) return null;
 
   return (
@@ -87,7 +95,12 @@ function TodaySection({ title, subtitle, entries, variant, onEntryClick }: Today
       </div>
       <div className="today-section-list">
         {entries.map((entry) => (
-          <TodayCard key={entry.id} entry={entry} onClick={() => onEntryClick(entry)} />
+          <TodayCard
+            key={entry.id}
+            entry={entry}
+            onClick={() => onEntryClick(entry)}
+            projectColor={colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined}
+          />
         ))}
       </div>
     </section>
@@ -100,6 +113,7 @@ export function TodayPage() {
   const email = user?.email ?? '';
 
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
+  const [projects, setProjects] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +123,11 @@ export function TodayPage() {
     setError(null);
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects) {
+        const pList = cachedProjects.data || cachedProjects.projects || [];
+        setProjects(Array.isArray(pList) ? pList : []);
+      }
       if (cached?.data) {
         const data = (Array.isArray(cached.data) ? cached.data : []).filter((e: CalendarEntry) => !e.archived);
         setEntries(data);
@@ -139,6 +158,8 @@ export function TodayPage() {
   const handleEntryClick = (entry: CalendarEntry) => {
     navigate(`/project/${encodeURIComponent(entry.project_name)}`);
   };
+
+  const colorMap = useMemo(() => buildProjectColorMap(projects), [projects]);
 
   return (
     <div className="dash-layout">
@@ -195,6 +216,7 @@ export function TodayPage() {
             entries={sections.overdue}
             variant="urgent"
             onEntryClick={handleEntryClick}
+            colorMap={colorMap}
           />
           <TodaySection
             title="Due today"
@@ -202,6 +224,7 @@ export function TodayPage() {
             entries={sections.dueToday}
             variant="today"
             onEntryClick={handleEntryClick}
+            colorMap={colorMap}
           />
           <TodaySection
             title="In progress"
@@ -209,6 +232,7 @@ export function TodayPage() {
             entries={sections.inProgress}
             variant="progress"
             onEntryClick={handleEntryClick}
+            colorMap={colorMap}
           />
         </div>
       )}

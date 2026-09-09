@@ -109,6 +109,7 @@ interface EntryBoxProps {
   onArchiveToggled?: (entryId: string, archived: boolean) => void;
   onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
   onDelete?: (entryId: string) => void;
+  projectColor?: string | null;
 }
 
 export function EntryBox({
@@ -117,6 +118,7 @@ export function EntryBox({
   onArchiveToggled,
   onPriorityChanged,
   onDelete,
+  projectColor,
 }: EntryBoxProps) {
   const {
     id,
@@ -544,7 +546,10 @@ export function EntryBox({
   }
 
   return (
-    <div className={`entry-box ${archived ? 'entry-box--archived' : ''}`}>
+    <div
+      className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
+    >
       <div className="entry-box__top-row">
         <div className="entry-box__menu-wrap" ref={menuRef}>
           <button

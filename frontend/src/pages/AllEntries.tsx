@@ -12,6 +12,7 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 type Entry = Record<string, unknown>;
 
@@ -158,6 +159,8 @@ export function AllEntriesPage() {
     return filtered;
   }, [entries, searchQuery, sortBy]);
 
+  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
+
   // AI placeholder
   useEffect(() => {
     const placeholders = [
@@ -275,6 +278,7 @@ export function AllEntriesPage() {
               }))}
               onUpdated={() => loadData()}
               onDelete={() => loadData()}
+              colorMap={colorMap}
             />
           </div>
         )}
@@ -293,6 +297,7 @@ export function AllEntriesPage() {
               }))}
               onUpdated={() => loadData()}
               onDelete={() => loadData()}
+              colorMap={colorMap}
             />
           </div>
         )}
@@ -305,6 +310,7 @@ export function AllEntriesPage() {
             onDeleteSelected={async () => {
               await loadData();
             }}
+            colorMap={colorMap}
           />
         )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
@@ -316,6 +322,10 @@ export function AllEntriesPage() {
                 onUpdated={() => loadData()}
                 onPriorityChanged={handleSetPriority}
                 onDelete={() => loadData()}
+                projectColor={resolveProjectColor(
+                  (row.project_name as string) || '',
+                  buildProjectColorMap(projects as Array<Record<string, unknown>>)
+                )}
               />
             ))}
           </div>
