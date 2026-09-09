@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 
 import { FiMic } from 'react-icons/fi';
 import { addNaturalLanguageEntry } from '../functions/project/natural_language.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface QuickEntryBarProps {
   onEntryCreated?: () => void;
@@ -16,6 +17,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
   const [toast, setToast] = useState('');
   const [messageType, setMessageType] = useState(''); // "success" | "error"
   const inputRef = useRef(null);
+  const isOnline = useNetworkStatus();
 
   useEffect(() => {
     if (message) {
@@ -103,12 +105,15 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             type="text"
             className="quick-entry-input"
             placeholder={
-              placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+              isOnline
+                ? placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+                : 'Offline — Quick add unavailable'
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={loading}
+            disabled={loading || !isOnline}
+            title={!isOnline ? 'Quick add is not available offline' : undefined}
           />
           {/* Voice button */}
           {onVoiceOpen && (
@@ -117,12 +122,19 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title="Record a voice entry"
+              title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+              disabled={!isOnline}
+              style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
               <FiMic size={16} />
             </button>
           )}
-          <button type="submit" className="quick-entry-submit" disabled={loading || !text.trim()}>
+          <button
+            type="submit"
+            className="quick-entry-submit"
+            disabled={loading || !text.trim() || !isOnline}
+            title={!isOnline ? 'Quick add is not available offline' : undefined}
+          >
             {loading ? (
               <svg
                 className="animate-spin"

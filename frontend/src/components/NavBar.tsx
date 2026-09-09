@@ -397,9 +397,9 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
             Import & Export
           </button>
           <button
-            className={`drawer-item ${isActive('/data-disclaimer') ? 'active' : ''}`}
+            className={`drawer-item ${isActive('/data-disclaimer-info') ? 'active' : ''}`}
             onClick={() => {
-              navigate('/data-disclaimer');
+              navigate('/data-disclaimer-info');
               setDrawerOpen(false);
             }}
           >

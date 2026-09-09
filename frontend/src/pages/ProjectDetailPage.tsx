@@ -19,6 +19,7 @@ import { askAI } from '@/functions/ai.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiSettings } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -158,6 +159,9 @@ export function ProjectDetailPage() {
 
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // Network status
+  const isOnline = useNetworkStatus();
 
   // AI placeholder
   const [aiPlaceholder, setAiPlaceholder] = useState(
@@ -550,25 +554,29 @@ export function ProjectDetailPage() {
               <input
                 type="text"
                 className="quick-entry-input"
-                placeholder={aiPlaceholder}
+                placeholder={isOnline ? aiPlaceholder : 'Offline — quick add unavailable'}
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
                 onKeyDown={handleQuickKeyDown}
-                disabled={quickLoading}
+                disabled={quickLoading || !isOnline}
+                title={!isOnline ? 'Quick add is not available offline' : undefined}
               />
               <button
                 type="button"
                 className="quick-entry-voice"
                 onClick={() => setVoiceOpen(true)}
                 aria-label="Voice entry"
-                title="Record a voice entry"
+                title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+                disabled={!isOnline}
+                style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
               >
                 <FiMic size={16} />
               </button>
               <button
                 type="submit"
                 className="quick-entry-submit"
-                disabled={quickLoading || !quickText.trim()}
+                disabled={quickLoading || !quickText.trim() || !isOnline}
+                title={!isOnline ? 'Quick add is not available offline' : undefined}
               >
                 {quickLoading ? (
                   <svg

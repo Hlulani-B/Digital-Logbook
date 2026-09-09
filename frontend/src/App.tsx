@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { syncAllData } from '@/CacheFunctions';
 import { OfflineSyncToasts } from '@/components/OfflineSyncToasts';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { SignIn } from '@/pages/SignIn';
 import { AuthCallback } from '@/pages/AuthCallback';
 import { AuthRestore } from '@/pages/AuthRestore';
@@ -274,15 +275,15 @@ export function App() {
               path="/data-disclaimer"
               element={
                 <ProtectedRoute>
-                  <DataDisclaimer2 />
+                  <DataDisclaimer />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/data-disclaimer-signup"
+              path="/data-disclaimer-info"
               element={
                 <ProtectedRoute>
-                  <DataDisclaimer />
+                  <DataDisclaimer2 />
                 </ProtectedRoute>
               }
             />
@@ -297,6 +298,7 @@ export function App() {
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
           <OfflineSyncToasts />
+          <OfflineBanner />
           </DataSyncInitializer>
         </AuthProvider>
       </ThemeInitializer>
