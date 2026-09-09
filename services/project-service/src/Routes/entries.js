@@ -48,6 +48,7 @@ router.post('/entry', async (req, res) => {
           started_at,
           ended_at,
           duration,
+          notes,
         } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.addEntry(
@@ -59,7 +60,9 @@ router.post('/entry', async (req, res) => {
           status,
           started_at,
           ended_at,
-          duration
+          duration,
+          undefined, // summary (generated internally for NL flow)
+          notes
         );
         if (result.success) {
           const entrySummary =

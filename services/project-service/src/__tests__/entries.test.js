@@ -3,6 +3,10 @@ import { Entries } from '../functions/entries.js';
 
 jest.mock('../db.js');
 jest.mock('../functions/ai.js', () => ({ AI: jest.fn() }));
+jest.mock('../functions/notes/notes_crud.js', () => {
+  const mockAddNote = jest.fn().mockResolvedValue({ success: true, data: { id: 'n1', entry_type: 'text', value: 'test' } });
+  return { Notes: jest.fn().mockImplementation(() => ({ addNote: mockAddNote })) };
+});
 
 describe('Entries', () => {
   let entries;
@@ -33,6 +37,7 @@ describe('Entries', () => {
       expect(result.success).toBe(true);
       expect(result.message).toBe('Entry added successfully');
       expect(result.data).toEqual([insertedRow]);
+      expect(result.notes).toEqual([]);
     });
 
     it('should add entry and return inserted data', async () => {
@@ -46,11 +51,51 @@ describe('Entries', () => {
 
       const result = await entries.addEntry('a@b.com', 'P1', 'new-entry', null);
 
-      expect(result).toEqual({
-        success: true,
-        message: 'Entry added successfully',
-        data: [insertedData],
-      });
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual([insertedData]);
+      expect(result.notes).toEqual([]);
+    });
+
+    it('should add notes sequentially after entry creation', async () => {
+      const insertedRow = { id: 'entry-1', user_email: 'a@b.com', project_name: 'P1' };
+      pool.query.mockResolvedValueOnce({ rows: [insertedRow] });
+
+      const notes = [
+        { entry_type: 'text', value: 'Note 1' },
+        { entry_type: 'link', value: 'https://example.com' },
+      ];
+
+      const result = await entries.addEntry('a@b.com', 'P1', { task: 'test' }, null, null, null, null, null, null, null, notes);
+
+      expect(result.success).toBe(true);
+      expect(result.notes).toHaveLength(2);
+    });
+
+    it('should skip invalid notes (missing entry_type or value)', async () => {
+      const insertedRow = { id: 'entry-1', user_email: 'a@b.com', project_name: 'P1' };
+      pool.query.mockResolvedValueOnce({ rows: [insertedRow] });
+
+      const notes = [
+        { entry_type: '', value: 'no type' },
+        { value: 'no type either' },
+        { entry_type: 'text', value: '' },
+        null,
+      ];
+
+      const result = await entries.addEntry('a@b.com', 'P1', { task: 'test' }, null, null, null, null, null, null, null, notes);
+
+      expect(result.success).toBe(true);
+      expect(result.notes).toHaveLength(0);
+    });
+
+    it('should return empty notes array when notes param is not provided', async () => {
+      const insertedRow = { id: 'entry-1', user_email: 'a@b.com', project_name: 'P1' };
+      pool.query.mockResolvedValueOnce({ rows: [insertedRow] });
+
+      const result = await entries.addEntry('a@b.com', 'P1', { task: 'test' });
+
+      expect(result.success).toBe(true);
+      expect(result.notes).toEqual([]);
     });
 
     it('should return failure when db returns an error', async () => {
@@ -138,12 +183,17 @@ describe('Entries', () => {
 
   // ─── deleteEntry ─────────────────────────────────────────────
   describe('deleteEntry', () => {
-    it('should delete an existing entry', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ id: 1, entries: 'entry-to-delete' }] });
+    it('should soft-delete an entry and its notes', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ id: 1, entries: 'entry-to-delete' }] })
+        .mockResolvedValueOnce({ rowCount: 2 }); // notes soft-deleted
 
       const result = await entries.deleteEntry('a@b.com', 'P1', 'entry-to-delete');
 
       expect(result).toEqual({ success: true, message: 'Entry deleted successfully' });
+      // Second query should soft-delete notes
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query.mock.calls[1][0]).toContain('UPDATE notes SET deleted = true');
     });
 
     it('should return failure when no entry matches', async () => {
@@ -152,6 +202,8 @@ describe('Entries', () => {
       const result = await entries.deleteEntry('a@b.com', 'P1', 'missing-entry');
 
       expect(result).toEqual({ success: false, message: 'Entry not found. Something went wrong' });
+      // Should not attempt to delete notes
+      expect(pool.query).toHaveBeenCalledTimes(1);
     });
 
     it('should return failure when db returns an error', async () => {
@@ -250,12 +302,25 @@ describe('Entries', () => {
 
   // ─── deleteEntryById ─────────────────────────────────────────
   describe('deleteEntryById', () => {
-    it('should soft-delete an entry by id', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [] });
+    it('should soft-delete an entry and its notes by id', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+        .mockResolvedValueOnce({ rowCount: 1 }); // notes soft-deleted
 
       const result = await entries.deleteEntryById('a@b.com', 42);
 
       expect(result).toEqual({ success: true, message: 'Entry deleted successfully' });
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query.mock.calls[1][0]).toContain('UPDATE notes SET deleted = true');
+    });
+
+    it('should return failure when entry not found', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await entries.deleteEntryById('a@b.com', 42);
+
+      expect(result).toEqual({ success: false, message: 'Entry not found' });
+      expect(pool.query).toHaveBeenCalledTimes(1);
     });
 
     it('should return failure when db returns an error', async () => {

@@ -2,6 +2,7 @@ import pool from '../db.js';
 import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Fields } from './field.js';
+import { Notes } from './notes/notes_crud.js';
 import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 import leven from 'leven';
 
@@ -16,7 +17,8 @@ export class Entries {
     started_at,
     ended_at,
     duration,
-    summary
+    summary,
+    notes
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -45,8 +47,26 @@ export class Entries {
         values
       );
 
-      console.log('[addEntry] Success, id:', rows?.[0]?.id);
-      return { success: true, message: 'Entry added successfully', data: rows };
+      const entryId = rows?.[0]?.id;
+      console.log('[addEntry] Success, id:', entryId);
+
+      // Add notes if provided
+      let addedNotes = [];
+      if (Array.isArray(notes) && notes.length > 0 && entryId) {
+        const notesHelper = new Notes();
+        for (const note of notes) {
+          const { entry_type, value } = note || {};
+          if (!entry_type || value === undefined || value === null || value === '') continue;
+          const noteResult = await notesHelper.addNote(user_email, entryId, entry_type, value);
+          if (noteResult.success) {
+            addedNotes.push(noteResult.data);
+          } else {
+            console.warn('[addEntry] Failed to add note:', noteResult.message);
+          }
+        }
+      }
+
+      return { success: true, message: 'Entry added successfully', data: rows, notes: addedNotes };
     } catch (error) {
       console.error('[addEntry] FAILED:', error.message);
       return { success: false, message: error.message };
@@ -179,6 +199,13 @@ export class Entries {
         return { success: false, message: 'Entry not found. Something went wrong' };
       }
 
+      // Soft-delete associated notes
+      const entryId = rows[0].id;
+      await pool.query(
+        `UPDATE notes SET deleted = true WHERE entry_id = $1 AND (deleted = false OR deleted IS NULL)`,
+        [entryId]
+      );
+
       console.log('Entry soft-deleted successfully');
       return { success: true, message: 'Entry deleted successfully' };
     } catch (error) {
@@ -190,10 +217,21 @@ export class Entries {
   async deleteEntryById(user_email, entry_id) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
-      await pool.query(
+      const { rows } = await pool.query(
         `UPDATE entries SET deleted = true
-         WHERE id = $1 AND user_email = $2 AND deleted = false`,
+         WHERE id = $1 AND user_email = $2 AND deleted = false
+         RETURNING id`,
         [entry_id, user_email]
+      );
+
+      if (!rows || rows.length === 0) {
+        return { success: false, message: 'Entry not found' };
+      }
+
+      // Soft-delete associated notes
+      await pool.query(
+        `UPDATE notes SET deleted = true WHERE entry_id = $1 AND (deleted = false OR deleted IS NULL)`,
+        [entry_id]
       );
 
       console.log('Entry soft-deleted by id:', entry_id);
