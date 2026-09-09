@@ -223,10 +223,10 @@ export default function DataPortability() {
             entry.ended_at,
             entry.duration
           );
-          if (res?.success && res?.data?.id) {
+          if (res?.success && (res as any)?.data?.id) {
             createdEntryIds.push({
               projectName: entry.project_name,
-              entryId: res.data.id,
+              entryId: (res as any).data.id,
             });
           }
         }

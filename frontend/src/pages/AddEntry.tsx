@@ -189,10 +189,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       );
 
       if (result?.success === false) {
-        throw new Error(result.message || 'Failed to add entry');
-      }
-      if (result?.error) {
-        throw new Error(result.error);
+        throw new Error((result as any).message || 'Failed to add entry');
       }
 
       onAdded?.(result);
