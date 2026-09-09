@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { updateEntry } from '@/functions/project/entries.js';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
@@ -63,6 +64,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
   
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
@@ -280,6 +282,16 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           title="Edit"
         >
           Edit
+        </button>
+        <button 
+          className="checklist-card-menu-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/notes/${entry.id}`, { state: entry });
+          }}
+          title="Notes"
+        >
+          Notes
         </button>
         <button 
           className="checklist-card-menu-btn checklist-card-menu-btn--delete"

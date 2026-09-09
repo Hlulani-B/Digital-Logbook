@@ -31,6 +31,7 @@ import { TimelinePage } from '@/pages/Timeline';
 import DataPortability from '@/pages/DataPortability';
 import { DataDisclaimer } from '@/pages/DataDisclaimer';
 import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
+import { NotesPage } from '@/pages/NotesPage';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -293,6 +294,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <DataPortability />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notes/:entryId"
+              element={
+                <ProtectedRoute>
+                  <NotesPage />
                 </ProtectedRoute>
               }
             />

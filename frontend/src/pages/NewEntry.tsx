@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
@@ -157,6 +158,7 @@ export function EntryBox({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // Live elapsed time for in-progress tasks
   const [elapsed, setElapsed] = useState<string>('');
@@ -567,6 +569,26 @@ export function EntryBox({
             <div className="entry-box__menu">
               <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
                 Edit
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate(`/notes/${id}`, { state: entry });
+                }}
+              >
+                View Notes
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate(`/notes/${id}?add=true`, { state: entry });
+                }}
+              >
+                Add Note
               </button>
               <button
                 type="button"

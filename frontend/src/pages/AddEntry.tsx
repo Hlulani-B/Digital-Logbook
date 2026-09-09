@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addEntry } from '../functions/project/entries.js';
 import { getFields } from '../functions/project/fields.js';
+
+type NoteType = 'text' | 'link' | 'image' | 'pdf';
+
+interface NoteDraft {
+  entry_type: NoteType;
+  value: string | File;
+}
 
 const PRIORITY_LABELS: Record<string, string> = {
   '0': 'Urgent and important',
@@ -58,6 +65,20 @@ function inputTypeForDataType(dataType: string): string {
   }
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the data:...;base64, prefix if present
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEntryProps) {
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -67,6 +88,9 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
   const [saving, setSaving] = useState(false);
   const [loadingFields, setLoadingFields] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<NoteDraft[]>([]);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Load predefined fields for this project
   useEffect(() => {
@@ -136,6 +160,21 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       // Convert priority index to label (null = no priority)
       const priorityLabel = priorityValue === '3' ? null : PRIORITY_LABELS[priorityValue];
 
+      // Build notes array — read files as base64
+      const notesPayload: { entry_type: string; value: string }[] = [];
+      for (const note of notes) {
+        if (note.entry_type === 'image' || note.entry_type === 'pdf') {
+          if (note.value instanceof File) {
+            const base64 = await fileToBase64(note.value);
+            notesPayload.push({ entry_type: note.entry_type, value: base64 });
+          } else if (typeof note.value === 'string' && note.value) {
+            notesPayload.push({ entry_type: note.entry_type, value: note.value });
+          }
+        } else if (typeof note.value === 'string' && note.value.trim()) {
+          notesPayload.push({ entry_type: note.entry_type, value: note.value.trim() });
+        }
+      }
+
       const result = await addEntry(
         user_email,
         project_name,
@@ -145,7 +184,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         statusValue,
         null, // started_at - set via Start Task button
         null, // ended_at - set via End Task button
-        null // duration - calculated in Supabase
+        null, // duration - calculated in Supabase
+        notesPayload.length > 0 ? notesPayload : undefined
       );
 
       if (result?.success === false) {
@@ -279,6 +319,104 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             ))}
           </select>
         </div>
+      </div>
+
+      {/* Notes Section */}
+      <div className="add-entry__notes-section">
+        <button
+          type="button"
+          className="add-entry__notes-toggle"
+          onClick={() => setNotesOpen((v) => !v)}
+          disabled={saving}
+        >
+          <span>Notes</span>
+          <span className="add-entry__notes-count">{notes.length > 0 ? `(${notes.length})` : ''}</span>
+          <span className={`add-entry__notes-arrow ${notesOpen ? 'add-entry__notes-arrow--open' : ''}`}>
+            &#9662;
+          </span>
+        </button>
+
+        {notesOpen && (
+          <div className="add-entry__notes-body">
+            {notes.map((note, idx) => (
+              <div className="add-entry__note-row" key={idx}>
+                <select
+                  className="add-entry__note-type"
+                  value={note.entry_type}
+                  onChange={(e) => {
+                    const updated = [...notes];
+                    updated[idx] = { ...note, entry_type: e.target.value as NoteType, value: '' };
+                    setNotes(updated);
+                  }}
+                  disabled={saving}
+                >
+                  <option value="text">Text</option>
+                  <option value="link">Link</option>
+                  <option value="image">Image</option>
+                  <option value="pdf">PDF</option>
+                </select>
+
+                {(note.entry_type === 'text' || note.entry_type === 'link') ? (
+                  <input
+                    type={note.entry_type === 'link' ? 'url' : 'text'}
+                    className="add-entry__note-input"
+                    placeholder={note.entry_type === 'link' ? 'https://...' : 'Type a note...'}
+                    value={typeof note.value === 'string' ? note.value : ''}
+                    onChange={(e) => {
+                      const updated = [...notes];
+                      updated[idx] = { ...note, value: e.target.value };
+                      setNotes(updated);
+                    }}
+                    disabled={saving}
+                  />
+                ) : (
+                  <>
+                    <input
+                      ref={(el) => { fileInputRefs.current[idx] = el; }}
+                      type="file"
+                      className="add-entry__note-file"
+                      accept={note.entry_type === 'image' ? 'image/*' : '.pdf'}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const updated = [...notes];
+                          updated[idx] = { ...note, value: file };
+                          setNotes(updated);
+                        }
+                      }}
+                      disabled={saving}
+                    />
+                    {note.value instanceof File && (
+                      <span className="add-entry__note-filename">{note.value.name}</span>
+                    )}
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className="add-entry__note-remove"
+                  onClick={() => setNotes(notes.filter((_, i) => i !== idx))}
+                  disabled={saving}
+                  title="Remove note"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              className="add-entry__note-add"
+              onClick={() => {
+                setNotes([...notes, { entry_type: 'text', value: '' }]);
+                if (!notesOpen) setNotesOpen(true);
+              }}
+              disabled={saving}
+            >
+              + Add Note
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="add-entry__actions">
