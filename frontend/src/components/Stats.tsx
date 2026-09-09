@@ -1,5 +1,10 @@
 import { useMemo, useState, useEffect } from 'react';
-import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
+import {
+  calculateTotalTimeTracked,
+  calculateProjectStats,
+  computeFieldStats,
+  fieldHeadline,
+} from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
@@ -114,7 +119,10 @@ Make it insightful and encouraging. ${tone}`;
   }, [statsOpen, reflection, activeProject, entries, projects]);
 
   // Detect in-progress entries so the live timer only ticks when needed.
-  const hasInProgress = useMemo(() => safeEntries.some((e) => e.started_at && !e.ended_at), [safeEntries]);
+  const hasInProgress = useMemo(
+    () => safeEntries.some((e) => e.started_at && !e.ended_at),
+    [safeEntries]
+  );
   // Ticking timestamp — re-renders every second while a task is running,
   // paused otherwise to avoid unnecessary work.
   const now = useNow(1000, hasInProgress);
@@ -140,6 +148,15 @@ Make it insightful and encouraging. ${tone}`;
     if (!activeProject) return [];
     return safeEntries.filter((e) => e.project_name === activeProject);
   }, [safeEntries, activeProject]);
+
+  // Generic per-field statistics — scoped to the active project when one
+  // is selected. No field definitions are passed: the engine derives every
+  // field from the data itself, so any field the owner defined works here
+  // without the logbook knowing about it in advance.
+  const scopedEntries = activeProject ? activeProjectEntries : safeEntries;
+  const fieldStats = useMemo(() => {
+    return computeFieldStats(scopedEntries, [], { now, maxGroups: 3 }).slice(0, 6);
+  }, [scopedEntries, now]);
 
   return (
     <div className="feed-stats-box">
@@ -225,6 +242,19 @@ Make it insightful and encouraging. ${tone}`;
                   <span className="feed-stats-breakdown-detail">
                     {ps.display} · {ps.entryCount} entr{ps.entryCount === 1 ? 'y' : 'ies'}
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Owner-defined fields — same standard format as every other stat */}
+          {fieldStats.length > 0 && (
+            <div className="feed-stats-fields">
+              <span className="feed-stats-breakdown-title">Fields</span>
+              {fieldStats.map((fs) => (
+                <div key={fs.field} className="feed-stats-breakdown-row">
+                  <span className="feed-stats-breakdown-name">{fs.field}</span>
+                  <span className="feed-stats-breakdown-detail">{fieldHeadline(fs)}</span>
                 </div>
               ))}
             </div>
