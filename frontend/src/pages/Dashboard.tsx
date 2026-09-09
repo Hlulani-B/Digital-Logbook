@@ -1712,9 +1712,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           className={`fab ${fabOpen ? 'fab-open' : ''}`}
           onClick={() => setFabOpen(!fabOpen)}
           aria-label="Quick actions"
-          disabled={!isOnline}
-          title={!isOnline ? 'Quick actions are not available offline' : undefined}
-          style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
         >
           <svg
             width="20"
