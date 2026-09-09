@@ -10,21 +10,25 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
  */
 export async function getNotes(entry_id) {
   const cacheKey = `notes:${entry_id}`;
+  console.log('[getNotes] called for entry_id=', entry_id);
 
   // 1. Return cached data first (instant)
   const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+  console.log('[getNotes] cache result:', cached?.success, Array.isArray(cached?.data) ? `dataLen=${cached.data.length}` : 'no-data');
   if (cached?.success && Array.isArray(cached.data)) {
     // Refresh from server in background (don't block the caller)
     _refreshNotesFromServer(entry_id, cacheKey);
-    return cached;
+    return { ...cached, _fromCache: true };
   }
 
   // 2. No cache — must wait for server
+  console.log('[getNotes] No cache, fetching from server...');
   return _fetchNotesFromServer(entry_id, cacheKey);
 }
 
 /** Internal: fetch notes from server and write to cache */
 async function _fetchNotesFromServer(entry_id, cacheKey) {
+  console.log('[_fetchNotesFromServer] Fetching from server for entry_id=', entry_id);
   try {
     const result = await request(`${PROJECT_URL}/service/notes`, {
       method: 'POST',
@@ -33,12 +37,13 @@ async function _fetchNotesFromServer(entry_id, cacheKey) {
         values: { entry_id },
       }),
     });
+    console.log('[_fetchNotesFromServer] Server returned:', result?.success, Array.isArray(result?.data) ? `dataLen=${result.data.length}` : 'no-data');
     if (result?.success) {
       await cacheSet(CACHE_STORES.NOTES, cacheKey, result);
     }
     return result;
   } catch (err) {
-    console.error('[getNotes] Failed:', err);
+    console.error('[_fetchNotesFromServer] Failed:', err);
     return { success: false, data: [] };
   }
 }

@@ -74,18 +74,25 @@ const MIN_SYNC_INTERVAL = 10_000; // 10 seconds between full syncs
  */
 export async function syncAllData(email, { force = false, onProgress } = {}) {
   if (!email) return { success: false, message: 'No email provided' };
+  console.log('[syncService] syncAllData called, force=', force, 'syncInProgress=', !!syncInProgress);
 
   // Prevent duplicate concurrent syncs
-  if (syncInProgress) return syncInProgress;
+  if (syncInProgress) {
+    console.log('[syncService] Sync already in progress, waiting...');
+    return syncInProgress;
+  }
 
   // Throttle: skip if we synced recently (unless forced)
   if (!force && Date.now() - lastSyncTime < MIN_SYNC_INTERVAL) {
+    console.log('[syncService] Recently synced, skipping (throttle)');
     return { success: true, message: 'Recently synced, skipping', skipped: true };
   }
 
+  console.log('[syncService] Starting _doSync...');
   syncInProgress = _doSync(email, onProgress);
   try {
     const result = await syncInProgress;
+    console.log('[syncService] _doSync complete. summary=', JSON.stringify(result));
     lastSyncTime = Date.now();
     return result;
   } finally {
@@ -149,6 +156,8 @@ async function _doSync(email, onProgress) {
   // ── Parallel phase: fire ALL service calls at once ───────────
   // This triggers cold-starts on all 3 backend services simultaneously
   // instead of waiting for each one sequentially.
+  console.log('[syncService] Firing parallel server calls...');
+  const parallelStart = Date.now();
   const [
     projectsResult,
     allEntriesResult,
@@ -178,6 +187,14 @@ async function _doSync(email, onProgress) {
     // 6. Activity log (dashboard-service — separate cold start)
     getActivities(email),
   ]);
+
+  console.log('[syncService] Parallel calls done in', Date.now() - parallelStart, 'ms');
+  console.log('[syncService] Results:', [
+    'projects=' + projectsResult.status,
+    'entries=' + allEntriesResult.status,
+    'profile=' + profileResult.status,
+    'activity=' + activityResult.status,
+  ].join(', '));
 
   // ── Process results ──────────────────────────────────────────
 

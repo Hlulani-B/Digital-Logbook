@@ -102,17 +102,21 @@ export function NotesPage() {
   // Load notes (cache-first — returns instantly if cached)
   const loadNotes = async () => {
     if (!entryId) return;
+    console.log('[NotesPage] loadNotes START, entryId=', entryId);
     try {
       const result = await getNotes(entryId);
+      console.log('[NotesPage] getNotes returned. success=', result?.success, 'fromCache=', result?._fromCache, 'dataLen=', Array.isArray(result?.data) ? result.data.length : 'N/A');
       if (result?.success && Array.isArray(result.data)) {
         setNotes(result.data);
       } else if (!result?.success) {
         // Only clear notes if the call explicitly failed (not a cache hit with empty data)
         if (!result?._fromCache) setNotes([]);
       }
-    } catch {
+    } catch (err) {
+      console.error('[NotesPage] loadNotes error:', err);
       setError('Failed to load notes');
     } finally {
+      console.log('[NotesPage] loadNotes DONE, setting loading=false');
       setLoading(false);
     }
   };

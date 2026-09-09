@@ -222,18 +222,22 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
+    console.log('[Dashboard] loadData START, email=', email);
     try {
+      console.log('[Dashboard] Reading cache...');
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
+      console.log('[Dashboard] Cache read done. entries:', !!cachedEntries?.data, 'projects:', !!(cachedProjects?.data || cachedProjects?.projects), 'dueSoon:', !!cachedDueSoon?.data);
       const hasCache =
         cachedEntries?.data ||
         cachedProjects?.data ||
         cachedProjects?.projects ||
         cachedDueSoon?.data;
       if (hasCache) {
+        console.log('[Dashboard] Using cached data');
         if (cachedEntries?.data)
           setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data || cachedProjects?.projects) {
@@ -255,13 +259,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         if (cachedDueSoon?.data)
           setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
+        console.log('[Dashboard] NO CACHE — calling syncAllData...');
         // First visit ever — trigger initial sync, then re-read
         // But if offline, syncAllData can't fetch from server — skip and show empty state
         if (!navigator.onLine) {
           console.log('[Dashboard] No cache and offline — nothing to load yet');
           return;
         }
+        console.log('[Dashboard] syncAllData starting...');
         await syncAllData(email);
+        console.log('[Dashboard] syncAllData done, re-reading cache...');
         const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
@@ -291,6 +298,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
+      console.log('[Dashboard] loadData FINALLY — setting loading=false');
       setLoading(false);
     }
   }, [email]);
