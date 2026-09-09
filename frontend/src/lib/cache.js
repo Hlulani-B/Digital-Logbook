@@ -73,7 +73,9 @@ function emitCacheChange(store, key, data) {
 function getDB() {
   if (!dbPromise) {
     console.log('[cache] Opening IndexedDB...');
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
+    
+    // Create a promise that races between openDB and a timeout
+    const openPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
         console.log('[cache] IndexedDB upgrade triggered, oldVersion=', oldVersion, 'newVersion=', DB_VERSION);
         // v2 -> v3: unified all stores to use 'key' as keyPath
@@ -111,13 +113,28 @@ function getDB() {
         console.log('[cache] IndexedDB BLOCKED! currentVersion=', currentVersion, 'blockedVersion=', blockedVersion);
       },
       blocking(currentVersion, blockedVersion) {
-        console.log('[cache] IndexedDB blocking event, closing connection');
+        console.log('[cache] IndexedDB blocking event');
       },
-    }).then(db => {
-      console.log('[cache] IndexedDB opened successfully');
-      return db;
-    }).catch(err => {
-      console.error('[cache] IndexedDB open failed:', err);
+    });
+    
+    // Race between openDB and a 5-second timeout
+    dbPromise = Promise.race([
+      openPromise.then(db => {
+        console.log('[cache] IndexedDB opened successfully');
+        return db;
+      }),
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          console.error('[cache] IndexedDB open TIMEOUT after 5s');
+          // Reset dbPromise so next call retries
+          dbPromise = null;
+          reject(new Error('IndexedDB open timeout'));
+        }, 5000);
+      })
+    ]).catch(err => {
+      console.error('[cache] IndexedDB open failed:', err.message);
+      // Reset so next call can retry
+      dbPromise = null;
       throw err;
     });
   }
