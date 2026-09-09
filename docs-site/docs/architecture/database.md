@@ -186,6 +186,30 @@ Append-only table — rows are inserted on every create/update/delete action and
 
 Internal keep-alive table. Supabase free-tier projects are paused after prolonged inactivity. The dashboard-service daemon periodically inserts and deletes a row in this table to prevent the database from sleeping. Row Level Security is enabled but no user-facing policies exist — only the service-role key (used by the backend daemon) can access it.
 
+## notes
+
+| Column     | Type         | Notes                                                                |
+| ---------- | ------------ | -------------------------------------------------------------------- |
+| id         | UUID         | PK, default gen_random_uuid()                                        |
+| email      | TEXT         | NOT NULL, owner of the note                                          |
+| entry_id   | UUID         | NOT NULL, FK → entries(id) ON DELETE CASCADE                         |
+| entry_type | TEXT         | NOT NULL, CHECK (entry_type IN ('text','image','pdf','link'))        |
+| value      | TEXT         | NOT NULL, the note content                                           |
+| created_at | TIMESTAMPTZ  | default now()                                                        |
+
+Per-entry personalisation table. Lets users attach free-form notes (text snippets, image URLs, PDF references, or web links) to any entry. The `entry_type` check constraint keeps the type column to a known set of values, and the cascade delete ensures notes are cleaned up automatically when their parent entry is removed. Added based on user feedback requesting more personalisation options.
+
+```sql
+CREATE TABLE notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  entry_id uuid NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  entry_type text NOT NULL CHECK (entry_type IN ('text', 'image', 'pdf', 'link')),
+  value text NOT NULL,
+  created_at timestamp with time zone DEFAULT now()
+);
+```
+
 ## RPC Functions
 
 ### delete_user()
@@ -299,6 +323,8 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 | `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                              |
 | `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                 |
 | `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                |
+| `008_add_project_color.sql`                        | `project_color VARCHAR(7)` column on projects for custom colour picker      |
+| `009_create_notes_table.sql`                       | `notes` table for per-entry personalisation (text, image, pdf, link)        |
 
 ### CLI Commands
 
