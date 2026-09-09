@@ -49,17 +49,31 @@ function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
     if (typeof parsed === 'string') return parsed;
+    if (Array.isArray(parsed)) {
+      if (parsed.length > 0) {
+        const first = parsed[0];
+        if (typeof first === 'string') return first;
+        if (typeof first === 'object' && first !== null) {
+          return parseAIResponse(JSON.stringify(first));
+        }
+      }
+      return response;
+    }
     if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
+      for (const key of ['placeholder', 'message', 'instruction', 'response', 'text', 'content', 'reply']) {
         if (typeof parsed[key] === 'string') return parsed[key];
       }
       for (const val of Object.values(parsed)) {
         if (typeof val === 'string') return val;
+        if (typeof val === 'object' && val !== null) {
+          const nested = parseAIResponse(JSON.stringify(val));
+          if (nested !== JSON.stringify(val)) return nested;
+        }
       }
     }
     return response;
   } catch {
-    return response;
+    return typeof response === 'string' ? response : String(response);
   }
 }
 
