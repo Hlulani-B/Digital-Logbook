@@ -63,6 +63,15 @@ describe('parseTimelineEntries', () => {
     expect(result[0].dependencies).toEqual([2]);
   });
 
+  it('ignores malformed and opaque legacy string payloads', () => {
+    const entries = [
+      entry({ id: 1, entries: '{not valid JSON' as unknown as Record<string, unknown> }),
+      entry({ id: 2, entries: 'legacy note' as unknown as Record<string, unknown> }),
+    ];
+
+    expect(parseTimelineEntries(entries).map((item) => item.dependencies)).toEqual([[], []]);
+  });
+
   it('skips archived and completed entries', () => {
     const entries = [
       entry({ id: 1, archived: true }),

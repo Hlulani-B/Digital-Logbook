@@ -627,6 +627,7 @@ export function SettingsPanel({
                     <option value="oled">True Black (OLED)</option>
                     <option value="teal">Dark Teal</option>
                     <option value="solarized">Solarized Dark</option>
+                    <option value="darkpink">Dark Pink</option>
                   </select>
                   <p className="field-hint">Choose how the logbook looks to you.</p>
                 </div>

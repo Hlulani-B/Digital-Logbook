@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { classifyEntryPayload } from '@/lib/entryPayload';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -22,41 +23,41 @@ function useIsMobile() {
 */
 
 // Status & priority enums matching the rest of the app
-const STATUSES = ["in_motion", "done_and_dusted"] as const;
-const PRIORITIES = ["0", "1", "2", "3"] as const;
+const STATUSES = ['in_motion', 'done_and_dusted'] as const;
+const PRIORITIES = ['0', '1', '2', '3'] as const;
 
 const STATUS_LABELS: Record<string, string> = {
-  up_next: "Up Next",
-  in_motion: "In Motion",
-  done_and_dusted: "Done & Dusted",
+  up_next: 'Up Next',
+  in_motion: 'In Motion',
+  done_and_dusted: 'Done & Dusted',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  "0": "Urgent and important",
-  "1": "Urgent but not important",
-  "2": "Not urgent, not important",
-  "3": "No priority",
+  '0': 'Urgent and important',
+  '1': 'Urgent but not important',
+  '2': 'Not urgent, not important',
+  '3': 'No priority',
 };
 
 // Reverse map: friendly label → raw value (for dropdown display)
 const PRIORITY_TO_RAW: Record<string, string> = Object.fromEntries(
-  Object.entries(PRIORITY_LABELS).map(([k, v]) => [v, k]),
+  Object.entries(PRIORITY_LABELS).map(([k, v]) => [v, k])
 );
 
 /** Convert DB priority (friendly label or raw) to raw value for dropdown */
 function toRawPriority(val: string | null | undefined): string {
-  if (!val) return "3";
+  if (!val) return '3';
   // Try exact match first
   if (PRIORITY_TO_RAW[val]) return PRIORITY_TO_RAW[val];
   // If already a raw value (0-3), return as-is
-  if (["0", "1", "2", "3"].includes(val)) return val;
+  if (['0', '1', '2', '3'].includes(val)) return val;
   // Try case-insensitive match
   const lowerVal = val.toLowerCase();
   for (const [label, raw] of Object.entries(PRIORITY_TO_RAW)) {
     if (label.toLowerCase() === lowerVal) return raw;
   }
   // Default to "3" (no priority) if no match
-  return "3";
+  return '3';
 }
 
 function friendlyStatus(raw: string) {
@@ -67,71 +68,65 @@ function friendlyPriority(raw: string) {
   return PRIORITY_LABELS[raw] || raw;
 }
 
-
-
-
 function formatDate(value: string | null | undefined) {
-  if (!value) return "";
+  if (!value) return '';
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 function groupByProject(rows: any[]) {
   const groups: Record<string, any[]> = {};
   for (const row of rows) {
-    // Only skip soft-deleted rows (show archived ones too)
     if (row.deleted) continue;
-    // Ensure entries jsonb is parsed (might be string from API)
-    if (typeof row.entries === "string") {
-      try { row.entries = JSON.parse(row.entries); } catch { row.entries = {}; }
-    }
-    const key = row.project_name || "Unassigned";
+    const payload = classifyEntryPayload(row.entries);
+    const displayRow = payload.kind === 'object' ? row : { ...row, entries: {} };
+    const key = row.project_name || 'Unassigned';
     if (!groups[key]) groups[key] = [];
-    groups[key].push(row);
+    groups[key].push(displayRow);
   }
   return Object.entries(groups).map(([name, entries]) => ({ name, entries }));
 }
 
 // Derive columns directly from the entries jsonb keys
 function entryFieldNames(rows: any[]): string[] {
-  const SKIP = new Set(["started_at", "description"]);
+  const SKIP = new Set(['started_at', 'description']);
   const keys = new Set<string>();
   for (const row of rows) {
     const obj = row.entries;
-    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
       for (const key of Object.keys(obj)) {
         if (!SKIP.has(key)) keys.add(key);
       }
     }
   }
   const names = Array.from(keys);
-  console.log("[ptt] entry field names:", names);
+  console.log('[ptt] entry field names:', names);
   return names;
 }
 
 // Grid: checkbox | content columns | Priority | Due | Status (far right)
-const TRAILING_COLS = "180px 120px 140px"; // Priority | Due | Status
+const TRAILING_COLS = '180px 120px 140px'; // Priority | Due | Status
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
-  let template = "32px "; // checkbox column
-  if (viewMode === "summary") {
-    template += "minmax(150px, 2fr)";
+  let template = '32px '; // checkbox column
+  if (viewMode === 'summary') {
+    template += 'minmax(150px, 2fr)';
   } else {
     const parts = [];
     for (let i = 0; i < customFieldCount; i++) {
-      parts.push("minmax(80px, 1fr)");
+      parts.push('minmax(80px, 1fr)');
     }
-    template += parts.join(" ");
+    template += parts.join(' ');
   }
-  return template + " " + TRAILING_COLS;
+  return template + ' ' + TRAILING_COLS;
 }
 
 // ── Inline editable text cell ──────────────────────────────
 function EditableText({
   value,
   onSave,
-  type = "text",
+  type = 'text',
   className,
 }: {
   value: string;
@@ -147,7 +142,9 @@ function EditableText({
     if (editing && inputRef.current) inputRef.current.focus();
   }, [editing]);
 
-  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
 
   const commit = () => {
     setEditing(false);
@@ -164,15 +161,22 @@ function EditableText({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') {
+            setDraft(value);
+            setEditing(false);
+          }
         }}
       />
     );
   }
 
   return (
-    <span className={`ptt-editable ${className || ""}`} onClick={() => setEditing(true)} title="Click to edit">
+    <span
+      className={`ptt-editable ${className || ''}`}
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+    >
       {value || <span className="ptt-placeholder">click to edit</span>}
     </span>
   );
@@ -194,9 +198,9 @@ function EditableDate({
   }, [editing]);
 
   const toDateInput = (iso: string | null) => {
-    if (!iso) return "";
+    if (!iso) return '';
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
+    if (Number.isNaN(d.getTime())) return '';
     return d.toISOString().slice(0, 10);
   };
 
@@ -215,15 +219,19 @@ function EditableDate({
         defaultValue={toDateInput(value)}
         onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") commit((e.target as HTMLInputElement).value);
-          if (e.key === "Escape") setEditing(false);
+          if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
+          if (e.key === 'Escape') setEditing(false);
         }}
       />
     );
   }
 
   return (
-    <span className="ptt-editable ptt-editable-date" onClick={() => setEditing(true)} title="Click to edit">
+    <span
+      className="ptt-editable ptt-editable-date"
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+    >
       {formatDate(value) || <span className="ptt-placeholder">set date</span>}
     </span>
   );
@@ -240,7 +248,7 @@ function MobileCard({
 }: {
   entry: any;
   fieldNames: string[];
-  viewMode: "entry" | "summary";
+  viewMode: 'entry' | 'summary';
   onUpdate: (id: string, patch: Record<string, any>) => void;
   selected: boolean;
   onToggle: (id: string) => void;
@@ -252,11 +260,15 @@ function MobileCard({
       const updated = { ...customValues, [fieldName]: newVal };
       onUpdate(entry.id, { entries: updated });
     },
-    [entry.id, customValues, onUpdate],
+    [entry.id, customValues, onUpdate]
   );
 
   return (
-    <div className={`ptt-mobile-card${selected ? ' ptt-mobile-card--selected' : ''}`} data-status={friendlyStatus(entry.status)} data-priority={friendlyPriority(entry.priority)}>
+    <div
+      className={`ptt-mobile-card${selected ? ' ptt-mobile-card--selected' : ''}`}
+      data-status={friendlyStatus(entry.status)}
+      data-priority={friendlyPriority(entry.priority)}
+    >
       <div className="ptt-mobile-card__header">
         <input
           type="checkbox"
@@ -266,10 +278,10 @@ function MobileCard({
         />
       </div>
       {/* Title / summary at top */}
-      {viewMode === "summary" ? (
+      {viewMode === 'summary' ? (
         <div className="ptt-mobile-card__title">
           <EditableText
-            value={entry.summary || ""}
+            value={entry.summary || ''}
             onSave={(val) => onUpdate(entry.id, { summary: val })}
             className="ptt-summary-text"
           />
@@ -277,14 +289,11 @@ function MobileCard({
       ) : (
         <div className="ptt-mobile-card__title">
           {fieldNames.map((fieldName) => {
-            const val = String(customValues[fieldName] ?? "");
+            const val = String(customValues[fieldName] ?? '');
             return (
               <div key={fieldName} className="ptt-mobile-card__field-row">
                 <span className="ptt-mobile-card__label">{fieldName}</span>
-                <EditableText
-                  value={val}
-                  onSave={(newVal) => handleFieldEdit(fieldName, newVal)}
-                />
+                <EditableText value={val} onSave={(newVal) => handleFieldEdit(fieldName, newVal)} />
               </div>
             );
           })}
@@ -301,7 +310,9 @@ function MobileCard({
             onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
           >
             {PRIORITIES.map((p) => (
-              <option key={p} value={p}>{friendlyPriority(p)}</option>
+              <option key={p} value={p}>
+                {friendlyPriority(p)}
+              </option>
             ))}
           </select>
         </div>
@@ -320,7 +331,9 @@ function MobileCard({
             onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
           >
             {STATUSES.map((s) => (
-              <option key={s} value={s}>{friendlyStatus(s)}</option>
+              <option key={s} value={s}>
+                {friendlyStatus(s)}
+              </option>
             ))}
           </select>
         </div>
@@ -342,7 +355,7 @@ function TaskRow({
   entry: any;
   fieldNames: string[];
   gridTemplate: string;
-  viewMode: "entry" | "summary";
+  viewMode: 'entry' | 'summary';
   onUpdate: (id: string, patch: Record<string, any>) => void;
   selected: boolean;
   onToggle: (id: string) => void;
@@ -354,7 +367,7 @@ function TaskRow({
       const updated = { ...customValues, [fieldName]: newVal };
       onUpdate(entry.id, { entries: updated });
     },
-    [entry.id, customValues, onUpdate],
+    [entry.id, customValues, onUpdate]
   );
 
   return (
@@ -375,23 +388,20 @@ function TaskRow({
       </div>
 
       {/* Content columns — left side */}
-      {viewMode === "summary" ? (
+      {viewMode === 'summary' ? (
         <div className="ptt-cell ptt-cell-summary">
           <EditableText
-            value={entry.summary || ""}
+            value={entry.summary || ''}
             onSave={(val) => onUpdate(entry.id, { summary: val })}
             className="ptt-summary-text"
           />
         </div>
       ) : (
         fieldNames.map((fieldName) => {
-          const val = String(customValues[fieldName] ?? "");
+          const val = String(customValues[fieldName] ?? '');
           return (
             <div className="ptt-cell ptt-cell-custom" key={fieldName}>
-              <EditableText
-                value={val}
-                onSave={(newVal) => handleFieldEdit(fieldName, newVal)}
-              />
+              <EditableText value={val} onSave={(newVal) => handleFieldEdit(fieldName, newVal)} />
             </div>
           );
         })
@@ -405,7 +415,9 @@ function TaskRow({
           onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
         >
           {PRIORITIES.map((p) => (
-            <option key={p} value={p}>{friendlyPriority(p)}</option>
+            <option key={p} value={p}>
+              {friendlyPriority(p)}
+            </option>
           ))}
         </select>
       </div>
@@ -426,7 +438,9 @@ function TaskRow({
           onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
         >
           {STATUSES.map((s) => (
-            <option key={s} value={s}>{friendlyStatus(s)}</option>
+            <option key={s} value={s}>
+              {friendlyStatus(s)}
+            </option>
           ))}
         </select>
       </div>
@@ -446,7 +460,7 @@ function ProjectGroup({
   onToggleSelect,
 }: {
   project: any;
-  viewMode: "entry" | "summary";
+  viewMode: 'entry' | 'summary';
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
   isMobile: boolean;
@@ -457,10 +471,11 @@ function ProjectGroup({
   const [open, setOpen] = useState(true);
   // Derive columns from the entries jsonb keys directly
   const fieldNames = entryFieldNames(project.entries);
-  const colCount = viewMode === "summary" ? 1 : fieldNames.length;
+  const colCount = viewMode === 'summary' ? 1 : fieldNames.length;
   const gridTemplate = buildGridTemplate(viewMode, colCount);
 
-  const allSelected = project.entries.length > 0 && project.entries.every((e: any) => selectedIds.has(e.id));
+  const allSelected =
+    project.entries.length > 0 && project.entries.every((e: any) => selectedIds.has(e.id));
 
   const toggleAll = () => {
     project.entries.forEach((e: any) => {
@@ -480,13 +495,16 @@ function ProjectGroup({
           aria-expanded={open}
         >
           <span className="ptt-group-toggle" aria-hidden="true">
-            {open ? "v" : ">"}
+            {open ? 'v' : '>'}
           </span>
           <input
             type="checkbox"
             className="ptt-checkbox ptt-checkbox--header"
             checked={allSelected}
-            onChange={(e) => { e.stopPropagation(); toggleAll(); }}
+            onChange={(e) => {
+              e.stopPropagation();
+              toggleAll();
+            }}
             onClick={(e) => e.stopPropagation()}
           />
           <span
@@ -495,7 +513,9 @@ function ProjectGroup({
               e.stopPropagation();
               onProjectNameClick?.(project.name);
             }}
-            style={onProjectNameClick ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
+            style={
+              onProjectNameClick ? { cursor: 'pointer', textDecoration: 'underline' } : undefined
+            }
             title={onProjectNameClick ? `Open ${project.name}` : undefined}
           >
             {project.name}
@@ -504,8 +524,8 @@ function ProjectGroup({
         </button>
       )}
 
-      {open && (
-        isMobile ? (
+      {open &&
+        (isMobile ? (
           /* ── Mobile: stacked cards ── */
           <div className="ptt-mobile-list">
             {project.entries.map((entry: any) => (
@@ -525,7 +545,7 @@ function ProjectGroup({
           <div className="ptt-table">
             <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
               <div className="ptt-col ptt-col-checkbox"></div>
-              {viewMode === "summary" ? (
+              {viewMode === 'summary' ? (
                 <div className="ptt-col ptt-col-summary">Summary</div>
               ) : (
                 fieldNames.map((name) => (
@@ -554,8 +574,7 @@ function ProjectGroup({
               ))}
             </div>
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }
@@ -571,14 +590,14 @@ export default function ProjectTaskTable({
   onDeleteSelected,
 }: {
   rows?: any[];
-  viewMode?: "entry" | "summary";
+  viewMode?: 'entry' | 'summary';
   onUpdate: (id: string, patch: Record<string, any>) => void;
   onProjectNameClick?: (projectName: string) => void;
   projectNames?: string[]; // Optional: filter to show only these projects' entries
   showToggle?: boolean; // Show Entry/Summary toggle buttons
   onDeleteSelected?: (ids: string[]) => void; // Bulk delete callback
 }) {
-  const [internalViewMode, setInternalViewMode] = useState<"entry" | "summary">("entry");
+  const [internalViewMode, setInternalViewMode] = useState<'entry' | 'summary'>('entry');
   // Use external viewMode if provided, otherwise use internal state
   const viewMode = externalViewMode !== undefined ? externalViewMode : internalViewMode;
 
@@ -610,9 +629,10 @@ export default function ProjectTaskTable({
   }, [rows]);
 
   // Filter rows by projectNames if provided
-  const filteredRows = projectNames && projectNames.length > 0
-    ? rows.filter((r) => projectNames.includes(r.project_name))
-    : rows;
+  const filteredRows =
+    projectNames && projectNames.length > 0
+      ? rows.filter((r) => projectNames.includes(r.project_name))
+      : rows;
   const projects = groupByProject(filteredRows);
   const isMobile = useIsMobile();
 
@@ -674,5 +694,3 @@ export default function ProjectTaskTable({
     </div>
   );
 }
-
-

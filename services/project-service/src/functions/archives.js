@@ -133,7 +133,7 @@ export class Archives {
     try {
       if (!pool) throw new Error('Database pool not initialized');
       const { rows } = await pool.query(
-        `SELECT project_name, created_at, archived FROM projects
+        `SELECT project_name, description, created_at, archived FROM projects
          WHERE user_email = $1 AND archived = true
          ORDER BY created_at DESC`,
         [user_email]

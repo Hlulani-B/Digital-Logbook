@@ -66,23 +66,104 @@ describe('JSON round-trip', () => {
     expect(result.rejections[0].reason).toMatch(/Invalid JSON/);
   });
 
-  it('rejects malformed entry rows by position', () => {
+  it('rejects malformed entry rows by position while preserving new status values', () => {
     const result = parseJSONImport(
       JSON.stringify({
         projects: [],
         entries: [
           { project_name: 'Alpha', status: 'up_next' },
           { project_name: '', status: 'up_next' },
-          { project_name: 'Beta', status: 'bogus' },
+          { project_name: 'Beta', status: 'future_status' },
         ],
       })
     );
-    expect(result.rejections).toHaveLength(2);
+    expect(result.rejections).toHaveLength(1);
     expect(result.rejections[0].line).toBe(2);
     expect(result.rejections[0].reason).toMatch(/project_name/);
-    expect(result.rejections[1].line).toBe(3);
-    expect(result.rejections[1].reason).toMatch(/status/);
-    expect(result.entries).toHaveLength(1);
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries[1].status).toBe('future_status');
+  });
+
+  it('round-trips v2 backup-only fields and opaque legacy payloads', () => {
+    const bundle = buildExportBundle(
+      'test@example.com',
+      [{ project_name: 'Archived', description: 'Preserved description', archived: true }],
+      [
+        {
+          project_name: 'Archived',
+          entries: { title: 'Task', unknown_key: { nested: ['value'] } },
+          status: 'future_status',
+          summary: 'Saved summary',
+          duration: '01:30:00',
+          archived: true,
+        },
+        {
+          project_name: 'Archived',
+          entries: 'legacy unstructured payload',
+          status: 'up_next',
+        },
+        {
+          project_name: 'Archived',
+          entries: null,
+          status: 'up_next',
+        },
+      ],
+      [{ table_name: 'Archived', field_name: 'risk', data_type: 'text', is_required: true }]
+    );
+
+    const result = parseJSONImport(exportToJSON(bundle));
+
+    expect(bundle.version).toBe(2);
+    expect(result.rejections).toHaveLength(0);
+    expect(result.projects).toEqual([
+      { project_name: 'Archived', description: 'Preserved description', archived: true },
+    ]);
+    expect(result.fields).toEqual([
+      { table_name: 'Archived', field_name: 'risk', data_type: 'text', is_required: true },
+    ]);
+    expect(result.entries[0]).toMatchObject({
+      entries: { title: 'Task', unknown_key: { nested: ['value'] } },
+      summary: 'Saved summary',
+      duration: '01:30:00',
+      archived: true,
+      status: 'future_status',
+    });
+    expect(result.entries[1].entries).toBe('legacy unstructured payload');
+    expect(result.entries[2].entries).toBeNull();
+  });
+
+  it('migrates v1 JSON bundles to the v2 in-memory shape', () => {
+    const result = parseJSONImport(
+      JSON.stringify({
+        version: 1,
+        projects: [{ project_name: 'Legacy', description: 'Old format', archived: false }],
+        entries: [
+          {
+            project_name: 'Legacy',
+            entries: 'legacy payload',
+            status: 'up_next',
+            archived: false,
+          },
+        ],
+      })
+    );
+
+    expect(result.rejections).toHaveLength(0);
+    expect(result.fields).toEqual([]);
+    expect(result.entries[0]).toMatchObject({
+      entries: 'legacy payload',
+      summary: null,
+      duration: null,
+    });
+  });
+
+  it('refuses unsupported future backup versions', () => {
+    const result = parseJSONImport(JSON.stringify({ version: 3, projects: [], entries: [] }));
+
+    expect(result.projects).toEqual([]);
+    expect(result.fields).toEqual([]);
+    expect(result.entries).toEqual([]);
+    expect(result.rejections).toEqual([{ line: 'N/A', reason: 'Unsupported export version: 3' }]);
   });
 });
 

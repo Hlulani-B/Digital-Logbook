@@ -1,18 +1,18 @@
 /**
  * IndexedDB caching layer with event-driven subscriptions.
- * 
+ *
  * This module provides a local-first caching mechanism:
  * - Read operations: Return cached data immediately, then fetch fresh data in background
  * - Write operations: Update IndexedDB first (optimistic), then sync to server
  * - Components subscribe to cache changes via useCachedData hook
- * 
+ *
  * Pattern: IndexedDB-first with stale-while-revalidate
  */
 
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // Cache store names
 const STORES = {
@@ -60,7 +60,11 @@ function emitCacheChange(store, key, data) {
   if (subs) {
     const payload = data?.data !== undefined ? data.data : data;
     subs.forEach((cb) => {
-      try { cb(payload); } catch (e) { console.warn('[Cache] Subscriber error:', e); }
+      try {
+        cb(payload);
+      } catch (e) {
+        console.warn('[Cache] Subscriber error:', e);
+      }
     });
   }
 }
@@ -71,20 +75,11 @@ function emitCacheChange(store, key, data) {
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        // v2 -> v3: unified all stores to use 'key' as keyPath
-        if (oldVersion < 3) {
-          // Delete old stores with wrong keyPath
-          const storeNames = Object.values(STORES);
-          storeNames.forEach((storeName) => {
-            if (db.objectStoreNames.contains(storeName)) {
-              db.deleteObjectStore(storeName);
-            }
+      upgrade(db) {
+        for (const storeName of [...Object.values(STORES), META_STORE]) {
+          if (!db.objectStoreNames.contains(storeName)) {
             db.createObjectStore(storeName, { keyPath: 'key' });
-          });
-        }
-        if (!db.objectStoreNames.contains(META_STORE)) {
-          db.createObjectStore(META_STORE, { keyPath: 'key' });
+          }
         }
       },
     });
@@ -119,9 +114,10 @@ export async function cacheSet(store, key, data) {
   try {
     const db = await getDB();
     // Wrap data with key if it doesn't have one
-    const record = typeof data === 'object' && data !== null && !Array.isArray(data)
-      ? { ...data, key }
-      : { key, data };
+    const record =
+      typeof data === 'object' && data !== null && !Array.isArray(data)
+        ? { ...data, key }
+        : { key, data };
     await db.put(store, record);
     // Update timestamp
     await db.put(META_STORE, { key, timestamp: Date.now() });
@@ -199,7 +195,7 @@ export async function clearUserCache(email) {
  * Stale-while-revalidate pattern implementation.
  * Returns cached data immediately if available, then fetches fresh data
  * and calls the onUpdate callback when fresh data arrives.
- * 
+ *
  * @param {Object} options
  * @param {string} options.store - The cache store name
  * @param {string} options.key - The cache key
@@ -254,7 +250,7 @@ export async function staleWhileRevalidate({
 /**
  * Cache wrapper for read operations.
  * Wraps a fetch function with IndexedDB caching.
- * 
+ *
  * @param {string} store - Cache store name
  * @param {string} key - Cache key
  * @param {Function} fetchFn - Async function to fetch data

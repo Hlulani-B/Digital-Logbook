@@ -67,7 +67,7 @@ describe('ProjectTaskTable', () => {
     expect(statusSelects.length).toBeGreaterThanOrEqual(1);
     // Check that option text includes the status labels
     const allOptions = Array.from(document.querySelectorAll('.ptt-select-status option'));
-    const optionTexts = allOptions.map(o => o.textContent);
+    const optionTexts = allOptions.map((o) => o.textContent);
     expect(optionTexts).toContain('In Motion');
     expect(optionTexts).toContain('Done & Dusted');
   });
@@ -78,7 +78,7 @@ describe('ProjectTaskTable', () => {
     const prioritySelects = document.querySelectorAll('.ptt-select-priority');
     expect(prioritySelects.length).toBeGreaterThanOrEqual(1);
     const allOptions = Array.from(document.querySelectorAll('.ptt-select-priority option'));
-    const optionTexts = allOptions.map(o => o.textContent);
+    const optionTexts = allOptions.map((o) => o.textContent);
     expect(optionTexts).toContain('Urgent and important');
     expect(optionTexts).toContain('Urgent but not important');
     expect(optionTexts).toContain('No priority');
@@ -95,8 +95,7 @@ describe('ProjectTaskTable', () => {
 
   it('renders due dates formatted', () => {
     render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
-    // Dates are formatted via toLocaleDateString — all contain "Sept"
-    const dateElements = screen.getAllByText(/Sept/);
+    const dateElements = screen.getAllByText(/Sep/);
     expect(dateElements.length).toBe(3);
     // All three entries should have date cells
     const dateCells = document.querySelectorAll('.ptt-editable-date');
