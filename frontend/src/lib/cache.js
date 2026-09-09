@@ -128,7 +128,7 @@ async function getDB() {
       // Initialize sql.js WASM
       if (!SQL) {
         SQL = await initSqlJs({
-          locateFile: file => `https://sql.js.org/dist/${file}`
+          locateFile: file => `/sql-wasm.wasm`
         });
       }
 
