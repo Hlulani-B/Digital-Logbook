@@ -7,6 +7,7 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 /**
  * Fetch all projects for a user.
  * Writes to IndexedDB (triggers subscription), returns result for compatibility.
+ * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getProjectsByEmail(user_email) {
   try {
@@ -19,6 +20,16 @@ export async function getProjectsByEmail(user_email) {
     });
 
     if (result?.success) {
+      const projects = result.projects || result.data || [];
+      // Don't clobber good cache with empty server response
+      if (projects.length === 0) {
+        const existing = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+        const existingProjects = existing?.projects || existing?.data || [];
+        if (Array.isArray(existingProjects) && existingProjects.length > 0) {
+          console.warn('[getProjectsByEmail] Server returned 0 projects but cache has', existingProjects.length, '— keeping cache');
+          return result; // return without writing to cache
+        }
+      }
       await cacheSet(CACHE_STORES.PROJECTS, user_email, result);
     }
     return result;

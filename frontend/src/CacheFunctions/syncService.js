@@ -52,6 +52,9 @@ import { getOverdueText } from '@/functions/dashboard/overdue.js';
 // ── Cache layer ─────────────────────────────────────────────────
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache.js';
 
+// Sentinel error used to skip cache writes when server returns empty but cache has data
+class _SkipCache extends Error { constructor() { super('skip-cache'); } }
+
 // Track ongoing sync to prevent duplicate concurrent requests
 let syncInProgress = null;
 let lastSyncTime = 0;
@@ -182,18 +185,44 @@ async function _doSync(email, onProgress) {
   try {
     if (projectsResult.status === 'fulfilled' && projectsResult.value?.success) {
       const projects = projectsResult.value.projects || projectsResult.value.data || [];
+      // Guard: don't overwrite non-empty cache with empty server data
+      if (projects.length === 0) {
+        const existing = await cacheGet(CACHE_STORES.PROJECTS, email);
+        const existingProjects = existing?.projects || existing?.data || [];
+        if (Array.isArray(existingProjects) && existingProjects.length > 0) {
+          console.warn('[syncService] Server returned 0 projects but cache has', existingProjects.length, '— keeping cache');
+          projects.length > 0 || summary.synced.push('projects:skipped-empty');
+          // Skip the cache write — fall through to the catch
+          throw new _SkipCache();
+        }
+      }
       await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, projects });
       summary.synced.push('projects');
       onProgress?.({ store: 'projects', data: projects });
     }
   } catch (err) {
-    console.error('[syncService] Failed to cache projects:', err);
+    if (err instanceof _SkipCache) { /* intentional skip */ }
+    else console.error('[syncService] Failed to cache projects:', err);
   }
 
   // 2. All entries + per-project split (no extra server calls!)
   try {
     if (allEntriesResult.status === 'fulfilled' && allEntriesResult.value?.success) {
       const entries = Array.isArray(allEntriesResult.value.data) ? allEntriesResult.value.data : [];
+
+      // Guard: don't overwrite non-empty cache with empty server data.
+      // This prevents the race where SSE deletes cache → loadData calls syncAllData
+      // → server hasn't persisted yet → returns [] → clobbers good cache.
+      if (entries.length === 0) {
+        const existing = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        const existingEntries = existing?.data || [];
+        if (Array.isArray(existingEntries) && existingEntries.length > 0) {
+          console.warn('[syncService] Server returned 0 entries but cache has', existingEntries.length, '— keeping cache');
+          summary.synced.push('all-entries:skipped-empty');
+          throw new _SkipCache();
+        }
+      }
+
       const enrichedEntries = entries.map((e) => ({
         ...e,
         overdue_text: getOverdueText(e.due_date, e.status),
@@ -214,7 +243,8 @@ async function _doSync(email, onProgress) {
       summary.synced.push('per-project-entries');
     }
   } catch (err) {
-    console.error('[syncService] Failed to cache entries:', err);
+    if (err instanceof _SkipCache) { /* intentional skip */ }
+    else console.error('[syncService] Failed to cache entries:', err);
   }
 
   // 3. Profile

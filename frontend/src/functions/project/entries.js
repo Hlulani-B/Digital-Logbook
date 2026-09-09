@@ -34,6 +34,7 @@ export async function getEntries(user_email, project_name) {
 /**
  * Fetch ALL entries for a user.
  * Writes result to IndexedDB (triggers subscription), does not return data.
+ * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getAllEntries(user_email) {
   try {
@@ -46,6 +47,16 @@ export async function getAllEntries(user_email) {
     });
 
     if (result?.success) {
+      const data = Array.isArray(result.data) ? result.data : [];
+      // Don't clobber good cache with empty server response
+      if (data.length === 0) {
+        const existing = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+        const existingData = existing?.data || [];
+        if (Array.isArray(existingData) && existingData.length > 0) {
+          console.warn('[getAllEntries] Server returned 0 entries but cache has', existingData.length, '— keeping cache');
+          return result; // return without writing to cache
+        }
+      }
       await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, result);
     }
     return result;
