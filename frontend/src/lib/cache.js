@@ -12,7 +12,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 5;
+const DB_VERSION = 4;
 
 // Cache store names
 const STORES = {
@@ -24,7 +24,7 @@ const STORES = {
   ARCHIVES: 'archives',
   FIELDS: 'fields',
   OFFLINE_QUEUE: 'offline-queue',
-  NOTES: 'notes',
+  NOTES: 'search', // Reuse search store to avoid DB version bump (main is at v4)
 };
 
 // Cache metadata (timestamps for stale checks)
@@ -72,12 +72,8 @@ function emitCacheChange(store, key, data) {
  */
 function getDB() {
   if (!dbPromise) {
-    console.log('[cache] Opening IndexedDB...');
-    
-    // Create a promise that races between openDB and a timeout
-    const openPromise = openDB(DB_NAME, DB_VERSION, {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
-        console.log('[cache] IndexedDB upgrade triggered, oldVersion=', oldVersion, 'newVersion=', DB_VERSION);
         // v2 -> v3: unified all stores to use 'key' as keyPath
         if (oldVersion < 3) {
           // Delete old stores with wrong keyPath
@@ -95,47 +91,18 @@ function getDB() {
         // v3 -> v4: add offline queue store with auto-increment
         if (oldVersion < 4) {
           if (!db.objectStoreNames.contains(STORES.OFFLINE_QUEUE)) {
-            db.createObjectStore(STORES.OFFLINE_QUEUE, {
+            db.createObjectStore(STORES.OFFLINE_QUEUE, { 
               keyPath: 'id', 
               autoIncrement: true 
             });
           }
         }
-        // v4 -> v5: add notes store
-        if (oldVersion < 5) {
-          if (!db.objectStoreNames.contains(STORES.NOTES)) {
-            db.createObjectStore(STORES.NOTES, { keyPath: 'key' });
-          }
-        }
-        console.log('[cache] IndexedDB upgrade complete');
       },
-      blocked(currentVersion, blockedVersion) {
-        console.log('[cache] IndexedDB BLOCKED! currentVersion=', currentVersion, 'blockedVersion=', blockedVersion);
+      // If another tab has an older version open, close our connection
+      // so the upgrade can proceed. Without this, openDB hangs forever.
+      blocking() {
+        dbPromise = null;
       },
-      blocking(currentVersion, blockedVersion) {
-        console.log('[cache] IndexedDB blocking event');
-      },
-    });
-    
-    // Race between openDB and a 5-second timeout
-    dbPromise = Promise.race([
-      openPromise.then(db => {
-        console.log('[cache] IndexedDB opened successfully');
-        return db;
-      }),
-      new Promise((_, reject) => {
-        setTimeout(() => {
-          console.error('[cache] IndexedDB open TIMEOUT after 5s');
-          // Reset dbPromise so next call retries
-          dbPromise = null;
-          reject(new Error('IndexedDB open timeout'));
-        }, 5000);
-      })
-    ]).catch(err => {
-      console.error('[cache] IndexedDB open failed:', err.message);
-      // Reset so next call can retry
-      dbPromise = null;
-      throw err;
     });
   }
   return dbPromise;
@@ -150,11 +117,9 @@ function getDB() {
 export async function cacheGet(store, key) {
   try {
     const db = await getDB();
-    const result = await db.get(store, key);
-    console.log(`[cache] GET ${store}:${key} →`, result ? `found(${Array.isArray(result?.data) ? `len=${result.data.length}` : 'obj'})` : 'null');
-    return result;
+    return await db.get(store, key);
   } catch (err) {
-    console.warn(`[cache] GET FAILED ${store}:${key}:`, err.message);
+    console.warn(`[Cache] Failed to get ${key} from ${store}:`, err);
     return null;
   }
 }
@@ -168,23 +133,18 @@ export async function cacheGet(store, key) {
  */
 export async function cacheSet(store, key, data) {
   try {
-    console.log(`[cache] SET START ${store}:${key}`);
     const db = await getDB();
-    console.log(`[cache] SET gotDB ${store}:${key}`);
     // Wrap data with key if it doesn't have one
     const record = typeof data === 'object' && data !== null && !Array.isArray(data)
       ? { ...data, key }
       : { key, data };
     await db.put(store, record);
-    console.log(`[cache] SET putDone ${store}:${key}`);
     // Update timestamp
     await db.put(META_STORE, { key, timestamp: Date.now() });
-    console.log(`[cache] SET ${store}:${key} (${Array.isArray(data?.data || data?.projects) ? `len=${(data?.data || data?.projects).length}` : 'obj'})`);
     // Notify subscribers
     emitCacheChange(store, key, data);
-    console.log(`[cache] SET DONE ${store}:${key}`);
   } catch (err) {
-    console.warn(`[cache] SET FAILED ${store}:${key}:`, err.message);
+    console.warn(`[Cache] Failed to set ${key} in ${store}:`, err);
   }
 }
 
@@ -214,11 +174,10 @@ export async function cacheDelete(store, key) {
     const db = await getDB();
     await db.delete(store, key);
     await db.delete(META_STORE, key);
-    console.log(`[cache] DELETE ${store}:${key}`);
     // Notify subscribers that data was cleared
     emitCacheChange(store, key, null);
   } catch (err) {
-    console.warn(`[cache] DELETE FAILED ${store}:${key}:`, err.message);
+    console.warn(`[Cache] Failed to delete ${key} from ${store}:`, err);
   }
 }
 
