@@ -1,6 +1,10 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
 
+function withoutUndefined(values) {
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined));
+}
+
 // ── GET functions — write to IndexedDB, don't return ──────────
 
 /**
@@ -116,7 +120,8 @@ export async function addEntry(
   status,
   started_at,
   ended_at,
-  duration
+  duration,
+  summary
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -134,6 +139,7 @@ export async function addEntry(
     started_at,
     ended_at,
     duration,
+    summary,
     created_at: new Date().toISOString(),
     _optimistic: true,
   };
@@ -150,9 +156,7 @@ export async function addEntry(
   // Write optimistic entry to all-entries cache
   if (cachedAll) {
     const currentAll = cachedAll.data || cachedAll;
-    const optimisticAll = Array.isArray(currentAll)
-      ? [...currentAll, optimisticEntry]
-      : currentAll;
+    const optimisticAll = Array.isArray(currentAll) ? [...currentAll, optimisticEntry] : currentAll;
     await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: optimisticAll });
   }
 
@@ -162,7 +166,7 @@ export async function addEntry(
       method: 'POST',
       body: JSON.stringify({
         function: 'add',
-        values: {
+        values: withoutUndefined({
           user_email,
           project_name,
           entry_object,
@@ -171,8 +175,8 @@ export async function addEntry(
           status,
           started_at,
           ended_at,
-          duration,
-        },
+          summary,
+        }),
       }),
     });
 
@@ -183,7 +187,11 @@ export async function addEntry(
       if (cached) {
         const currentData = cached.data || cached;
         const newData = Array.isArray(currentData)
-          ? currentData.map((e) => e.id?.toString().startsWith('optimistic-') && e.entries === entry_object ? newEntry : e)
+          ? currentData.map((e) =>
+              e.id?.toString().startsWith('optimistic-') && e.entries === entry_object
+                ? newEntry
+                : e
+            )
           : currentData;
         await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
       }
@@ -191,7 +199,11 @@ export async function addEntry(
       if (cachedAll) {
         const currentAll = cachedAll.data || cachedAll;
         const newAll = Array.isArray(currentAll)
-          ? currentAll.map((e) => e.id?.toString().startsWith('optimistic-') && e.entries === entry_object ? newEntry : e)
+          ? currentAll.map((e) =>
+              e.id?.toString().startsWith('optimistic-') && e.entries === entry_object
+                ? newEntry
+                : e
+            )
           : currentAll;
         await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
       }
@@ -256,11 +268,17 @@ export async function updateEntry(
   // 2. Optimistic update: patch the entry in cache
   if (cachedBefore) {
     const currentData = cachedBefore.data || cachedBefore;
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchEntry(currentData) });
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, {
+      success: true,
+      data: patchEntry(currentData),
+    });
   }
   if (cachedAllBefore) {
     const currentAll = cachedAllBefore.data || cachedAllBefore;
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchEntry(currentAll) });
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, {
+      success: true,
+      data: patchEntry(currentAll),
+    });
   }
 
   // 3. Sync to server
@@ -270,7 +288,7 @@ export async function updateEntry(
       method: 'POST',
       body: JSON.stringify({
         function: 'update',
-        values: {
+        values: withoutUndefined({
           user_email,
           project_name,
           entry_id,
@@ -280,9 +298,8 @@ export async function updateEntry(
           status,
           started_at,
           ended_at,
-          duration,
           summary,
-        },
+        }),
       }),
     });
 
@@ -296,7 +313,9 @@ export async function updateEntry(
       if (currentCached) {
         const currentData = currentCached.data || currentCached;
         const newData = Array.isArray(currentData)
-          ? currentData.map((e) => e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e)
+          ? currentData.map((e) =>
+              e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e
+            )
           : currentData;
         await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
       }
@@ -304,7 +323,9 @@ export async function updateEntry(
       if (currentCachedAll) {
         const currentAll = currentCachedAll.data || currentCachedAll;
         const newAll = Array.isArray(currentAll)
-          ? currentAll.map((e) => e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e)
+          ? currentAll.map((e) =>
+              e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e
+            )
           : currentAll;
         await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
       }
@@ -345,11 +366,17 @@ export async function deleteEntry(user_email, project_name, entry) {
 
   if (cached) {
     const currentData = cached.data || cached;
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: removeEntry(currentData) });
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, {
+      success: true,
+      data: removeEntry(currentData),
+    });
   }
   if (cachedAll) {
     const currentAll = cachedAll.data || cachedAll;
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: removeEntry(currentAll) });
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, {
+      success: true,
+      data: removeEntry(currentAll),
+    });
   }
 
   // 2. Sync to server

@@ -10,41 +10,53 @@
  * cycle reproduces the original row count exactly.
  */
 
+export type EntryPayload = Record<string, unknown> | string | number | boolean | unknown[] | null;
+
 export interface ExportedProject {
   project_name: string;
   description: string;
   archived: boolean;
 }
 
+export interface ExportedField {
+  table_name: string;
+  field_name: string;
+  data_type: string | null;
+  is_required: boolean;
+}
+
 export interface ExportedEntry {
   project_name: string;
-  entries: Record<string, unknown> | null;
+  entries: EntryPayload;
   due_date: string | null;
   priority: string | null;
   status: string;
   started_at: string | null;
   ended_at: string | null;
   duration: string | null;
+  summary: string | null;
   archived: boolean;
 }
 
 export interface ExportBundle {
-  version: 1;
+  version: 2;
   exported_at: string;
   user_email: string;
   projects: ExportedProject[];
+  fields: ExportedField[];
   entries: ExportedEntry[];
 }
 
 export interface RawEntryRow {
   project_name?: string;
-  entries?: Record<string, unknown> | string | null;
+  entries?: EntryPayload;
   due_date?: string | null;
   priority?: string | null;
   status?: string;
   started_at?: string | null;
   ended_at?: string | null;
   duration?: string | null;
+  summary?: string | null;
   archived?: boolean;
 }
 
@@ -54,64 +66,61 @@ export interface RawProjectRow {
   archived?: boolean;
 }
 
-/**
- * Normalises an entry's `entries` field to an object or null.
- */
-function normaliseEntriesField(
-  value: Record<string, unknown> | string | null | undefined
-): Record<string, unknown> | null {
-  if (!value) return null;
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
-  return value;
+export interface RawFieldRow {
+  table_name?: string;
+  field_name?: string;
+  data_type?: string | null;
+  is_required?: boolean;
 }
 
-/**
- * Converts raw project rows from the database into a canonical export shape.
- */
+function normaliseEntriesField(value: EntryPayload | undefined): EntryPayload {
+  return value === undefined ? null : value;
+}
+
 export function normaliseProjects(projects: RawProjectRow[]): ExportedProject[] {
-  return projects.map((p) => ({
-    project_name: p.project_name ?? '',
-    description: p.description ?? '',
-    archived: p.archived === true,
+  return projects.map((project) => ({
+    project_name: project.project_name ?? '',
+    description: project.description ?? '',
+    archived: project.archived === true,
   }));
 }
 
-/**
- * Converts raw entry rows from the database into a canonical export shape.
- */
+export function normaliseFields(fields: RawFieldRow[]): ExportedField[] {
+  return fields.map((field) => ({
+    table_name: field.table_name ?? '',
+    field_name: field.field_name ?? '',
+    data_type: field.data_type ?? null,
+    is_required: field.is_required === true,
+  }));
+}
+
 export function normaliseEntries(entries: RawEntryRow[]): ExportedEntry[] {
-  return entries.map((e) => ({
-    project_name: e.project_name ?? '',
-    entries: normaliseEntriesField(e.entries),
-    due_date: e.due_date ?? null,
-    priority: e.priority ?? null,
-    status: e.status ?? 'up_next',
-    started_at: e.started_at ?? null,
-    ended_at: e.ended_at ?? null,
-    duration: e.duration ?? null,
-    archived: e.archived === true,
+  return entries.map((entry) => ({
+    project_name: entry.project_name ?? '',
+    entries: normaliseEntriesField(entry.entries),
+    due_date: entry.due_date ?? null,
+    priority: entry.priority ?? null,
+    status: entry.status ?? 'up_next',
+    started_at: entry.started_at ?? null,
+    ended_at: entry.ended_at ?? null,
+    duration: entry.duration ?? null,
+    summary: entry.summary ?? null,
+    archived: entry.archived === true,
   }));
 }
 
-/**
- * Builds a full export bundle from raw data.
- */
 export function buildExportBundle(
   userEmail: string,
   projects: RawProjectRow[],
-  entries: RawEntryRow[]
+  entries: RawEntryRow[],
+  fields: RawFieldRow[] = []
 ): ExportBundle {
   return {
-    version: 1,
+    version: 2,
     exported_at: new Date().toISOString(),
     user_email: userEmail,
     projects: normaliseProjects(projects),
+    fields: normaliseFields(fields),
     entries: normaliseEntries(entries),
   };
 }
@@ -144,6 +153,7 @@ const ENTRY_CSV_COLUMNS = [
   'started_at',
   'ended_at',
   'duration',
+  'summary',
   'archived',
 ] as const;
 
@@ -213,9 +223,9 @@ export function exportToMarkdown(bundle: ExportBundle): string {
   lines.push('## Entries');
   lines.push('');
   lines.push(
-    '| project_name | entries | due_date | priority | status | started_at | ended_at | duration | archived |'
+    '| project_name | entries | due_date | priority | status | started_at | ended_at | duration | summary | archived |'
   );
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const e of bundle.entries) {
     const cells = ENTRY_CSV_COLUMNS.map((col) => {
       const value = e[col];
@@ -266,8 +276,8 @@ function formatICSDate(dateStr: string | null, allDay: boolean): string {
 /**
  * Extracts the title from an entry's JSONB payload.
  */
-function getEntryTitle(entries: Record<string, unknown> | null): string {
-  if (!entries) return 'Untitled';
+function getEntryTitle(entries: EntryPayload): string {
+  if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return 'Untitled';
   const title = entries.title ?? entries.task ?? entries.name;
   return typeof title === 'string' && title.trim() ? title.trim() : 'Untitled';
 }
@@ -275,8 +285,8 @@ function getEntryTitle(entries: Record<string, unknown> | null): string {
 /**
  * Builds a description string from an entry's JSONB payload.
  */
-function getEntryDescription(entries: Record<string, unknown> | null): string {
-  if (!entries) return '';
+function getEntryDescription(entries: EntryPayload): string {
+  if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return '';
   const parts: string[] = [];
   if (entries.description) parts.push(String(entries.description));
   if (entries.comment) parts.push(String(entries.comment));

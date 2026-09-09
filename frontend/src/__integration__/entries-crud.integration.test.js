@@ -19,7 +19,8 @@ vi.mock('@/lib/api', () => ({
   PROJECT_URL: 'http://localhost:5003',
 }));
 
-const { addEntry, updateEntry, deleteEntry, getEntries } = await import('@/functions/project/entries.js');
+const { addEntry, updateEntry, deleteEntry, getEntries } =
+  await import('@/functions/project/entries.js');
 
 const EMAIL = 'test@test.com';
 const PROJECT = 'TestProject';
@@ -48,9 +49,15 @@ describe('Entry CRUD Integration', () => {
       await cacheSet(CACHE_STORES.ALL_ENTRIES, EMAIL, { success: true, data: [] });
 
       const result = await addEntry(
-        EMAIL, PROJECT,
+        EMAIL,
+        PROJECT,
         { task: 'Build feature' },
-        '2025-09-10', null, 'up_next', null, null, null,
+        '2025-09-10',
+        null,
+        'up_next',
+        null,
+        null,
+        null
       );
 
       // Server was called successfully
@@ -61,7 +68,7 @@ describe('Entry CRUD Integration', () => {
         expect.objectContaining({
           method: 'POST',
           body: expect.stringContaining('"function":"add"'),
-        }),
+        })
       );
     });
 
@@ -74,9 +81,15 @@ describe('Entry CRUD Integration', () => {
       mockRequest.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await addEntry(
-        EMAIL, PROJECT,
+        EMAIL,
+        PROJECT,
         { task: 'New task' },
-        null, null, 'up_next', null, null, null,
+        null,
+        null,
+        'up_next',
+        null,
+        null,
+        null
       );
 
       expect(result.success).toBe(false);
@@ -107,17 +120,25 @@ describe('Entry CRUD Integration', () => {
     });
 
     it('patches cache optimistically with new values', async () => {
-      const updatedEntry = { ...existingEntry, status: 'done_and_dusted', summary: 'Updated summary' };
+      const updatedEntry = {
+        ...existingEntry,
+        status: 'done_and_dusted',
+        summary: 'Updated summary',
+      };
       mockRequest.mockResolvedValueOnce({ success: true, data: [updatedEntry] });
 
       await updateEntry(
-        EMAIL, PROJECT, 'entry-1',
+        EMAIL,
+        PROJECT,
+        'entry-1',
         undefined, // new_entry
         undefined, // due_date
         undefined, // priority
         'done_and_dusted', // status
-        undefined, undefined, undefined,
-        'Updated summary', // summary
+        undefined,
+        undefined,
+        undefined,
+        'Updated summary' // summary
       );
 
       // Cache should now have the updated values
@@ -127,14 +148,51 @@ describe('Entry CRUD Integration', () => {
       expect(entries[0].summary).toBe('Updated summary');
     });
 
+    it('preserves opaque legacy payloads for metadata-only updates', async () => {
+      const legacyEntry = { ...existingEntry, entries: 'legacy unstructured payload' };
+      const updatedEntry = { ...legacyEntry, status: 'in_motion' };
+      await cacheSet(CACHE_STORES.ENTRIES, CACHE_KEY, { success: true, data: [legacyEntry] });
+      await cacheSet(CACHE_STORES.ALL_ENTRIES, EMAIL, { success: true, data: [legacyEntry] });
+      mockRequest.mockResolvedValueOnce({ success: true, data: [updatedEntry] });
+
+      await updateEntry(
+        EMAIL,
+        PROJECT,
+        'entry-1',
+        undefined,
+        undefined,
+        undefined,
+        'in_motion',
+        undefined,
+        undefined,
+        undefined
+      );
+
+      const requestValues = JSON.parse(mockRequest.mock.calls[0][1].body).values;
+      expect(requestValues).not.toHaveProperty('new_entry');
+      expect(requestValues.status).toBe('in_motion');
+
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
+      expect((cached.data || cached)[0]).toMatchObject({
+        entries: 'legacy unstructured payload',
+        status: 'in_motion',
+      });
+    });
+
     it('rolls back on server failure', async () => {
       mockRequest.mockResolvedValueOnce({ success: false, message: 'Conflict' });
 
       await updateEntry(
-        EMAIL, PROJECT, 'entry-1',
-        undefined, undefined, undefined,
+        EMAIL,
+        PROJECT,
+        'entry-1',
+        undefined,
+        undefined,
+        undefined,
         'in_motion', // status change
-        undefined, undefined, undefined,
+        undefined,
+        undefined,
+        undefined
       );
 
       // Cache should be rolled back to original
@@ -147,9 +205,16 @@ describe('Entry CRUD Integration', () => {
       mockRequest.mockRejectedValueOnce(new Error('Timeout'));
 
       await updateEntry(
-        EMAIL, PROJECT, 'entry-1',
-        undefined, '2025-12-25', // new due_date
-        undefined, undefined, undefined, undefined, undefined,
+        EMAIL,
+        PROJECT,
+        'entry-1',
+        undefined,
+        '2025-12-25', // new due_date
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined
       );
 
       const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
@@ -164,10 +229,16 @@ describe('Entry CRUD Integration', () => {
       });
 
       await updateEntry(
-        EMAIL, PROJECT, 'entry-1',
-        undefined, undefined,
+        EMAIL,
+        PROJECT,
+        'entry-1',
+        undefined,
+        undefined,
         '0', // priority
-        undefined, undefined, undefined, undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined
       );
 
       const projectCached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
@@ -221,9 +292,7 @@ describe('Entry CRUD Integration', () => {
 
   describe('getEntries — server → cache write', () => {
     it('writes server response to per-project cache', async () => {
-      const serverData = [
-        { id: 's1', entries: { task: 'From server' }, project_name: PROJECT },
-      ];
+      const serverData = [{ id: 's1', entries: { task: 'From server' }, project_name: PROJECT }];
       mockRequest.mockResolvedValueOnce({ success: true, data: serverData });
 
       await getEntries(EMAIL, PROJECT);

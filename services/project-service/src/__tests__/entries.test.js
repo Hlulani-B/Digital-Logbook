@@ -62,21 +62,50 @@ describe('Entries', () => {
     });
   });
 
+  it('does not insert the generated duration column', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 3 }] });
+
+    await entries.addEntry(
+      'a@b.com',
+      'P1',
+      { title: 'entry' },
+      null,
+      null,
+      null,
+      '2026-01-01T10:00:00.000Z',
+      '2026-01-01T11:00:00.000Z',
+      '01:00:00',
+      'Saved summary'
+    );
+
+    expect(pool.query.mock.calls[0][0]).not.toContain('duration');
+    expect(pool.query.mock.calls[0][1]).toContain('Saved summary');
+  });
+
   // ─── updateEntry ─────────────────────────────────────────────
   describe('updateEntry', () => {
     it('should update an existing entry', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ id: 1, entries: 'new-entry' }] });
+      pool.query.mockResolvedValueOnce({ rows: [{ id: 1, entries: { title: 'new-entry' } }] });
 
-      const result = await entries.updateEntry('a@b.com', 'P1', 1, 'new-entry');
+      const result = await entries.updateEntry('a@b.com', 'P1', 1, { title: 'new-entry' });
 
       expect(result.success).toBe(true);
-      expect(result.data).toEqual([{ id: 1, entries: 'new-entry' }]);
+      expect(result.data).toEqual([{ id: 1, entries: { title: 'new-entry' } }]);
+      expect(pool.query.mock.calls[0][0]).toContain('entries = entries || $1::jsonb');
+    });
+
+    it('rejects a non-object payload without writing it', async () => {
+      const result = await entries.updateEntry('a@b.com', 'P1', 1, 'legacy text');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Legacy entry content');
+      expect(pool.query).not.toHaveBeenCalled();
     });
 
     it('should return failure when no entry matches', async () => {
       pool.query.mockResolvedValueOnce({ rows: [] });
 
-      const result = await entries.updateEntry('a@b.com', 'P1', 999, 'new-entry');
+      const result = await entries.updateEntry('a@b.com', 'P1', 999, { title: 'new-entry' });
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Entry not found');
@@ -85,7 +114,7 @@ describe('Entries', () => {
     it('should return failure when db returns an error', async () => {
       pool.query.mockRejectedValueOnce(new Error('update failed'));
 
-      const result = await entries.updateEntry('a@b.com', 'P1', 1, 'new-entry');
+      const result = await entries.updateEntry('a@b.com', 'P1', 1, { title: 'new-entry' });
 
       expect(result).toEqual({ success: false, message: 'update failed' });
     });
