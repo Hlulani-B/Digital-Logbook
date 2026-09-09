@@ -1037,6 +1037,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               .map((project) => {
                 const name = project.project_name as string;
                 const count = entries.filter((e) => e.project_name === name).length;
+                const projColor = (project.project_color as string) || null;
                 return (
                   <div
                     key={name}
@@ -1064,16 +1065,29 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         cursor: 'pointer',
                       }}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
+                      {projColor ? (
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: projColor,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                      )}
                       {name}
                       <span className="drawer-badge">{count}</span>
                     </button>

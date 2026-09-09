@@ -65,6 +65,9 @@ const actionMap = {
   deleteProject: (payload) =>
     project.deleteProject(payload.user_email, payload.project_name),
 
+  setProjectColor: (payload) =>
+    project.setProjectColor(payload.user_email, payload.project_name, payload.color),
+
   // Archives
   archiveProject: (payload) =>
     archives.archiveProject(payload.user_email, payload.project_name),

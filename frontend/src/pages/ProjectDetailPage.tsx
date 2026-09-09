@@ -72,6 +72,9 @@ export function ProjectDetailPage() {
   // Settings
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
+  // Project colour (loaded from cached projects)
+  const [projectColor, setProjectColor] = useState<string | null>(null);
+
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -89,7 +92,19 @@ export function ProjectDetailPage() {
   useEffect(() => {
     if (!email || !projectName) return;
     let cancelled = false;
-    
+
+    // Load project colour from cached projects list
+    (async () => {
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects && !cancelled) {
+        const list = cachedProjects.data || cachedProjects.projects || [];
+        const match = (Array.isArray(list) ? list : []).find(
+          (p: Record<string, unknown>) => p.project_name === projectName
+        );
+        if (match?.project_color) setProjectColor(match.project_color as string);
+      }
+    })();
+
     // 1. Read from cache immediately
     (async () => {
       const cached = await cacheGet(cacheStore, cacheKey);
@@ -129,6 +144,22 @@ export function ProjectDetailPage() {
       setLoading(false); // Data arrived from server
     })();
   }, [email, projectName, sortType]);
+
+  // Subscribe to project colour changes from settings panel
+  useEffect(() => {
+    if (!email || !projectName) return;
+    const unsub = cacheSubscribe(CACHE_STORES.PROJECTS, email, async () => {
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects) {
+        const list = cachedProjects.data || cachedProjects.projects || [];
+        const match = (Array.isArray(list) ? list : []).find(
+          (p: Record<string, unknown>) => p.project_name === projectName
+        );
+        setProjectColor(match?.project_color as string || null);
+      }
+    });
+    return () => unsub();
+  }, [email, projectName]);
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -376,6 +407,15 @@ export function ProjectDetailPage() {
       <div className="bg-mesh" />
       <NavBar entries={entries} activeView="all" />
       <main className="dash-main">
+        {/* Project colour accent bar */}
+        {projectColor && (
+          <div style={{
+            height: 4,
+            background: projectColor,
+            borderRadius: '0 0 4px 4px',
+            marginBottom: '0.25rem',
+          }} />
+        )}
         <Header title={projectName || 'Project'} entries={entries} />
 
         {/* Search bar inline for mobile */}

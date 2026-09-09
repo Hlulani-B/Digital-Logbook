@@ -16,6 +16,7 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 
 type ProjectRecord = {
   project_name: string;
+  project_color?: string | null;
   archived?: boolean;
   created_at?: string;
   [key: string]: unknown;
@@ -275,7 +276,7 @@ export function ProjectsPage() {
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {projects.map((p) => {
               const name = p.project_name;
-              const color = colorForName(name);
+              const color = p.project_color || colorForName(name);
               const isEditing = editingName === name;
               const isConfirming = confirmDelete === name;
               const isConfirmingArchive = confirmArchive === name;
@@ -353,7 +354,7 @@ export function ProjectsPage() {
               <div style={{ display: 'grid', gap: '0.75rem' }}>
                 {archivedProjects.map((p) => {
                   const name = p.project_name;
-                  const color = colorForName(name);
+                  const color = (p as ProjectRecord).project_color || colorForName(name);
                   return (
                     <div key={name} className="glass" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', borderRadius: '0.85rem', borderLeft: `6px solid ${color}` }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />

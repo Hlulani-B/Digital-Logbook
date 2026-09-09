@@ -112,6 +112,9 @@ function formatActionMessage(entry) {
       ? `Renamed project to ${payload.new_project_name}`
       : 'Renamed project',
     deleteProject: projectName ? `Deleted project ${projectName}` : 'Deleted project',
+    setProjectColor: projectName
+      ? `Updated colour for ${projectName}`
+      : 'Updated project colour',
 
     // Archives
     archiveProject: projectName ? `Archived ${projectName}` : 'Archived project',

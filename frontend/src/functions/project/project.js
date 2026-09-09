@@ -205,3 +205,55 @@ export async function deleteProject(user_email, project_name) {
     return { success: true, queued: true };
   }
 }
+
+/**
+ * Set a project's accent colour.
+ * Updates IndexedDB immediately, then syncs to server.
+ * @param {string} user_email
+ * @param {string} project_name
+ * @param {string} color - Hex colour string e.g. '#ec4899'
+ */
+export async function setProjectColor(user_email, project_name, color) {
+  const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+
+  // 1. Optimistic: update colour in cache
+  if (cached) {
+    const currentData = cached.data || cached;
+    const projects = Array.isArray(currentData) ? currentData : (currentData?.projects || []);
+    const updated = projects.map((p) =>
+      p.project_name === project_name ? { ...p, project_color: color } : p
+    );
+    await cacheSet(CACHE_STORES.PROJECTS, user_email, { success: true, projects: updated });
+  }
+
+  // 2. Check online status
+  if (!navigator.onLine) {
+    console.log('[setProjectColor] Offline, queuing action');
+    await addToQueue('setProjectColor', 'project', {
+      user_email,
+      project_name,
+      color,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
+  try {
+    const result = await request(`${PROJECT_URL}/service/project`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'setColor',
+        values: { user_email, project_name, color },
+      }),
+    });
+    return result;
+  } catch (err) {
+    console.error('[setProjectColor] Server sync failed, queuing for retry:', err);
+    await addToQueue('setProjectColor', 'project', {
+      user_email,
+      project_name,
+      color,
+    });
+    return { success: true, queued: true };
+  }
+}
