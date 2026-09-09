@@ -72,8 +72,10 @@ function emitCacheChange(store, key, data) {
  */
 function getDB() {
   if (!dbPromise) {
+    console.log('[cache] Opening IndexedDB...');
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
+        console.log('[cache] IndexedDB upgrade triggered, oldVersion=', oldVersion, 'newVersion=', DB_VERSION);
         // v2 -> v3: unified all stores to use 'key' as keyPath
         if (oldVersion < 3) {
           // Delete old stores with wrong keyPath
@@ -103,7 +105,20 @@ function getDB() {
             db.createObjectStore(STORES.NOTES, { keyPath: 'key' });
           }
         }
+        console.log('[cache] IndexedDB upgrade complete');
       },
+      blocked(currentVersion, blockedVersion) {
+        console.log('[cache] IndexedDB BLOCKED! currentVersion=', currentVersion, 'blockedVersion=', blockedVersion);
+      },
+      blocking(currentVersion, blockedVersion) {
+        console.log('[cache] IndexedDB blocking event, closing connection');
+      },
+    }).then(db => {
+      console.log('[cache] IndexedDB opened successfully');
+      return db;
+    }).catch(err => {
+      console.error('[cache] IndexedDB open failed:', err);
+      throw err;
     });
   }
   return dbPromise;
