@@ -118,9 +118,11 @@ function getDB() {
 export async function cacheGet(store, key) {
   try {
     const db = await getDB();
-    return await db.get(store, key);
+    const result = await db.get(store, key);
+    console.log(`[cache] GET ${store}:${key} →`, result ? `found(${Array.isArray(result?.data) ? `len=${result.data.length}` : 'obj'})` : 'null');
+    return result;
   } catch (err) {
-    console.warn(`[Cache] Failed to get ${key} from ${store}:`, err);
+    console.warn(`[cache] GET FAILED ${store}:${key}:`, err.message);
     return null;
   }
 }
@@ -142,10 +144,11 @@ export async function cacheSet(store, key, data) {
     await db.put(store, record);
     // Update timestamp
     await db.put(META_STORE, { key, timestamp: Date.now() });
+    console.log(`[cache] SET ${store}:${key} (${Array.isArray(data?.data) ? `len=${data.data.length}` : 'obj'})`);
     // Notify subscribers
     emitCacheChange(store, key, data);
   } catch (err) {
-    console.warn(`[Cache] Failed to set ${key} in ${store}:`, err);
+    console.warn(`[cache] SET FAILED ${store}:${key}:`, err.message);
   }
 }
 
@@ -175,10 +178,11 @@ export async function cacheDelete(store, key) {
     const db = await getDB();
     await db.delete(store, key);
     await db.delete(META_STORE, key);
+    console.log(`[cache] DELETE ${store}:${key}`);
     // Notify subscribers that data was cleared
     emitCacheChange(store, key, null);
   } catch (err) {
-    console.warn(`[Cache] Failed to delete ${key} from ${store}:`, err);
+    console.warn(`[cache] DELETE FAILED ${store}:${key}:`, err.message);
   }
 }
 

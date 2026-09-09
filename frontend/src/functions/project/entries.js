@@ -37,6 +37,7 @@ export async function getEntries(user_email, project_name) {
  * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getAllEntries(user_email) {
+  console.log('[getAllEntries] called for', user_email);
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -45,6 +46,7 @@ export async function getAllEntries(user_email) {
         values: { user_email },
       }),
     });
+    console.log('[getAllEntries] server returned:', result?.success, Array.isArray(result?.data) ? `len=${result.data.length}` : 'no-data');
 
     if (result?.success) {
       const data = Array.isArray(result.data) ? result.data : [];

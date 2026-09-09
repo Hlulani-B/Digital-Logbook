@@ -10,6 +10,7 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
  * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getProjectsByEmail(user_email) {
+  console.log('[getProjectsByEmail] called for', user_email);
   try {
     const result = await request(`${PROJECT_URL}/service/project`, {
       method: 'POST',
@@ -18,6 +19,7 @@ export async function getProjectsByEmail(user_email) {
         values: { user_email },
       }),
     });
+    console.log('[getProjectsByEmail] server returned:', result?.success, Array.isArray(result?.projects || result?.data) ? `len=${(result?.projects || result?.data).length}` : 'no-data');
 
     if (result?.success) {
       const projects = result.projects || result.data || [];
