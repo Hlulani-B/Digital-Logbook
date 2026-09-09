@@ -7,7 +7,11 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
-import { sortUnarchivedEntries, updateEntry, deleteEntryById } from '@/functions/project/entries.js';
+import {
+  sortUnarchivedEntries,
+  updateEntry,
+  deleteEntryById,
+} from '@/functions/project/entries.js';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
@@ -71,7 +75,6 @@ export function ProjectDetailPage() {
   // Settings
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
-
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +91,7 @@ export function ProjectDetailPage() {
   useEffect(() => {
     if (!email || !projectName) return;
     let cancelled = false;
-    
+
     // 1. Read from cache immediately
     (async () => {
       const cached = await cacheGet(cacheStore, cacheKey);
@@ -148,7 +151,8 @@ export function ProjectDetailPage() {
   // View mode: table, cards, or checklist — persist in localStorage, default to cards on mobile
   const [viewMode, setViewModeState] = useState<'table' | 'cards' | 'checklist' | 'board'>(() => {
     const stored = localStorage.getItem('project-view-mode');
-    if (stored === 'table' || stored === 'cards' || stored === 'checklist' || stored === 'board') return stored;
+    if (stored === 'table' || stored === 'cards' || stored === 'checklist' || stored === 'board')
+      return stored;
     return window.innerWidth < 600 ? 'cards' : 'table';
   });
   const setViewMode = (mode: 'table' | 'cards' | 'checklist' | 'board') => {
@@ -175,8 +179,6 @@ export function ProjectDetailPage() {
     // The hook will automatically pick up the cache changes
     await sortUnarchivedEntries(email, projectName, sortType);
   }, [email, projectName, sortType]);
-
-
 
   // AI-generated placeholder that describes what quick add is
   useEffect(() => {
@@ -302,7 +304,9 @@ export function ProjectDetailPage() {
       if (cached) {
         const currentData = cached.data || cached;
         const updatedData = Array.isArray(currentData)
-          ? currentData.map((e: Entry) => (e.id === entryId ? { ...e, priority: priorityLabel } : e))
+          ? currentData.map((e: Entry) =>
+              e.id === entryId ? { ...e, priority: priorityLabel } : e
+            )
           : currentData;
         await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: updatedData });
       }
@@ -365,7 +369,6 @@ export function ProjectDetailPage() {
       return () => clearTimeout(t);
     }
   }, [quickMessage]);
-
 
   return (
     <div className="dash-layout">
@@ -732,28 +735,39 @@ export function ProjectDetailPage() {
                   if (patch.priority !== undefined) {
                     mappedPatch.priority = toFriendlyPriority(patch.priority);
                   }
-                  // Always normalize priority to friendly label before sending to DB
-                  const dbPriority = toFriendlyPriority(mappedPatch.priority ?? row.priority);
+                  const dbPriority =
+                    mappedPatch.priority !== undefined
+                      ? toFriendlyPriority(mappedPatch.priority)
+                      : undefined;
                   // Update local state immediately for instant UI
-                  setEntries((prev) => prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r)));
+                  setEntries((prev) =>
+                    prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r))
+                  );
                   try {
-                    console.log('[onUpdate] Calling updateEntry with mapped patch:', mappedPatch, 'dbPriority:', dbPriority);
+                    console.log(
+                      '[onUpdate] Calling updateEntry with mapped patch:',
+                      mappedPatch,
+                      'dbPriority:',
+                      dbPriority
+                    );
                     const result = await updateEntry(
                       email,
                       row.project_name,
                       id,
-                      mappedPatch.entries ?? row.entries,
-                      mappedPatch.due_date !== undefined ? mappedPatch.due_date : row.due_date,
+                      mappedPatch.entries,
+                      mappedPatch.due_date,
                       dbPriority,
-                      mappedPatch.status !== undefined ? mappedPatch.status : row.status,
-                      row.started_at,
-                      row.ended_at,
-                      row.duration,
+                      mappedPatch.status,
+                      mappedPatch.started_at,
+                      mappedPatch.ended_at
                     );
                     console.log('[onUpdate] updateEntry result:', result);
                     // If server returned failure, rollback local state
                     if (result && !result.success) {
-                      console.warn('[onUpdate] Server returned failure, rolling back UI:', (result as any).message);
+                      console.warn(
+                        '[onUpdate] Server returned failure, rolling back UI:',
+                        (result as any).message
+                      );
                       setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
                     }
                     // No need to call loadEntries() - updateEntry already updated the cache
@@ -824,70 +838,70 @@ export function ProjectDetailPage() {
           </div>
         )}
 
-      {/* FAB — only New Entry (project is already known) */}
-      <div className="fab-container">
-        <button className="fab" onClick={() => setNewEntryOpen(true)} aria-label="New entry">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <span className="fab-label">New</span>
-        </button>
-      </div>
-
-      {/* New Entry Modal — project is pre-set */}
-      {newEntryOpen && (
-        <div className="modal-overlay" onClick={() => setNewEntryOpen(false)}>
-          <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
-            <AddEntry
-              user_email={email}
-              project_name={projectName!}
-              onAdded={() => {
-                setNewEntryOpen(false);
-                loadEntries();
-              }}
-              onCancel={() => setNewEntryOpen(false)}
-            />
-          </div>
+        {/* FAB — only New Entry (project is already known) */}
+        <div className="fab-container">
+          <button className="fab" onClick={() => setNewEntryOpen(true)} aria-label="New entry">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span className="fab-label">New</span>
+          </button>
         </div>
-      )}
 
-      {/* Voice Feature Modal */}
-      {voiceOpen && (
-        <VoiceFeature
-          onClose={() => setVoiceOpen(false)}
-          onEntryCreated={() => {
-            setVoiceOpen(false);
-            loadEntries();
+        {/* New Entry Modal — project is pre-set */}
+        {newEntryOpen && (
+          <div className="modal-overlay" onClick={() => setNewEntryOpen(false)}>
+            <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
+              <AddEntry
+                user_email={email}
+                project_name={projectName!}
+                onAdded={() => {
+                  setNewEntryOpen(false);
+                  loadEntries();
+                }}
+                onCancel={() => setNewEntryOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Voice Feature Modal */}
+        {voiceOpen && (
+          <VoiceFeature
+            onClose={() => setVoiceOpen(false)}
+            onEntryCreated={() => {
+              setVoiceOpen(false);
+              loadEntries();
+            }}
+          />
+        )}
+
+        {/* Project Settings Panel */}
+        <ProjectSettingsPanel
+          open={projectSettingsOpen}
+          projectName={projectName!}
+          userEmail={email}
+          onClose={() => setProjectSettingsOpen(false)}
+          onProjectUpdated={() => {
+            navigate('/dashboard');
+          }}
+          onProjectDeleted={() => {
+            navigate('/dashboard');
+          }}
+          onProjectArchived={() => {
+            navigate('/dashboard');
           }}
         />
-      )}
-
-      {/* Project Settings Panel */}
-      <ProjectSettingsPanel
-        open={projectSettingsOpen}
-        projectName={projectName!}
-        userEmail={email}
-        onClose={() => setProjectSettingsOpen(false)}
-        onProjectUpdated={() => {
-          navigate('/dashboard');
-        }}
-        onProjectDeleted={() => {
-          navigate('/dashboard');
-        }}
-        onProjectArchived={() => {
-          navigate('/dashboard');
-        }}
-      />
       </main>
     </div>
   );

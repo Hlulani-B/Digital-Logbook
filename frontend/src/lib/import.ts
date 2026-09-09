@@ -7,14 +7,15 @@
  */
 
 import {
+  type EntryPayload,
   type ExportedEntry,
+  type ExportedField,
   type ExportedProject,
-  normaliseEntries,
-  normaliseProjects,
 } from './export';
 
 export interface ImportResult {
   projects: ExportedProject[];
+  fields: ExportedField[];
   entries: ExportedEntry[];
   rejections: Rejection[];
 }
@@ -26,19 +27,22 @@ export interface Rejection {
   row?: Record<string, unknown>;
 }
 
-const VALID_STATUSES = new Set(['up_next', 'in_motion', 'done_and_dusted']);
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/**
- * Validates a single entry row and returns a normalised ExportedEntry,
- * or null with a rejection reason.
- */
+function parsePayload(value: unknown, serialized: boolean): EntryPayload | undefined {
+  if (value === undefined) return null;
+  if (!serialized) return value as EntryPayload;
+  if (value === '' || value === 'null') return null;
+  if (typeof value !== 'string') return value as EntryPayload;
+  return JSON.parse(value) as EntryPayload;
+}
+
 function validateEntry(
   row: Record<string, unknown>,
-  line: number | 'N/A'
+  line: number | 'N/A',
+  serializedPayload = false
 ): { entry: ExportedEntry; rejection: null } | { entry: null; rejection: Rejection } {
   const projectName = row.project_name;
   if (typeof projectName !== 'string' || projectName.trim() === '') {
@@ -48,35 +52,17 @@ function validateEntry(
     };
   }
 
-  const entriesValue = row.entries;
-  let entries: Record<string, unknown> | null = null;
-  if (entriesValue != null && entriesValue !== '' && entriesValue !== 'null') {
-    if (typeof entriesValue === 'string') {
-      try {
-        entries = JSON.parse(entriesValue) as Record<string, unknown>;
-      } catch {
-        return {
-          entry: null,
-          rejection: { line, reason: 'entries field is not valid JSON', row },
-        };
-      }
-    } else if (isPlainObject(entriesValue)) {
-      entries = entriesValue;
-    } else {
-      return {
-        entry: null,
-        rejection: { line, reason: 'entries field must be JSON object or string', row },
-      };
-    }
-  }
-
-  const status = typeof row.status === 'string' ? row.status : 'up_next';
-  if (!VALID_STATUSES.has(status)) {
+  let entries: EntryPayload;
+  try {
+    entries = parsePayload(row.entries, serializedPayload) ?? null;
+  } catch {
     return {
       entry: null,
-      rejection: { line, reason: `Invalid status: ${status}`, row },
+      rejection: { line, reason: 'entries field is not valid JSON', row },
     };
   }
+
+  const status = typeof row.status === 'string' && row.status ? row.status : 'up_next';
 
   return {
     entry: {
@@ -88,6 +74,7 @@ function validateEntry(
       started_at: row.started_at ? String(row.started_at) : null,
       ended_at: row.ended_at ? String(row.ended_at) : null,
       duration: row.duration ? String(row.duration) : null,
+      summary: row.summary ? String(row.summary) : null,
       archived: row.archived === true || row.archived === 'true',
     },
     rejection: null,
@@ -119,6 +106,29 @@ function validateProject(
   };
 }
 
+function validateField(
+  row: Record<string, unknown>,
+  line: number | 'N/A'
+): { field: ExportedField; rejection: null } | { field: null; rejection: Rejection } {
+  const tableName = row.table_name;
+  const fieldName = row.field_name;
+  if (typeof tableName !== 'string' || tableName.trim() === '') {
+    return { field: null, rejection: { line, reason: 'Missing table_name', row } };
+  }
+  if (typeof fieldName !== 'string' || fieldName.trim() === '') {
+    return { field: null, rejection: { line, reason: 'Missing field_name', row } };
+  }
+  return {
+    field: {
+      table_name: tableName.trim(),
+      field_name: fieldName.trim(),
+      data_type: row.data_type ? String(row.data_type) : null,
+      is_required: row.is_required === true || row.is_required === 'true',
+    },
+    rejection: null,
+  };
+}
+
 /**
  * Parses a JSON string into an import result.
  */
@@ -131,6 +141,7 @@ export function parseJSONImport(text: string): ImportResult {
   } catch (err) {
     return {
       projects: [],
+      fields: [],
       entries: [],
       rejections: [
         {
@@ -144,36 +155,57 @@ export function parseJSONImport(text: string): ImportResult {
   if (!isPlainObject(parsed)) {
     return {
       projects: [],
+      fields: [],
       entries: [],
       rejections: [{ line: 'N/A', reason: 'JSON root must be an object' }],
     };
   }
 
-  const projects = normaliseProjects((parsed.projects ?? []) as Record<string, unknown>[]).map(
-    (p, i) => {
-      const result = validateProject(p as unknown as Record<string, unknown>, i + 1);
-      if (result.rejection) {
-        rejections.push(result.rejection);
-        return null;
-      }
-      return result.project;
-    }
-  );
+  const version = parsed.version === undefined ? 1 : parsed.version;
+  if (version !== 1 && version !== 2) {
+    return {
+      projects: [],
+      fields: [],
+      entries: [],
+      rejections: [{ line: 'N/A', reason: `Unsupported export version: ${String(version)}` }],
+    };
+  }
 
-  const entries = normaliseEntries((parsed.entries ?? []) as Record<string, unknown>[]).map(
-    (e, i) => {
-      const result = validateEntry(e as unknown as Record<string, unknown>, i + 1);
-      if (result.rejection) {
-        rejections.push(result.rejection);
-        return null;
-      }
-      return result.entry;
+  const projectRows = Array.isArray(parsed.projects) ? parsed.projects : [];
+  const fieldRows = version === 2 && Array.isArray(parsed.fields) ? parsed.fields : [];
+  const entryRows = Array.isArray(parsed.entries) ? parsed.entries : [];
+
+  const projects = projectRows.map((row, index) => {
+    const result = validateProject(row as Record<string, unknown>, index + 1);
+    if (result.rejection) {
+      rejections.push(result.rejection);
+      return null;
     }
-  );
+    return result.project;
+  });
+
+  const fields = fieldRows.map((row, index) => {
+    const result = validateField(row as Record<string, unknown>, index + 1);
+    if (result.rejection) {
+      rejections.push(result.rejection);
+      return null;
+    }
+    return result.field;
+  });
+
+  const entries = entryRows.map((row, index) => {
+    const result = validateEntry(row as Record<string, unknown>, index + 1);
+    if (result.rejection) {
+      rejections.push(result.rejection);
+      return null;
+    }
+    return result.entry;
+  });
 
   return {
-    projects: projects.filter((p): p is ExportedProject => p !== null),
-    entries: entries.filter((e): e is ExportedEntry => e !== null),
+    projects: projects.filter((project): project is ExportedProject => project !== null),
+    fields: fields.filter((field): field is ExportedField => field !== null),
+    entries: entries.filter((entry): entry is ExportedEntry => entry !== null),
     rejections,
   };
 }
@@ -277,7 +309,7 @@ export function parseCSVImport(text: string): ImportResult {
         projects.push(result.project);
       }
     } else {
-      const result = validateEntry(row, lineNum);
+      const result = validateEntry(row, lineNum, true);
       if (result.rejection) {
         rejections.push(result.rejection);
       } else if (result.entry) {
@@ -286,7 +318,7 @@ export function parseCSVImport(text: string): ImportResult {
     }
   }
 
-  return { projects, entries, rejections };
+  return { projects, fields: [], entries, rejections };
 }
 
 /**
@@ -369,7 +401,7 @@ export function parseMarkdownImport(text: string): ImportResult {
         projects.push(result.project);
       }
     } else {
-      const result = validateEntry(row, lineNum);
+      const result = validateEntry(row, lineNum, true);
       if (result.rejection) {
         rejections.push(result.rejection);
       } else if (result.entry) {
@@ -378,7 +410,7 @@ export function parseMarkdownImport(text: string): ImportResult {
     }
   }
 
-  return { projects, entries, rejections };
+  return { projects, fields: [], entries, rejections };
 }
 
 /**
