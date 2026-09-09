@@ -91,6 +91,7 @@ export function App() {
       <ThemeInitializer>
         <AuthProvider>
           <DataSyncInitializer>
+          <OfflineBanner />
           <Routes>
             <Route
               path="/"
@@ -298,7 +299,6 @@ export function App() {
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
           <OfflineSyncToasts />
-          <OfflineBanner />
           </DataSyncInitializer>
         </AuthProvider>
       </ThemeInitializer>

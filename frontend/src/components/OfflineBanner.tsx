@@ -12,24 +12,19 @@ export function OfflineBanner() {
   return (
     <div
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
+        width: '100%',
         zIndex: 9999,
         background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
         color: '#fff',
-        padding: '0.625rem 1rem',
+        padding: '0.5rem 1rem',
         textAlign: 'center',
-        fontSize: '0.875rem',
+        fontSize: '0.8125rem',
         fontWeight: 500,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: '0.5rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         fontFamily: 'var(--font-body, inherit)',
-        pointerEvents: 'none',
       }}
     >
       <svg
