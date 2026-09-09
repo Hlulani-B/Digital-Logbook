@@ -2,35 +2,14 @@
  * Offline Queue Manager
  * 
  * Manages the queue of offline actions that need to be synced
- * when connectivity is restored. Actions are stored in IndexedDB
+ * when connectivity is restored. Actions are stored in SQLite
  * and processed in FIFO order when online.
  */
 
 import { CACHE_STORES } from '../lib/cache';
-import { openDB } from 'idb';
 
-const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 4;
-
-let dbPromise = null;
-
-function getDB() {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 4) {
-          if (!db.objectStoreNames.contains(CACHE_STORES.OFFLINE_QUEUE)) {
-            db.createObjectStore(CACHE_STORES.OFFLINE_QUEUE, {
-              keyPath: 'id',
-              autoIncrement: true,
-            });
-          }
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
+// Import getDB from cache - we'll add this export
+import { getSharedDB, persistDB } from '../lib/cache';
 
 /**
  * Add an action to the offline queue.
@@ -41,7 +20,7 @@ function getDB() {
  */
 export async function addToQueue(action, module, payload) {
   try {
-    const db = await getDB();
+    const db = await getSharedDB();
     const entry = {
       action,
       module,
@@ -49,7 +28,13 @@ export async function addToQueue(action, module, payload) {
       timestamp: Date.now(),
       attempts: 0,
     };
-    const id = await db.add(CACHE_STORES.OFFLINE_QUEUE, entry);
+    const jsonStr = JSON.stringify(entry);
+    db.run(`INSERT INTO ${CACHE_STORES.OFFLINE_QUEUE} (data, created_at) VALUES (?, ?)`, [jsonStr, entry.timestamp]);
+    persistDB(db);
+    
+    // Get the last inserted ID
+    const result = db.exec(`SELECT last_insert_rowid()`);
+    const id = result[0]?.values[0][0];
     console.log(`[OfflineQueue] Queued action: ${action} (id: ${id})`);
     return id;
   } catch (err) {
@@ -64,10 +49,13 @@ export async function addToQueue(action, module, payload) {
  */
 export async function getQueue() {
   try {
-    const db = await getDB();
-    const entries = await db.getAll(CACHE_STORES.OFFLINE_QUEUE);
-    // Sort by timestamp (oldest first)
-    return entries.sort((a, b) => a.timestamp - b.timestamp);
+    const db = await getSharedDB();
+    const result = db.exec(`SELECT id, data FROM ${CACHE_STORES.OFFLINE_QUEUE} ORDER BY created_at ASC`);
+    if (result.length === 0) return [];
+    return result[0].values.map(([id, data]) => ({
+      id,
+      ...JSON.parse(data)
+    }));
   } catch (err) {
     console.error('[OfflineQueue] Failed to get queue:', err);
     return [];
@@ -81,8 +69,11 @@ export async function getQueue() {
  */
 export async function getQueueEntry(id) {
   try {
-    const db = await getDB();
-    return await db.get(CACHE_STORES.OFFLINE_QUEUE, id);
+    const db = await getSharedDB();
+    const result = db.exec(`SELECT id, data FROM ${CACHE_STORES.OFFLINE_QUEUE} WHERE id = ?`, [id]);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+    const [entryId, data] = result[0].values[0];
+    return { id: entryId, ...JSON.parse(data) };
   } catch (err) {
     console.error('[OfflineQueue] Failed to get queue entry:', err);
     return null;
@@ -96,8 +87,9 @@ export async function getQueueEntry(id) {
  */
 export async function removeFromQueue(id) {
   try {
-    const db = await getDB();
-    await db.delete(CACHE_STORES.OFFLINE_QUEUE, id);
+    const db = await getSharedDB();
+    db.run(`DELETE FROM ${CACHE_STORES.OFFLINE_QUEUE} WHERE id = ?`, [id]);
+    persistDB(db);
     console.log(`[OfflineQueue] Removed action from queue (id: ${id})`);
   } catch (err) {
     console.error('[OfflineQueue] Failed to remove from queue:', err);
@@ -111,8 +103,11 @@ export async function removeFromQueue(id) {
  */
 export async function updateQueueEntry(entry) {
   try {
-    const db = await getDB();
-    await db.put(CACHE_STORES.OFFLINE_QUEUE, entry);
+    const db = await getSharedDB();
+    const { id, ...rest } = entry;
+    const jsonStr = JSON.stringify(rest);
+    db.run(`UPDATE ${CACHE_STORES.OFFLINE_QUEUE} SET data = ? WHERE id = ?`, [jsonStr, id]);
+    persistDB(db);
   } catch (err) {
     console.error('[OfflineQueue] Failed to update queue entry:', err);
   }
@@ -124,8 +119,9 @@ export async function updateQueueEntry(entry) {
  */
 export async function clearQueue() {
   try {
-    const db = await getDB();
-    await db.clear(CACHE_STORES.OFFLINE_QUEUE);
+    const db = await getSharedDB();
+    db.run(`DELETE FROM ${CACHE_STORES.OFFLINE_QUEUE}`);
+    persistDB(db);
     console.log('[OfflineQueue] Queue cleared');
   } catch (err) {
     console.error('[OfflineQueue] Failed to clear queue:', err);
@@ -138,8 +134,9 @@ export async function clearQueue() {
  */
 export async function getQueueLength() {
   try {
-    const db = await getDB();
-    return await db.count(CACHE_STORES.OFFLINE_QUEUE);
+    const db = await getSharedDB();
+    const result = db.exec(`SELECT COUNT(*) FROM ${CACHE_STORES.OFFLINE_QUEUE}`);
+    return result[0]?.values[0][0] || 0;
   } catch (err) {
     console.error('[OfflineQueue] Failed to get queue length:', err);
     return 0;
