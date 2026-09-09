@@ -158,6 +158,34 @@ async function _doSync(email, onProgress) {
   // instead of waiting for each one sequentially.
   console.log('[syncService] Firing parallel server calls...');
   const parallelStart = Date.now();
+
+  // Wrap each promise to log when it settles
+  const wrapPromise = (name, p) => {
+    return p.then(
+      (val) => { console.log(`[syncService] ${name} RESOLVED`); return { status: 'fulfilled', value: val }; },
+      (err) => { console.log(`[syncService] ${name} REJECTED:`, err?.message); return { status: 'rejected', reason: err }; }
+    );
+  };
+
+  const results = await Promise.all([
+    wrapPromise('projects', getProjectsByEmail(email)),
+    wrapPromise('entries', getAllEntries(email)),
+    wrapPromise('profile', getProfile(email)),
+    Promise.all([
+      wrapPromise('archives1', getArchives(email, null)),
+      wrapPromise('archives2', getUnarchived(email, null)),
+      wrapPromise('archives3', getArchivedProjects(email)),
+      wrapPromise('archives4', getUnarchivedProjects(email)),
+    ]).then(r => ({ status: 'fulfilled', value: r })),
+    Promise.all([
+      wrapPromise('fields1', getFields(email, 'entries')),
+      wrapPromise('fields2', getFields(email, 'projects')),
+    ]).then(r => ({ status: 'fulfilled', value: r })),
+    wrapPromise('activity', getActivities(email)),
+  ]);
+
+  console.log('[syncService] ALL promises settled in', Date.now() - parallelStart, 'ms');
+
   const [
     projectsResult,
     allEntriesResult,
@@ -165,30 +193,7 @@ async function _doSync(email, onProgress) {
     archivesResults,
     fieldsResults,
     activityResult,
-  ] = await Promise.allSettled([
-    // 1. Projects (project-service)
-    getProjectsByEmail(email),
-    // 2. All entries (project-service)
-    getAllEntries(email),
-    // 3. Profile (profile-service — separate cold start)
-    getProfile(email),
-    // 4. Archives (project-service, 4 calls in parallel)
-    Promise.allSettled([
-      getArchives(email, null),
-      getUnarchived(email, null),
-      getArchivedProjects(email),
-      getUnarchivedProjects(email),
-    ]),
-    // 5. Fields (project-service, 2 calls in parallel)
-    Promise.allSettled([
-      getFields(email, 'entries'),
-      getFields(email, 'projects'),
-    ]),
-    // 6. Activity log (dashboard-service — separate cold start)
-    getActivities(email),
-  ]);
-
-  console.log('[syncService] Parallel calls done in', Date.now() - parallelStart, 'ms');
+  ] = results;
   console.log('[syncService] Results:', [
     'projects=' + projectsResult.status,
     'entries=' + allEntriesResult.status,
