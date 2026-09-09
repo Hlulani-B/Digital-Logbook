@@ -11,6 +11,19 @@
  *   3. Mutations write IndexedDB first (optimistic) → then sync to server
  *   4. syncAllData can be called again to refresh all data in background
  *
+ * Uses every GET/compute function under frontend/src/functions/:
+ *   project/project.js    → getProjectsByEmail
+ *   project/entries.js    → getAllEntries, getEntries, sortUnarchivedEntries, sortArchivedEntries
+ *   project/archives.js   → getArchives, getUnarchived, getArchivedProjects, getUnarchivedProjects
+ *   project/fields.js     → getFields
+ *   profile/profile.js    → getProfile
+ *   activity.js           → getActivities
+ *   dashboard.js          → dueSoon (cache-first due-soon computation)
+ *   dashboard/stats.js    → calculateTotalTimeTracked, calculateProjectStats
+ *   dashboard/streaks.js  → calculateStreaks
+ *   dashboard/overdue.js  → getOverdueText (enriches entries with overdue info)
+ *   dashboard/search.js   → searchAll (pre-warms global search cache)
+ *
  * IndexedDB stores (mirrors database schema):
  *   - projects     → all user projects
  *   - all-entries  → all entries across all projects
@@ -18,12 +31,26 @@
  *   - profile      → user profile
  *   - archives     → archived entries and projects
  *   - fields       → custom fields per table
+ *   - search       → global search results
+ *   - activity     → activity log
  */
 
+// ── Server-fetch GET functions ──────────────────────────────────
 import { getProjectsByEmail } from '@/functions/project/project.js';
-import { getAllEntries, sortUnarchivedEntries } from '@/functions/project/entries.js';
+import { getAllEntries, getEntries, sortUnarchivedEntries, sortArchivedEntries } from '@/functions/project/entries.js';
+import { getArchives, getUnarchived, getArchivedProjects, getUnarchivedProjects } from '@/functions/project/archives.js';
+import { getFields } from '@/functions/project/fields.js';
 import { getProfile } from '@/functions/profile/profile.js';
-import { getArchives, getArchivedProjects, getUnarchivedProjects } from '@/functions/project/archives.js';
+import { getActivities } from '@/functions/activity.js';
+import { dueSoon } from '@/functions/dashboard.js';
+import { searchAll } from '@/functions/dashboard/search.js';
+
+// ── Pure compute functions (no server calls) ────────────────────
+import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
+import { calculateStreaks } from '@/functions/dashboard/streaks.js';
+import { getOverdueText } from '@/functions/dashboard/overdue.js';
+
+// ── Cache layer ─────────────────────────────────────────────────
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache.js';
 
 // Track ongoing sync to prevent duplicate concurrent requests
@@ -75,12 +102,53 @@ async function _doSync(email, onProgress) {
     timestamp: Date.now(),
   };
 
+  // If offline, skip all server requests — preserve existing cached data.
+  // Compute all derived data (due-soon, stats, streaks) from what's already in cache.
+  if (!navigator.onLine) {
+    console.log('[syncService] Offline — skipping server requests, computing from cache');
+    try {
+      const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cachedEntries?.data && Array.isArray(cachedEntries.data)) {
+        const allEntries = cachedEntries.data;
+
+        // Due-soon: compute from cache
+        const dueSoonEntries = computeDueSoon(allEntries);
+        await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, {
+          success: true,
+          data: dueSoonEntries,
+        });
+        summary.synced.push('due-soon');
+        onProgress?.({ store: 'due-soon', data: dueSoonEntries });
+
+        // Stats: compute from cache
+        const totalTime = calculateTotalTimeTracked(allEntries);
+        const projectStats = calculateProjectStats(allEntries);
+        await cacheSet(CACHE_STORES.SEARCH, `${email}:stats`, {
+          success: true,
+          data: { ...totalTime, projectStats },
+        });
+        summary.synced.push('stats');
+
+        // Streaks: compute from cache
+        const streaks = calculateStreaks(allEntries);
+        await cacheSet(CACHE_STORES.SEARCH, `${email}:streaks`, {
+          success: true,
+          data: streaks,
+        });
+        summary.synced.push('streaks');
+      }
+    } catch (err) {
+      console.error('[syncService] Failed to compute offline derived data:', err);
+    }
+    summary.offline = true;
+    return summary;
+  }
+
   // ── 1. Projects ──────────────────────────────────────────────
   try {
     const result = await getProjectsByEmail(email);
-    if (result?.success || result?.projects) {
-      const projects = result.projects || [];
-      // Store in the same format as getProjectsByEmail: { success, projects }
+    if (result?.success && (result.projects || result.data)) {
+      const projects = result.projects || result.data || [];
       await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, projects });
       summary.synced.push('projects');
       onProgress?.({ store: 'projects', data: projects });
@@ -93,26 +161,47 @@ async function _doSync(email, onProgress) {
   // ── 2. All Entries ───────────────────────────────────────────
   try {
     const result = await getAllEntries(email);
-    if (result?.success || result?.data) {
-      const entries = result.data || [];
-      await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: entries });
-      summary.synced.push('all-entries');
-      onProgress?.({ store: 'all-entries', data: entries });
+    if (result?.success && result.data) {
+      const entries = Array.isArray(result.data) ? result.data : [];
 
-      // Also populate per-project entry caches from the all-entries data
-      const byProject = new Map();
-      for (const entry of entries) {
-        const pn = entry.project_name;
-        if (!pn) continue;
-        if (!byProject.has(pn)) byProject.set(pn, []);
-        byProject.get(pn).push(entry);
-      }
-      for (const [projectName, projectEntries] of byProject) {
-        await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
-          success: true,
-          data: projectEntries,
-        });
-      }
+      // Enrich entries with overdue info (pure compute, no server call)
+      const enrichedEntries = entries.map((e) => ({
+        ...e,
+        overdue_text: getOverdueText(e.due_date, e.status),
+      }));
+
+      await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: enrichedEntries });
+      summary.synced.push('all-entries');
+      onProgress?.({ store: 'all-entries', data: enrichedEntries });
+
+      // Also populate per-project entry caches using getEntries for each project
+      const projectNames = [...new Set(entries.map((e) => e.project_name).filter(Boolean))];
+      await Promise.allSettled(
+        projectNames.map(async (projectName) => {
+          try {
+            const projResult = await getEntries(email, projectName);
+            if (projResult?.success && projResult.data) {
+              const projEntries = Array.isArray(projResult.data) ? projResult.data : [];
+              const enriched = projEntries.map((e) => ({
+                ...e,
+                overdue_text: getOverdueText(e.due_date, e.status),
+              }));
+              await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
+                success: true,
+                data: enriched,
+              });
+            }
+          } catch (err) {
+            console.warn(`[syncService] Per-project getEntries failed for ${projectName}, using all-entries split`);
+            // Fallback: split from all-entries data
+            const projEntries = enrichedEntries.filter((e) => e.project_name === projectName);
+            await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
+              success: true,
+              data: projEntries,
+            });
+          }
+        })
+      );
       summary.synced.push('per-project-entries');
     }
   } catch (err) {
@@ -132,12 +221,12 @@ async function _doSync(email, onProgress) {
     console.error('[syncService] Failed to sync profile:', err);
     summary.errors.push({ store: 'profile', message: err.message });
   }
-
-  // ── 4. Archives ──────────────────────────────────────────────
+  // ── 4. Archives (uses getArchives, getUnarchived, getArchivedProjects, getUnarchivedProjects) ──
   try {
-    const [archivesResult, archivedProjectsResult, unarchivedProjectsResult] =
+    const [archivesResult, unarchivedResult, archivedProjectsResult, unarchivedProjectsResult] =
       await Promise.allSettled([
         getArchives(email, null),
+        getUnarchived(email, null),
         getArchivedProjects(email),
         getUnarchivedProjects(email),
       ]);
@@ -146,6 +235,10 @@ async function _doSync(email, onProgress) {
       await cacheSet(CACHE_STORES.ARCHIVES, `${email}:all`, archivesResult.value);
       summary.synced.push('archives');
       onProgress?.({ store: 'archives', data: archivesResult.value });
+    }
+    if (unarchivedResult.status === 'fulfilled' && unarchivedResult.value?.success) {
+      await cacheSet(CACHE_STORES.ARCHIVES, `${email}:unarchived`, unarchivedResult.value);
+      summary.synced.push('unarchived-entries');
     }
     if (archivedProjectsResult.status === 'fulfilled' && archivedProjectsResult.value?.success) {
       await cacheSet(CACHE_STORES.ARCHIVES, `archived-projects:${email}`, archivedProjectsResult.value);
@@ -160,21 +253,93 @@ async function _doSync(email, onProgress) {
     summary.errors.push({ store: 'archives', message: err.message });
   }
 
-  // ── 5. Due-soon (computed from cached entries, no server call) ──
+  // ── 5. Custom Fields (uses getFields) ────────────────────────
   try {
-    const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-    if (cachedEntries?.data && Array.isArray(cachedEntries.data)) {
-      const dueSoonEntries = computeDueSoon(cachedEntries.data);
+    const fieldTables = ['entries', 'projects'];
+    const fieldResults = await Promise.allSettled(
+      fieldTables.map((table) => getFields(email, table))
+    );
+    for (let i = 0; i < fieldTables.length; i++) {
+      if (fieldResults[i].status === 'fulfilled' && fieldResults[i].value?.success) {
+        const cacheKey = `${email}:${fieldTables[i]}`;
+        await cacheSet(CACHE_STORES.FIELDS, cacheKey, fieldResults[i].value);
+        summary.synced.push(`fields:${fieldTables[i]}`);
+      }
+    }
+  } catch (err) {
+    console.error('[syncService] Failed to sync fields:', err);
+    summary.errors.push({ store: 'fields', message: err.message });
+  }
+
+  // ── 6. Activity Log (uses getActivities) ─────────────────────
+  try {
+    const actResult = await getActivities(email);
+    if (actResult?.success) {
+      await cacheSet('activity', email, actResult);
+      summary.synced.push('activity');
+      onProgress?.({ store: 'activity', data: actResult });
+    }
+  } catch (err) {
+    console.error('[syncService] Failed to sync activity log:', err);
+    summary.errors.push({ store: 'activity', message: err.message });
+  }
+
+  // ── 7. Due-soon (uses dueSoon from dashboard.js — cache-first) ──
+  try {
+    const dueSoonResult = await dueSoon(email);
+    if (dueSoonResult?.success && dueSoonResult.data) {
       await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, {
         success: true,
-        data: dueSoonEntries,
+        data: dueSoonResult.data,
       });
       summary.synced.push('due-soon');
-      onProgress?.({ store: 'due-soon', data: dueSoonEntries });
+      onProgress?.({ store: 'due-soon', data: dueSoonResult.data });
     }
   } catch (err) {
     console.error('[syncService] Failed to compute due-soon:', err);
     summary.errors.push({ store: 'due-soon', message: err.message });
+  }
+
+  // ── 8. Computed stats from cached entries (pure compute, no server) ──
+  try {
+    const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+    if (cachedEntries?.data && Array.isArray(cachedEntries.data)) {
+      const allEntries = cachedEntries.data;
+
+      // Stats: total time tracked + per-project breakdown
+      const totalTime = calculateTotalTimeTracked(allEntries);
+      const projectStats = calculateProjectStats(allEntries);
+      await cacheSet(CACHE_STORES.SEARCH, `${email}:stats`, {
+        success: true,
+        data: { ...totalTime, projectStats },
+      });
+      summary.synced.push('stats');
+
+      // Streaks: current + longest streak
+      const streaks = calculateStreaks(allEntries);
+      await cacheSet(CACHE_STORES.SEARCH, `${email}:streaks`, {
+        success: true,
+        data: streaks,
+      });
+      summary.synced.push('streaks');
+    }
+  } catch (err) {
+    console.error('[syncService] Failed to compute stats/streaks:', err);
+    summary.errors.push({ store: 'computed', message: err.message });
+  }
+
+  // ── 9. Pre-warm global search cache (uses searchAll from dashboard/search.js) ──
+  // searchAll requires a keyword — it's available for on-demand search pages.
+  // We pre-warm with a broad wildcard to cache initial results.
+  try {
+    const searchResult = await searchAll(email, ' ');
+    if (searchResult?.success) {
+      await cacheSet(CACHE_STORES.SEARCH, `${email}:global`, searchResult);
+      summary.synced.push('search');
+    }
+  } catch (err) {
+    // Search pre-warm is best-effort — don't add to errors
+    console.warn('[syncService] Search pre-warm skipped:', err.message);
   }
 
   summary.success = summary.errors.length === 0;
@@ -204,6 +369,7 @@ export function computeDueSoon(entries) {
 /**
  * Sync a single project's entries from server → IndexedDB.
  * Use this when navigating to a specific project detail page.
+ * Uses sortUnarchivedEntries for sorted data and getEntries for raw data.
  *
  * @param {string} email - User's email
  * @param {string} projectName - Project name
@@ -211,13 +377,31 @@ export function computeDueSoon(entries) {
 export async function syncProjectEntries(email, projectName) {
   if (!email || !projectName) return;
   try {
-    const result = await sortUnarchivedEntries(email, projectName, 0);
-    if (result?.success || result?.data) {
-      const entries = result.data || [];
+    // Fetch sorted unarchived entries (for display)
+    const sortedResult = await sortUnarchivedEntries(email, projectName, 0);
+    if (sortedResult?.success && sortedResult.data) {
+      const entries = Array.isArray(sortedResult.data) ? sortedResult.data : [];
+      const enriched = entries.map((e) => ({
+        ...e,
+        overdue_text: getOverdueText(e.due_date, e.status),
+      }));
       await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
         success: true,
-        data: entries,
+        data: enriched,
       });
+    }
+
+    // Also fetch archived entries for this project (for archive view)
+    try {
+      const archivedResult = await sortArchivedEntries(email, projectName, 0);
+      if (archivedResult?.success && archivedResult.data) {
+        await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}:archived`, {
+          success: true,
+          data: archivedResult.data,
+        });
+      }
+    } catch (archErr) {
+      console.warn(`[syncService] Failed to sync archived entries for ${projectName}:`, archErr);
     }
   } catch (err) {
     console.error(`[syncService] Failed to sync entries for ${projectName}:`, err);

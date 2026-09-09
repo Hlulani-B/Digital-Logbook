@@ -73,14 +73,14 @@ export function FrequencySetup() {
     setNudgeFrequency(selected);
     setAiMessagesEnabled(aiMessages);
     const isNewSignup = sessionStorage.getItem('dl_new_signup') === 'true';
-    setTimeout(() => navigate(isNewSignup ? '/data-disclaimer' : '/dashboard'), 400);
+    setTimeout(() => navigate(isNewSignup ? '/data-disclaimer-signup' : '/dashboard'), 400);
   };
 
   const handleSkip = () => {
     setNudgeFrequency('gentle');
     setAiMessagesEnabled(aiMessages);
     const isNewSignup = sessionStorage.getItem('dl_new_signup') === 'true';
-    navigate(isNewSignup ? '/data-disclaimer' : '/dashboard');
+    navigate(isNewSignup ? '/data-disclaimer-signup' : '/dashboard');
   };
 
   const activeOption = FREQUENCY_OPTIONS.find((o) => o.value === selected)!;

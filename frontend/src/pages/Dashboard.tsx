@@ -241,6 +241,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
         // First visit ever — trigger initial sync, then re-read
+        // But if offline, syncAllData can't fetch from server — skip and show empty state
+        if (!navigator.onLine) {
+          console.log('[Dashboard] No cache and offline — nothing to load yet');
+          return;
+        }
         await syncAllData(email);
         const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),

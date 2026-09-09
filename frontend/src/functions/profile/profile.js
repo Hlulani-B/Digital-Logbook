@@ -9,6 +9,17 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
  * Writes to IndexedDB (triggers subscription), returns result for compatibility.
  */
 export async function getProfile(email) {
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+    if (cached) {
+      console.log('[getProfile] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getProfile] Offline and no cache');
+    return { success: false, offline: true };
+  }
+
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -21,6 +32,12 @@ export async function getProfile(email) {
     return result;
   } catch (err) {
     console.error('[getProfile] Failed:', err);
+    // Fallback to cache on any server failure
+    const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+    if (cached) {
+      console.log('[getProfile] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false };
   }
 }

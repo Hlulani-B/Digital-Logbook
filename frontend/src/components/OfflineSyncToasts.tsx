@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { processQueue, getPendingCount } from '../CacheFunctions/queueProcessor';
+import { syncAllData } from '../CacheFunctions/syncService';
 
 interface Toast {
   id: number;
@@ -68,6 +69,23 @@ export function OfflineSyncToasts() {
                   addToast(`All ${succeeded} action${succeeded !== 1 ? 's' : ''} synced successfully!`, 'success');
                 } else {
                   addToast(`Sync complete: ${succeeded} succeeded, ${failed} failed`, 'warning');
+                }
+                // Refresh all cached data from server after successful sync
+                if (succeeded > 0) {
+                  (async () => {
+                    try {
+                      const { getSupabase } = await import('../lib/supabase');
+                      const { data: { session } } = await getSupabase().auth.getSession();
+                      const userEmail = session?.user?.email;
+                      if (userEmail) {
+                        syncAllData(userEmail, { force: true }).catch((err) => {
+                          console.warn('[OfflineSyncToasts] Post-sync refresh failed:', err);
+                        });
+                      }
+                    } catch (err) {
+                      console.warn('[OfflineSyncToasts] Failed to get user email for refresh:', err);
+                    }
+                  })();
                 }
                 setIsProcessing(false);
                 break;

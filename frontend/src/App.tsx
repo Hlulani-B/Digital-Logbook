@@ -29,6 +29,7 @@ import { TodayPage } from '@/pages/Today';
 import { TimelinePage } from '@/pages/Timeline';
 import DataPortability from '@/pages/DataPortability';
 import { DataDisclaimer } from '@/pages/DataDisclaimer';
+import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -271,6 +272,14 @@ export function App() {
             />
             <Route
               path="/data-disclaimer"
+              element={
+                <ProtectedRoute>
+                  <DataDisclaimer2 />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/data-disclaimer-signup"
               element={
                 <ProtectedRoute>
                   <DataDisclaimer />
