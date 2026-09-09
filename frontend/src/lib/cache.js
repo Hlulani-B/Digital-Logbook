@@ -136,17 +136,21 @@ export async function cacheGet(store, key) {
  */
 export async function cacheSet(store, key, data) {
   try {
+    console.log(`[cache] SET START ${store}:${key}`);
     const db = await getDB();
+    console.log(`[cache] SET gotDB ${store}:${key}`);
     // Wrap data with key if it doesn't have one
     const record = typeof data === 'object' && data !== null && !Array.isArray(data)
       ? { ...data, key }
       : { key, data };
     await db.put(store, record);
+    console.log(`[cache] SET putDone ${store}:${key}`);
     // Update timestamp
     await db.put(META_STORE, { key, timestamp: Date.now() });
-    console.log(`[cache] SET ${store}:${key} (${Array.isArray(data?.data) ? `len=${data.data.length}` : 'obj'})`);
+    console.log(`[cache] SET ${store}:${key} (${Array.isArray(data?.data || data?.projects) ? `len=${(data?.data || data?.projects).length}` : 'obj'})`);
     // Notify subscribers
     emitCacheChange(store, key, data);
+    console.log(`[cache] SET DONE ${store}:${key}`);
   } catch (err) {
     console.warn(`[cache] SET FAILED ${store}:${key}:`, err.message);
   }

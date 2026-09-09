@@ -32,8 +32,11 @@ export async function getProjectsByEmail(user_email) {
           return result; // return without writing to cache
         }
       }
+      console.log('[getProjectsByEmail] About to cacheSet...');
       await cacheSet(CACHE_STORES.PROJECTS, user_email, result);
+      console.log('[getProjectsByEmail] cacheSet done');
     }
+    console.log('[getProjectsByEmail] Returning result');
     return result;
   } catch (err) {
     console.error('[getProjectsByEmail] Failed:', err);
