@@ -341,7 +341,7 @@ export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: Checkl
           entry={entry}
           onUpdated={onUpdated}
           onDelete={onDelete}
-          projectColor={colorMap ? (colorMap[entry.project_name] || null) : undefined}
+          projectColor={colorMap ? (colorMap[entry.project_name] || undefined) : undefined}
         />
       ))}
     </div>
