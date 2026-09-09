@@ -29,6 +29,7 @@ export function OfflineBanner() {
         gap: '0.5rem',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         fontFamily: 'var(--font-body, inherit)',
+        pointerEvents: 'none',
       }}
     >
       <svg
