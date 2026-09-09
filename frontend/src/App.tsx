@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -86,6 +86,25 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * NotesOverlayLayout — renders child routes and shows NotesPage as an overlay
+ * when the current route is /notes/:entryId. This keeps the previous page
+ * mounted underneath so it shows through the semi-transparent overlay.
+ */
+function NotesOverlayLayout() {
+  const location = useLocation();
+  const isNotesRoute = location.pathname.startsWith('/notes/');
+
+  return (
+    <>
+      <Outlet />
+      {isNotesRoute && (
+        <NotesPage />
+      )}
+    </>
+  );
+}
+
 export function App() {
   return (
     <BrowserRouter>
@@ -128,54 +147,56 @@ export function App() {
                 </PublicRoute>
               }
             />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/all"
-              element={
-                <ProtectedRoute>
-                  <AllEntriesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/entries"
-              element={
-                <ProtectedRoute>
-                  <AllEntriesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/archives"
-              element={
-                <ProtectedRoute>
-                  <ArchivesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/activity"
-              element={
-                <ProtectedRoute>
-                  <ActivityPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/create-profile"
-              element={
-                <ProtectedRoute>
-                  <CreateProfile />
-                </ProtectedRoute>
-              }
-            />
+            {/* Layout route that renders NotesPage as overlay on top of child routes */}
+            <Route element={<NotesOverlayLayout />}>
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/all"
+                element={
+                  <ProtectedRoute>
+                    <AllEntriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/entries"
+                element={
+                  <ProtectedRoute>
+                    <AllEntriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/archives"
+                element={
+                  <ProtectedRoute>
+                    <ArchivesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/activity"
+                element={
+                  <ProtectedRoute>
+                    <ActivityPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-profile"
+                element={
+                  <ProtectedRoute>
+                    <CreateProfile />
+                  </ProtectedRoute>
+                }
+              />
             <Route
               path="/avatar"
               element={
@@ -297,14 +318,9 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/notes/:entryId"
-              element={
-                <ProtectedRoute>
-                  <NotesPage />
-                </ProtectedRoute>
-              }
-            />
+            {/* Notes route is handled by NotesOverlayLayout as an overlay */}
+            <Route path="/notes/:entryId" element={null} />
+            </Route>
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
           <OfflineSyncToasts />
