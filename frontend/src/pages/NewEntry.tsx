@@ -586,38 +586,40 @@ export function EntryBox({
                 <div
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.25rem 0',
+                    flexDirection: 'column',
+                    gap: '0.4rem',
+                    padding: '0.5rem 0.9rem',
                   }}
                 >
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>
-                    Delete?
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-dim, #6b7280)' }}>
+                    Delete this entry?
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    style={{
-                      background: '#dc2626',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '0.35rem',
-                      padding: '0.2rem 0.5rem',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {deleting ? 'Deleting...' : 'Yes, delete'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(false)}
-                    className="btn-secondary"
-                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
-                  >
-                    Cancel
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      style={{
+                        background: '#dc2626',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '0.35rem',
+                        padding: '0.3rem 0.7rem',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {deleting ? 'Deleting...' : 'Yes, delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="btn-secondary"
+                      style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button
