@@ -289,9 +289,19 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
             e.stopPropagation();
             navigate(`/notes/${entry.id}`, { state: entry });
           }}
-          title="Notes"
+          title="View Notes"
         >
-          Notes
+          View Notes
+        </button>
+        <button 
+          className="checklist-card-menu-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/notes/${entry.id}?add=true`, { state: entry });
+          }}
+          title="Add Note"
+        >
+          Add Note
         </button>
         <button 
           className="checklist-card-menu-btn checklist-card-menu-btn--delete"
