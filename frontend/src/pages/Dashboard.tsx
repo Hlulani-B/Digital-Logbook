@@ -14,7 +14,7 @@ import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
@@ -296,6 +296,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Subscribe to IndexedDB cache changes — when syncAllData finishes writing
+  // data on first login, this triggers a re-load so data appears without refresh.
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ENTRIES, `${email}:due-soon`, () => loadData()),
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [email, loadData]);
 
   // Re-read from IndexedDB when the tab/page becomes visible again.
   // This catches the case where the user creates a project on another page

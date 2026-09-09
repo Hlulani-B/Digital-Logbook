@@ -5,7 +5,7 @@ import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
@@ -108,6 +108,16 @@ export function AllEntriesPage() {
   }, [email]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  
+    // Subscribe to cache changes — re-load when syncAllData writes new data
+    useEffect(() => {
+      if (!email) return;
+      const unsubs = [
+        cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+        cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      ];
+      return () => unsubs.forEach((unsub) => unsub());
+    }, [email, loadData]);
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
