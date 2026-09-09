@@ -153,47 +153,58 @@ async function _doSync(email, onProgress) {
     return summary;
   }
 
-  // ── Parallel phase: fire ALL service calls at once ───────────
-  // This triggers cold-starts on all 3 backend services simultaneously
-  // instead of waiting for each one sequentially.
-  console.log('[syncService] Firing parallel server calls...');
-  const parallelStart = Date.now();
+  // ── Sequential phase: fetch all data with individual error handling ───────────
+  // Each call is wrapped in try/catch so one failure doesn't block the rest.
+  console.log('[syncService] Starting sequential fetches...');
+  const syncStart = Date.now();
 
-  // Wrap each promise to log when it settles
-  const wrapPromise = (name, p) => {
-    return p.then(
-      (val) => { console.log(`[syncService] ${name} RESOLVED`); return { status: 'fulfilled', value: val }; },
-      (err) => { console.log(`[syncService] ${name} REJECTED:`, err?.message); return { status: 'rejected', reason: err }; }
-    );
+  // Helper: call a function with timeout and error handling
+  const safeCall = async (name, fn) => {
+    try {
+      console.log(`[syncService] Calling ${name}...`);
+      const result = await fn();
+      console.log(`[syncService] ${name} done:`, result?.success !== false ? 'OK' : 'FAIL');
+      return { status: 'fulfilled', value: result };
+    } catch (err) {
+      console.log(`[syncService] ${name} error:`, err?.message);
+      return { status: 'rejected', reason: err };
+    }
   };
 
-  const results = await Promise.all([
-    wrapPromise('projects', getProjectsByEmail(email)),
-    wrapPromise('entries', getAllEntries(email)),
-    wrapPromise('profile', getProfile(email)),
-    Promise.all([
-      wrapPromise('archives1', getArchives(email, null)),
-      wrapPromise('archives2', getUnarchived(email, null)),
-      wrapPromise('archives3', getArchivedProjects(email)),
-      wrapPromise('archives4', getUnarchivedProjects(email)),
-    ]).then(r => ({ status: 'fulfilled', value: r })),
-    Promise.all([
-      wrapPromise('fields1', getFields(email, 'entries')),
-      wrapPromise('fields2', getFields(email, 'projects')),
-    ]).then(r => ({ status: 'fulfilled', value: r })),
-    wrapPromise('activity', getActivities(email)),
-  ]);
+  // 1. Projects
+  const projectsResult = await safeCall('projects', () => getProjectsByEmail(email));
+  // 2. All entries
+  const allEntriesResult = await safeCall('entries', () => getAllEntries(email));
+  // 3. Profile
+  const profileResult = await safeCall('profile', () => getProfile(email));
+  // 4. Archives (4 calls)
+  const archivesResults = { status: 'fulfilled', value: [] };
+  try {
+    const [a1, a2, a3, a4] = await Promise.all([
+      safeCall('archives1', () => getArchives(email, null)),
+      safeCall('archives2', () => getUnarchived(email, null)),
+      safeCall('archives3', () => getArchivedProjects(email)),
+      safeCall('archives4', () => getUnarchivedProjects(email)),
+    ]);
+    archivesResults.value = [a1, a2, a3, a4];
+  } catch (err) {
+    console.log('[syncService] archives batch error:', err?.message);
+  }
+  // 5. Fields (2 calls)
+  const fieldsResults = { status: 'fulfilled', value: [] };
+  try {
+    const [f1, f2] = await Promise.all([
+      safeCall('fields1', () => getFields(email, 'entries')),
+      safeCall('fields2', () => getFields(email, 'projects')),
+    ]);
+    fieldsResults.value = [f1, f2];
+  } catch (err) {
+    console.log('[syncService] fields batch error:', err?.message);
+  }
+  // 6. Activity
+  const activityResult = await safeCall('activity', () => getActivities(email));
 
-  console.log('[syncService] ALL promises settled in', Date.now() - parallelStart, 'ms');
-
-  const [
-    projectsResult,
-    allEntriesResult,
-    profileResult,
-    archivesResults,
-    fieldsResults,
-    activityResult,
-  ] = results;
+  console.log('[syncService] All fetches done in', Date.now() - syncStart, 'ms');
   console.log('[syncService] Results:', [
     'projects=' + projectsResult.status,
     'entries=' + allEntriesResult.status,
