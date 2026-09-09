@@ -29,6 +29,7 @@ interface SSEEntryData {
   };
   created_new_project?: boolean;
   project_only?: boolean;
+  summary?: string | null;
   error?: string;
 }
 

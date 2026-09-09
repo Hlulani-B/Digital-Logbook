@@ -101,6 +101,7 @@ interface EntryRow {
   ended_at?: string | null;
   duration?: string | null;
   status?: EntryStatus;
+  summary?: string | null;
 }
 
 interface EntryBoxProps {
@@ -132,6 +133,7 @@ export function EntryBox({
     ended_at,
     duration,
     status = 'up_next',
+    summary,
   } = entry;
 
   // Parse entries if they come as a JSON string from the database
@@ -673,6 +675,10 @@ export function EntryBox({
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>
+
+      {summary && (
+        <p className="entry-box__summary">{summary}</p>
+      )}
 
       {entryFields.length > 0 && (
         <table className="entry-box__table">
