@@ -27,7 +27,6 @@ import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { FiArchive, FiX } from 'react-icons/fi';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import {
@@ -147,9 +146,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
-
-  // Network status
-  const isOnline = useNetworkStatus();
 
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
