@@ -12,7 +12,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 4;
+const DB_VERSION = 6;
 
 // Cache store names
 const STORES = {
@@ -24,7 +24,7 @@ const STORES = {
   ARCHIVES: 'archives',
   FIELDS: 'fields',
   OFFLINE_QUEUE: 'offline-queue',
-  NOTES: 'search', // Reuse search store to avoid DB version bump (main is at v4)
+  NOTES: 'notes',
 };
 
 // Cache metadata (timestamps for stale checks)
@@ -95,6 +95,12 @@ function getDB() {
               keyPath: 'id', 
               autoIncrement: true 
             });
+          }
+        }
+        // v5 -> v6: add notes store (v5 was a brief hlulani-only version)
+        if (oldVersion < 6) {
+          if (!db.objectStoreNames.contains(STORES.NOTES)) {
+            db.createObjectStore(STORES.NOTES, { keyPath: 'key' });
           }
         }
       },
