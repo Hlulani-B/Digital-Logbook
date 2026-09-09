@@ -12,7 +12,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 // Cache store names
 const STORES = {
@@ -24,6 +24,7 @@ const STORES = {
   ARCHIVES: 'archives',
   FIELDS: 'fields',
   OFFLINE_QUEUE: 'offline-queue',
+  NOTES: 'notes',
 };
 
 // Cache metadata (timestamps for stale checks)
@@ -90,10 +91,16 @@ function getDB() {
         // v3 -> v4: add offline queue store with auto-increment
         if (oldVersion < 4) {
           if (!db.objectStoreNames.contains(STORES.OFFLINE_QUEUE)) {
-            db.createObjectStore(STORES.OFFLINE_QUEUE, { 
+            db.createObjectStore(STORES.OFFLINE_QUEUE, {
               keyPath: 'id', 
               autoIncrement: true 
             });
+          }
+        }
+        // v4 -> v5: add notes store
+        if (oldVersion < 5) {
+          if (!db.objectStoreNames.contains(STORES.NOTES)) {
+            db.createObjectStore(STORES.NOTES, { keyPath: 'key' });
           }
         }
       },

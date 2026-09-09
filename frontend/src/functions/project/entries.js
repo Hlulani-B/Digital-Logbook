@@ -117,7 +117,8 @@ export async function addEntry(
   status,
   started_at,
   ended_at,
-  duration
+  duration,
+  notes
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -171,6 +172,7 @@ export async function addEntry(
       started_at,
       ended_at,
       duration,
+      notes,
     });
     return { success: true, queued: true };
   }
@@ -191,6 +193,7 @@ export async function addEntry(
           started_at,
           ended_at,
           duration,
+          notes,
         },
       }),
     });
@@ -229,6 +232,7 @@ export async function addEntry(
       started_at,
       ended_at,
       duration,
+      notes,
     });
     return { success: true, queued: true };
   }
