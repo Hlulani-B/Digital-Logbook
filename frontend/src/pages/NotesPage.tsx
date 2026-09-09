@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getNotes, addNote, viewNote, updateNote, deleteNote } from '@/functions/project/notes.js';
 import { getEntryTitle } from '@/lib/calendar';
+import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 
 type NoteType = 'text' | 'link' | 'image' | 'pdf';
 
@@ -98,28 +99,37 @@ export function NotesPage() {
     }
   }, [location.search]);
 
-  // Load notes
+  // Load notes (cache-first — returns instantly if cached)
+  const loadNotes = async () => {
+    if (!entryId) return;
+    try {
+      const result = await getNotes(entryId);
+      if (result?.success && Array.isArray(result.data)) {
+        setNotes(result.data);
+      } else if (!result?.success) {
+        // Only clear notes if the call explicitly failed (not a cache hit with empty data)
+        if (!result?._fromCache) setNotes([]);
+      }
+    } catch {
+      setError('Failed to load notes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!entryId) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const result = await getNotes(entryId);
-        if (!cancelled) {
-          if (result?.success && Array.isArray(result.data)) {
-            setNotes(result.data);
-          } else {
-            setNotes([]);
-          }
-        }
-      } catch {
-        if (!cancelled) setError('Failed to load notes');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    setLoading(true);
+    loadNotes();
+  }, [entryId]);
+
+  // Re-read from cache when background server refresh writes new data
+  useEffect(() => {
+    if (!entryId) return;
+    const unsub = cacheSubscribe(CACHE_STORES.NOTES, `notes:${entryId}`, () => {
+      loadNotes();
+    });
+    return () => unsub();
   }, [entryId]);
 
   // Load file data for image/pdf notes

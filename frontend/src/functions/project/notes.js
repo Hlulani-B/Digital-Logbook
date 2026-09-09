@@ -6,10 +6,25 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 /**
  * Fetch all notes for a specific entry.
- * Writes to IndexedDB cache, returns the result.
+ * Cache-first: returns cached data immediately, refreshes from server in background.
  */
 export async function getNotes(entry_id) {
   const cacheKey = `notes:${entry_id}`;
+
+  // 1. Return cached data first (instant)
+  const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+  if (cached?.success && Array.isArray(cached.data)) {
+    // Refresh from server in background (don't block the caller)
+    _refreshNotesFromServer(entry_id, cacheKey);
+    return cached;
+  }
+
+  // 2. No cache — must wait for server
+  return _fetchNotesFromServer(entry_id, cacheKey);
+}
+
+/** Internal: fetch notes from server and write to cache */
+async function _fetchNotesFromServer(entry_id, cacheKey) {
   try {
     const result = await request(`${PROJECT_URL}/service/notes`, {
       method: 'POST',
@@ -18,7 +33,6 @@ export async function getNotes(entry_id) {
         values: { entry_id },
       }),
     });
-
     if (result?.success) {
       await cacheSet(CACHE_STORES.NOTES, cacheKey, result);
     }
@@ -27,6 +41,11 @@ export async function getNotes(entry_id) {
     console.error('[getNotes] Failed:', err);
     return { success: false, data: [] };
   }
+}
+
+/** Internal: background refresh of notes from server */
+function _refreshNotesFromServer(entry_id, cacheKey) {
+  _fetchNotesFromServer(entry_id, cacheKey).catch(() => {});
 }
 
 /**

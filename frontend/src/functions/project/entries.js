@@ -177,7 +177,25 @@ export async function addEntry(
     return { success: true, queued: true };
   }
 
-  // 3. Sync to server
+  // 3. Sync to server in background (don't block the UI)
+  _syncAddEntryToServer({
+    user_email, project_name, entry_object, due_date, priority, status,
+    started_at, ended_at, duration, notes, cacheKey, cached, cachedAll,
+  });
+
+  // Return immediately — optimistic entry is already in IndexedDB
+  return { success: true, optimistic: true };
+}
+
+/**
+ * Internal: sync an addEntry action to the server in the background.
+ * Fires after the optimistic write; replaces optimistic data with real server data on success,
+ * or queues for retry on failure.
+ */
+async function _syncAddEntryToServer({
+  user_email, project_name, entry_object, due_date, priority, status,
+  started_at, ended_at, duration, notes, cacheKey, cached, cachedAll,
+}) {
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -198,10 +216,9 @@ export async function addEntry(
       }),
     });
 
-    // 4. On success, update cache with returned data (no re-fetch needed)
+    // On success, replace optimistic entry with real data in cache
     if (result?.success && result.data) {
       const newEntry = Array.isArray(result.data) ? result.data[0] : result.data;
-      // Replace optimistic entry with real data in per-project cache
       if (cached) {
         const currentData = cached.data || cached;
         const newData = Array.isArray(currentData)
@@ -209,7 +226,6 @@ export async function addEntry(
           : currentData;
         await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
       }
-      // Replace in all-entries cache
       if (cachedAll) {
         const currentAll = cachedAll.data || cachedAll;
         const newAll = Array.isArray(currentAll)
@@ -218,23 +234,13 @@ export async function addEntry(
         await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
       }
     }
-    return result;
   } catch (err) {
-    // 5. On failure, queue for retry (don't rollback - keep optimistic update)
+    // On failure, queue for retry (optimistic entry stays in cache)
     console.error('[addEntry] Server sync failed, queuing for retry:', err);
     await addToQueue('addEntry', 'entries', {
-      user_email,
-      project_name,
-      entry_object,
-      due_date,
-      priority,
-      status,
-      started_at,
-      ended_at,
-      duration,
-      notes,
+      user_email, project_name, entry_object, due_date, priority, status,
+      started_at, ended_at, duration, notes,
     });
-    return { success: true, queued: true };
   }
 }
 
