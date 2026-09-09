@@ -37,13 +37,12 @@
 
 // ── Server-fetch GET functions ──────────────────────────────────
 import { getProjectsByEmail } from '@/functions/project/project.js';
-import { getAllEntries, getEntries, sortUnarchivedEntries, sortArchivedEntries } from '@/functions/project/entries.js';
+import { getAllEntries, sortUnarchivedEntries, sortArchivedEntries } from '@/functions/project/entries.js';
 import { getArchives, getUnarchived, getArchivedProjects, getUnarchivedProjects } from '@/functions/project/archives.js';
 import { getFields } from '@/functions/project/fields.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { getActivities } from '@/functions/activity.js';
-import { dueSoon } from '@/functions/dashboard.js';
-import { searchAll } from '@/functions/dashboard/search.js';
+// dueSoon and searchAll are computed locally from cached entries
 
 // ── Pure compute functions (no server calls) ────────────────────
 import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
@@ -144,167 +143,159 @@ async function _doSync(email, onProgress) {
     return summary;
   }
 
-  // ── 1. Projects ──────────────────────────────────────────────
+  // ── Parallel phase: fire ALL service calls at once ───────────
+  // This triggers cold-starts on all 3 backend services simultaneously
+  // instead of waiting for each one sequentially.
+  const [
+    projectsResult,
+    allEntriesResult,
+    profileResult,
+    archivesResults,
+    fieldsResults,
+    activityResult,
+  ] = await Promise.allSettled([
+    // 1. Projects (project-service)
+    getProjectsByEmail(email),
+    // 2. All entries (project-service)
+    getAllEntries(email),
+    // 3. Profile (profile-service — separate cold start)
+    getProfile(email),
+    // 4. Archives (project-service, 4 calls in parallel)
+    Promise.allSettled([
+      getArchives(email, null),
+      getUnarchived(email, null),
+      getArchivedProjects(email),
+      getUnarchivedProjects(email),
+    ]),
+    // 5. Fields (project-service, 2 calls in parallel)
+    Promise.allSettled([
+      getFields(email, 'entries'),
+      getFields(email, 'projects'),
+    ]),
+    // 6. Activity log (dashboard-service — separate cold start)
+    getActivities(email),
+  ]);
+
+  // ── Process results ──────────────────────────────────────────
+
+  // 1. Projects
   try {
-    const result = await getProjectsByEmail(email);
-    if (result?.success && (result.projects || result.data)) {
-      const projects = result.projects || result.data || [];
+    if (projectsResult.status === 'fulfilled' && projectsResult.value?.success) {
+      const projects = projectsResult.value.projects || projectsResult.value.data || [];
       await cacheSet(CACHE_STORES.PROJECTS, email, { success: true, projects });
       summary.synced.push('projects');
       onProgress?.({ store: 'projects', data: projects });
     }
   } catch (err) {
-    console.error('[syncService] Failed to sync projects:', err);
-    summary.errors.push({ store: 'projects', message: err.message });
+    console.error('[syncService] Failed to cache projects:', err);
   }
 
-  // ── 2. All Entries ───────────────────────────────────────────
+  // 2. All entries + per-project split (no extra server calls!)
   try {
-    const result = await getAllEntries(email);
-    if (result?.success && result.data) {
-      const entries = Array.isArray(result.data) ? result.data : [];
-
-      // Enrich entries with overdue info (pure compute, no server call)
+    if (allEntriesResult.status === 'fulfilled' && allEntriesResult.value?.success) {
+      const entries = Array.isArray(allEntriesResult.value.data) ? allEntriesResult.value.data : [];
       const enrichedEntries = entries.map((e) => ({
         ...e,
         overdue_text: getOverdueText(e.due_date, e.status),
       }));
-
       await cacheSet(CACHE_STORES.ALL_ENTRIES, email, { success: true, data: enrichedEntries });
       summary.synced.push('all-entries');
       onProgress?.({ store: 'all-entries', data: enrichedEntries });
 
-      // Also populate per-project entry caches using getEntries for each project
+      // Split all-entries into per-project caches (pure local, zero server calls)
       const projectNames = [...new Set(entries.map((e) => e.project_name).filter(Boolean))];
-      await Promise.allSettled(
-        projectNames.map(async (projectName) => {
-          try {
-            const projResult = await getEntries(email, projectName);
-            if (projResult?.success && projResult.data) {
-              const projEntries = Array.isArray(projResult.data) ? projResult.data : [];
-              const enriched = projEntries.map((e) => ({
-                ...e,
-                overdue_text: getOverdueText(e.due_date, e.status),
-              }));
-              await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
-                success: true,
-                data: enriched,
-              });
-            }
-          } catch (err) {
-            console.warn(`[syncService] Per-project getEntries failed for ${projectName}, using all-entries split`);
-            // Fallback: split from all-entries data
-            const projEntries = enrichedEntries.filter((e) => e.project_name === projectName);
-            await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
-              success: true,
-              data: projEntries,
-            });
-          }
-        })
-      );
+      for (const projectName of projectNames) {
+        const projEntries = enrichedEntries.filter((e) => e.project_name === projectName);
+        await cacheSet(CACHE_STORES.ENTRIES, `${email}:${projectName}`, {
+          success: true,
+          data: projEntries,
+        });
+      }
       summary.synced.push('per-project-entries');
     }
   } catch (err) {
-    console.error('[syncService] Failed to sync all entries:', err);
-    summary.errors.push({ store: 'all-entries', message: err.message });
+    console.error('[syncService] Failed to cache entries:', err);
   }
 
-  // ── 3. Profile ───────────────────────────────────────────────
+  // 3. Profile
   try {
-    const result = await getProfile(email);
-    if (result?.success) {
-      await cacheSet(CACHE_STORES.PROFILE, email, result);
+    if (profileResult.status === 'fulfilled' && profileResult.value?.success) {
+      await cacheSet(CACHE_STORES.PROFILE, email, profileResult.value);
       summary.synced.push('profile');
-      onProgress?.({ store: 'profile', data: result });
+      onProgress?.({ store: 'profile', data: profileResult.value });
     }
   } catch (err) {
-    console.error('[syncService] Failed to sync profile:', err);
-    summary.errors.push({ store: 'profile', message: err.message });
-  }
-  // ── 4. Archives (uses getArchives, getUnarchived, getArchivedProjects, getUnarchivedProjects) ──
-  try {
-    const [archivesResult, unarchivedResult, archivedProjectsResult, unarchivedProjectsResult] =
-      await Promise.allSettled([
-        getArchives(email, null),
-        getUnarchived(email, null),
-        getArchivedProjects(email),
-        getUnarchivedProjects(email),
-      ]);
-
-    if (archivesResult.status === 'fulfilled' && archivesResult.value?.success) {
-      await cacheSet(CACHE_STORES.ARCHIVES, `${email}:all`, archivesResult.value);
-      summary.synced.push('archives');
-      onProgress?.({ store: 'archives', data: archivesResult.value });
-    }
-    if (unarchivedResult.status === 'fulfilled' && unarchivedResult.value?.success) {
-      await cacheSet(CACHE_STORES.ARCHIVES, `${email}:unarchived`, unarchivedResult.value);
-      summary.synced.push('unarchived-entries');
-    }
-    if (archivedProjectsResult.status === 'fulfilled' && archivedProjectsResult.value?.success) {
-      await cacheSet(CACHE_STORES.ARCHIVES, `archived-projects:${email}`, archivedProjectsResult.value);
-      summary.synced.push('archived-projects');
-    }
-    if (unarchivedProjectsResult.status === 'fulfilled' && unarchivedProjectsResult.value?.success) {
-      await cacheSet(CACHE_STORES.ARCHIVES, `unarchived-projects:${email}`, unarchivedProjectsResult.value);
-      summary.synced.push('unarchived-projects');
-    }
-  } catch (err) {
-    console.error('[syncService] Failed to sync archives:', err);
-    summary.errors.push({ store: 'archives', message: err.message });
+    console.error('[syncService] Failed to cache profile:', err);
   }
 
-  // ── 5. Custom Fields (uses getFields) ────────────────────────
+  // 4. Archives
   try {
-    const fieldTables = ['entries', 'projects'];
-    const fieldResults = await Promise.allSettled(
-      fieldTables.map((table) => getFields(email, table))
-    );
-    for (let i = 0; i < fieldTables.length; i++) {
-      if (fieldResults[i].status === 'fulfilled' && fieldResults[i].value?.success) {
-        const cacheKey = `${email}:${fieldTables[i]}`;
-        await cacheSet(CACHE_STORES.FIELDS, cacheKey, fieldResults[i].value);
-        summary.synced.push(`fields:${fieldTables[i]}`);
+    if (archivesResults.status === 'fulfilled') {
+      const [archivesResult, unarchivedResult, archivedProjectsResult, unarchivedProjectsResult] =
+        archivesResults.value;
+      if (archivesResult.status === 'fulfilled' && archivesResult.value?.success) {
+        await cacheSet(CACHE_STORES.ARCHIVES, `${email}:all`, archivesResult.value);
+        summary.synced.push('archives');
+        onProgress?.({ store: 'archives', data: archivesResult.value });
+      }
+      if (unarchivedResult.status === 'fulfilled' && unarchivedResult.value?.success) {
+        await cacheSet(CACHE_STORES.ARCHIVES, `${email}:unarchived`, unarchivedResult.value);
+        summary.synced.push('unarchived-entries');
+      }
+      if (archivedProjectsResult.status === 'fulfilled' && archivedProjectsResult.value?.success) {
+        await cacheSet(CACHE_STORES.ARCHIVES, `archived-projects:${email}`, archivedProjectsResult.value);
+        summary.synced.push('archived-projects');
+      }
+      if (unarchivedProjectsResult.status === 'fulfilled' && unarchivedProjectsResult.value?.success) {
+        await cacheSet(CACHE_STORES.ARCHIVES, `unarchived-projects:${email}`, unarchivedProjectsResult.value);
+        summary.synced.push('unarchived-projects');
       }
     }
   } catch (err) {
-    console.error('[syncService] Failed to sync fields:', err);
-    summary.errors.push({ store: 'fields', message: err.message });
+    console.error('[syncService] Failed to cache archives:', err);
   }
 
-  // ── 6. Activity Log (uses getActivities) ─────────────────────
+  // 5. Fields
   try {
-    const actResult = await getActivities(email);
-    if (actResult?.success) {
-      await cacheSet('activity', email, actResult);
+    if (fieldsResults.status === 'fulfilled') {
+      const fieldTables = ['entries', 'projects'];
+      for (let i = 0; i < fieldTables.length; i++) {
+        const fr = fieldsResults.value[i];
+        if (fr.status === 'fulfilled' && fr.value?.success) {
+          await cacheSet(CACHE_STORES.FIELDS, `${email}:${fieldTables[i]}`, fr.value);
+          summary.synced.push(`fields:${fieldTables[i]}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[syncService] Failed to cache fields:', err);
+  }
+
+  // 6. Activity log
+  try {
+    if (activityResult.status === 'fulfilled' && activityResult.value?.success) {
+      await cacheSet('activity', email, activityResult.value);
       summary.synced.push('activity');
-      onProgress?.({ store: 'activity', data: actResult });
+      onProgress?.({ store: 'activity', data: activityResult.value });
     }
   } catch (err) {
-    console.error('[syncService] Failed to sync activity log:', err);
-    summary.errors.push({ store: 'activity', message: err.message });
+    console.error('[syncService] Failed to cache activity:', err);
   }
 
-  // ── 7. Due-soon (uses dueSoon from dashboard.js — cache-first) ──
-  try {
-    const dueSoonResult = await dueSoon(email);
-    if (dueSoonResult?.success && dueSoonResult.data) {
-      await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, {
-        success: true,
-        data: dueSoonResult.data,
-      });
-      summary.synced.push('due-soon');
-      onProgress?.({ store: 'due-soon', data: dueSoonResult.data });
-    }
-  } catch (err) {
-    console.error('[syncService] Failed to compute due-soon:', err);
-    summary.errors.push({ store: 'due-soon', message: err.message });
-  }
-
-  // ── 8. Computed stats from cached entries (pure compute, no server) ──
+  // ── Post-sync: compute derived data from cache (pure local, no server) ──
   try {
     const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
     if (cachedEntries?.data && Array.isArray(cachedEntries.data)) {
       const allEntries = cachedEntries.data;
+
+      // Due-soon: compute from cached entries
+      const dueSoonEntries = computeDueSoon(allEntries);
+      await cacheSet(CACHE_STORES.ENTRIES, `${email}:due-soon`, {
+        success: true,
+        data: dueSoonEntries,
+      });
+      summary.synced.push('due-soon');
+      onProgress?.({ store: 'due-soon', data: dueSoonEntries });
 
       // Stats: total time tracked + per-project breakdown
       const totalTime = calculateTotalTimeTracked(allEntries);
@@ -324,22 +315,8 @@ async function _doSync(email, onProgress) {
       summary.synced.push('streaks');
     }
   } catch (err) {
-    console.error('[syncService] Failed to compute stats/streaks:', err);
+    console.error('[syncService] Failed to compute derived data:', err);
     summary.errors.push({ store: 'computed', message: err.message });
-  }
-
-  // ── 9. Pre-warm global search cache (uses searchAll from dashboard/search.js) ──
-  // searchAll requires a keyword — it's available for on-demand search pages.
-  // We pre-warm with a broad wildcard to cache initial results.
-  try {
-    const searchResult = await searchAll(email, ' ');
-    if (searchResult?.success) {
-      await cacheSet(CACHE_STORES.SEARCH, `${email}:global`, searchResult);
-      summary.synced.push('search');
-    }
-  } catch (err) {
-    // Search pre-warm is best-effort — don't add to errors
-    console.warn('[syncService] Search pre-warm skipped:', err.message);
   }
 
   summary.success = summary.errors.length === 0;
