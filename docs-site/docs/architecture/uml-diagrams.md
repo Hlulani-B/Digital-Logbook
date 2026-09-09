@@ -10,7 +10,9 @@ rather than replaces, the existing [Architecture Overview](overview.md),
 [System Design](system-design.md), [Database Schema](database.md), and
 [API Contracts](api-contracts.md).
 
-The diagrams use Mermaid source and are rendered client-side by the Mermaid library via `docs/javascripts/mermaid.js`.
+The diagrams below are standalone SVG assets. Standard MkDocs deployments serve
+these images without requiring a diagram-rendering plugin or client-side
+JavaScript.
 
 ## Component diagram
 
@@ -20,45 +22,7 @@ requests. The frontend also uses the Supabase client directly for sign-in and
 session management. Business-data operations are handled by the Express
 services rather than by a generated Supabase data API.
 
-```mermaid
-flowchart LR
-    User[User]
-
-    subgraph Browser[Browser client boundary]
-        FE[React + Vite frontend]
-        Cache[(IndexedDB cache)]
-        FE --> Cache
-    end
-
-    subgraph Render[Render deployment boundary]
-        Auth[auth-service\nAccount lifecycle and health\nPort 5001]
-        Dashboard[dashboard-service\nSearch, dashboard support, keep-alive\nPort 5002]
-        Project[project-service\nProjects, entries, fields, priorities,\narchives, activity, AI and SSE\nPort 5003]
-        Profile[profile-service\nProfile and login-related routes\nPort 5004]
-    end
-
-    subgraph Supabase[Supabase platform boundary]
-        SupaAuth[Supabase Auth\nJWT issuance and JWKS]
-        DB[(PostgreSQL)]
-    end
-
-    AI[External AI providers]
-
-    User --> FE
-    FE -->|Direct auth/session SDK calls| SupaAuth
-    FE -->|HTTPS REST + Bearer JWT| Auth
-    FE -->|HTTPS REST + Bearer JWT| Dashboard
-    FE -->|HTTPS REST + Bearer JWT| Project
-    FE -->|HTTPS REST + Bearer JWT| Profile
-    Project -->|SSE events| FE
-
-    Auth --> SupaAuth
-    Dashboard --> DB
-    Project -->|Verify JWT using JWKS| SupaAuth
-    Project --> DB
-    Profile --> DB
-    Project -->|Natural-language parsing| AI
-```
+![Component diagram](../assets/uml/component-diagram.svg)
 
 ### Service boundaries
 
@@ -78,37 +42,7 @@ command, environment-variable set, and Render service declaration. The
 frontend is deployed as a static Render service; the four backend services are
 separate Node web services.
 
-```mermaid
-flowchart TB
-    subgraph Client[User device]
-        Browser2[Browser]
-    end
-
-    subgraph Render2[Render]
-        Static[Static web service\ndigital-logbook\nfrontend build]
-        Auth2[Node web service\nauth-service :5001]
-        Dashboard2[Node web service\ndashboard-service :5002]
-        Project2[Node web service\nproject-service :5003]
-        Profile2[Node web service\nprofile-service :5004]
-    end
-
-    subgraph Managed[Managed external services]
-        Supabase2[Supabase Auth + PostgreSQL]
-        Providers[AI providers\nused by project-service]
-    end
-
-    Browser2 --> Static
-    Browser2 --> Auth2
-    Browser2 --> Dashboard2
-    Browser2 --> Project2
-    Browser2 --> Profile2
-    Browser2 --> Supabase2
-    Auth2 --> Supabase2
-    Dashboard2 --> Supabase2
-    Project2 --> Supabase2
-    Profile2 --> Supabase2
-    Project2 --> Providers
-```
+![Deployment diagram](../assets/uml/deployment-diagram.svg)
 
 ## Sequence diagram: sign-in and initial data synchronization
 
@@ -118,45 +52,7 @@ uses the returned session token for backend requests. On application load,
 `syncAllData()` fetches project, entry, and profile data and stores it in
 IndexedDB.
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant FE as React frontend
-    participant SA as Supabase Auth
-    participant PS as project-service
-    participant PFS as profile-service
-    participant DB as Supabase PostgreSQL
-    participant Cache as IndexedDB
-
-    User->>FE: Submit email and password
-    FE->>SA: signInWithPassword(email, password)
-    SA-->>FE: Session with access token (JWT)
-    FE->>FE: Auth state changes; start syncAllData(email)
-
-    par Load projects and entries
-        FE->>PS: POST /service/project (getProjects) + Bearer JWT
-        PS->>SA: Verify token with cached/remote JWKS
-        SA-->>PS: Public signing key
-        PS->>DB: Query projects scoped to verified user
-        DB-->>PS: Projects
-        PS-->>FE: Project response
-        FE->>Cache: Store projects
-    and
-        FE->>PS: POST /service/entry (getAll) + Bearer JWT
-        PS->>DB: Query entries scoped to verified user
-        DB-->>PS: Entries
-        PS-->>FE: Entry response
-        FE->>Cache: Store entries
-    and
-        FE->>PFS: POST /service/profile (getProfile) + Bearer JWT
-        PFS->>DB: Query profile
-        DB-->>PFS: Profile
-        PFS-->>FE: Profile response
-        FE->>Cache: Store profile
-    end
-
-    FE-->>User: Render dashboard from local cache
-```
+![Sign-in and initial data synchronization sequence diagram](../assets/uml/sequence-diagram.svg)
 
 ## Domain model diagram
 
@@ -164,50 +60,7 @@ The data model is shared through Supabase PostgreSQL. This diagram focuses on
 the ownership relationships most relevant to the service boundaries; column
 and migration detail remains in the [Database Schema](database.md) page.
 
-```mermaid
-classDiagram
-    class User {
-        +email: varchar PK
-        +username: varchar
-        +name: varchar
-        +deleted: boolean
-    }
-    class Project {
-        +id: bigint PK
-        +user_email: varchar
-        +project_name: varchar
-        +description: text
-        +archived: boolean
-    }
-    class Entry {
-        +id: uuid PK
-        +user_email: varchar
-        +project_name: varchar
-        +entries: jsonb
-        +due_date: timestamptz
-        +priority: priority_level
-    }
-    class Field {
-        +id: uuid PK
-        +user_email: varchar
-        +table_name: varchar
-        +field_name: varchar
-        +data_type: varchar
-    }
-    class ActivityLog {
-        +id: uuid PK
-        +user_email: varchar
-        +action: varchar
-        +entity_type: varchar
-        +details: jsonb
-    }
-
-    User "1" --> "0..*" Project : owns
-    User "1" --> "0..*" Entry : scopes
-    User "1" --> "0..*" Field : defines
-    User "1" --> "0..*" ActivityLog : records
-    Project "1" --> "0..*" Entry : groups by user_email + project_name
-```
+![Domain model diagram](../assets/uml/domain-model-diagram.svg)
 
 ## Why this is a microservices architecture
 
