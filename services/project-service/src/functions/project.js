@@ -72,7 +72,7 @@ export class Project {
     try {
       if (!pool) throw new Error('Database pool not initialized');
       const { rows } = await pool.query(
-        `SELECT project_name, description, created_at, archived, project_color
+        `SELECT *
          FROM projects
          WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
          ORDER BY created_at DESC`,
