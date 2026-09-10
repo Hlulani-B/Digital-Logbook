@@ -727,6 +727,14 @@ export function EntryBox({
           )}
         </div>
         <div className="entry-box__meta-right">
+          <button
+            type="button"
+            className="entry-box__notes-btn"
+            onClick={() => navigate(`/notes/${id}`, { state: entry })}
+            title="View Notes"
+          >
+            📝 Notes
+          </button>
           {!started_at && !ended_at && (
             <button
               type="button"

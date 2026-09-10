@@ -3472,6 +3472,29 @@ img {
   filter: brightness(1.1);
 }
 
+.entry-box__notes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-body, 'Lora', serif);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1.5px solid var(--border, #111111);
+  background: transparent;
+  color: var(--text, #111111);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.entry-box__notes-btn:hover {
+  background: var(--accent, #111111);
+  color: var(--surface, #ffffff);
+  border-color: var(--accent, #111111);
+}
+
 /* Elapsed timer wrapper + display */
 .entry-box__task-active {
   display: flex;
@@ -5747,6 +5770,24 @@ img {
   font-size: 0.8rem;
   color: var(--text-muted, #737373);
   margin: 0;
+}
+
+.checklist-card-notes-btn {
+  align-self: flex-end;
+  background: transparent;
+  border: 1.5px solid var(--border, #111111);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--text, #111111);
+  transition: all 0.15s ease;
+  margin-top: 0.25rem;
+}
+.checklist-card-notes-btn:hover {
+  background: var(--accent, #111111);
+  color: var(--surface, #ffffff);
+  border-color: var(--accent, #111111);
 }
 
 .checklist-empty {

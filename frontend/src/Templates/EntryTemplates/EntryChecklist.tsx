@@ -198,6 +198,17 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
             <p className="checklist-due">{formatDate(entry.due_date)}</p>
           </div>
         </div>
+        <button
+          type="button"
+          className="checklist-card-notes-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/notes/${entry.id}`, { state: entry });
+          }}
+          title="View Notes"
+        >
+          📝 Notes
+        </button>
       </div>
 
       {/* Edit Dialog */}
