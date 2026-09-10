@@ -5,7 +5,7 @@ import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface QuickEntryBarProps {
-  onEntryCreated?: () => void;
+  onEntryCreated?: (projectName?: string) => void;
   onVoiceOpen?: () => void;
   placeholder?: string;
 }
@@ -49,6 +49,17 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       const data = result.data as Record<string, unknown>;
       const isProjectOnly = data?.project_only === true;
       const isMulti = data?.multi === true;
+      
+      // Extract project name for navigation
+      let projectName: string | undefined;
+      if (isProjectOnly) {
+        projectName = (data?.project as string) || undefined;
+      } else if (!isMulti) {
+        // For single entry, get project from the entry data
+        const entryData = data?.data as Record<string, unknown> | undefined;
+        projectName = (entryData?.project_name as string) || (data?.project as string) || undefined;
+      }
+      
       if (isMulti) {
         const results = data.results as Record<string, unknown[]> | undefined;
         const oldCount = results?.old?.length || 0;
@@ -68,7 +79,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       if (comment && getAiMessagesEnabled()) {
         setToast(comment as string);
       }
-      if (onEntryCreated) onEntryCreated();
+      if (onEntryCreated) onEntryCreated(projectName);
     } else {
       setMessage(result.message || 'Failed to create entry');
       setMessageType('error');

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
@@ -18,6 +19,7 @@ type Entry = Record<string, unknown>;
 
 export function AllEntriesPage() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -233,7 +235,13 @@ export function AllEntriesPage() {
 
         {/* Quick Entry Bar */}
         <QuickEntryBar
-          onEntryCreated={() => loadData()}
+          onEntryCreated={(projectName) => {
+            loadData();
+            // Navigate to the project page if a project name was provided
+            if (projectName) {
+              navigate(`/project/${encodeURIComponent(projectName)}`);
+            }
+          }}
           onVoiceOpen={() => setVoiceOpen(true)}
           placeholder={aiPlaceholder}
         />

@@ -185,6 +185,8 @@ export function ProjectsPage() {
       setNewProjectName('');
       setCreating(false);
       await loadProjects();
+      // Navigate to the newly created project's page
+      navigate(`/project/${encodeURIComponent(trimmed)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create project');
     } finally {

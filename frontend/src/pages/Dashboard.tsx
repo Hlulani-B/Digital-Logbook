@@ -648,6 +648,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       setNewProjectOpen(false);
       resetProjectForm();
       await loadData();
+      
+      // Navigate to the newly created project's page
+      navigate(`/project/${encodeURIComponent(projectName)}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create project';
       console.error('Failed to create project:', err);
@@ -1468,8 +1471,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
             {/* Quick Entry Bar - Natural Language */}
             <QuickEntryBar
-              onEntryCreated={() => {
+              onEntryCreated={(projectName) => {
                 loadData();
+                // Navigate to the project page if a project name was provided
+                if (projectName) {
+                  navigate(`/project/${encodeURIComponent(projectName)}`);
+                }
               }}
               onVoiceOpen={() => setVoiceOpen(true)}
               placeholder={aiPlaceholder}
@@ -1986,6 +1993,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   setNewEntryOpen(false);
                   setNewEntryProject('');
                   loadData();
+                  // Navigate to the project page where the entry was created
+                  navigate(`/project/${encodeURIComponent(newEntryProject)}`);
                 }}
                 onCancel={() => {
                   setNewEntryOpen(false);
