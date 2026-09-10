@@ -207,7 +207,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           <h2 className="add-entry__title">New Entry</h2>
           <span className="add-entry__project">{project_name}</span>
         </div>
-        <div className="add-entry__loading">Loading fields...</div>
+        <div className="add-entry__loading">Loading columns...</div>
       </div>
     );
   }
@@ -223,7 +223,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
 
       {fields.length > 0 && (
         <div className="add-entry__fields">
-          <span className="add-entry__section-label">Fields</span>
+          <span className="add-entry__section-label">Columns</span>
           {fields.map((field) => (
             <div className="add-entry__field-row" key={field.field_name}>
               <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
@@ -259,7 +259,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       )}
 
       {fields.length === 0 && (
-        <p className="add-entry__no-fields">No fields defined for this project yet.</p>
+        <p className="add-entry__no-fields">No columns defined for this project yet.</p>
       )}
 
       <div className="add-entry__row">

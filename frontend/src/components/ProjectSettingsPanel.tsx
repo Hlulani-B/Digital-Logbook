@@ -352,9 +352,9 @@ export function ProjectSettingsPanel({
 
           <hr className="divider" />
 
-          {/* ── Fields ── */}
+          {/* ── Columns ── */}
           <div className="panel-section">
-            <p className="panel-section-title">Fields</p>
+            <p className="panel-section-title">Columns</p>
 
             {fieldError && (
               <div
@@ -374,12 +374,12 @@ export function ProjectSettingsPanel({
             )}
 
             {loadingFields ? (
-              <p className="field-hint">Loading fields...</p>
+              <p className="field-hint">Loading columns...</p>
             ) : (
               <>
                 {fields.length === 0 && (
                   <p className="field-hint" style={{ marginBottom: '1rem' }}>
-                    No fields defined for this project.
+                    No columns defined for this project.
                   </p>
                 )}
 
@@ -476,7 +476,7 @@ export function ProjectSettingsPanel({
                             className="btn-secondary"
                             onClick={() => startEditField(f)}
                             style={{ padding: '0.35rem 0.55rem', fontSize: '0.85rem' }}
-                            title="Edit field"
+                            title="Edit column"
                           >
                             <FiEdit2 size={16} />
                           </button>
@@ -500,7 +500,7 @@ export function ProjectSettingsPanel({
                 >
                   <input
                     type="text"
-                    placeholder="New field name"
+                    placeholder="New column name"
                     value={newFieldName}
                     onChange={(e) => setNewFieldName(e.target.value)}
                     className="field-input"

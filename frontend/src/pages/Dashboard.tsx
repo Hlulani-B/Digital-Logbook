@@ -603,7 +603,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
       if (duplicates.length > 0) {
         const uniqueDuplicates = [...new Set(duplicates)];
-        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(', ')}`);
+        setNewProjectError(`Duplicate column names found: ${uniqueDuplicates.join(', ')}`);
         return;
       }
     }
@@ -1819,7 +1819,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 className="project-fields-title"
                 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.5rem' }}
               >
-                Project Fields
+                Project Columns
               </h3>
               {projectFields.length === 0 && (
                 <p
@@ -1829,7 +1829,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     margin: '0 0 0.5rem',
                   }}
                 >
-                  No fields defined. Add fields to build the entry form for this project.
+                  No columns defined. Add columns to build the entry form for this project.
                 </p>
               )}
               {projectFields.map((field, index) => (
@@ -1846,7 +1846,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   <input
                     type="text"
-                    placeholder="Field name"
+                    placeholder="Column name"
                     value={field.field_name}
                     onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
                     className="field-input"
@@ -1886,7 +1886,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     type="button"
                     className="btn-secondary"
                     onClick={() => removeProjectField(index)}
-                    title="Remove field"
+                    title="Remove column"
                   >
                     <FiX size={16} />
                   </button>
@@ -1898,7 +1898,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 onClick={addProjectField}
                 style={{ marginTop: '0.25rem' }}
               >
-                + Add Another Project Field
+                + Add Another Project Column
               </button>
             </div>
 
