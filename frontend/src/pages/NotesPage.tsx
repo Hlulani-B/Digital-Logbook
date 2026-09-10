@@ -421,7 +421,13 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                       </a>
                     ) : note.entry_type === 'image' ? (
                       <div className="notes-panel__note-image">
-                        {loadingFiles[note.id] ? (
+                        {note.value && note.value.startsWith('http') ? (
+                          <img
+                            src={note.value}
+                            alt="Note"
+                            className="notes-panel__note-img"
+                          />
+                        ) : loadingFiles[note.id] ? (
                           <span className="notes-panel__note-loading">Loading...</span>
                         ) : viewedFiles[note.id]?.file_data ? (
                           <img
@@ -435,7 +441,16 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                       </div>
                     ) : note.entry_type === 'pdf' ? (
                       <div className="notes-panel__note-pdf">
-                        {loadingFiles[note.id] ? (
+                        {note.value && note.value.startsWith('http') ? (
+                          <a
+                            className="notes-panel__note-download"
+                            href={note.value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            View PDF
+                          </a>
+                        ) : loadingFiles[note.id] ? (
                           <span className="notes-panel__note-loading">Loading...</span>
                         ) : viewedFiles[note.id]?.file_data ? (
                           <a
