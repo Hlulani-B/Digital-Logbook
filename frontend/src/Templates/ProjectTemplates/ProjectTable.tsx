@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate } from 'react-router-dom';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -595,6 +596,14 @@ export default function ProjectTaskTable({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
+
+  // Find the single selected entry for notes actions
+  const singleSelectedEntry = useMemo(() => {
+    if (selectedIds.size !== 1) return null;
+    const id = Array.from(selectedIds)[0];
+    return rows.find((r) => r.id === id) || null;
+  }, [selectedIds, rows]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -652,6 +661,24 @@ export default function ProjectTaskTable({
       {selectedIds.size > 0 && (
         <div className="ptt-bulk-bar">
           <span className="ptt-bulk-bar__count">{selectedIds.size} selected</span>
+          {singleSelectedEntry && (
+            <>
+              <button
+                type="button"
+                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
+                onClick={() => navigate(`/notes/${singleSelectedEntry.id}`, { state: singleSelectedEntry })}
+              >
+                View Notes
+              </button>
+              <button
+                type="button"
+                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
+                onClick={() => navigate(`/notes/${singleSelectedEntry.id}?add=true`, { state: singleSelectedEntry })}
+              >
+                Add Note
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="ptt-bulk-bar__btn ptt-bulk-bar__btn--delete"

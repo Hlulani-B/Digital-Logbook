@@ -476,3 +476,14 @@
   background: #dc2626;
   border-color: #b91c1c;
 }
+
+.ptt-bulk-bar__btn--notes {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #8b5cf6;
+}
+
+.ptt-bulk-bar__btn--notes:hover {
+  background: #ede9fe;
+  border-color: #7c3aed;
+}
