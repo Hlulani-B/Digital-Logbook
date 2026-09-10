@@ -6259,19 +6259,19 @@ img {
 }
 .notes-panel__add-toggle {
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  padding: 0.35rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--surface);
   color: var(--accent);
-  font-size: 1.2rem;
-  font-weight: 300;
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 .notes-panel__add-toggle:hover {
   background: var(--accent);

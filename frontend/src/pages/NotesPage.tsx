@@ -226,10 +226,11 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     }
   };
 
-  // Derive entry title
-  const entryTitle = entryData
+  // Derive entry title (proper case)
+  const rawTitle = entryData
     ? getEntryTitle(entryData as Parameters<typeof getEntryTitle>[0])
     : 'Entry Notes';
+  const entryTitle = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1);
 
   return (
     <div className="notes-panel-overlay" onClick={onClose}>
@@ -256,7 +257,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
             onClick={() => setShowAddForm((v) => !v)}
             title="Add note"
           >
-            {showAddForm ? '\u2715' : '+'}
+            {showAddForm ? '\u2715' : '+ Add Note'}
           </button>
         </div>
 
