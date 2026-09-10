@@ -211,6 +211,49 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
         >
           View Notes
         </button>
+        {/* Context menu for edit/delete (shown on hover) */}
+        <div className="checklist-card-menu">
+          <button 
+            className="checklist-card-menu-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditOpen(true);
+            }}
+            title="Edit"
+          >
+            Edit
+          </button>
+          <button 
+            className="checklist-card-menu-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openNotes(entry);
+            }}
+            title="View Notes"
+          >
+            View Notes
+          </button>
+          <button 
+            className="checklist-card-menu-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openNotes(entry);
+            }}
+            title="Add Note"
+          >
+            Add Note
+          </button>
+          <button 
+            className="checklist-card-menu-btn checklist-card-menu-btn--delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteOpen(true);
+            }}
+            title="Delete"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       {/* Edit Dialog */}
@@ -283,50 +326,6 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           </div>
         </div>
       )}
-
-      {/* Context menu for edit/delete */}
-      <div className="checklist-card-menu">
-        <button 
-          className="checklist-card-menu-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditOpen(true);
-          }}
-          title="Edit"
-        >
-          Edit
-        </button>
-        <button 
-          className="checklist-card-menu-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            openNotes(entry);
-          }}
-          title="View Notes"
-        >
-          View Notes
-        </button>
-        <button 
-          className="checklist-card-menu-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            openNotes(entry);
-          }}
-          title="Add Note"
-        >
-          Add Note
-        </button>
-        <button 
-          className="checklist-card-menu-btn checklist-card-menu-btn--delete"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDeleteOpen(true);
-          }}
-          title="Delete"
-        >
-          Delete
-        </button>
-      </div>
     </>
   );
 }
