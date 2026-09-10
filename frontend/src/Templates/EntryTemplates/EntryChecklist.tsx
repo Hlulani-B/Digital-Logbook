@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
@@ -207,8 +208,8 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
             e.stopPropagation();
             openNotes(entry);
           }}
-          title="View Notes"
         >
+          <FiEdit className="checklist-card-notes-icon" />
           View Notes
         </button>
         {/* Context menu for edit/delete (shown on hover) */}
