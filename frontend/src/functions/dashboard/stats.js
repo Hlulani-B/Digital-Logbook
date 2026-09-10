@@ -149,3 +149,348 @@ export function calculateProjectStats(entries, now = Date.now()) {
     .map((s) => ({ ...s, display: formatDuration(s.totalMs) }))
     .sort((a, b) => b.totalMs - a.totalMs);
 }
+
+/* ============================================================
+ * Generic field statistics
+ *
+ * Statistics follow one format wherever they go. Any field its
+ * owner has defined can be totalled, grouped by, compared across
+ * projects, and plotted over time — the logbook never hard-codes
+ * knowledge of a particular field. Everything below is driven by
+ * field definitions (name + data_type) and the entry data itself.
+ * ============================================================ */
+
+/**
+ * What the logbook knows about data types — and nothing else.
+ * Capabilities decide how a field may be aggregated, so a field
+ * the logbook has never seen behaves exactly like a built-in one.
+ */
+export const FIELD_CAPABILITIES = {
+  number: { total: true, group: true, compare: true, plot: true },
+  duration: { total: true, group: true, compare: true, plot: true },
+  text: { total: false, group: true, compare: true, plot: true },
+  boolean: { total: false, group: true, compare: true, plot: true },
+  date: { total: false, group: true, compare: true, plot: true },
+};
+
+/**
+ * Built-in columns expressed as field definitions, so they flow
+ * through the exact same engine as owner-defined fields.
+ * `duration` is virtual — computed from started_at/ended_at.
+ */
+export const BUILTIN_FIELD_DEFS = [
+  { field_name: 'project_name', data_type: 'text' },
+  { field_name: 'status', data_type: 'text' },
+  { field_name: 'priority', data_type: 'text' },
+  { field_name: 'due_date', data_type: 'date' },
+  { field_name: 'created_at', data_type: 'date' },
+  { field_name: 'duration', data_type: 'duration' },
+];
+
+/** Keys that appear inside the entries JSONB but are engine-internal
+ * or rendered elsewhere — never treated as owner fields. */
+const RESERVED_FIELD_KEYS = new Set(['started_at', 'description']);
+
+/** Capabilities for a data type (unknown types behave like text). */
+export function fieldCapabilities(data_type) {
+  return FIELD_CAPABILITIES[data_type] || FIELD_CAPABILITIES.text;
+}
+
+function isNumericLike(v) {
+  if (typeof v === 'number') return !isNaN(v);
+  if (typeof v === 'string' && v.trim() !== '') return !isNaN(Number(v));
+  return false;
+}
+
+function isBooleanLike(v) {
+  return typeof v === 'boolean' || v === 'true' || v === 'false';
+}
+
+function isDateLike(v) {
+  return (
+    typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v.trim()) && !isNaN(new Date(v).getTime())
+  );
+}
+
+/**
+ * Infer a field's data type purely from its values — used when no
+ * definition exists, so statistics still work for fields the
+ * logbook has never seen in advance.
+ */
+export function inferDataType(values) {
+  const vals = (values || []).filter((v) => v !== null && v !== undefined && v !== '');
+  if (vals.length === 0) return 'text';
+  if (vals.every(isNumericLike)) return 'number';
+  if (vals.every(isBooleanLike)) return 'boolean';
+  if (vals.every(isDateLike)) return 'date';
+  return 'text';
+}
+
+/**
+ * Derive field definitions from entry data alone (union of the
+ * keys present in the entries JSONB, with inferred data types).
+ */
+export function deriveFieldDefs(entries) {
+  const byField = new Map();
+  (Array.isArray(entries) ? entries : []).forEach((entry) => {
+    const obj = entry && entry.entries;
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+    Object.keys(obj).forEach((key) => {
+      if (RESERVED_FIELD_KEYS.has(key)) return;
+      if (!byField.has(key)) byField.set(key, []);
+      byField.get(key).push(obj[key]);
+    });
+  });
+  return Array.from(byField.entries()).map(([field_name, values]) => ({
+    field_name,
+    data_type: inferDataType(values),
+  }));
+}
+
+/**
+ * Merge declared definitions (fields table) with derived ones
+ * (from the data itself). Declared types win; derived fields fill
+ * the gaps so nothing present in the data is missed.
+ */
+export function mergeFieldDefs(declared, derived) {
+  const merged = new Map();
+  (declared || []).forEach((d) => {
+    if (d && d.field_name) {
+      merged.set(d.field_name, { field_name: d.field_name, data_type: d.data_type || 'text' });
+    }
+  });
+  (derived || []).forEach((d) => {
+    if (d && d.field_name && !merged.has(d.field_name)) merged.set(d.field_name, d);
+  });
+  return Array.from(merged.values());
+}
+
+/**
+ * Read one field's raw value from an entry. Custom fields live in
+ * the entries JSONB; built-in columns sit at the top level. The
+ * virtual `duration` field is computed from timestamps.
+ */
+function rawFieldValue(entry, field, now) {
+  if (!entry) return undefined;
+  if (field === 'duration') {
+    return entry.started_at || entry.ended_at ? entryDurationMs(entry, now) : undefined;
+  }
+  const obj = entry.entries;
+  if (obj && typeof obj === 'object' && !Array.isArray(obj) && obj[field] !== undefined) {
+    return obj[field];
+  }
+  return entry[field];
+}
+
+/**
+ * Coerce a raw value to the type declared for its field.
+ * Returns undefined for missing or unusable values.
+ */
+function coerceValue(raw, data_type) {
+  if (raw === null || raw === undefined || raw === '') return undefined;
+  if (data_type === 'number') {
+    if (typeof raw === 'number') return isNaN(raw) ? undefined : raw;
+    if (typeof raw === 'boolean') return raw ? 1 : 0;
+    const n = Number(String(raw).trim());
+    return isNaN(n) ? undefined : n;
+  }
+  if (data_type === 'boolean') {
+    if (typeof raw === 'boolean') return raw;
+    const s = String(raw).trim().toLowerCase();
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    return undefined;
+  }
+  if (data_type === 'date') {
+    const t = new Date(raw).getTime();
+    return isNaN(t) ? undefined : new Date(raw).toISOString();
+  }
+  if (data_type === 'duration') {
+    return typeof raw === 'number' && !isNaN(raw) ? raw : undefined;
+  }
+  return String(raw);
+}
+
+/** Normalise a coerced value into a display-safe group key. */
+function groupKey(value, data_type) {
+  if (data_type === 'date' && typeof value === 'string') return value.slice(0, 10);
+  return String(value);
+}
+
+/** Day bucket (UTC YYYY-MM-DD) for plotting a field over time. */
+function dayBucket(entry) {
+  if (!entry || !entry.created_at) return null;
+  const t = new Date(entry.created_at).getTime();
+  return isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);
+}
+
+/**
+ * Format a stat value for display — durations use the shared
+ * duration formatter, numbers get locale formatting.
+ */
+export function formatStatValue(value, data_type) {
+  if (value === null || value === undefined) return '';
+  if (data_type === 'duration') return formatDuration(value);
+  if (data_type === 'number' || typeof value === 'number') {
+    // Pinned locale so stats read the same wherever they are rendered.
+    return Number(value.toFixed(2)).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+  return String(value);
+}
+
+/**
+ * One-line summary of a field stat — shared by every UI surface
+ * so a field reads the same wherever its statistics appear.
+ */
+export function fieldHeadline(stat) {
+  if (!stat) return '';
+  if (stat.capabilities.total && stat.displayTotal) {
+    return `${stat.displayTotal} total · ${stat.count} filled`;
+  }
+  if (stat.groups && stat.groups.length > 0) {
+    return `top: ${stat.groups[0].value} × ${stat.groups[0].count}`;
+  }
+  return `${stat.count} filled`;
+}
+
+/**
+ * Group one field's metric by another field — the "compare" view.
+ * For total-able fields the metric is the sum (e.g. total budget
+ * per project); otherwise it is the entry count.
+ * Returns [{ key, count, total, display }] sorted by metric desc.
+ */
+export function groupFieldBy(entries, field, by, { now = Date.now(), data_type } = {}) {
+  const list = Array.isArray(entries) ? entries : [];
+  let type = data_type;
+  if (!type) {
+    const raws = list
+      .map((e) => rawFieldValue(e, field, now))
+      .filter((v) => v !== undefined && v !== null && v !== '');
+    type = inferDataType(raws);
+  }
+  const capabilities = fieldCapabilities(type);
+  const map = new Map();
+
+  list.forEach((entry) => {
+    const value = coerceValue(rawFieldValue(entry, field, now), type);
+    if (value === undefined) return;
+
+    const rawKey = by === 'project_name' ? entry.project_name : rawFieldValue(entry, by, now);
+    const key =
+      rawKey === undefined || rawKey === null || rawKey === ''
+        ? by === 'project_name'
+          ? 'Unknown'
+          : null
+        : String(rawKey);
+    if (key === null) return;
+
+    const g = map.get(key) || { key, count: 0, total: 0 };
+    g.count++;
+    if (capabilities.total && typeof value === 'number') g.total += value;
+    map.set(key, g);
+  });
+
+  return Array.from(map.values())
+    .map((g) => ({
+      ...g,
+      display: capabilities.total ? formatStatValue(g.total, type) : String(g.count),
+    }))
+    .sort((a, b) => b.total - a.total || b.count - a.count);
+}
+
+/**
+ * Compute the standard FieldStat for every field in play.
+ *
+ * Statistics follow one format wherever they go:
+ *   { field, data_type, capabilities: { total, group, compare, plot },
+ *     entryCount, count, total, displayTotal, min, max, avg, displayAvg,
+ *     groups: [{ value, count }],          // group by value
+ *     series: [{ bucket, value }],         // plot over time (daily)
+ *     byProject: [{ key, count, total, display }] }  // compare
+ *
+ * Field definitions come from the owner (fields table) when
+ * passed; anything present in the data but never declared is
+ * derived automatically, so the logbook needs no advance
+ * knowledge of any field.
+ */
+export function computeFieldStats(
+  entries,
+  fieldDefs = [],
+  { now = Date.now(), maxGroups = 8, includeBuiltins = false } = {}
+) {
+  const list = Array.isArray(entries) ? entries : [];
+  const defs = mergeFieldDefs(fieldDefs, deriveFieldDefs(list));
+  if (includeBuiltins) {
+    BUILTIN_FIELD_DEFS.forEach((b) => {
+      if (!defs.some((d) => d.field_name === b.field_name)) defs.push({ ...b });
+    });
+  }
+
+  return defs
+    .map((def) => {
+      const capabilities = fieldCapabilities(def.data_type);
+      const numericValues = [];
+      const groupCounts = new Map();
+      const seriesMap = new Map();
+      let filled = 0;
+
+      list.forEach((entry) => {
+        const value = coerceValue(rawFieldValue(entry, def.field_name, now), def.data_type);
+        if (value === undefined) return;
+        filled++;
+
+        // Group by value
+        const gv = groupKey(value, def.data_type);
+        groupCounts.set(gv, (groupCounts.get(gv) || 0) + 1);
+
+        // Numeric accumulation (total / min / max / avg)
+        if (capabilities.total && typeof value === 'number') numericValues.push(value);
+
+        // Plot over time — daily buckets; sums for total-able
+        // fields, counts otherwise.
+        const bucket = dayBucket(entry);
+        if (bucket) {
+          const cur = seriesMap.get(bucket) || 0;
+          seriesMap.set(
+            bucket,
+            cur + (capabilities.total && typeof value === 'number' ? value : 1)
+          );
+        }
+      });
+
+      const total = numericValues.length > 0 ? numericValues.reduce((sum, v) => sum + v, 0) : null;
+      const min = numericValues.length > 0 ? Math.min(...numericValues) : null;
+      const max = numericValues.length > 0 ? Math.max(...numericValues) : null;
+      const avg = numericValues.length > 0 ? total / numericValues.length : null;
+
+      const groups = Array.from(groupCounts.entries())
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value)))
+        .slice(0, maxGroups);
+
+      const series = Array.from(seriesMap.entries())
+        .map(([bucket, value]) => ({ bucket, value }))
+        .sort((a, b) => (a.bucket < b.bucket ? -1 : 1));
+
+      return {
+        field: def.field_name,
+        data_type: def.data_type,
+        capabilities,
+        entryCount: list.length,
+        count: filled,
+        total,
+        displayTotal: total === null ? null : formatStatValue(total, def.data_type),
+        min,
+        max,
+        avg,
+        displayAvg: avg === null ? null : formatStatValue(avg, def.data_type),
+        groups,
+        series,
+        byProject: groupFieldBy(list, def.field_name, 'project_name', {
+          now,
+          data_type: def.data_type,
+        }),
+      };
+    })
+    .filter((stat) => stat.count > 0);
+}
