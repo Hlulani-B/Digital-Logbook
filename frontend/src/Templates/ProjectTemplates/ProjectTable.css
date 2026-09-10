@@ -478,12 +478,12 @@
 }
 
 .ptt-bulk-bar__btn--notes {
-  background: #f5f3ff;
-  color: #6d28d9;
-  border-color: #8b5cf6;
+  background: transparent;
+  color: var(--text, #111111);
+  border-color: #d4d4d4;
 }
 
 .ptt-bulk-bar__btn--notes:hover {
-  background: #ede9fe;
-  border-color: #7c3aed;
+  background: #f5f5f5;
+  border-color: #a3a3a3;
 }

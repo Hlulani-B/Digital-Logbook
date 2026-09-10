@@ -207,7 +207,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           }}
           title="View Notes"
         >
-          📝 Notes
+          View Notes
         </button>
       </div>
 

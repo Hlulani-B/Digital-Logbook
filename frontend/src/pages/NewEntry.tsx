@@ -733,7 +733,7 @@ export function EntryBox({
             onClick={() => navigate(`/notes/${id}`, { state: entry })}
             title="View Notes"
           >
-            📝 Notes
+            View Notes
           </button>
           {!started_at && !ended_at && (
             <button
