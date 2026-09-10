@@ -447,12 +447,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
     // Always apply "due soon" filter: only entries with due_date within 3 days
     const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const threeDaysFromNow = new Date(startOfToday.getTime() + 3 * 24 * 60 * 60 * 1000);
     filtered = filtered.filter((e) => {
       if (!e.due_date) return false;
       const due = new Date(e.due_date as string);
       if (isNaN(due.getTime())) return false;
-      return due >= now && due <= threeDaysFromNow;
+      return due >= startOfToday && due <= threeDaysFromNow;
     });
 
     return filtered;
