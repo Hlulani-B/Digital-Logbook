@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { NotesProvider, useNotes } from '@/context/NotesContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { syncAllData } from '@/CacheFunctions';
@@ -87,22 +88,15 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * NotesOverlayLayout — renders child routes and shows NotesPage as an overlay
- * when the current route is /notes/:entryId. This keeps the previous page
- * mounted underneath so it shows through the semi-transparent overlay.
+ * NotesOverlay — renders NotesPage as an overlay when notesEntry is set in context.
+ * This keeps the current page visible in the background.
  */
-function NotesOverlayLayout() {
-  const location = useLocation();
-  const isNotesRoute = location.pathname.startsWith('/notes/');
-
-  return (
-    <>
-      <Outlet />
-      {isNotesRoute && (
-        <NotesPage />
-      )}
-    </>
-  );
+function NotesOverlay() {
+  const { notesEntry, closeNotes } = useNotes();
+  
+  if (!notesEntry) return null;
+  
+  return <NotesPage entryData={notesEntry} onClose={closeNotes} />;
 }
 
 export function App() {
@@ -110,6 +104,7 @@ export function App() {
     <BrowserRouter>
       <ThemeInitializer>
         <AuthProvider>
+          <NotesProvider>
           <DataSyncInitializer>
           <OfflineBanner />
           <Routes>
@@ -147,10 +142,8 @@ export function App() {
                 </PublicRoute>
               }
             />
-            {/* Layout route that renders NotesPage as overlay on top of child routes */}
-            <Route element={<NotesOverlayLayout />}>
-              <Route
-                path="/dashboard"
+            <Route
+              path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Dashboard />
@@ -318,13 +311,12 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            {/* Notes route is handled by NotesOverlayLayout as an overlay */}
-            <Route path="/notes/:entryId" element={null} />
-            </Route>
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
           <OfflineSyncToasts />
+          <NotesOverlay />
           </DataSyncInitializer>
+          </NotesProvider>
         </AuthProvider>
       </ThemeInitializer>
     </BrowserRouter>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNotes } from '@/context/NotesContext';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -596,7 +596,7 @@ export default function ProjectTaskTable({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const navigate = useNavigate();
+  const { openNotes } = useNotes();
 
   // Find the single selected entry for notes actions
   const singleSelectedEntry = useMemo(() => {
@@ -666,14 +666,14 @@ export default function ProjectTaskTable({
               <button
                 type="button"
                 className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
-                onClick={() => navigate(`/notes/${singleSelectedEntry.id}`, { state: singleSelectedEntry })}
+                onClick={() => openNotes(singleSelectedEntry)}
               >
                 View Notes
               </button>
               <button
                 type="button"
                 className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
-                onClick={() => navigate(`/notes/${singleSelectedEntry.id}?add=true`, { state: singleSelectedEntry })}
+                onClick={() => openNotes(singleSelectedEntry)}
               >
                 Add Note
               </button>

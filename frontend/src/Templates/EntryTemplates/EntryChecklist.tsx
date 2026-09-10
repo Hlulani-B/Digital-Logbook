@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNotes } from '@/context/NotesContext';
 import { updateEntry } from '@/functions/project/entries.js';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
@@ -65,6 +66,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { openNotes } = useNotes();
   
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
@@ -203,7 +205,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           className="checklist-card-notes-btn"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/notes/${entry.id}`, { state: entry });
+            openNotes(entry);
           }}
           title="View Notes"
         >
@@ -298,7 +300,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           className="checklist-card-menu-btn"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/notes/${entry.id}`, { state: entry });
+            openNotes(entry);
           }}
           title="View Notes"
         >
@@ -308,7 +310,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           className="checklist-card-menu-btn"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/notes/${entry.id}?add=true`, { state: entry });
+            openNotes(entry);
           }}
           title="Add Note"
         >

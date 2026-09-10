@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getNotes, addNote, viewNote, updateNote, deleteNote } from '@/functions/project/notes.js';
 import { getEntryTitle } from '@/lib/calendar';
@@ -62,15 +61,15 @@ const TYPE_CONFIG: Record<NoteType, { label: string; icon: string; color: string
   pdf: { label: 'PDF', icon: '\u{1F4C4}', color: '#ef4444' },
 };
 
-export function NotesPage() {
-  const { entryId } = useParams<{ entryId: string }>();
-  const navigate = useNavigate();
-  const location = useLocation();
+interface NotesPageProps {
+  entryData: EntryData;
+  onClose: () => void;
+}
+
+export function NotesPage({ entryData, onClose }: NotesPageProps) {
   const { user } = useAuth();
   const userEmail = user?.email || '';
-
-  // Entry data from location state or minimal fallback
-  const entryData = (location.state as EntryData) || null;
+  const entryId = entryData?.id || '';
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,14 +89,6 @@ export function NotesPage() {
   // Viewed file notes
   const [viewedFiles, setViewedFiles] = useState<Record<string, ViewedNote>>({});
   const [loadingFiles, setLoadingFiles] = useState<Record<string, boolean>>({});
-
-  // Check if we should auto-open add form
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('add') === 'true') {
-      setShowAddForm(true);
-    }
-  }, [location.search]);
 
   // Load notes (cache-first — returns instantly if cached)
   const loadNotes = async () => {
@@ -241,14 +232,14 @@ export function NotesPage() {
     : 'Entry Notes';
 
   return (
-    <div className="notes-panel-overlay" onClick={() => navigate(-1)}>
+    <div className="notes-panel-overlay" onClick={onClose}>
       <div className="notes-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="notes-panel__header">
           <button
             type="button"
             className="notes-panel__close"
-            onClick={() => navigate(-1)}
+            onClick={onClose}
             aria-label="Close"
           >
             &times;

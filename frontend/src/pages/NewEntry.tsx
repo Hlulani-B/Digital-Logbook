@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNotes } from '@/context/NotesContext';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
@@ -159,6 +160,7 @@ export function EntryBox({
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { openNotes } = useNotes();
 
   // Live elapsed time for in-progress tasks
   const [elapsed, setElapsed] = useState<string>('');
@@ -575,7 +577,7 @@ export function EntryBox({
                 className="entry-box__menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  navigate(`/notes/${id}`, { state: entry });
+                  openNotes(entry);
                 }}
               >
                 View Notes
@@ -585,7 +587,7 @@ export function EntryBox({
                 className="entry-box__menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  navigate(`/notes/${id}?add=true`, { state: entry });
+                  openNotes(entry);
                 }}
               >
                 Add Note
@@ -730,7 +732,7 @@ export function EntryBox({
           <button
             type="button"
             className="entry-box__notes-btn"
-            onClick={() => navigate(`/notes/${id}`, { state: entry })}
+            onClick={() => openNotes(entry)}
             title="View Notes"
           >
             View Notes
