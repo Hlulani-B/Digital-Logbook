@@ -165,6 +165,59 @@
   z-index: 1;
 }
 
+/* Status colour coding for Kanban column headers — blue / amber / green */
+.kanban-column[data-status='up_next'] .kanban-column-header {
+  background: rgba(59, 130, 246, 0.12);
+  border-left: 3px solid #3b82f6;
+  color: #1e40af;
+}
+.kanban-column[data-status='in_motion'] .kanban-column-header {
+  background: rgba(245, 158, 11, 0.14);
+  border-left: 3px solid #f59e0b;
+  color: #92400e;
+}
+.kanban-column[data-status='done_and_dusted'] .kanban-column-header {
+  background: rgba(34, 197, 94, 0.14);
+  border-left: 3px solid #22c55e;
+  color: #166534;
+}
+.kanban-column[data-status='up_next'] .kanban-column-title,
+.kanban-column[data-status='up_next'] .kanban-column-count {
+  color: #1e40af;
+}
+.kanban-column[data-status='in_motion'] .kanban-column-title,
+.kanban-column[data-status='in_motion'] .kanban-column-count {
+  color: #92400e;
+}
+.kanban-column[data-status='done_and_dusted'] .kanban-column-title,
+.kanban-column[data-status='done_and_dusted'] .kanban-column-count {
+  color: #166534;
+}
+[data-theme='dark'] .kanban-column[data-status='up_next'] .kanban-column-header {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+}
+[data-theme='dark'] .kanban-column[data-status='in_motion'] .kanban-column-header {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+}
+[data-theme='dark'] .kanban-column[data-status='done_and_dusted'] .kanban-column-header {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+}
+[data-theme='dark'] .kanban-column[data-status='up_next'] .kanban-column-title,
+[data-theme='dark'] .kanban-column[data-status='up_next'] .kanban-column-count {
+  color: #bfdbfe;
+}
+[data-theme='dark'] .kanban-column[data-status='in_motion'] .kanban-column-title,
+[data-theme='dark'] .kanban-column[data-status='in_motion'] .kanban-column-count {
+  color: #fde68a;
+}
+[data-theme='dark'] .kanban-column[data-status='done_and_dusted'] .kanban-column-title,
+[data-theme='dark'] .kanban-column[data-status='done_and_dusted'] .kanban-column-count {
+  color: #bbf7d0;
+}
+
 .kanban-column-title {
   font-weight: 700;
   font-size: 0.9375rem;

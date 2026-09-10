@@ -3259,30 +3259,31 @@ img {
   white-space: nowrap;
 }
 
-/* Badge color classes */
+/* Badge color classes — status is colour-coded: blue / amber / green */
 .status-up-next {
-  background: color-mix(in srgb, var(--border) 40%, transparent);
-  color: var(--text-dim, #6b5d4a);
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #3b82f6;
 }
 .status-in-motion {
-  background: rgba(253, 236, 200, 0.5);
-  color: #a06b1a;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
 }
 .status-done {
-  background: rgba(219, 237, 219, 0.5);
-  color: #2f7e3e;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #22c55e;
 }
 
 /* Inline status dropdown on entry card — looks like a badge, acts like a select */
 .entry-box__tags .entry-box__status-select {
   appearance: auto;
-  border: none;
   cursor: pointer;
   font-weight: 600;
   padding: 0.18rem 0.55rem;
   border-radius: 4px;
   font-size: 0.75rem;
-  background: transparent;
 }
 .entry-box__tags .entry-box__status-select:focus {
   outline: 2px solid var(--accent, #6366f1);
@@ -3380,6 +3381,38 @@ img {
   border: 1px solid var(--border, #e3e2e0);
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
+}
+/* Status colour coding on the inline selects — compound selector bumps specificity
+   so these win over the neutral base style above. Done & Dusted = green. */
+.entry-box__status-select.status-up-next {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+.entry-box__status-select.status-in-motion {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+.entry-box__status-select.status-done {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #22c55e;
+}
+[data-theme='dark'] .entry-box__status-select.status-up-next {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  border-color: rgba(59, 130, 246, 0.55);
+}
+[data-theme='dark'] .entry-box__status-select.status-in-motion {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.55);
+}
+[data-theme='dark'] .entry-box__status-select.status-done {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.55);
 }
 
 .entry-box__table {
@@ -5703,11 +5736,25 @@ img {
   background: linear-gradient(0deg, var(--tint, transparent), var(--tint, transparent)), var(--surface-hover, #f5f5f5);
 }
 .checklist-card--done {
-  opacity: 0.7;
+  opacity: 0.85;
+  border-color: #22c55e;
 }
 .checklist-card--done .checklist-summary {
   text-decoration: line-through;
   color: var(--text-muted, #737373);
+}
+.checklist-card--done .checklist-checkbox {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+.checklist-card--done .checklist-check {
+  color: #ffffff;
+}
+.checklist-card[data-status='in_motion'] .checklist-checkbox {
+  border-color: #f59e0b;
+}
+.checklist-card[data-status='up_next'] .checklist-checkbox {
+  border-color: #3b82f6;
 }
 
 .checklist-project {
