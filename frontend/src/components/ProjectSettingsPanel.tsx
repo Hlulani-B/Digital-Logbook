@@ -8,6 +8,7 @@ interface ProjectSettingsPanelProps {
   open: boolean;
   projectName: string;
   userEmail: string;
+  currentColor?: string | null;
   onClose: () => void;
   onProjectUpdated?: () => void;
   onProjectDeleted?: () => void;
@@ -24,6 +25,7 @@ export function ProjectSettingsPanel({
   open,
   projectName,
   userEmail,
+  currentColor,
   onClose,
   onProjectUpdated,
   onProjectDeleted,
@@ -67,9 +69,9 @@ export function ProjectSettingsPanel({
       setConfirmDelete(false);
       setError(null);
       setFieldError(null);
-      setSelectedColor(null);
+      setSelectedColor(currentColor || null);
     }
-  }, [open, projectName]);
+  }, [open, projectName, currentColor]);
 
   // Load fields when panel opens
   useEffect(() => {
@@ -271,6 +273,40 @@ export function ProjectSettingsPanel({
               Choose a colour to identify this project across the app.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              {/* None option */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setSelectedColor(null);
+                  setSavingColor(true);
+                  try {
+                    await setProjectColor(userEmail, projectName, null);
+                  } catch { /* optimistic update already applied */ }
+                  finally { setSavingColor(false); }
+                }}
+                disabled={savingColor}
+                aria-label="No colour"
+                title="No colour"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'var(--surface, #fff)',
+                  border: selectedColor === null ? '2px solid var(--accent, #111)' : '2px dashed var(--border, #ccc)',
+                  cursor: savingColor ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.15s ease',
+                  transform: selectedColor === null ? 'scale(1.15)' : 'scale(1)',
+                  boxShadow: selectedColor === null
+                    ? '0 0 0 3px var(--bg, #fff), 0 0 0 5px var(--accent, #111)'
+                    : '0 1px 3px rgba(0,0,0,0.12)',
+                  position: 'relative',
+                }}
+              >
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted, #999)' }}>✕</span>
+              </button>
               {PROJECT_COLORS.map((c) => (
                 <button
                   key={c}

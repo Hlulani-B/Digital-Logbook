@@ -422,15 +422,6 @@ export function ProjectDetailPage() {
       <div className="bg-mesh" />
       <NavBar entries={entries} activeView="all" />
       <main className="dash-main">
-        {/* Project colour accent bar */}
-        {projectColor && (
-          <div style={{
-            height: 4,
-            background: projectColor,
-            borderRadius: '0 0 4px 4px',
-            marginBottom: '0.25rem',
-          }} />
-        )}
         <Header title={projectName || 'Project'} entries={entries} />
 
         {/* Search bar inline for mobile */}
@@ -722,6 +713,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -737,6 +729,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : (
               <div className="entries-feed">
@@ -747,6 +740,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
+                    projectColor={projectColor}
                   />
                 ))}
               </div>
@@ -855,6 +849,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -870,6 +865,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : (
               <div className="entries-grid">
@@ -880,6 +876,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
+                    projectColor={projectColor}
                   />
                 ))}
               </div>
@@ -940,6 +937,7 @@ export function ProjectDetailPage() {
         open={projectSettingsOpen}
         projectName={projectName!}
         userEmail={email}
+        currentColor={projectColor}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => {
           navigate('/dashboard');

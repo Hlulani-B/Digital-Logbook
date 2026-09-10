@@ -178,7 +178,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
         className={`checklist-card ${isDone ? 'checklist-card--done' : ''}`}
         data-status={entry.status}
         onClick={handleCardClick}
-        style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
+        style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
       >
         <span className="checklist-project">{entry.project_name}</span>
         <div className="checklist-card-row">

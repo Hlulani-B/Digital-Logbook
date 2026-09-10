@@ -2038,6 +2038,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         open={projectSettingsOpen}
         projectName={activeView}
         userEmail={email}
+        currentColor={dashColorMap[activeView] || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => {
           setActiveView('all');

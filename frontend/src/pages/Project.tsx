@@ -518,6 +518,7 @@ export function ProjectsPage() {
         open={projectSettingsOpen}
         projectName={settingsProjectName}
         userEmail={email}
+        currentColor={projects.find(p => p.project_name === settingsProjectName)?.project_color || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => { loadProjects(); }}
         onProjectDeleted={() => { loadProjects(); }}

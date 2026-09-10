@@ -555,7 +555,7 @@ export function EntryBox({
   return (
     <div
       className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
-      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
+      style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
     >
       <div className="entry-box__top-row">
         <div className="entry-box__menu-wrap" ref={menuRef}>
