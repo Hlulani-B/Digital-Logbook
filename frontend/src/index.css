@@ -4333,6 +4333,44 @@ img {
   margin: 0;
   color: var(--text);
 }
+
+/* --- Project scope chip (?project=… param) --- */
+.stats-scope-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  width: fit-content;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.stats-scope-chip strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.stats-scope-chip-clear {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+.stats-scope-chip-clear:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-glow);
+}
 .stats-content {
   display: flex;
   flex-direction: column;
@@ -4636,12 +4674,6 @@ img {
   background: var(--accent);
   opacity: 0.65;
   border-radius: 2px 2px 0 0;
-}
-.feed-stats-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin-top: 0.75rem;
 }
 
 /* --- Status Breakdown --- */

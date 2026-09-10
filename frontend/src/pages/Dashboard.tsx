@@ -662,6 +662,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   };
 
+  // True when the feed is showing a single project (not a meta view)
+  const isProjectView =
+    activeView !== 'all' &&
+    activeView !== 'recent' &&
+    activeView !== 'drafts' &&
+    activeView !== 'archives' &&
+    activeView !== 'activity';
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
@@ -1160,7 +1168,35 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   </div>
                 )}
             </div>
-            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Opens the stats dashboard — scoped to the project when one
+              is being viewed, all projects otherwise */}
+              <button
+                className="feed-stats-btn"
+                onClick={() =>
+                  navigate(
+                    isProjectView ? `/stats?project=${encodeURIComponent(activeView)}` : '/stats'
+                  )
+                }
+                aria-label="Open stats dashboard"
+                title="Open the stats dashboard"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+                {isProjectView ? 'Stats Dashboard' : 'My Stats'}
+              </button>
+              <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
+            </div>
           </div>
         </div>
 

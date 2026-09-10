@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
   calculateTotalTimeTracked,
@@ -241,6 +242,10 @@ function FieldStatPanel({ stat, showCompare }: { stat: FieldStat; showCompare: b
 export function StatsView() {
   const { user } = useAuth();
   const email = user?.email || '';
+  // Optional ?project= scope — set by the Stats button on a project
+  // dashboard so every panel on this page follows one scope.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const scopeProject = searchParams.get('project') || '';
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -293,61 +298,69 @@ export function StatsView() {
     };
   }, [email]);
 
+  // Entries scoped to ?project= — every stat below derives from these so
+  // the whole dashboard follows a single scope.
+  const scopedEntries = useMemo(
+    () => (scopeProject ? entries.filter((e) => e.project_name === scopeProject) : entries),
+    [entries, scopeProject]
+  );
+
   // Tick every second only while a task is running so in-progress totals stay live.
-  const hasInProgress = entries.some((e) => e.started_at && !e.ended_at);
+  const hasInProgress = scopedEntries.some((e) => e.started_at && !e.ended_at);
   const now = useNow(1000, hasInProgress);
 
-  // Collect the owner's field definitions for every project so the stats
-  // engine knows each field's declared data type. Definitions are read from
-  // the cache; anything missing is fetched (which also warms the cache).
+  // Collect the owner's field definitions for the scoped project so the
+  // stats engine knows each field's declared data type. Field Insights are
+  // a project-scoped feature — the global "My Stats" view doesn't show
+  // them, so nothing is fetched when no project is selected. Definitions
+  // are read from the cache; anything missing is fetched (which also warms
+  // the cache).
   useEffect(() => {
-    if (!email) return;
+    if (!email || !scopeProject) return;
     let cancelled = false;
 
     (async () => {
-      const declared: FieldDef[] = [];
-      await Promise.all(
-        (Array.isArray(projects) ? projects : []).map(async (p) => {
-          const name = (p as { project_name?: string })?.project_name;
-          if (!name) return;
-          let result = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
-          if (!result?.data) {
-            result = await getFields(email, name);
-          }
-          const rows = (result?.data || []) as Array<Record<string, unknown>>;
-          rows.forEach((r) => {
-            if (r?.field_name) {
-              declared.push({
-                field_name: String(r.field_name),
-                data_type: r.data_type ? String(r.data_type) : 'text',
-              });
-            }
-          });
-        })
-      );
-      if (!cancelled) setFieldDefs(declared);
+      let result = await cacheGet(CACHE_STORES.FIELDS, `${email}:${scopeProject}`);
+      if (!result?.data) {
+        result = await getFields(email, scopeProject);
+      }
+      const rows = (result?.data || []) as Array<Record<string, unknown>>;
+      if (!cancelled) {
+        setFieldDefs(
+          rows
+            .filter((r) => r?.field_name)
+            .map((r) => ({
+              field_name: String(r.field_name),
+              data_type: r.data_type ? String(r.data_type) : 'text',
+            }))
+        );
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [email, projects]);
+  }, [email, scopeProject]);
 
   // Generic field statistics — one standard format per field: total,
-  // group-by, per-project compare, and a daily series. Definitions the
-  // owner declared come from the fields table; anything present in the
-  // data but never declared is derived, so no field is missed.
+  // group-by, and a daily series. Shown only on the project stats
+  // dashboard (the ?project= view); the global "My Stats" page shows no
+  // field insights. Definitions the owner declared come from the fields
+  // table; anything present in the data but never declared is derived, so
+  // no field is missed.
   const fieldStats = useMemo<FieldStat[]>(
-    () => computeFieldStats(entries, fieldDefs, { now, maxGroups: 6 }),
-    [entries, fieldDefs, now]
-  );
-  const hasMultipleProjects = useMemo(
-    () => new Set(entries.map((e) => e.project_name || 'Unknown')).size > 1,
-    [entries]
+    () => (scopeProject ? computeFieldStats(scopedEntries, fieldDefs, { now, maxGroups: 6 }) : []),
+    [scopeProject, scopedEntries, fieldDefs, now]
   );
 
-  const totalTimeTracked = useMemo(() => calculateTotalTimeTracked(entries, now), [entries, now]);
-  const projectStats = useMemo(() => calculateProjectStats(entries, now), [entries, now]);
+  const totalTimeTracked = useMemo(
+    () => calculateTotalTimeTracked(scopedEntries, now),
+    [scopedEntries, now]
+  );
+  const projectStats = useMemo(
+    () => calculateProjectStats(scopedEntries, now),
+    [scopedEntries, now]
+  );
   const totalMs = useMemo(
     () => projectStats.reduce((sum, ps) => sum + ps.totalMs, 0),
     [projectStats]
@@ -387,9 +400,13 @@ export function StatsView() {
     [projectStats]
   );
 
-  const completedCount = entries.filter((e) => e.ended_at).length;
+  const completedCount = scopedEntries.filter((e) => e.ended_at).length;
   const inProgressCount = totalTimeTracked.inProgressCount;
-  const noTimerCount = entries.length - completedCount - inProgressCount;
+  const noTimerCount = scopedEntries.length - completedCount - inProgressCount;
+  // Due-soon count and page title follow the active scope
+  const scopedDueSoonCount = useMemo(() => computeDueSoon(scopedEntries).length, [scopedEntries]);
+  const shownDueSoonCount = scopeProject ? scopedDueSoonCount : dueSoonCount;
+  const statsTitle = scopeProject ? `${scopeProject} — Stats` : 'My Stats';
 
   if (loading) {
     return (
@@ -398,10 +415,10 @@ export function StatsView() {
         <NavBar projects={projects} entries={entries} activeView="all" />
         <main className="dash-main">
           <Header
-            title="My Stats"
+            title={statsTitle}
             entries={entries}
             projects={projects}
-            dueSoonCount={dueSoonCount}
+            dueSoonCount={shownDueSoonCount}
           />
           <div className="stats-page">
             <div className="feed-loading">
@@ -426,12 +443,37 @@ export function StatsView() {
       <NavBar projects={projects} entries={entries} activeView="all" />
       <main className="dash-main">
         <Header
-          title="My Stats"
+          title={statsTitle}
           entries={entries}
           projects={projects}
-          dueSoonCount={dueSoonCount}
+          dueSoonCount={shownDueSoonCount}
         />
         <div className="stats-page">
+          {/* Scope chip — shown while stats are scoped to one project */}
+          {scopeProject && (
+            <div className="stats-scope-chip glass">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <span className="stats-scope-chip-label">
+                Project: <strong>{scopeProject}</strong>
+              </span>
+              <button
+                type="button"
+                className="stats-scope-chip-clear"
+                onClick={() => setSearchParams({})}
+              >
+                All projects
+              </button>
+            </div>
+          )}
           {projectStats.length === 0 && fieldStats.length === 0 ? (
             <div className="stats-empty glass">
               <svg
@@ -450,7 +492,11 @@ export function StatsView() {
                 <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
               <h2>No stats yet</h2>
-              <p>Log entries — with custom fields or a running timer — to see stats here.</p>
+              <p>
+                {scopeProject
+                  ? `Log entries in ${scopeProject} — with custom fields or a running timer — to see stats here.`
+                  : 'Log entries — with custom fields or a running timer — to see stats here.'}
+              </p>
             </div>
           ) : (
             <div className="stats-content">
@@ -470,25 +516,46 @@ export function StatsView() {
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
                   }
-                  value={entries.length}
+                  value={scopedEntries.length}
                   label="Total Entries"
                 />
-                <StatCard
-                  icon={
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                  }
-                  value={projects.filter((p) => !p.archived).length}
-                  label="Active Projects"
-                />
+                {scopeProject ? (
+                  <StatCard
+                    icon={
+                      <svg
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                    }
+                    value={completedCount}
+                    label="Completed"
+                    sub={inProgressCount > 0 ? `${inProgressCount} in progress` : undefined}
+                  />
+                ) : (
+                  <StatCard
+                    icon={
+                      <svg
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                    }
+                    value={projects.filter((p) => !p.archived).length}
+                    label="Active Projects"
+                  />
+                )}
                 <StatCard
                   icon={
                     <svg
@@ -503,7 +570,7 @@ export function StatsView() {
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
                   }
-                  value={dueSoonCount}
+                  value={shownDueSoonCount}
                   label="Due Soon"
                 />
                 <StatCard
@@ -527,30 +594,35 @@ export function StatsView() {
                 />
               </div>
 
-              {/* Donut + Legend */}
+              {/* Donut + Legend — cross-project view, hidden when scoped */}
               <div className="stats-chart-row">
-                <div className="stats-panel glass">
-                  <h3 className="stats-panel-title">Time Distribution</h3>
-                  <DonutChart segments={donutSegments} totalDisplay={formatDuration(totalMs)} />
-                  <div className="donut-legend">
-                    {projectStats.map((ps, i) => {
-                      const pct = totalMs > 0 ? ((ps.totalMs / totalMs) * 100).toFixed(1) : '0';
-                      return (
-                        <div key={ps.project_name} className="donut-legend-item">
-                          <span
-                            className="donut-legend-dot"
-                            style={{ background: colorForIndex(i) }}
-                          />
-                          <span className="donut-legend-name">{ps.project_name}</span>
-                          <span className="donut-legend-pct">{pct}%</span>
-                        </div>
-                      );
-                    })}
+                {!scopeProject && (
+                  <div className="stats-panel glass">
+                    <h3 className="stats-panel-title">Time Distribution</h3>
+                    <DonutChart segments={donutSegments} totalDisplay={formatDuration(totalMs)} />
+                    <div className="donut-legend">
+                      {projectStats.map((ps, i) => {
+                        const pct = totalMs > 0 ? ((ps.totalMs / totalMs) * 100).toFixed(1) : '0';
+                        return (
+                          <div key={ps.project_name} className="donut-legend-item">
+                            <span
+                              className="donut-legend-dot"
+                              style={{ background: colorForIndex(i) }}
+                            />
+                            <span className="donut-legend-name">{ps.project_name}</span>
+                            <span className="donut-legend-pct">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Status Breakdown */}
-                <div className="stats-panel glass">
+                <div
+                  className="stats-panel glass"
+                  style={scopeProject ? { gridColumn: '1 / -1' } : undefined}
+                >
                   <h3 className="stats-panel-title">Entry Status</h3>
                   <div className="status-breakdown">
                     <div className="status-item">
@@ -596,20 +668,25 @@ export function StatsView() {
                 </div>
               </div>
 
-              {/* Time per Project Bar Chart */}
-              <div className="stats-panel glass">
-                <h3 className="stats-panel-title">Time per Project</h3>
-                <BarChart data={timeBarData} />
-              </div>
+              {/* Time per Project Bar Chart — cross-project view */}
+              {!scopeProject && (
+                <div className="stats-panel glass">
+                  <h3 className="stats-panel-title">Time per Project</h3>
+                  <BarChart data={timeBarData} />
+                </div>
+              )}
 
-              {/* Entries per Project Bar Chart */}
-              <div className="stats-panel glass">
-                <h3 className="stats-panel-title">Entries per Project</h3>
-                <BarChart data={entryBarData} />
-              </div>
+              {/* Entries per Project Bar Chart — cross-project view */}
+              {!scopeProject && (
+                <div className="stats-panel glass">
+                  <h3 className="stats-panel-title">Entries per Project</h3>
+                  <BarChart data={entryBarData} />
+                </div>
+              )}
 
-              {/* Field Insights — generic stats for every owner-defined field,
-              rendered from the same standard format as the panels above */}
+              {/* Field Insights — generic stats for every owner-defined
+              field of the scoped project, rendered from the same standard
+              format as the panels above. Hidden on the global view. */}
               {fieldStats.length > 0 && (
                 <>
                   <div className="stats-view-section-title" style={{ marginTop: '0.5rem' }}>
@@ -617,7 +694,7 @@ export function StatsView() {
                   </div>
                   <div className="field-insights-grid">
                     {fieldStats.map((fs) => (
-                      <FieldStatPanel key={fs.field} stat={fs} showCompare={hasMultipleProjects} />
+                      <FieldStatPanel key={fs.field} stat={fs} showCompare={false} />
                     ))}
                   </div>
                 </>
