@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -668,6 +669,7 @@ export default function ProjectTaskTable({
                 className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
                 onClick={() => openNotes(singleSelectedEntry)}
               >
+                <FiEdit />
                 View Notes
               </button>
               <button
@@ -675,6 +677,7 @@ export default function ProjectTaskTable({
                 className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
                 onClick={() => openNotes(singleSelectedEntry)}
               >
+                <FiEdit />
                 Add Note
               </button>
             </>
