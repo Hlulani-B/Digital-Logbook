@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
@@ -729,14 +730,6 @@ export function EntryBox({
           )}
         </div>
         <div className="entry-box__meta-right">
-          <button
-            type="button"
-            className="entry-box__notes-btn"
-            onClick={() => openNotes(entry)}
-            title="View Notes"
-          >
-            View Notes
-          </button>
           {!started_at && !ended_at && (
             <button
               type="button"
@@ -763,6 +756,16 @@ export function EntryBox({
           {archived && <span className="entry-box__archived-tag">Archived</span>}
         </div>
       </div>
+
+      {/* View Notes button - secondary action on its own line */}
+      <button
+        type="button"
+        className="entry-box__view-notes-btn"
+        onClick={() => openNotes(entry)}
+      >
+        <FiEdit className="entry-box__view-notes-icon" />
+        View Notes
+      </button>
 
       {error && <div className="entry-box__error">{error}</div>}
     </div>
