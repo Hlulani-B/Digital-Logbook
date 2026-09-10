@@ -227,7 +227,7 @@ export async function deleteProject(user_email, project_name) {
  * Updates IndexedDB immediately, then syncs to server.
  * @param {string} user_email
  * @param {string} project_name
- * @param {string} color - Hex colour string e.g. '#ec4899'
+ * @param {string|null} color - Hex colour string e.g. '#ec4899', or null to clear
  */
 export async function setProjectColor(user_email, project_name, color) {
   const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
@@ -160,7 +159,6 @@ export function EntryBox({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const { openNotes } = useNotes();
 
   // Live elapsed time for in-progress tasks

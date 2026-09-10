@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
@@ -66,7 +65,6 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
   const { openNotes } = useNotes();
   
   // Edit state
