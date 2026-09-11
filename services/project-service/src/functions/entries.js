@@ -820,7 +820,7 @@ ${commentInstruction}
 - matched=0: Single task, NO existing project matches. Create ONE new project + entry.
 - matched=1: Single task, fits ONE existing project EXACTLY. You are CERTAIN it belongs there.
 - matched=2: User ONLY wants to create a project — NO entry, NO task. Use this whenever the input is a request/command to set up a project itself, not a description of work done. Only provide project name and field names
-- matched=3: MULTIPLE distinct task.s OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
+- matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
 
 === STEP 4a: PROJECT-ONLY VS PROJECT+TASK — DECIDE THIS FIRST (ABSOLUTE RULE) ===
 Before doing anything else, determine whether the user's input is a REQUEST TO CREATE A PROJECT, or a DESCRIPTION OF WORK/TASK.
