@@ -259,7 +259,7 @@ export default function DataPortability() {
           [];
         for (const entry of result.entries) {
           if (!createdProjects.has(entry.project_name)) {
-            failures.push(`Entry in "${entry.project_name}": project was not created`);
+            failures.push(`Task in "${entry.project_name}": project was not created`);
             continue;
           }
           const response = await addEntry(
@@ -283,7 +283,7 @@ export default function DataPortability() {
             });
           } else {
             failures.push(
-              `Entry in "${entry.project_name}": ${response?.message ?? 'creation failed'}`
+              `Task in "${entry.project_name}": ${response?.message ?? 'creation failed'}`
             );
           }
         }
@@ -292,7 +292,7 @@ export default function DataPortability() {
           const response = await archiveEntry(userEmail, entry.projectName, entry.entryId);
           if (!response?.success) {
             failures.push(
-              `Archived entry in "${entry.projectName}": ${response?.message ?? 'archive failed'}`
+              `Archived task in "${entry.projectName}": ${response?.message ?? 'archive failed'}`
             );
           }
         }

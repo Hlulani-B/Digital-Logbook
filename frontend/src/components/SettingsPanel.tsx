@@ -582,7 +582,7 @@ export function SettingsPanel({
                     onChange={(e) => setPrefs((p) => ({ ...p, defaultView: e.target.value }))}
                   >
                     <option value="dashboard">Dashboard</option>
-                    <option value="entries">All Entries</option>
+                    <option value="entries">All Tasks</option>
                     <option value="projects">Projects</option>
                     <option value="calendar">Calendar</option>
                   </select>

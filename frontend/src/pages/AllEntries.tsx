@@ -186,7 +186,7 @@ export function AllEntriesPage() {
       />
 
       <main className="dash-main">
-        <Header title="My Entries" entries={entries} projects={projects} />
+        <Header title="My Tasks" entries={entries} projects={projects} />
 
         {/* Search bar */}
         <div className="feed-search-bar">
