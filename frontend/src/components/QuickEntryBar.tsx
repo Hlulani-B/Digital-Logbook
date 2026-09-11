@@ -137,7 +137,11 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading || !isOnline}
-            title={!isOnline ? 'Quick add is not available offline' : undefined}
+            title={
+              !isOnline
+                ? 'Quick add requires an internet connection'
+                : 'Type a task description — AI will parse project, priority, and due date. Example: "Fixed login bug for ProjectX, urgent, due tomorrow"'
+            }
           />
           {/* Voice button */}
           {onVoiceOpen && (
@@ -146,7 +150,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your task using voice — speak naturally and AI will create the task'}
               disabled={!isOnline}
               style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
@@ -157,7 +161,13 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             type="submit"
             className="quick-entry-submit"
             disabled={loading || !text.trim() || !isOnline}
-            title={!isOnline ? 'Quick add is not available offline' : undefined}
+            title={
+              !isOnline
+                ? 'Quick add requires an internet connection'
+                : loading
+                  ? 'Creating your task...'
+                  : 'Create the task — AI will parse the text and organize it into the right project'
+            }
           >
             {loading ? (
               <svg

@@ -990,6 +990,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/timeline');
               setDrawerOpen(false);
             }}
+            title="See a chronological timeline of all your tasks across projects"
           >
             <svg
               width="16"
@@ -1011,6 +1012,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/data-portability');
               setDrawerOpen(false);
             }}
+            title="Export all your data or import from a backup"
           >
             <svg
               width="16"
@@ -1032,6 +1034,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/data-disclaimer-info');
               setDrawerOpen(false);
             }}
+            title="Learn how your data is stored and how AI is used"
           >
             <svg
               width="16"
@@ -1051,6 +1054,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/stats');
               setDrawerOpen(false);
             }}
+            title="View statistics and insights about your tasks"
           >
             <svg
               width="16"
@@ -1072,6 +1076,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/dashboard/activity');
               setDrawerOpen(false);
             }}
+            title="See a feed of recent activity across all projects"
           >
             <svg
               width="16"
@@ -1186,6 +1191,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               setNewProjectOpen(true);
               setDrawerOpen(false);
             }}
+            title="Create a new project to organize your tasks"
           >
             <svg
               width="16"
@@ -1207,6 +1213,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               setDrawerOpen(false);
             }}
             style={{ marginTop: '0.5rem', width: '100%' }}
+            title="View and manage all your projects"
           >
             Manage Projects
           </button>
@@ -1832,34 +1839,47 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       <div className="fab-container">
         {fabOpen && (
           <div className="fab-menu">
-            <button
-              className="fab-menu-item"
-              onClick={() => {
-                setNewEntryOpen(true);
-                setFabOpen(false);
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            {projects.filter((p) => !p.archived).length > 0 ? (
+              <button
+                className="fab-menu-item"
+                onClick={() => {
+                  setNewEntryOpen(true);
+                  setFabOpen(false);
+                }}
+                title="Create a new task in one of your projects"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="11" x2="12" y2="17" />
-                <line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-              New Task
-            </button>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                New Task
+              </button>
+            ) : (
+              <div className="fab-menu-hint" title="You need to create a project first">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Create a project first</span>
+              </div>
+            )}
             <button
               className="fab-menu-item"
               onClick={() => {
                 setNewProjectOpen(true);
                 setFabOpen(false);
               }}
+              title="Create a new project to organize your tasks"
             >
               <svg
                 width="16"
@@ -1879,6 +1899,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           className={`fab ${fabOpen ? 'fab-open' : ''}`}
           onClick={() => setFabOpen(!fabOpen)}
           aria-label="Quick actions"
+          title="Quick actions: create a new task or project"
         >
           <svg
             width="20"
