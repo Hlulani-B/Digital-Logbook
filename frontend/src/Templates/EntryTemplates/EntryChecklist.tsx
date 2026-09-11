@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
-import { classifyEntryPayload } from '@/lib/entryPayload';
+import { classifyEntryPayload, cleanSummaryText } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -38,7 +38,8 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function getSummary(entry: ChecklistEntry): string {
-  if (entry.summary) return entry.summary;
+  const safe = cleanSummaryText(entry.summary);
+  if (safe) return safe;
 
   const payload = classifyEntryPayload(entry.entries);
   if (payload.kind === 'object') {

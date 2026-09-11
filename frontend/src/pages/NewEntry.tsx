@@ -6,7 +6,7 @@ import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
-import { classifyEntryPayload, type EntryPayload } from '@/lib/entryPayload';
+import { classifyEntryPayload, cleanSummaryText, type EntryPayload } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -141,6 +141,7 @@ export function EntryBox({
     summary,
   } = entry;
 
+  const safeSummary = cleanSummaryText(summary);
   const payloadState = classifyEntryPayload(entries);
   const parsedEntries = payloadState.kind === 'object' ? payloadState.value : {};
 
@@ -765,8 +766,8 @@ export function EntryBox({
         </button>
       </div>
 
-      {summary && (
-        <p className="entry-box__summary">{summary}</p>
+      {safeSummary && (
+        <p className="entry-box__summary">{safeSummary}</p>
       )}
 
       {entryFields.length > 0 && (

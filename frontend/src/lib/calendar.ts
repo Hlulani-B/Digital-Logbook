@@ -3,6 +3,8 @@
  * All functions operate on vanilla Date objects and avoid mutable inputs.
  */
 
+import { cleanSummaryText } from './entryPayload';
+
 export type CalendarView = 'month' | 'week';
 
 export interface CalendarEntry {
@@ -105,10 +107,11 @@ export function getEntriesForDay(entries: CalendarEntry[], day: Date): CalendarE
 }
 
 export function getEntryTitle(entry: CalendarEntry): string {
-  // Prefer the AI-generated summary if available
-  if (entry.summary && typeof entry.summary === 'string' && entry.summary.trim()) {
-    return entry.summary.trim();
-  }
+  // Prefer the AI-generated summary if available. cleanSummaryText guards
+  // against the historical bug where a notes payload was written into the
+  // summary column verbatim, which would otherwise render as raw JSON.
+  const safe = cleanSummaryText(entry.summary);
+  if (safe) return safe;
 
   if (!entry.entries) return 'Untitled entry';
 

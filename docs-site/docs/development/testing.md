@@ -488,6 +488,19 @@ filed separately and are excluded here unless they explain an underlying
 problem). Each problem is broken down below with the root cause we identified
 and how it was resolved, with the relevant commits.
 
+### Evidence
+
+- **Google Form used for the survey:** <https://forms.gle/FKPimVBgfm8UDG43A>
+- **Raw spreadsheet export (10 responses):** [Digital-Notebook-responses.xlsx](../assets/user-feedback-sprint2/Digital-Notebook-responses.xlsx)
+- **Screenshots of the response sheet** (scrollable extracts from the
+  exported spreadsheet, showing the questions and free-text answers):
+
+    ![Sprint 2 feedback — spreadsheet responses (part 1)](../assets/user-feedback-sprint2/feedback-spreadsheet-1.jpeg)
+
+    ![Sprint 2 feedback — spreadsheet responses (part 2)](../assets/user-feedback-sprint2/feedback-spreadsheet-2.jpeg)
+
+    ![Sprint 2 feedback — spreadsheet responses (part 3)](../assets/user-feedback-sprint2/feedback-spreadsheet-3.jpeg)
+
 ### 1. Projects, calendar, entries and activity log feel disconnected
 
 **What testers said:** This was the most repeated complaint. People could
@@ -502,19 +515,28 @@ on one page left the other pages showing stale data until a manual reload.
 
 **How it was solved:**
 
-1. **Recently created / Recently viewed sections on the Dashboard** — every
+1. **Redirect to the project page after creating a project or task** — the
+   most direct fix for "I made it but can't find it". Creating a project
+   (from the Dashboard or the Projects page), adding a task via the
+   New-task modal, or Quick Adding a task now navigates straight to that
+   project's page (`/project/:projectName`), so the user lands exactly where
+   the thing they just made lives. Quick Add was extended to pass the
+   resolved project name to its `onEntryCreated` consumers (Dashboard and
+   All Entries) so they can route there. Project-detail's own add flow only
+   refreshes, since the user is already on that page. (commit `7c2331e`)
+2. **Recently created / Recently viewed sections on the Dashboard** — every
    task creation path (manual add, Quick Add, voice, and multi-project
    matches) now records the new entry (`entryId` + `projectName` + `title`)
    and surfaces the last three in a tappable *Recently created* strip that
    navigates straight to the owning project. Project visits are tracked the
    same way in *Recently viewed*.
    (commits `dfd6e2b`, `69e472d`, `352b5be`, `d000307`)
-2. **Every page subscribes to cache changes** — Kanban, Today, Calendar,
+3. **Every page subscribes to cache changes** — Kanban, Today, Calendar,
    Timeline, StatsView, StreakView, Project, AllEntries, DataPortability and
    the disclaimer pages now use `cacheSubscribe`, so a write on one page
    live-updates the others without a reload, making them feel like one
    system. (commit `121dbae`)
-3. **Cross-page click-through** — project names in task views carry a hover
+4. **Cross-page click-through** — project names in task views carry a hover
    tooltip and click straight through to the project. (commit `0afb11c`)
 
 ### 2. No onboarding or in-app guidance for first-time users
@@ -672,3 +694,31 @@ data is processed, or whether it can be disabled.
 | 5 | New project not appearing when creating a task | **Fixed** — live cache subscription + seq-ref race guard on all pages |
 | 6 | Native browser delete/alert dialogs | **Fixed** — inline confirmation + inline errors |
 | 7 | Data privacy / AI trust concerns | **Addressed** — DataDisclaimer + always-available DataDisclaimer2 |
+
+### Quick-Survey Feature Requests
+
+The survey also asked *"Is there any cool or useful feature you would like us
+to add?"* (10 responses). These are suggestions rather than problems, so they
+were intentionally left out of the problem list above, but they are captured
+here for roadmap planning and grouped by theme with the current status.
+
+| Theme | Requested by | Status |
+|-------|--------------|--------|
+| **Countdown / time-to-due** | "a timer that tells you how many hours till your task is due" | **Partially done** — tasks already show overdue/due-soon text (`getOverdueText`); a live hours-remaining countdown is on the roadmap |
+| **Richer, personalised notes** | "more interactive notes like support for memes, diagrams so it feels more personalised" | **Partially done** — the new-task form accepts text / link / image notes; embedded diagrams/meme widgets are on the roadmap |
+| **Per-project colours** | "different colours so that every project can have its own colour" | **Done** — projects carry a `project_color` and it is surfaced across the UI |
+| **Website theme / colour customisation** | "maybe customising colours of website" | **Done** — multiple selectable themes (incl. dark variants) in Settings |
+| **Visual art / inviting landing** | "adding some visual art on the website to attract users"; a motivational quote on the home page ("you go rockstar") so entering feels inviting | **Partially done** — an AI-generated greeting/quote already renders on the Dashboard; more illustrative art is on the roadmap |
+| **Onboarding tutorial video** | "a video or tutorial thing at the beginning … like Study Bunny links a YouTube video on how to use the app" | **Not started** — tracked with problem 2 (onboarding) on the roadmap |
+| **Due reminders / alarm** | "an alarm that will notify us when some entries are due" | **Not started** — candidate future feature (needs scheduling/notifications) |
+| **Social / co-reminder** | "mention others in my entry so they can also be reminded, sort of a combined activity with a friend who has the same app" | **Not started** — social/sharing feature, future consideration |
+| **No request** | "can't think of any, I think the app has more cool features already" / "can't think of any" | — |
+
+!!! note "Prioritisation"
+    Already-shipped requests (project colours, website themes, home-page
+    greeting, image notes) are marked **Done**. Items marked **Partially
+    done** have a foundation in place and need incremental work. **Not
+    started** items (tutorial video, due alarms, social reminders) are logged
+    as candidates for future sprints and ranked by effort and alignment with
+    the app's local-first, privacy-conscious scope.
+

@@ -1,6 +1,7 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
 import { addToQueue } from '@/CacheFunctions/offlineQueue';
+import { isNotesPayload } from '@/lib/entryPayload';
 
 function withoutUndefined(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined));
@@ -138,6 +139,14 @@ export async function addEntry(
   summary,
   notes
 ) {
+  // Defensive: historically a caller passed the notes payload into the
+  // `summary` slot (positional-args slip-up). Detect the notes shape in
+  // `summary` and swap it into `notes` so neither the DB write nor the UI
+  // ever sees a JSON-stringified notes array as an entry summary.
+  if (summary != null && (Array.isArray(summary) || isNotesPayload(summary))) {
+    if (notes == null) notes = summary;
+    summary = null;
+  }
   const cacheKey = `${user_email}:${project_name}`;
 
   // 1. Optimistic update: read current cache, add optimistic entry, write back
