@@ -28,6 +28,13 @@ interface FieldDef {
   is_required: boolean;
 }
 
+function parseCustomOptions(dataType: string): string[] | null {
+  if (!dataType.startsWith('custom:')) return null;
+  const optionsStr = dataType.slice(7);
+  if (!optionsStr) return [];
+  return optionsStr.split(',').map((o) => o.trim()).filter(Boolean);
+}
+
 interface AddEntryProps {
   user_email: string;
   project_name: string;
@@ -36,6 +43,7 @@ interface AddEntryProps {
 }
 
 function parseFieldValue(value: string, dataType: string): unknown {
+  if (dataType.startsWith('custom:')) return value;
   if (dataType === 'number' || dataType === 'integer' || dataType === 'float') {
     const num = Number(value);
     return isNaN(num) ? value : num;
@@ -137,7 +145,12 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           // Initialize empty values for each field (booleans default to "false")
           const initial: Record<string, string> = {};
           for (const f of defs) {
-            initial[f.field_name] = f.data_type === 'boolean' ? 'false' : '';
+            if (f.data_type === 'boolean') {
+              initial[f.field_name] = 'false';
+            } else {
+              const customOpts = parseCustomOptions(f.data_type);
+              initial[f.field_name] = customOpts && customOpts.length > 0 ? customOpts[0] : '';
+            }
           }
           setFieldValues(initial);
         }
@@ -270,6 +283,20 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                   }
                   disabled={saving}
                 />
+              ) : parseCustomOptions(field.data_type) ? (
+                <select
+                  id={`field-${field.field_name}`}
+                  className="add-entry__field-input"
+                  value={fieldValues[field.field_name] || ''}
+                  onChange={(e) => handleValueChange(field.field_name, e.target.value)}
+                  disabled={saving}
+                  required={field.is_required}
+                >
+                  <option value="">Select...</option>
+                  {(parseCustomOptions(field.data_type) || []).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               ) : (
                 <input
                   id={`field-${field.field_name}`}

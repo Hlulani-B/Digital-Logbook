@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
@@ -84,8 +84,9 @@ type Project = Record<string, unknown>;
 
 type ProjectFieldDraft = {
   field_name: string;
-  data_type: 'text' | 'number' | 'date' | 'boolean';
+  data_type: 'text' | 'number' | 'date' | 'boolean' | 'custom';
   is_required: boolean;
+  custom_options?: string[];
 };
 
 type DashboardProps = {
@@ -118,10 +119,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     localStorage.setItem('dashboard-sort-by', sortBy);
   }, [sortBy]);
 
-  // Display mode: cards, checklist, or board - persist in localStorage
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>(() => {
+  // Display mode: cards, checklist, board, or projects - persist in localStorage
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'projects'>(() => {
     const saved = localStorage.getItem('dashboard-display-mode');
-    if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
+    if (saved === 'cards' || saved === 'checklist' || saved === 'board' || saved === 'projects') return saved;
     return 'cards';
   });
 
@@ -612,7 +613,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const addProjectField = () => {
     setProjectFields((prev) => [
       ...prev,
-      { field_name: '', data_type: 'text', is_required: false },
+      { field_name: '', data_type: 'text', is_required: false, custom_options: [] },
     ]);
   };
 
@@ -624,6 +625,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     setProjectFields((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...updates };
+      return next;
+    });
+  };
+
+  const addCustomOption = (index: number, option: string) => {
+    setProjectFields((prev) => {
+      const next = [...prev];
+      const opts = next[index].custom_options || [];
+      if (option.trim() && !opts.includes(option.trim())) {
+        next[index] = { ...next[index], custom_options: [...opts, option.trim()] };
+      }
+      return next;
+    });
+  };
+
+  const removeCustomOption = (index: number, option: string) => {
+    setProjectFields((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], custom_options: (next[index].custom_options || []).filter((o) => o !== option) };
       return next;
     });
   };
@@ -642,6 +662,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         setNewProjectError(`Duplicate column names found: ${uniqueDuplicates.join(', ')}`);
         return;
       }
+    }
+
+    // Validate custom fields have at least one option
+    const emptyCustomFields = nonEmptyFields.filter(
+      (f) => f.data_type === 'custom' && (!f.custom_options || f.custom_options.length === 0)
+    );
+    if (emptyCustomFields.length > 0) {
+      setNewProjectError('Custom fields must have at least one option');
+      return;
     }
 
     setCreatingProject(true);
@@ -668,9 +697,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       // Save any non-empty project fields (best-effort after project is created)
       if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
-          nonEmptyFields.map((f) =>
-            addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
-          )
+          nonEmptyFields.map((f) => {
+            const dataType = f.data_type === 'custom' ? `custom:${(f.custom_options || []).join(',')}` : f.data_type;
+            return addField(email, projectName, f.field_name.trim(), dataType, f.is_required);
+          })
         );
         const failures = results
           .map((r, i) => (r.status === 'rejected' ? nonEmptyFields[i].field_name : null))
@@ -1473,6 +1503,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <div className="feed-controls-row">
               <div className="feed-view-toggle">
                 <button
+                  className={`feed-view-btn ${displayMode === 'projects' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('projects')}
+                >
+                  Projects
+                </button>
+                <button
                   className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
                   onClick={() => setDisplayMode('cards')}
                 >
@@ -1641,8 +1677,54 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Entries feed ΓÇö always shown (filtered by due-soon + sort) */}
-            {!loading && (
+            {/* Projects Grid View */}
+            {displayMode === 'projects' && !loading && (
+              <div className="projects-grid-view">
+                <h2 className="projects-grid-title">Your Projects</h2>
+                {projects.filter((p) => !p.archived).length === 0 ? (
+                  <div className="empty-state animate-in">
+                    <div className="empty-icon">
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </div>
+                    <h2 className="empty-title">No projects yet</h2>
+                    <p className="empty-desc">Create your first project to get started.</p>
+                    <button className="btn-primary" onClick={() => setNewProjectOpen(true)} style={{ marginTop: '1rem' }}>
+                      + New Project
+                    </button>
+                  </div>
+                ) : (
+                  <div className="projects-grid">
+                    {projects.filter((p) => !p.archived).map((project) => {
+                      const name = project.project_name as string;
+                      const count = entries.filter((e) => e.project_name === name).length;
+                      const inMotionCount = entries.filter((e) => e.project_name === name && e.status === 'in_motion').length;
+                      const doneCount = entries.filter((e) => e.project_name === name && e.status === 'done_and_dusted').length;
+                      return (
+                        <button key={name} className="project-card" onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}>
+                          <div className="project-card-header">
+                            <h3 className="project-card-name">{name}</h3>
+                            <span className="project-card-count">{count} entries</span>
+                          </div>
+                          <div className="project-card-stats">
+                            {inMotionCount > 0 && (
+                              <span className="project-card-stat project-card-stat--active">{inMotionCount} in progress</span>
+                            )}
+                            {doneCount > 0 && (
+                              <span className="project-card-stat project-card-stat--done">{doneCount} done</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Entries feed — shown when not in projects mode */}
+            {displayMode !== 'projects' && !loading && (
               <div className="entries-feed">
                 {filteredEntries.length === 0 ? (
                   <div className="empty-state animate-in">
@@ -1972,9 +2054,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   No columns defined. Add columns to build the entry form for this project.
                 </p>
               )}
-              {projectFields.map((field, index) => (
+              {projectFields.map((field, index) => (<Fragment key={index}>
                 <div
-                  key={index}
                   className="project-field-row"
                   style={{
                     display: 'grid',
@@ -2005,6 +2086,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     <option value="number">Number</option>
                     <option value="date">Date</option>
                     <option value="boolean">Boolean</option>
+                    <option value="custom">Custom</option>
                   </select>
                   <label
                     style={{
@@ -2031,7 +2113,59 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     <FiX size={16} />
                   </button>
                 </div>
-              ))}
+                {field.data_type === 'custom' && (
+                  <div style={{ marginBottom: '0.5rem', paddingLeft: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Add option..."
+                        className="field-input"
+                        style={{ flex: 1 }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = (e.target as HTMLInputElement).value.trim();
+                            if (val) {
+                              addCustomOption(index, val);
+                              (e.target as HTMLInputElement).value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                        onClick={(e) => {
+                          const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
+                          const val = input.value.trim();
+                          if (val) {
+                            addCustomOption(index, val);
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                    {(field.custom_options || []).length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {(field.custom_options || []).map((opt) => (
+                          <span
+                            key={opt}
+                            className="field-badge"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => removeCustomOption(index, opt)}
+                            title="Click to remove"
+                          >
+                            {opt} ×
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Fragment>))}
               <button
                 type="button"
                 className="btn-secondary"
