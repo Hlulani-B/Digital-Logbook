@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getNotes, addNote, viewNote, updateNote, deleteNote } from '@/functions/project/notes.js';
 import { getEntryTitle } from '@/lib/calendar';
+import { trackViewedEntry } from '@/lib/recentlyViewed';
 import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 
 type NoteType = 'text' | 'link' | 'image';
@@ -116,6 +117,11 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     if (!entryId) return;
     setLoading(true);
     loadNotes();
+    // Track this entry as recently viewed
+    if (entryData?.id && entryData?.project_name) {
+      const title = getEntryTitle(entryData as Parameters<typeof getEntryTitle>[0]);
+      trackViewedEntry({ entryId: entryData.id, projectName: entryData.project_name, title: title || 'Entry' });
+    }
   }, [entryId]);
 
   // Re-read from cache when background server refresh writes new data

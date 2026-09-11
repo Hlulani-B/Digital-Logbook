@@ -5,7 +5,7 @@ import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface QuickEntryBarProps {
-  onEntryCreated?: (projectName?: string) => void;
+  onEntryCreated?: (info?: { entryId?: string; projectName?: string; title?: string }) => void;
   onVoiceOpen?: () => void;
   placeholder?: string;
 }
@@ -52,12 +52,25 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       
       // Extract project name for navigation
       let projectName: string | undefined;
+      let entryId: string | undefined;
+      let title: string | undefined;
       if (isProjectOnly) {
         projectName = (data?.project as string) || undefined;
       } else if (!isMulti) {
         // For single entry, get project from the entry data
         const entryData = data?.data as Record<string, unknown> | undefined;
         projectName = (entryData?.project_name as string) || (data?.project as string) || undefined;
+        entryId = (entryData?.id as string) || undefined;
+        // Title can be in entries field or summary
+        const entries = entryData?.entries;
+        if (typeof entries === 'string') {
+          title = entries.slice(0, 100);
+        } else if (entries && typeof entries === 'object') {
+          title = (entries as Record<string, unknown>).task as string || (entries as Record<string, unknown>).title as string || undefined;
+        }
+        if (!title) {
+          title = (entryData?.summary as string) || text.trim().slice(0, 100);
+        }
       }
       
       if (isMulti) {
@@ -79,7 +92,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       if (comment && getAiMessagesEnabled()) {
         setToast(comment as string);
       }
-      if (onEntryCreated) onEntryCreated(projectName);
+      if (onEntryCreated) onEntryCreated({ entryId, projectName, title });
     } else {
       setMessage(result.message || 'Failed to create entry');
       setMessageType('error');

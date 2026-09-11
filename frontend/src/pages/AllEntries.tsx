@@ -235,11 +235,11 @@ export function AllEntriesPage() {
 
         {/* Quick Entry Bar */}
         <QuickEntryBar
-          onEntryCreated={(projectName) => {
+          onEntryCreated={(info) => {
             loadData();
             // Navigate to the project page if a project name was provided
-            if (projectName) {
-              navigate(`/project/${encodeURIComponent(projectName)}`);
+            if (info?.projectName) {
+              navigate(`/project/${encodeURIComponent(info.projectName)}`);
             }
           }}
           onVoiceOpen={() => setVoiceOpen(true)}

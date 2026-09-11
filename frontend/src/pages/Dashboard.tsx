@@ -43,6 +43,8 @@ import {
   addMonths,
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
+import { getRecentlyViewed, trackViewedEntry, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import { getRecentlyCreated, trackCreatedEntry, type RecentlyCreatedEntry } from '@/lib/recentlyCreated';
 
 /** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -161,6 +163,22 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // Recently viewed and created entries
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedEntry[]>(() => getRecentlyViewed());
+  const [recentlyCreated, setRecentlyCreated] = useState<RecentlyCreatedEntry[]>(() => getRecentlyCreated());
+
+  // Listen for changes to recently viewed/created (from other components)
+  useEffect(() => {
+    const handleViewedChange = () => setRecentlyViewed(getRecentlyViewed());
+    const handleCreatedChange = () => setRecentlyCreated(getRecentlyCreated());
+    window.addEventListener('recentlyViewedChanged', handleViewedChange);
+    window.addEventListener('recentlyCreatedChanged', handleCreatedChange);
+    return () => {
+      window.removeEventListener('recentlyViewedChanged', handleViewedChange);
+      window.removeEventListener('recentlyCreatedChanged', handleCreatedChange);
+    };
+  }, []);
 
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
@@ -1505,16 +1523,71 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
             {/* Quick Entry Bar - Natural Language */}
             <QuickEntryBar
-              onEntryCreated={(projectName) => {
+              onEntryCreated={(info) => {
                 loadData();
+                // Track the created entry
+                if (info?.entryId && info?.projectName && info?.title) {
+                  trackCreatedEntry({ entryId: info.entryId, projectName: info.projectName, title: info.title });
+                }
                 // Navigate to the project page if a project name was provided
-                if (projectName) {
-                  navigate(`/project/${encodeURIComponent(projectName)}`);
+                if (info?.projectName) {
+                  navigate(`/project/${encodeURIComponent(info.projectName)}`);
                 }
               }}
               onVoiceOpen={() => setVoiceOpen(true)}
               placeholder={aiPlaceholder}
             />
+
+            {/* Recently Viewed Section */}
+            {recentlyViewed.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Recently viewed</span>
+                </div>
+                <div className="recent-list">
+                  {recentlyViewed.slice(0, 3).map((item) => (
+                    <button
+                      key={item.entryId}
+                      className="recent-item"
+                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
+                      title={item.title}
+                    >
+                      <span className="recent-item-title">{item.title}</span>
+                      <span className="recent-item-project">{item.projectName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recently Created Section */}
+            {recentlyCreated.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  <span>Recently created</span>
+                </div>
+                <div className="recent-list">
+                  {recentlyCreated.slice(0, 3).map((item) => (
+                    <button
+                      key={item.entryId}
+                      className="recent-item"
+                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
+                      title={item.title}
+                    >
+                      <span className="recent-item-title">{item.title}</span>
+                      <span className="recent-item-project">{item.projectName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Due Soon Section Label */}
             <div className="due-soon-section-label">
@@ -2023,10 +2096,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <AddEntry
                 user_email={email}
                 project_name={newEntryProject}
-                onAdded={() => {
+                onAdded={(result) => {
                   setNewEntryOpen(false);
                   setNewEntryProject('');
                   loadData();
+                  // Track the created entry
+                  const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
+                  if (created?.id && newEntryProject) {
+                    const title = typeof created.entries === 'string' ? created.entries : (created.summary || newEntryProject);
+                    trackCreatedEntry({ entryId: created.id, projectName: newEntryProject, title: title?.slice(0, 100) || newEntryProject });
+                  }
                   // Navigate to the project page where the entry was created
                   navigate(`/project/${encodeURIComponent(newEntryProject)}`);
                 }}
