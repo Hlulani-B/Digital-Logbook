@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache.js';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache.js';
 import { syncAllData } from '@/CacheFunctions';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
@@ -216,11 +216,17 @@ export function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Load entries — read ONLY from IndexedDB. Mutations update it directly.
+  // Guard against overlapping calls (mount effect + two cacheSubscribe
+  // listeners + visibilitychange can all fire this concurrently).
+  const loadSeq = useRef(0);
+
   const loadEntries = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     setError(null);
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (seq !== loadSeq.current) return;
       if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
         const data = cached.data.filter(
           (entry: CalendarEntry) => !entry.archived && entry.due_date
@@ -231,6 +237,7 @@ export function CalendarPage() {
         setLoading(true);
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (seq !== loadSeq.current) return;
         if (fresh?.data && Array.isArray(fresh.data)) {
           const data = fresh.data.filter(
             (entry: CalendarEntry) => !entry.archived && entry.due_date
@@ -240,6 +247,7 @@ export function CalendarPage() {
       }
       // Also load projects for the add-entry dropdown
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== loadSeq.current) return;
       if (cachedProjects?.data) {
         const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter(
           (p: Record<string, unknown>) => !p.archived
@@ -249,13 +257,23 @@ export function CalendarPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadEntries()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadEntries()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadEntries]);
 
   const gridDays = useMemo(() => {
     return effectiveView === 'month'

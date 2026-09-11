@@ -477,3 +477,198 @@ The page is shown only for new accounts (tracked via `sessionStorage` flag set d
 | 5 | Navigation back to dashboard | No issues found |
 | 6 | AI privacy disclaimer | **Fixed** — new DataDisclaimer page for new signups |
 | 7 | Trust/data-control concerns | **Addressed** via disclaimer page + open-source note |
+
+---
+
+## User Feedback Session — Quick Survey (10 Responses)
+
+A short survey was sent out and 10 responses came back. The responses were
+consolidated into seven recurring **problems** (pure feature requests were
+filed separately and are excluded here unless they explain an underlying
+problem). Each problem is broken down below with the root cause we identified
+and how it was resolved, with the relevant commits.
+
+### 1. Projects, calendar, entries and activity log feel disconnected
+
+**What testers said:** This was the most repeated complaint. People could
+technically create a project or task, but then could not tell *where it
+lived* afterwards — creating happens in one place, viewing somewhere else,
+"what's due today" somewhere else again. The building blocks were right but
+they behaved like separate tools bolted together.
+
+**Root cause:** There was no persistent "you just made this, here's where it
+went" thread, and the pages did not react to each other's changes — a create
+on one page left the other pages showing stale data until a manual reload.
+
+**How it was solved:**
+
+1. **Recently created / Recently viewed sections on the Dashboard** — every
+   task creation path (manual add, Quick Add, voice, and multi-project
+   matches) now records the new entry (`entryId` + `projectName` + `title`)
+   and surfaces the last three in a tappable *Recently created* strip that
+   navigates straight to the owning project. Project visits are tracked the
+   same way in *Recently viewed*.
+   (commits `dfd6e2b`, `69e472d`, `352b5be`, `d000307`)
+2. **Every page subscribes to cache changes** — Kanban, Today, Calendar,
+   Timeline, StatsView, StreakView, Project, AllEntries, DataPortability and
+   the disclaimer pages now use `cacheSubscribe`, so a write on one page
+   live-updates the others without a reload, making them feel like one
+   system. (commit `121dbae`)
+3. **Cross-page click-through** — project names in task views carry a hover
+   tooltip and click straight through to the project. (commit `0afb11c`)
+
+### 2. No onboarding or in-app guidance for first-time users
+
+**What testers said:** The dashboard confused people — nothing explained what
+to do next, what a "task" is versus a "project", or what individual buttons
+and fields do. Requests were made for brief explanations and a short welcome
+intro.
+
+**Root cause:** The mental model of the app was never shown; users had to
+infer it, which directly caused the "disconnected" feeling in problem 1.
+
+**How it was solved:**
+
+1. **Guided onboarding sequence** — new accounts are stepped through
+   `ToneSetup → ThemeSetup → FrequencySetup → DataDisclaimer` before reaching
+   the dashboard, so first paint is never a cold, unexplained screen.
+2. **Contextual tooltips across the UI** — action buttons and view controls
+   now explain themselves on hover (e.g. *"Open the stats dashboard for this
+   project"*, *"See a chronological timeline of all your tasks across
+   projects"*). (commits `f1768b0`, `0afb11c`)
+3. **A welcome greeting** on the dashboard that orients the user to the next
+   action.
+
+!!! note "Partial"
+    A full interactive walkthrough / intro *video* (an explicit tester
+    request) is not yet built and is on the roadmap. The tooltip + guided
+    setup path is the interim mitigation.
+
+### 3. Unclear or unexplained terminology and fields
+
+**What testers said:** People got stuck on specific words — what a "field"
+means when logging, the difference between an "entry" and a "project", and
+what "cards", "checklist" and "board" actually mean.
+
+**Root cause:** Developer vocabulary leaked into the UI and there was no
+in-context help to disambiguate labels.
+
+**How it was solved:**
+
+1. **"Entry/Entries" renamed to "Task/Tasks" everywhere the user sees it** —
+   Dashboard, AddEntry, CalendarDayModal, ProjectDetailPage, NewEntry,
+   Project, Calendar, StatsView, AllEntries, NavBar, Settings panels and
+   DataPortability. "Task" is a word people already understand, which also
+   draws a clean line against "project". (commit `3dd66f4`)
+2. **"Field" renamed to "Columns"** in the new-task form so the custom
+   per-project inputs read naturally, with placeholder hints like
+   *"Enter {column name}"*.
+3. **Tooltips on the ambiguous view-mode controls and buttons** to clarify
+   cards / checklist / board on the spot. (commit `f1768b0`)
+
+### 4. Creating a task is not repeatable or memorable
+
+**What testers said:** One tester created their first task successfully but
+could not remember how, and struggled to repeat it. They suggested a pop-up
+explaining what a task does and how to set a timeline for it.
+
+**Root cause:** The flow wasn't consistent or signposted enough to stick
+after a single use — tied to the terminology confusion in problem 3.
+
+**How it was solved:**
+
+1. **One consistent creation surface** — Quick Add, voice and the manual
+   "New Task" modal all funnel through the same form and all report success
+   the same way, pointing to *Recently created*.
+2. **Guardrail instead of a dead end** — when no project exists yet, the
+   *New Task* button is hidden and a hint explains that a project must be
+   created first, so the first attempt never fails silently. (commit `f1768b0`)
+3. **Confirmation message names the destination** ("Added N tasks — see
+   *Recently created*") so the second time, the user recognises the path.
+   (commit `d000307`)
+
+!!! note "Partial"
+    The dedicated "what does a task do / how do I set a timeline" explainer
+    pop-up is not yet implemented — logged for the next sprint. The
+    consistency and guardrail work above reduce (but do not fully remove) the
+    repeatability problem.
+
+### 5. New project did not immediately appear when creating a task
+
+**What testers said:** A tester created a project, then tried to log a task
+against it, but the task view didn't see the project until the page was
+reloaded.
+
+**Root cause:** This was a **state-refresh race**. Each page's `loadData`
+had several concurrent callers (mount effect, `cacheSubscribe` listeners,
+SSE entry events, and `visibilitychange`). With no guard against overlapping
+invocations, an earlier call could finish *after* a newer one and overwrite
+fresh state with a stale, often emptier, snapshot — which is exactly why a
+manual reload "fixed" it (a reload fires one clean load with nothing racing
+it).
+
+**How it was solved:**
+
+1. **Live cache subscription** — the projects list is now re-read from
+   IndexedDB whenever it changes, so a newly created project appears in the
+   task picker without a reload. (commits `121dbae`, prior `Dashboard` fix)
+2. **Sequence-ref race guard** — `loadData` now stamps each invocation with
+   an incrementing `useRef` counter and bails out after every `await` if a
+   newer call has started, so only the *latest* load is ever allowed to
+   commit state. Applied to the Dashboard (`f8cdb96`) and then rolled out to
+   **every** data-loading page — Kanban, Today, Calendar, Timeline,
+   StatsView, StreakView, Project, AllEntries, DataPortability,
+   DataDisclaimer2 and ProjectDetailPage. (commit `db1b73f`)
+
+### 6. Deleting uses a raw browser pop-up instead of a proper in-app dialog
+
+**What testers said:** A QA-background tester noted that deleting a task
+triggers a native JavaScript `alert`/`confirm` rather than a styled
+confirmation dialog, which looks unfinished and breaks visual consistency.
+
+**Root cause:** Two spots used native browser dialogs: `window.confirm` in
+`NewEntry.tsx` (entry delete) and `window.alert` in `Dashboard.tsx` (project
+field-save failures).
+
+**How it was solved:**
+
+1. **Inline confirmation for deletes** — clicking *Delete* now reveals a
+   "Delete? / Yes, delete / Cancel" prompt directly in the row menu, matching
+   the pattern already used on the Projects page.
+2. **Inline error display for save failures** — the dashboard `window.alert`
+   was replaced with a state-driven message rendered inside the project
+   creation form, consistent with all other in-app errors.
+
+### 7. Data privacy and AI-integration trust concerns
+
+**What testers said:** One tester said they wouldn't switch from their
+self-hosted tools because they dislike the app's AI integration and don't
+know where their data goes — a trust/transparency problem rather than a bug.
+
+**Root cause:** No upfront disclosure of what the AI feature sends, where
+data is processed, or whether it can be disabled.
+
+**How it was solved:**
+
+1. **DataDisclaimer page** shown once to new accounts before the dashboard,
+   transparently covering where data lives (Supabase PostgreSQL, local
+   IndexedDB cache, Render hosting), exactly what the AI reads (task text +
+   project names only — never password/email), that AI messages can be
+   switched off in Settings, no training on user data, a Quick Add
+   accuracy warning, and user rights (JSON export, account deletion with a
+   30-day grace period, data never sold) plus open-source auditability.
+2. **DataDisclaimer2** — the same information re-accessible at any time from
+   the NavBar drawer, so returning users (and skeptics) can audit the app's
+   data handling whenever they want. (commit `21d6ce1`)
+
+### Summary of Quick-Survey Fixes
+
+| # | Problem | Status |
+|---|---------|--------|
+| 1 | Projects/calendar/tasks/activity log feel disconnected | **Addressed** — Recently created/viewed + cache subscriptions + cross-page click-through |
+| 2 | No onboarding or in-app guidance | **Partially addressed** — guided setup + tooltips; intro video on roadmap |
+| 3 | Unclear terminology and fields | **Fixed** — Entries→Tasks, field→Columns, tooltips |
+| 4 | Task creation not repeatable/memorable | **Partially addressed** — consistent surface + guardrail; explainer pop-up on roadmap |
+| 5 | New project not appearing when creating a task | **Fixed** — live cache subscription + seq-ref race guard on all pages |
+| 6 | Native browser delete/alert dialogs | **Fixed** — inline confirmation + inline errors |
+| 7 | Data privacy / AI trust concerns | **Addressed** — DataDisclaimer + always-available DataDisclaimer2 |

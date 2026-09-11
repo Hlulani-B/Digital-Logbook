@@ -819,8 +819,38 @@ ${commentInstruction}
 === STEP 4: MATCHED VALUES ===
 - matched=0: Single task, NO existing project matches. Create ONE new project + entry.
 - matched=1: Single task, fits ONE existing project EXACTLY. You are CERTAIN it belongs there.
-- matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
+- matched=2: User ONLY wants to create a project — NO entry, NO task. Use this whenever the input is a request/command to set up a project itself, not a description of work done. Only provide project name and field names
 - matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
+
+=== STEP 4a: PROJECT-ONLY VS PROJECT+TASK — DECIDE THIS FIRST (ABSOLUTE RULE) ===
+Before doing anything else, determine whether the user's input is a REQUEST TO CREATE A PROJECT, or a DESCRIPTION OF WORK/TASK.
+
+RULE (NON-NEGOTIABLE): If the user's text is primarily asking you to make/set up/create/add a project, you MUST use matched=2 (project only, no fields, no entry). Do NOT also invent a task in that project unless the user ALSO described an actual task they did or need to do.
+
+CORRECT → matched=2 (project only, no entry):
+- "create a project called X"
+- "make a new project for Y"
+- "I want to set up a project for Z"
+- "add a project named W"
+- "start a new project to track my workouts"
+- "let's make a Gym project"
+- "can you make a Thesis project?"
+- "please create a Reading project"
+- "Create a new project for the marketing campaign"
+- "I need a new project for my kitchen renovation"
+- "set up a project for the AI course"
+
+WRONG — do NOT treat these as matched=2 (they describe an actual task/action done or to do):
+- "started the gym project and did 5km run" → matched=0/1 WITH an entry (the run is the task)
+- "created a new project for Thesis and wrote the intro" → matched=0/1 WITH an entry (writing the intro is the task)
+- "worked on my Gym project, did 3 sets of squats" → matched=1 WITH an entry
+
+CORRECT matched=0/1 with entry:
+- Any text that describes work, actions, activities, or something done/being done — even if it mentions a project name or new project — MUST create the entry too. The project name mention is context, not the whole request.
+
+TEST: Ask yourself, "If I only created the project and NO entry, would the user feel that their message was fully handled?" If YES → matched=2. If NO (they described work you'd lose) → matched=0/1/3 with an entry.
+
+If matched=2, your response MUST have "fields": {} and "new_fields": [] (empty), and MUST NOT invent a task description. The comment should explain that the project was created and remind them they can log entries into it.
 
 === STEP 5: FIELD NAMES AND VALUES — PARAPHRASE NEATLY (STRICT) ===
 
@@ -859,6 +889,7 @@ IMPORTANT: Replace "task" with a MEANINGFUL field name (see Step 5). Never use "
 
 === FINAL CHECK BEFORE RESPONDING (MANDATORY) ===
 Before you output your JSON, verify ALL of these:
+□ Is the user's text primarily a REQUEST to create a project (not a description of work done)? If YES, matched MUST be 2 with fields:{} — do NOT invent an entry/task.
 □ Did I write a comment that is at least 5 sentences long? If not, REWRITE it.
 □ Does my comment mention the project name by name? If not, ADD it.
 □ Does my comment speak directly to the user ("you", "your")? If I used "the user", REWRITE.
@@ -886,13 +917,46 @@ RULES:
 
 Respond with ONLY this JSON, nothing else:`;
 
-      const aiResponse = await AI(prompt);
+      console.log('[Natural_language.entry] === About to call AI() ===');
+      console.log('[Natural_language.entry] email:', email, '| user text:', text);
+      console.log('[Natural_language.entry] prompt length:', prompt.length);
+      console.log(
+        '[Natural_language.entry] env keys present — HF:',
+        !!process.env.HF_API_KEY,
+        'OPENROUTER:',
+        !!process.env.OPENROUTER_API_KEY,
+        'CEREBRAS:',
+        !!process.env.CEREBRAS_API_KEY,
+        'GEMINI:',
+        !!process.env.GEMINI_API_KEY,
+        'GROQ:',
+        !!process.env.GROQ_API_KEY
+      );
+
+      let aiResponse;
+      try {
+        aiResponse = await AI(prompt);
+        console.log(
+          '[Natural_language.entry] AI() returned — typeof:',
+          typeof aiResponse,
+          'length:',
+          aiResponse?.length ?? 'null/undefined',
+          'preview:',
+          typeof aiResponse === 'string' ? aiResponse.slice(0, 200) : String(aiResponse)
+        );
+      } catch (aiErr) {
+        console.error('[Natural_language.entry] AI() THREW:', aiErr?.message || aiErr, aiErr?.stack);
+        throw aiErr;
+      }
 
       if (!aiResponse || aiResponse.trim() === '') {
+        console.error(
+          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown. Check ai_provider_cooldowns table in Supabase.'
+        );
         return {
           success: false,
           message:
-            'All AI providers failed. Please check that API keys are configured and try again.',
+            "Something didn't work on our end. Please try creating the project or task manually — the quick-add will keep working again shortly.",
         };
       }
 
@@ -957,6 +1021,7 @@ Respond with ONLY this JSON, nothing else:`;
         return {
           success: addResult.success,
           message: addResult.message,
+          entry_id: addResult.data?.[0]?.id || null,
           project: parsed.project,
           fields: parsed.fields,
           priority: priorityLabel,
@@ -1064,9 +1129,9 @@ Respond with ONLY this JSON, nothing else:`;
               null  // summary — generated in background
             );
             if (addResult.success) {
-              results.old.push({ project_name: projName, fields: fieldValues, summary: null });
-              // Generate summary in background
               const entryId = addResult.data?.[0]?.id;
+              results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+              // Generate summary in background
               if (entryId) {
                 this.generateSummary(projName, fieldValues)
                   .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
@@ -1108,9 +1173,9 @@ Respond with ONLY this JSON, nothing else:`;
                 null  // summary — generated in background
               );
               if (addResult.success) {
-                results.old.push({ project_name: projName, fields: fieldValues, summary: null });
-                // Generate summary in background
                 const entryId = addResult.data?.[0]?.id;
+                results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+                // Generate summary in background
                 if (entryId) {
                   this.generateSummary(projName, fieldValues)
                     .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
@@ -1159,14 +1224,15 @@ Respond with ONLY this JSON, nothing else:`;
               null  // summary — generated in background
             );
             if (addResult.success) {
+              const entryId = addResult.data?.[0]?.id;
               results.new.push({
                 project_name: projName,
                 fields: fieldValues,
                 summary: null,
                 new_fields: newFields,
+                entry_id: entryId,
               });
               // Generate summary in background
-              const entryId = addResult.data?.[0]?.id;
               if (entryId) {
                 this.generateSummary(projName, fieldValues)
                   .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
@@ -1263,6 +1329,7 @@ Respond with ONLY this JSON, nothing else:`;
       return {
         success: addResult.success,
         message: addResult.message,
+        entry_id: addResult.data?.[0]?.id || null,
         project: newProjectName,
         fields: parsed.fields,
         priority: priorityLabel,

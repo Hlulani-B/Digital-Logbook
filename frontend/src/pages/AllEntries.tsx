@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
@@ -8,6 +8,7 @@ import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -58,8 +59,8 @@ export function AllEntriesPage() {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
+  // Static placeholder for quick entry (no AI)
+  const aiPlaceholder = 'Write what you worked on...';
 
   const email = user?.email || '';
 
@@ -81,13 +82,19 @@ export function AllEntriesPage() {
   }, [email, signOut]);
 
   // Load data — read ONLY from IndexedDB. Mutations update it directly.
+  // Guard against overlapping calls: mount effect + two cacheSubscribe
+  // listeners + SSE onEntry can all fire loadData within the same tick.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadSeq.current) return;
       const hasCache = cachedEntries?.data || cachedProjects?.data;
       if (hasCache) {
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
@@ -100,13 +107,14 @@ export function AllEntriesPage() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
+        if (seq !== loadSeq.current) return;
         if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
       }
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 
@@ -162,18 +170,6 @@ export function AllEntriesPage() {
   }, [entries, searchQuery, sortBy]);
 
   const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
-
-  // AI placeholder
-  useEffect(() => {
-    const placeholders = [
-      'What are you working on?',
-      'What did you just finish?',
-      'Working on anything exciting?',
-      "What's your current task?",
-      'Tell me about your progress...',
-    ];
-    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
-  }, []);
 
   return (
     <div className="dash-layout">
@@ -235,11 +231,15 @@ export function AllEntriesPage() {
 
         {/* Quick Entry Bar */}
         <QuickEntryBar
-          onEntryCreated={(projectName) => {
+          onEntryCreated={(info) => {
             loadData();
-            // Navigate to the project page if a project name was provided
-            if (projectName) {
-              navigate(`/project/${encodeURIComponent(projectName)}`);
+            // Track every created entry (single OR multi) in "Recently created".
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
+            // Navigate only when there's exactly one unambiguous target.
+            if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+              navigate(`/project/${encodeURIComponent(info.projectName)}`);
             }
           }}
           onVoiceOpen={() => setVoiceOpen(true)}
@@ -341,7 +341,19 @@ export function AllEntriesPage() {
       </main>
 
       {/* Voice Feature */}
-      {voiceOpen && <VoiceFeature onClose={() => setVoiceOpen(false)} onEntryCreated={() => { loadData(); setVoiceOpen(false); }} />}
+      {voiceOpen && (
+        <VoiceFeature
+          onClose={() => setVoiceOpen(false)}
+          onEntryCreated={(info) => {
+            loadData();
+            setVoiceOpen(false);
+            // Mirror the QuickEntryBar behaviour: track every created entry.
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

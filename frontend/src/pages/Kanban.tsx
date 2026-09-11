@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
@@ -16,7 +16,7 @@ import {
 import './Kanban.css';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
@@ -155,8 +155,14 @@ export function KanbanPage() {
   const [dragging, setDragging] = useState<CalendarEntry | null>(null);
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
 
+  // Guard against overlapping loadData calls — mount effect, three
+  // cacheSubscribe listeners, SSE and visibilitychange all fire this
+  // function concurrently; only the newest invocation may commit state.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     setError(null);
 
     // Read ONLY from IndexedDB. Mutations update it directly.
@@ -165,6 +171,7 @@ export function KanbanPage() {
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadSeq.current) return;
       if (cachedEntries?.data) {
         const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter(
           (e: CalendarEntry) => !e.archived
@@ -186,6 +193,7 @@ export function KanbanPage() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
+        if (seq !== loadSeq.current) return;
         if (freshEntries?.data) {
           const data = (Array.isArray(freshEntries.data) ? freshEntries.data : []).filter(
             (e: CalendarEntry) => !e.archived
@@ -204,13 +212,23 @@ export function KanbanPage() {
     } catch (err) {
       console.error('[Kanban] Failed to load data:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadData]);
 
   const filteredEntries = useMemo(
     () => filterEntries(entries, projectFilter, searchQuery),

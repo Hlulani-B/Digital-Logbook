@@ -15,6 +15,8 @@ import {
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
+import { trackViewedProject } from '@/lib/recentlyViewed';
+import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { setPriority } from '@/functions/project/priority.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
@@ -107,6 +109,13 @@ export function ProjectDetailPage() {
   const cacheKey = projectName ? `${email}:${projectName}` : email;
   const cacheStore = projectName ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
 
+  // Track this project as recently viewed when the page loads
+  useEffect(() => {
+    if (projectName) {
+      trackViewedProject({ projectName, title: projectName });
+    }
+  }, [projectName]);
+
   // Read from IndexedDB immediately
   useEffect(() => {
     if (!email || !projectName) return;
@@ -150,9 +159,17 @@ export function ProjectDetailPage() {
     };
   }, [cacheStore, cacheKey]);
 
+  // Guards against overlapping background fetches. sortUnarchivedEntries
+  // is triggered by both the mount/sortType effect below and every add/
+  // update/delete handler via loadEntries; without a seq check a stale
+  // fetch could flip loading off while a newer one is still in flight.
+  const entriesFetchSeq = useRef(0);
+  const projectColorSeq = useRef(0);
+
   // Fetch from server in background
   useEffect(() => {
     if (!email || !projectName) return;
+    const seq = ++entriesFetchSeq.current;
     // Only show loading spinner on initial load (no cached data yet)
     setEntries((prev) => {
       if (prev.length === 0) setLoading(true);
@@ -160,6 +177,7 @@ export function ProjectDetailPage() {
     });
     (async () => {
       await sortUnarchivedEntries(email, projectName, sortType);
+      if (seq !== entriesFetchSeq.current) return;
       setLoading(false); // Data arrived from server
     })();
   }, [email, projectName, sortType]);
@@ -167,8 +185,10 @@ export function ProjectDetailPage() {
   // Subscribe to project colour changes from settings panel
   useEffect(() => {
     if (!email || !projectName) return;
+    const seq = ++projectColorSeq.current;
     const unsub = cacheSubscribe(CACHE_STORES.PROJECTS, email, async () => {
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== projectColorSeq.current) return;
       if (cachedProjects) {
         const list = cachedProjects.data || cachedProjects.projects || [];
         const match = (Array.isArray(list) ? list : []).find(
@@ -214,10 +234,8 @@ export function ProjectDetailPage() {
   // Network status
   const isOnline = useNetworkStatus();
 
-  // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState(
-    "Type what you worked on — we'll log it automatically..."
-  );
+  // Static placeholder for quick add (no AI generation)
+  const quickAddPlaceholder = 'Write what you worked on...';
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
@@ -230,24 +248,6 @@ export function ProjectDetailPage() {
     // The hook will automatically pick up the cache changes
     await sortUnarchivedEntries(email, projectName, sortType);
   }, [email, projectName, sortType]);
-
-  // AI-generated placeholder that describes what quick add is
-  useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
-    (async () => {
-      const result = await askAI(
-        `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log task for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
-      );
-      if (result.success && result.response) {
-        const msg = parseAIResponse(result.response)
-          .replace(/^["']|["']$/g, '')
-          .trim();
-        if (msg && msg.length <= 80) {
-          setAiPlaceholder(msg);
-        }
-      }
-    })();
-  }, [projectName]);
 
   // AI empty message
   useEffect(() => {
@@ -630,7 +630,7 @@ export function ProjectDetailPage() {
               <input
                 type="text"
                 className="quick-entry-input"
-                placeholder={isOnline ? aiPlaceholder : 'Offline — quick add unavailable'}
+                placeholder={isOnline ? quickAddPlaceholder : 'Offline — quick add unavailable'}
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
                 onKeyDown={handleQuickKeyDown}
@@ -952,9 +952,16 @@ export function ProjectDetailPage() {
               <AddEntry
                 user_email={email}
                 project_name={projectName!}
-                onAdded={() => {
+                onAdded={(result) => {
                   setNewEntryOpen(false);
                   loadEntries();
+                  // Track in recently created
+                  const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
+                  if (created?.id && projectName) {
+                    const entries = created.entries;
+                    const title = typeof entries === 'string' ? entries : (typeof entries === 'object' && entries ? Object.values(entries).find((v: any) => typeof v === 'string' && v.length > 0) as string : null) || created.summary || projectName;
+                    trackCreatedEntry({ entryId: created.id, projectName, title: String(title).slice(0, 100) });
+                  }
                 }}
                 onCancel={() => setNewEntryOpen(false)}
               />
@@ -966,9 +973,14 @@ export function ProjectDetailPage() {
         {voiceOpen && (
           <VoiceFeature
             onClose={() => setVoiceOpen(false)}
-            onEntryCreated={() => {
+            onEntryCreated={(info) => {
               setVoiceOpen(false);
               loadEntries();
+              // Track every entry the voice flow created so it shows up
+              // in the Dashboard's "Recently created" list too.
+              for (const item of info?.created ?? []) {
+                trackCreatedEntry(item);
+              }
             }}
           />
         )}

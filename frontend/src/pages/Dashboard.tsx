@@ -16,7 +16,7 @@ import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
-import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
+import { buildProjectColorMap, resolveProjectColor, colorForName } from '@/lib/projectColorMap';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -43,6 +43,8 @@ import {
   addMonths,
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
+import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import { getRecentlyCreated, trackCreatedEntry, type RecentlyCreatedEntry } from '@/lib/recentlyCreated';
 
 /** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -163,6 +165,67 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
+  // Recently viewed and created entries
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedEntry[]>(() => getRecentlyViewed());
+  const [recentlyCreated, setRecentlyCreated] = useState<RecentlyCreatedEntry[]>(() => getRecentlyCreated());
+
+  // Listen for changes to recently viewed/created (from other components)
+  useEffect(() => {
+    const handleViewedChange = () => setRecentlyViewed(getRecentlyViewed());
+    const handleCreatedChange = () => setRecentlyCreated(getRecentlyCreated());
+    window.addEventListener('recentlyViewedChanged', handleViewedChange);
+    window.addEventListener('recentlyCreatedChanged', handleCreatedChange);
+    return () => {
+      window.removeEventListener('recentlyViewedChanged', handleViewedChange);
+      window.removeEventListener('recentlyCreatedChanged', handleCreatedChange);
+    };
+  }, []);
+
+  // A recently viewed/created shortcut is only useful if the thing it points
+  // at still exists. If the user deletes or archives a project or a task, the
+  // matching quick-jump line must disappear rather than navigate to a dead
+  // target. We decide this against the live cache (source of truth) instead of
+  // hooking every delete/archive call site, so it also catches project→entry
+  // archive cascades, cross-page deletes and offline-queue replays for free.
+  const isRecentItemLive = useCallback(
+    (item: { projectName: string; entryId: string }) => {
+      // Don't evaluate until projects have actually loaded — a momentary empty
+      // cache during first paint would otherwise blank both lists.
+      if (projects.length === 0 && loading) return true;
+
+      // Owning project must exist and not be archived. This single check kills
+      // every shortcut under a deleted or archived project (both sections).
+      const projectActive = projects.some(
+        (p) => p.project_name === item.projectName && !p.archived
+      );
+      if (!projectActive) return false;
+
+      // For real tasks, also verify the specific task still exists and isn't
+      // archived. getAllEntries returns rows with deleted=false, so a deleted
+      // task is absent and an archived task carries archived=true. Synthetic
+      // ids (optimistic-/local-/project:) can't be resolved, so skip the entry
+      // check for those — the project-active check above already passed.
+      const isSyntheticId = /^(project:|optimistic-|local-)/.test(item.entryId);
+      if (!isSyntheticId && entries.length > 0) {
+        const match = entries.find((e) => String(e.id) === String(item.entryId));
+        if (!match) return false; // deleted
+        if (match.archived) return false; // archived
+      }
+      return true;
+    },
+    [projects, entries, loading]
+  );
+
+  const visibleRecentlyViewed = useMemo(
+    () => recentlyViewed.filter(isRecentItemLive),
+    [recentlyViewed, isRecentItemLive]
+  );
+  const visibleRecentlyCreated = useMemo(
+    () => recentlyCreated.filter(isRecentItemLive),
+    [recentlyCreated, isRecentItemLive]
+  );
+
+
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
   const [showGreetingToast, setShowGreetingToast] = useState(false);
@@ -199,7 +262,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     };
   }, [email, navigate, signOut]);
   const [, setAiEmptyMessage] = useState('No tasks to show right now.');
-  const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -218,19 +280,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
+  // Sequence counter guarding loadData against concurrent invocations.
+  // Multiple callers fire this function near-simultaneously (mount effect,
+  // three cacheSubscribe listeners, SSE onEntry, visibilitychange). Without
+  // a guard, a call that started earlier can finish LATER than a newer call
+  // and clobber fresh state with a stale snapshot. Only the newest call
+  // (highest seq) is allowed to commit state.
+  const loadSeq = useRef(0);
+
   // Load data — local-first: read ONLY from IndexedDB
   // Initial sync on login populates IndexedDB. Mutations update it directly.
   // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
-    console.log('[Dashboard] loadData START, email=', email);
+    const seq = ++loadSeq.current;
+    console.log('[Dashboard] loadData START, email=', email, 'seq=', seq);
     try {
-      console.log('[Dashboard] Reading cache...');
+      console.log('[Dashboard] Reading cache...', { seq });
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
+      // A newer loadData call has started since our await — bail without
+      // touching state so the fresher call wins cleanly.
+      if (seq !== loadSeq.current) {
+        console.log('[Dashboard] Stale loadData after cache read, skipping commit', { seq, latest: loadSeq.current });
+        return;
+      }
       console.log('[Dashboard] Cache read done. entries:', !!cachedEntries?.data, 'projects:', !!(cachedProjects?.data || cachedProjects?.projects), 'dueSoon:', !!cachedDueSoon?.data);
       const hasCache =
         cachedEntries?.data ||
@@ -275,6 +352,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           cacheGet(CACHE_STORES.PROJECTS, email),
           cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
+        // Second bail-out point: syncAllData + the re-read are long-running,
+        // plenty of time for a subscriber-triggered reload to overtake us.
+        if (seq !== loadSeq.current) {
+          console.log('[Dashboard] Stale loadData after syncAllData, skipping commit', { seq, latest: loadSeq.current });
+          return;
+        }
         if (freshEntries?.data)
           setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data || freshProjects?.projects) {
@@ -299,8 +382,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
-      console.log('[Dashboard] loadData FINALLY — setting loading=false');
-      setLoading(false);
+      // Only the newest call is allowed to flip the loading flag off; a
+      // stale call finishing late would otherwise clear a spinner that a
+      // fresher call still needs.
+      if (seq === loadSeq.current) {
+        console.log('[Dashboard] loadData FINALLY — setting loading=false', { seq });
+        setLoading(false);
+      } else {
+        console.log('[Dashboard] Stale loadData in finally, leaving loading flag alone', { seq, latest: loadSeq.current });
+      }
     }
   }, [email]);
 
@@ -391,17 +481,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   }, [showGreetingToast]);
 
-  // Rotating AI placeholder for quick entry
-  useEffect(() => {
-    const placeholders = [
-      'What are you working on?',
-      'What did you just finish?',
-      'Working on anything exciting?',
-      "What's your current task?",
-      'Tell me about your progress...',
-    ];
-    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
-  }, []);
+  // Simple, static placeholder for quick entry (no AI)
+  const aiPlaceholder = 'Write what you worked on...';
 
   // Close drawer on escape
   useEffect(() => {
@@ -1002,6 +1083,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/timeline');
               setDrawerOpen(false);
             }}
+            title="See a chronological timeline of all your tasks across projects"
           >
             <svg
               width="16"
@@ -1023,6 +1105,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/data-portability');
               setDrawerOpen(false);
             }}
+            title="Export all your data or import from a backup"
           >
             <svg
               width="16"
@@ -1041,9 +1124,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <button
             className="drawer-item"
             onClick={() => {
-              navigate('/data-disclaimer');
+              navigate('/data-disclaimer-info');
               setDrawerOpen(false);
             }}
+            title="Learn how your data is stored and how AI is used"
           >
             <svg
               width="16"
@@ -1063,6 +1147,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/stats');
               setDrawerOpen(false);
             }}
+            title="View statistics and insights about your tasks"
           >
             <svg
               width="16"
@@ -1084,6 +1169,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/dashboard/activity');
               setDrawerOpen(false);
             }}
+            title="See a feed of recent activity across all projects"
           >
             <svg
               width="16"
@@ -1108,7 +1194,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               .map((project) => {
                 const name = project.project_name as string;
                 const count = entries.filter((e) => e.project_name === name).length;
-                const projColor = (project.project_color as string) || null;
+                const projColor = (project.project_color as string) || colorForName(name);
                 return (
                   <div
                     key={name}
@@ -1136,29 +1222,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         cursor: 'pointer',
                       }}
                     >
-                      {projColor ? (
-                        <span
-                          aria-hidden
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: '50%',
-                            background: projColor,
-                            flexShrink: 0,
-                          }}
-                        />
-                      ) : (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                        </svg>
-                      )}
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          background: projColor,
+                          flexShrink: 0,
+                        }}
+                      />
                       {name}
                       <span className="drawer-badge">{count}</span>
                     </button>
@@ -1198,6 +1271,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               setNewProjectOpen(true);
               setDrawerOpen(false);
             }}
+            title="Create a new project to organize your tasks"
           >
             <svg
               width="16"
@@ -1219,6 +1293,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               setDrawerOpen(false);
             }}
             style={{ marginTop: '0.5rem', width: '100%' }}
+            title="View and manage all your projects"
           >
             Manage Projects
           </button>
@@ -1541,16 +1616,79 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
             {/* Quick Entry Bar - Natural Language */}
             <QuickEntryBar
-              onEntryCreated={(projectName) => {
+              onEntryCreated={(info) => {
                 loadData();
-                // Navigate to the project page if a project name was provided
-                if (projectName) {
-                  navigate(`/project/${encodeURIComponent(projectName)}`);
+                // Populate "Recently created" with every entry the backend
+                // actually created (single-match OR multi-match).
+                for (const item of info?.created ?? []) {
+                  trackCreatedEntry(item);
+                }
+                // Only navigate when there's exactly one clear target —
+                // for multi-match we intentionally stop here and let the
+                // "Recently created" section drive navigation.
+                if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+                  navigate(`/project/${encodeURIComponent(info.projectName)}`);
                 }
               }}
               onVoiceOpen={() => setVoiceOpen(true)}
               placeholder={aiPlaceholder}
             />
+
+            {/* Recently Viewed Section */}
+            {visibleRecentlyViewed.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Recently viewed</span>
+                </div>
+                <div className="recent-list">
+                  {visibleRecentlyViewed.slice(0, 3).map((item) => (
+                    <button
+                      key={item.entryId}
+                      className="recent-item"
+                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
+                      title={item.type === 'project' ? `View project: ${item.title}` : item.title}
+                    >
+                      <span className="recent-item-title">
+                        {item.type === 'project' && <span className="recent-item-badge">Project</span>}
+                        {item.title}
+                      </span>
+                      {item.type === 'entry' && (
+                        <span className="recent-item-project">{item.projectName}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recently Created Section */}
+            {visibleRecentlyCreated.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  <span>Recently created</span>
+                </div>
+                <div className="recent-list">
+                  {visibleRecentlyCreated.slice(0, 3).map((item) => (
+                    <button
+                      key={item.entryId}
+                      className="recent-item"
+                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
+                      title={item.title}
+                    >
+                      <span className="recent-item-title">{item.title}</span>
+                      <span className="recent-item-project">{item.projectName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Due Soon Section Label */}
             <div className="due-soon-section-label">
@@ -1630,82 +1768,97 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Entries feed — shown when not in projects mode */}
-            {displayMode !== 'projects' && !loading && (
+            {/* Entries feed — shown when not in projects mode. Each display
+                mode gets its own wrapper: cards use the multi-column
+                .entries-feed grid, but board and checklist need full-width
+                containers or the card grid squeezes them into one narrow
+                track and they stack vertically. */}
+            {displayMode !== 'projects' && !loading && filteredEntries.length === 0 && (
               <div className="entries-feed">
-                {filteredEntries.length === 0 ? (
-                  <div className="empty-state animate-in">
-                    <div className="empty-icon">
-                      <svg
-                        width="48"
-                        height="48"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <>
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </>
-                      </svg>
-                    </div>
-                    <h2 className="empty-title">Nothing due soon</h2>
-                    <p className="empty-desc">No tasks are due within the next 3 days.</p>
+                <div className="empty-state animate-in">
+                  <div className="empty-icon">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </>
+                    </svg>
                   </div>
-                ) : displayMode === 'checklist' ? (
-                  <ChecklistView
-                    entries={filteredEntries.map((r) => ({
-                      id: r.id as string,
-                      user_email: r.user_email as string,
-                      project_name: r.project_name as string,
-                      summary: (r.summary as string) || null,
-                      due_date: (r.due_date as string) || null,
-                      status:
-                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as Record<string, unknown> | string | null,
-                      started_at: (r.started_at as string) || null,
-                    }))}
-                    onUpdated={() => loadData()}
-                    onDelete={() => loadData()}
-                    colorMap={dashColorMap}
-                  />
-                ) : displayMode === 'board' ? (
-                  <EntriesByDueDateBoard
-                    entries={filteredEntries.map((r) => ({
-                      id: r.id as string,
-                      user_email: r.user_email as string,
-                      project_name: r.project_name as string,
-                      summary: (r.summary as string) || null,
-                      due_date: (r.due_date as string) || null,
-                      status:
-                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as Record<string, unknown> | string | null,
-                      started_at: (r.started_at as string) || null,
-                    }))}
-                    onUpdated={() => loadData()}
-                    onDelete={() => loadData()}
-                    colorMap={dashColorMap}
-                  />
-                ) : (
-                  filteredEntries.map((row, i) => (
-                    <EntryBox
-                      key={`entry-${row.id || i}`}
-                      entry={row as any}
-                      onUpdated={() => loadData()}
-                      onPriorityChanged={handleSetPriority}
-                      onDelete={() => loadData()}
-                      projectColor={resolveProjectColor(
-                        (row.project_name as string) || '',
-                        dashColorMap
-                      )}
-                    />
-                  ))
-                )}
+                  <h2 className="empty-title">Nothing due soon</h2>
+                  <p className="empty-desc">No tasks are due within the next 3 days.</p>
+                </div>
               </div>
             )}
+
+            {displayMode === 'checklist' && !loading && filteredEntries.length > 0 && (
+              <div className="dashboard-checklist-grid">
+                <ChecklistView
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status:
+                      (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as Record<string, unknown> | string | null,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={dashColorMap}
+                />
+              </div>
+            )}
+
+            {displayMode === 'board' && !loading && filteredEntries.length > 0 && (
+              <div className="dashboard-board-grid">
+                <EntriesByDueDateBoard
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status:
+                      (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as Record<string, unknown> | string | null,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={dashColorMap}
+                />
+              </div>
+            )}
+
+            {displayMode === 'cards' && !loading && filteredEntries.length > 0 && (
+              <div className="entries-feed">
+                {filteredEntries.map((row, i) => (
+                  <EntryBox
+                    key={`entry-${row.id || i}`}
+                    entry={row as any}
+                    onUpdated={() => loadData()}
+                    onPriorityChanged={handleSetPriority}
+                    onDelete={() => loadData()}
+                    projectColor={resolveProjectColor(
+                      (row.project_name as string) || '',
+                      dashColorMap
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+
 
             {/* Calendar Section */}
             <div className="dashboard-calendar-section">
@@ -1841,34 +1994,47 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       <div className="fab-container">
         {fabOpen && (
           <div className="fab-menu">
-            <button
-              className="fab-menu-item"
-              onClick={() => {
-                setNewEntryOpen(true);
-                setFabOpen(false);
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            {projects.filter((p) => !p.archived).length > 0 ? (
+              <button
+                className="fab-menu-item"
+                onClick={() => {
+                  setNewEntryOpen(true);
+                  setFabOpen(false);
+                }}
+                title="Create a new task in one of your projects"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="11" x2="12" y2="17" />
-                <line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-              New Task
-            </button>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                New Task
+              </button>
+            ) : (
+              <div className="fab-menu-hint" title="You need to create a project first">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Create a project first</span>
+              </div>
+            )}
             <button
               className="fab-menu-item"
               onClick={() => {
                 setNewProjectOpen(true);
                 setFabOpen(false);
               }}
+              title="Create a new project to organize your tasks"
             >
               <svg
                 width="16"
@@ -1888,6 +2054,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           className={`fab ${fabOpen ? 'fab-open' : ''}`}
           onClick={() => setFabOpen(!fabOpen)}
           aria-label="Quick actions"
+          title="Quick actions: create a new task or project"
         >
           <svg
             width="20"
@@ -2157,10 +2324,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <AddEntry
                 user_email={email}
                 project_name={newEntryProject}
-                onAdded={() => {
+                onAdded={(result) => {
                   setNewEntryOpen(false);
                   setNewEntryProject('');
                   loadData();
+                  // Track the created entry
+                  const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
+                  if (created?.id && newEntryProject) {
+                    const title = typeof created.entries === 'string' ? created.entries : (typeof created.entries === 'object' && created.entries ? Object.values(created.entries).find((v: any) => typeof v === 'string' && v.length > 0) as string : null) || created.summary || newEntryProject;
+                    trackCreatedEntry({ entryId: created.id, projectName: newEntryProject, title: String(title).slice(0, 100) });
+                  }
                   // Navigate to the project page where the entry was created
                   navigate(`/project/${encodeURIComponent(newEntryProject)}`);
                 }}
@@ -2178,9 +2351,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {voiceOpen && (
         <VoiceFeature
           onClose={() => setVoiceOpen(false)}
-          onEntryCreated={() => {
+          onEntryCreated={(info) => {
             setVoiceOpen(false);
             loadData();
+            // Voice creates exactly the same shape of result as QuickEntryBar,
+            // so track every entry in the `created[]` list the same way.
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
           }}
         />
       )}

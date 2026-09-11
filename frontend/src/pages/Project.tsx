@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import {
   editProjectName,
@@ -127,12 +127,21 @@ export function ProjectsPage() {
     }
   };
 
+  // Guards against overlapping load calls. loadProjects has three
+  // concurrent callers (mount effect + PROJECTS cacheSubscribe + the
+  // archive/unarchive handlers awaiting a re-run); loadArchivedProjects
+  // has one caller but re-fires after every archive toggle.
+  const loadProjectsSeq = useRef(0);
+  const loadArchivedSeq = useRef(0);
+
   const loadProjects = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadProjectsSeq.current;
     setError(null);
     // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const cached = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== loadProjectsSeq.current) return;
       if (cached?.data || cached?.projects) {
         const rawProjects = cached.data || cached.projects || [];
         const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
@@ -142,6 +151,7 @@ export function ProjectsPage() {
         setLoading(true);
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.PROJECTS, email);
+        if (seq !== loadProjectsSeq.current) return;
         if (fresh?.data || fresh?.projects) {
           const rawProjects = fresh.data || fresh.projects || [];
           const list = (Array.isArray(rawProjects) ? rawProjects : []).filter((p: ProjectRecord) => !p.archived);
@@ -151,20 +161,23 @@ export function ProjectsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your projects');
     } finally {
-      setLoading(false);
+      if (seq === loadProjectsSeq.current) setLoading(false);
     }
   }, [email]);
 
   const loadArchivedProjects = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadArchivedSeq.current;
     try {
       const result = await getArchivedProjects(email);
+      if (seq !== loadArchivedSeq.current) return;
       if (result?.success && result.data) {
         setArchivedProjects(result.data);
       } else {
         setArchivedProjects([]);
       }
     } catch (err) {
+      if (seq !== loadArchivedSeq.current) return;
       console.error('Failed to load archived projects:', err);
       setArchivedProjects([]);
     }
@@ -174,6 +187,16 @@ export function ProjectsPage() {
     loadProjects();
     loadArchivedProjects();
   }, [loadProjects, loadArchivedProjects]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadProjects()),
+      cacheSubscribe(CACHE_STORES.ARCHIVES, email, () => loadArchivedProjects()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadProjects, loadArchivedProjects]);
 
   const handleCreateProject = async () => {
     const trimmed = newProjectName.trim();

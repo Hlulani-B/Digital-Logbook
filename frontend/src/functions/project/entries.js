@@ -192,7 +192,7 @@ export async function addEntry(
       summary,
       notes,
     });
-    return { success: true, queued: true, data: undefined, message: undefined };
+    return { success: true, queued: true, data: optimisticEntry, message: undefined };
   }
 
   // 3. Sync to server in background (don't block the UI)
@@ -202,7 +202,7 @@ export async function addEntry(
   });
 
   // Return immediately — optimistic entry is already in IndexedDB
-  return { success: true, optimistic: true, data: undefined, message: undefined };
+  return { success: true, optimistic: true, data: optimisticEntry, message: undefined };
 }
 
 /**

@@ -3233,6 +3233,60 @@ img {
   flex-shrink: 0;
 }
 
+/* Recently Viewed / Created Sections */
+.recent-section {
+  margin-bottom: 1.25rem;
+}
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.recent-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  width: 100%;
+}
+.recent-item:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+.recent-item-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.recent-item-project {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.125rem;
+}
+.recent-item-badge {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+  background: var(--surface-hover);
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  margin-right: 0.375rem;
+  vertical-align: middle;
+}
+
 .feed-search-bar {
   display: flex;
   align-items: center;
@@ -3423,6 +3477,16 @@ img {
   }
 }
 
+/* Full-width wrappers for dashboard board/checklist views. These must NOT
+   sit inside .entries-feed (a 2-3 column card grid) or the grid track
+   squeezes them into one narrow column and they stack vertically. */
+.dashboard-board-grid,
+.dashboard-checklist-grid {
+  display: block;
+  width: 100%;
+}
+
+
 /* ========== DASHBOARD SECTIONS ========== */
 .dashboard-sections {
   display: flex;
@@ -3579,6 +3643,28 @@ img {
   color: var(--text, #1f1e1c);
   letter-spacing: 0.01em;
   word-break: break-word;
+}
+.entry-box__project--link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  text-underline-offset: 3px;
+}
+.entry-box__project--link:hover {
+  color: var(--accent, #b8543b);
+  text-decoration: underline;
+}
+.entry-box__project--link:focus-visible {
+  outline: 2px solid var(--accent, #b8543b);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 .entry-box__summary {
   margin: 0.4rem 0 0;
@@ -5048,6 +5134,16 @@ img {
 .fab-menu-item:hover {
   background: var(--surface-hover);
   color: var(--text);
+}
+.fab-menu-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: default;
+  opacity: 0.7;
 }
 
 /* ========== MODALS ========== */
