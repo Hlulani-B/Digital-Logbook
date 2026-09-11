@@ -11,6 +11,8 @@ import { request, PROJECT_URL } from '../../lib/api';
  * arrives via SSE within seconds of the AI finishing.
  */
 export async function addNaturalLanguageEntry(text) {
+  console.log('[addNaturalLanguageEntry] === POST /natural-language-entry ===');
+  console.log('[addNaturalLanguageEntry] text:', text);
   try {
     // Fire the POST but don't wait for the full response.
     // The backend will process and push results via SSE.
@@ -20,9 +22,15 @@ export async function addNaturalLanguageEntry(text) {
       timeoutMs: 15_000, // 15s — enough for cold start + request receipt
     });
 
+    console.log('[addNaturalLanguageEntry] server response:', data);
+
     // If we got a response, check it
     if (data?.success === false) {
-      return { success: false, message: data.message || 'Failed to create entry' };
+      const friendly =
+        data.message ||
+        "Something didn't work on our end. Please try creating the project or task manually — the quick-add will keep working again shortly.";
+      console.warn('[addNaturalLanguageEntry] server returned success=false:', friendly);
+      return { success: false, message: friendly };
     }
 
     return { success: true, data };

@@ -917,13 +917,46 @@ RULES:
 
 Respond with ONLY this JSON, nothing else:`;
 
-      const aiResponse = await AI(prompt);
+      console.log('[Natural_language.entry] === About to call AI() ===');
+      console.log('[Natural_language.entry] email:', email, '| user text:', text);
+      console.log('[Natural_language.entry] prompt length:', prompt.length);
+      console.log(
+        '[Natural_language.entry] env keys present — HF:',
+        !!process.env.HF_API_KEY,
+        'OPENROUTER:',
+        !!process.env.OPENROUTER_API_KEY,
+        'CEREBRAS:',
+        !!process.env.CEREBRAS_API_KEY,
+        'GEMINI:',
+        !!process.env.GEMINI_API_KEY,
+        'GROQ:',
+        !!process.env.GROQ_API_KEY
+      );
+
+      let aiResponse;
+      try {
+        aiResponse = await AI(prompt);
+        console.log(
+          '[Natural_language.entry] AI() returned — typeof:',
+          typeof aiResponse,
+          'length:',
+          aiResponse?.length ?? 'null/undefined',
+          'preview:',
+          typeof aiResponse === 'string' ? aiResponse.slice(0, 200) : String(aiResponse)
+        );
+      } catch (aiErr) {
+        console.error('[Natural_language.entry] AI() THREW:', aiErr?.message || aiErr, aiErr?.stack);
+        throw aiErr;
+      }
 
       if (!aiResponse || aiResponse.trim() === '') {
+        console.error(
+          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown. Check ai_provider_cooldowns table in Supabase.'
+        );
         return {
           success: false,
           message:
-            'All AI providers failed. Please check that API keys are configured and try again.',
+            "Something didn't work on our end. Please try creating the project or task manually — the quick-add will keep working again shortly.",
         };
       }
 

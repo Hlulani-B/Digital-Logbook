@@ -3634,6 +3634,28 @@ img {
   letter-spacing: 0.01em;
   word-break: break-word;
 }
+.entry-box__project--link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  text-underline-offset: 3px;
+}
+.entry-box__project--link:hover {
+  color: var(--accent, #b8543b);
+  text-decoration: underline;
+}
+.entry-box__project--link:focus-visible {
+  outline: 2px solid var(--accent, #b8543b);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 .entry-box__summary {
   margin: 0.4rem 0 0;
   font-size: 0.88rem;

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
@@ -124,6 +125,7 @@ export function EntryBox({
   onDelete,
   projectColor,
 }: EntryBoxProps) {
+  const navigate = useNavigate();
   const {
     id,
     user_email,
@@ -479,7 +481,17 @@ export function EntryBox({
               ))}
             </select>
           </div>
-          <span className="entry-box__project">{project_name}</span>
+          <button
+            type="button"
+            className="entry-box__project entry-box__project--link"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/project/${encodeURIComponent(project_name)}`);
+            }}
+            title={`Go to ${project_name} page`}
+          >
+            {project_name}
+          </button>
         </div>
 
         {error && <div className="entry-box__error">{error}</div>}
@@ -698,7 +710,17 @@ export function EntryBox({
             </span>
           )}
         </div>
-        <span className="entry-box__project">{project_name}</span>
+        <button
+          type="button"
+          className="entry-box__project entry-box__project--link"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/project/${encodeURIComponent(project_name)}`);
+          }}
+          title={`Go to ${project_name} page`}
+        >
+          {project_name}
+        </button>
       </div>
 
       {summary && (
