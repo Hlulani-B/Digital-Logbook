@@ -973,24 +973,6 @@ export function ProjectDetailPage() {
           />
         )}
 
-        {/* Project Settings Panel */}
-        <ProjectSettingsPanel
-          open={projectSettingsOpen}
-          projectName={projectName!}
-          userEmail={email}
-          onClose={() => setProjectSettingsOpen(false)}
-          onProjectUpdated={() => {
-            navigate('/dashboard');
-          }}
-          onProjectDeleted={() => {
-            navigate('/dashboard');
-          }}
-          onProjectArchived={() => {
-            navigate('/dashboard');
-          }}
-        />
-      )}
-
       {/* Project Settings Panel */}
       <ProjectSettingsPanel
         open={projectSettingsOpen}
