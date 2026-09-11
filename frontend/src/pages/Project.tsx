@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import {
   editProjectName,
@@ -174,6 +174,16 @@ export function ProjectsPage() {
     loadProjects();
     loadArchivedProjects();
   }, [loadProjects, loadArchivedProjects]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadProjects()),
+      cacheSubscribe(CACHE_STORES.ARCHIVES, email, () => loadArchivedProjects()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadProjects, loadArchivedProjects]);
 
   const handleCreateProject = async () => {
     const trimmed = newProjectName.trim();

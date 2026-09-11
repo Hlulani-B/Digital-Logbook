@@ -25,7 +25,7 @@ import {
 import { parseImport, type ImportResult } from '@/lib/import';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import './DataPortability.css';
 
 type ImportOutcome = {
@@ -53,22 +53,33 @@ export default function DataPortability() {
   const [cachedEntries, setCachedEntries] = useState<Array<Record<string, unknown>>>([]);
   const [cachedProjects, setCachedProjects] = useState<Array<Record<string, unknown>>>([]);
 
-  useEffect(() => {
-    const loadCacheData = async () => {
-      if (!userEmail) return;
-      try {
-        const [ce, cp] = await Promise.all([
-          cacheGet(CACHE_STORES.ALL_ENTRIES, userEmail),
-          cacheGet(CACHE_STORES.PROJECTS, userEmail),
-        ]);
-        if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
-        if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
-      } catch (err) {
-        console.error('[DataPortability] Failed to load cache for NavBar:', err);
-      }
-    };
-    loadCacheData();
+  const loadCacheData = useCallback(async () => {
+    if (!userEmail) return;
+    try {
+      const [ce, cp] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, userEmail),
+        cacheGet(CACHE_STORES.PROJECTS, userEmail),
+      ]);
+      if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
+      if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
+    } catch (err) {
+      console.error('[DataPortability] Failed to load cache for NavBar:', err);
+    }
   }, [userEmail]);
+
+  useEffect(() => {
+    loadCacheData();
+  }, [loadCacheData]);
+
+  // Subscribe to cache changes — re-render NavBar/Header when data arrives
+  useEffect(() => {
+    if (!userEmail) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, userEmail, () => loadCacheData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, userEmail, () => loadCacheData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [userEmail, loadCacheData]);
 
   // ── Export ──────────────────────────────────────────────────────────────────
 

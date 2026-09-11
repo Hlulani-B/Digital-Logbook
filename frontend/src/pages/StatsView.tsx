@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -11,7 +11,7 @@ import { getFields } from '@/functions/project/fields.js';
 import { useNow } from '@/hooks/useNow';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData, computeDueSoon } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
@@ -253,50 +253,54 @@ export function StatsView() {
   const [loading, setLoading] = useState(true);
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!email) return;
-    let cancelled = false;
-
-    (async () => {
-      // Read ONLY from IndexedDB. Mutations update it directly.
-      try {
-        const [cachedEntries, cachedProjects] = await Promise.all([
+    // Read ONLY from IndexedDB. Mutations update it directly.
+    try {
+      const [cachedEntries, cachedProjects] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+      ]);
+      if (cachedEntries?.data)
+        setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+      if (cachedProjects?.data)
+        setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+      if (cachedEntries?.data) {
+        setDueSoonCount(computeDueSoon(cachedEntries.data).length);
+      }
+      if (!cachedEntries?.data && !cachedProjects?.data) {
+        // First visit ever — trigger initial sync
+        await syncAllData(email);
+        const [freshEntries, freshProjects] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
-        if (cancelled) return;
-        if (cachedEntries?.data)
-          setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-        if (cachedProjects?.data)
-          setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
-        if (cachedEntries?.data) {
-          setDueSoonCount(computeDueSoon(cachedEntries.data).length);
-        }
-        if (!cachedEntries?.data && !cachedProjects?.data) {
-          // First visit ever — trigger initial sync
-          await syncAllData(email);
-          if (cancelled) return;
-          const [freshEntries, freshProjects] = await Promise.all([
-            cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-            cacheGet(CACHE_STORES.PROJECTS, email),
-          ]);
-          if (freshEntries?.data)
-            setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-          if (freshProjects?.data)
-            setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
-          if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
-        }
-      } catch (err) {
-        console.error('[StatsView] Failed to load stats data:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (freshEntries?.data)
+          setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+        if (freshProjects?.data)
+          setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+        if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
       }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    } catch (err) {
+      console.error('[StatsView] Failed to load stats data:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [email]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadData]);
 
   // Entries scoped to ?project= — every stat below derives from these so
   // the whole dashboard follows a single scope.

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache.js';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache.js';
 import { syncAllData } from '@/CacheFunctions';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
@@ -256,6 +256,16 @@ export function CalendarPage() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadEntries()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadEntries()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadEntries]);
 
   const gridDays = useMemo(() => {
     return effectiveView === 'month'

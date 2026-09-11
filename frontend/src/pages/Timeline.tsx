@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getAllEntries } from '@/functions/project/entries.js';
 import { type CalendarEntry } from '@/lib/calendar';
 import {
   buildDependencyArrows,
@@ -14,7 +13,8 @@ import {
 } from '@/lib/timeline';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
+import { syncAllData } from '@/CacheFunctions';
 import './Timeline.css';
 
 const ROW_HEIGHT = 56;
@@ -90,33 +90,43 @@ export function TimelinePage() {
   const [cachedEntries, setCachedEntries] = useState<Array<Record<string, unknown>>>([]);
   const [cachedProjects, setCachedProjects] = useState<Array<Record<string, unknown>>>([]);
 
-  useEffect(() => {
-    const loadCacheData = async () => {
-      if (!email) return;
-      try {
-        const [ce, cp] = await Promise.all([
-          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-          cacheGet(CACHE_STORES.PROJECTS, email),
-        ]);
-        if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
-        if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
-      } catch (err) {
-        console.error('[Timeline] Failed to load cache for NavBar:', err);
-      }
-    };
-    loadCacheData();
+  const loadCacheData = useCallback(async () => {
+    if (!email) return;
+    try {
+      const [ce, cp] = await Promise.all([
+        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+        cacheGet(CACHE_STORES.PROJECTS, email),
+      ]);
+      if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
+      if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
+    } catch (err) {
+      console.error('[Timeline] Failed to load cache for NavBar:', err);
+    }
   }, [email]);
+
+  useEffect(() => {
+    loadCacheData();
+  }, [loadCacheData]);
 
   const loadData = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     setError(null);
+    // Read ONLY from IndexedDB. Mutations update it directly.
     try {
-      const result = await getAllEntries(email);
-      if (result?.success === false) {
-        setError(result.message || 'Failed to load entries');
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (cached?.data) {
+        const data = (Array.isArray(cached.data) ? cached.data : []).filter(
+          (entry: CalendarEntry) => !entry.archived
+        );
+        setEntries(data);
       } else {
-        const data = (result?.data || []).filter((entry: CalendarEntry) => !entry.archived);
+        // First visit ever — trigger initial sync
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        const data = (Array.isArray(fresh?.data) ? fresh.data : []).filter(
+          (entry: CalendarEntry) => !entry.archived
+        );
         setEntries(data);
       }
     } catch (err) {
@@ -129,6 +139,16 @@ export function TimelinePage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadData]);
 
   const dayWidth = ZOOM_LEVELS[zoomIndex] * 80;
 

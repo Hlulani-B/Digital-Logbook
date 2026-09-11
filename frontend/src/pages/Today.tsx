@@ -7,7 +7,7 @@ import { getTodaySections, hasNothingToDo } from '@/lib/today';
 import './Today.css';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
@@ -151,6 +151,16 @@ export function TodayPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadData]);
 
   const sections = useMemo(() => getTodaySections(entries), [entries]);
   const nothingToDo = useMemo(() => hasNothingToDo(sections), [sections]);

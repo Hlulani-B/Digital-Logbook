@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { FiShield, FiDatabase, FiCpu, FiLock } from 'react-icons/fi';
 import { NavBar } from '../components/NavBar.tsx';
 import { Header } from '../components/Header.tsx';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { useAuth } from '@/context/AuthContext';
 
 /**
@@ -17,17 +17,29 @@ export function DataDisclaimer2() {
   const [projects, setProjects] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
 
+  const loadData = useCallback(async () => {
+    if (!email) return;
+    const [p, e] = await Promise.all([
+      cacheGet(CACHE_STORES.PROJECTS, email),
+      cacheGet(CACHE_STORES.ALL_ENTRIES, email),
+    ]);
+    if (p?.data || p?.projects) setProjects(p.data || p.projects || []);
+    if (e?.data) setEntries(Array.isArray(e.data) ? e.data : []);
+  }, [email]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Subscribe to cache changes — re-render NavBar/Header when data arrives
   useEffect(() => {
     if (!email) return;
-    (async () => {
-      const [p, e] = await Promise.all([
-        cacheGet(CACHE_STORES.PROJECTS, email),
-        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-      ]);
-      if (p?.data || p?.projects) setProjects(p.data || p.projects || []);
-      if (e?.data) setEntries(Array.isArray(e.data) ? e.data : []);
-    })();
-  }, [email]);
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadData]);
 
   return (
     <div className="dash-layout">
