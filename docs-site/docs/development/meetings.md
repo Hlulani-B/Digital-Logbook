@@ -288,3 +288,43 @@ meeting is enough to count as evidence.
 
 - Break the Sprint 2 plan into assigned tasks.
 - Implement and verify fixes for the Sprint 1 issues.
+
+## Daily Standup — 7 September 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
+
+**What we did:**
+
+- Each team member provided a brief update on their current progress.
+- Discussed any blockers and coordinated on integration points.
+
+---
+
+## Daily Standup — 9 September 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
+
+**What we did:**
+
+- Each team member provided a brief update on their current progress.
+- Discussed any blockers and coordinated on next steps.
+
+---
+
+## Client Meeting — 10 September 2026
+
+**Venue:** Discussion Room 3, Wartenweiler Library (in person)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team) + client/tutor
+
+**Context:** Sprint 2 progress demonstration and user testing session with the client.
+
+**What we did:**
+
+- Demonstrated our current progress on the Digital Logbook application to the client. The client responded positively and liked what was shown.
+- Conducted a user testing session where participants tested the app and provided comments and feedback.
+
+**Decisions made:**
+
+- Client feedback and user testing comments will be reviewed and incorporated into the next development cycle.
