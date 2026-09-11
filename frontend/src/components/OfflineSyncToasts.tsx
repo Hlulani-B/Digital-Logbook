@@ -29,6 +29,14 @@ export function OfflineSyncToasts() {
   const isOnline = useNetworkStatus();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [wasOffline, setWasOffline] = useState(false);
+
+  // Track actual offline→online transitions
+  useEffect(() => {
+    if (!isOnline) {
+      setWasOffline(true);
+    }
+  }, [isOnline]);
 
   const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
     const id = Date.now() + Math.random();
@@ -45,8 +53,8 @@ export function OfflineSyncToasts() {
   }, []);
 
   useEffect(() => {
-    if (isOnline && !isProcessing) {
-      // Check if there are pending actions
+    if (isOnline && !isProcessing && wasOffline) {
+      // Only process queue after a real offline→online transition
       getPendingCount().then((count) => {
         if (count > 0) {
           setIsProcessing(true);
@@ -88,13 +96,17 @@ export function OfflineSyncToasts() {
                   })();
                 }
                 setIsProcessing(false);
+                setWasOffline(false);
                 break;
             }
           });
+        } else {
+          // No pending actions, reset the flag
+          setWasOffline(false);
         }
       });
     }
-  }, [isOnline, isProcessing, addToast]);
+  }, [isOnline, isProcessing, wasOffline, addToast]);
 
   if (toasts.length === 0) return null;
 
