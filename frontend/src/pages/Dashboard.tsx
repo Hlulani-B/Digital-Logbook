@@ -234,19 +234,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
+  // Sequence counter guarding loadData against concurrent invocations.
+  // Multiple callers fire this function near-simultaneously (mount effect,
+  // three cacheSubscribe listeners, SSE onEntry, visibilitychange). Without
+  // a guard, a call that started earlier can finish LATER than a newer call
+  // and clobber fresh state with a stale snapshot. Only the newest call
+  // (highest seq) is allowed to commit state.
+  const loadSeq = useRef(0);
+
   // Load data — local-first: read ONLY from IndexedDB
   // Initial sync on login populates IndexedDB. Mutations update it directly.
   // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
-    console.log('[Dashboard] loadData START, email=', email);
+    const seq = ++loadSeq.current;
+    console.log('[Dashboard] loadData START, email=', email, 'seq=', seq);
     try {
-      console.log('[Dashboard] Reading cache...');
+      console.log('[Dashboard] Reading cache...', { seq });
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
+      // A newer loadData call has started since our await — bail without
+      // touching state so the fresher call wins cleanly.
+      if (seq !== loadSeq.current) {
+        console.log('[Dashboard] Stale loadData after cache read, skipping commit', { seq, latest: loadSeq.current });
+        return;
+      }
       console.log('[Dashboard] Cache read done. entries:', !!cachedEntries?.data, 'projects:', !!(cachedProjects?.data || cachedProjects?.projects), 'dueSoon:', !!cachedDueSoon?.data);
       const hasCache =
         cachedEntries?.data ||
@@ -291,6 +306,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           cacheGet(CACHE_STORES.PROJECTS, email),
           cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
+        // Second bail-out point: syncAllData + the re-read are long-running,
+        // plenty of time for a subscriber-triggered reload to overtake us.
+        if (seq !== loadSeq.current) {
+          console.log('[Dashboard] Stale loadData after syncAllData, skipping commit', { seq, latest: loadSeq.current });
+          return;
+        }
         if (freshEntries?.data)
           setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data || freshProjects?.projects) {
@@ -315,8 +336,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
-      console.log('[Dashboard] loadData FINALLY — setting loading=false');
-      setLoading(false);
+      // Only the newest call is allowed to flip the loading flag off; a
+      // stale call finishing late would otherwise clear a spinner that a
+      // fresher call still needs.
+      if (seq === loadSeq.current) {
+        console.log('[Dashboard] loadData FINALLY — setting loading=false', { seq });
+        setLoading(false);
+      } else {
+        console.log('[Dashboard] Stale loadData in finally, leaving loading flag alone', { seq, latest: loadSeq.current });
+      }
     }
   }, [email]);
 
