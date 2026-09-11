@@ -1011,7 +1011,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <button
             className="drawer-item"
             onClick={() => {
-              navigate('/data-disclaimer');
+              navigate('/data-disclaimer-info');
               setDrawerOpen(false);
             }}
           >
