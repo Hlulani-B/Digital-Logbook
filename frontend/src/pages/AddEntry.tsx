@@ -227,6 +227,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         null, // started_at - set via Start Task button
         null, // ended_at - set via End Task button
         null, // duration - calculated in Supabase
+        null, // summary - AI-generated in the background on the server
         notesPayload.length > 0 ? notesPayload : undefined
       );
 

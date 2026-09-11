@@ -10,6 +10,36 @@ function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Detect the notes-payload shape used by AddEntry: an array of
+ * `{entry_type,value}` (or its JSON-stringified form). Historically a
+ * frontend caller passed this array into the `summary` positional argument,
+ * which resulted in the raw notes JSON being stored as the entry summary.
+ * Both the write path and (mirrored in the frontend) the display path use
+ * this check to reject that shape.
+ */
+function isNotesPayloadShape(value) {
+  let arr = value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('[')) return false;
+    try {
+      arr = JSON.parse(trimmed);
+    } catch {
+      return false;
+    }
+  }
+  if (!Array.isArray(arr) || arr.length === 0) return false;
+  return arr.every(
+    (n) =>
+      n &&
+      typeof n === 'object' &&
+      !Array.isArray(n) &&
+      typeof n.entry_type === 'string' &&
+      'value' in n
+  );
+}
+
 export class Entries {
   async addEntry(
     user_email,
@@ -26,6 +56,14 @@ export class Entries {
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
+
+      // Defensive swap: a caller that slips the notes payload into the
+      // summary slot gets it moved to `notes` and summary cleared, so a
+      // JSON-stringified notes array can never reach the summary column.
+      if (summary !== undefined && summary !== null && isNotesPayloadShape(summary)) {
+        if (notes === undefined || notes === null) notes = summary;
+        summary = null;
+      }
 
       const insertData = { user_email, project_name, entries: entry_object };
       if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;

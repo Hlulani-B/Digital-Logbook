@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
-import { classifyEntryPayload } from '@/lib/entryPayload';
+import { classifyEntryPayload, cleanSummaryText } from '@/lib/entryPayload';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -283,7 +283,7 @@ function MobileCard({
       {viewMode === 'summary' ? (
         <div className="ptt-mobile-card__title">
           <EditableText
-            value={entry.summary || ''}
+            value={cleanSummaryText(entry.summary) ?? ''}
             onSave={(val) => onUpdate(entry.id, { summary: val })}
             className="ptt-summary-text"
           />
@@ -393,7 +393,7 @@ function TaskRow({
       {viewMode === 'summary' ? (
         <div className="ptt-cell ptt-cell-summary">
           <EditableText
-            value={entry.summary || ''}
+            value={cleanSummaryText(entry.summary) ?? ''}
             onSave={(val) => onUpdate(entry.id, { summary: val })}
             className="ptt-summary-text"
           />

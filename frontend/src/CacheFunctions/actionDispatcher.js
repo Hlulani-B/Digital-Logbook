@@ -27,7 +27,9 @@ const actionMap = {
       payload.status,
       payload.started_at,
       payload.ended_at,
-      payload.duration
+      payload.duration,
+      payload.summary,
+      payload.notes
     ),
 
   updateEntry: (payload) =>
