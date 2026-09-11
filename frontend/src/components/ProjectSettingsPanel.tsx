@@ -43,9 +43,11 @@ export function ProjectSettingsPanel({
   const [fields, setFields] = useState<FieldRecord[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'boolean'>('text');
+  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'boolean' | 'custom'>('text');
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [newFieldOptions, setNewFieldOptions] = useState<string[]>([]);
+  const [newOptionInput, setNewOptionInput] = useState('');
 
   // Editing fields
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -162,17 +164,35 @@ export function ProjectSettingsPanel({
   const handleAddField = async () => {
     const name = newFieldName.trim();
     if (!name) return;
+    if (newFieldType === 'custom' && newFieldOptions.length === 0) {
+      setFieldError('Custom fields must have at least one option');
+      return;
+    }
     setFieldError(null);
     try {
-      await addField(userEmail, projectName, name, newFieldType, newFieldRequired);
+      const dataType = newFieldType === 'custom' ? `custom:${newFieldOptions.join(',')}` : newFieldType;
+      await addField(userEmail, projectName, name, dataType, newFieldRequired);
       setNewFieldName('');
       setNewFieldType('text');
       setNewFieldRequired(false);
+      setNewFieldOptions([]);
+      setNewOptionInput('');
       const result = await getFields(userEmail, projectName);
       setFields(Array.isArray(result?.data) ? result.data : []);
     } catch (err) {
       setFieldError(err instanceof Error ? err.message : 'Failed to add field');
     }
+  };
+
+  const handleAddOption = () => {
+    const option = newOptionInput.trim();
+    if (option && !newFieldOptions.includes(option)) {
+      setNewFieldOptions([...newFieldOptions, option]);
+      setNewOptionInput('');
+    }
+  };
+  const handleRemoveOption = (optionToRemove: string) => {
+    setNewFieldOptions(newFieldOptions.filter((opt) => opt !== optionToRemove));
   };
 
   const startEditField = (f: FieldRecord) => {
@@ -468,7 +488,7 @@ export function ProjectSettingsPanel({
                           >
                             {f.field_name}
                           </span>
-                          <span className="field-badge">{f.data_type}</span>
+                          <span className="field-badge">{f.data_type.startsWith('custom:') ? 'custom' : f.data_type}</span>
                           {f.is_required && (
                             <span className="field-badge field-badge--accent">req</span>
                           )}
@@ -516,6 +536,7 @@ export function ProjectSettingsPanel({
                     <option value="number">Number</option>
                     <option value="date">Date</option>
                     <option value="boolean">Boolean</option>
+                    <option value="custom">Custom</option>
                   </select>
                   <label
                     className="field-hint"
@@ -537,12 +558,55 @@ export function ProjectSettingsPanel({
                   <button
                     className="btn-primary"
                     onClick={handleAddField}
-                    disabled={!newFieldName.trim()}
+                    disabled={!newFieldName.trim() || (newFieldType === 'custom' && newFieldOptions.length === 0)}
                     style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
                   >
                     + Add
                   </button>
                 </div>
+                {newFieldType === 'custom' && (
+                  <div style={{ width: '100%', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Add option..."
+                        value={newOptionInput}
+                        onChange={(e) => setNewOptionInput(e.target.value)}
+                        className="field-input"
+                        style={{ flex: 1 }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddOption();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={handleAddOption}
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                      >
+                        +
+                      </button>
+                    </div>
+                    {newFieldOptions.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {newFieldOptions.map((opt) => (
+                          <span
+                            key={opt}
+                            className="field-badge"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleRemoveOption(opt)}
+                            title="Click to remove"
+                          >
+                            {opt} ×
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
