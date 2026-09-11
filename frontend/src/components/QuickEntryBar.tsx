@@ -128,7 +128,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             className="quick-entry-input"
             placeholder={
               isOnline
-                ? placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+                ? placeholder || 'Write a task, e.g. "Fixed login bug for ProjectX, urgent, due tomorrow"...'
                 : 'Offline — Quick add unavailable'
             }
             value={text}
@@ -138,7 +138,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             title={
               !isOnline
                 ? 'Quick add requires an internet connection'
-                : 'Type a task description — AI will parse project, priority, and due date. Example: "Fixed login bug for ProjectX, urgent, due tomorrow"'
+                : 'Write what you worked on — the project, priority and due date will be picked up automatically. Example: "Fixed login bug for ProjectX, urgent, due tomorrow"'
             }
           />
           {/* Voice button */}
@@ -148,7 +148,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your task using voice — speak naturally and AI will create the task'}
+              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your task using voice — speak naturally and the task will be created for you'}
               disabled={!isOnline}
               style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
@@ -164,7 +164,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
                 ? 'Quick add requires an internet connection'
                 : loading
                   ? 'Creating your task...'
-                  : 'Create the task — AI will parse the text and organize it into the right project'
+                  : 'Create the task — we will parse the text and organize it into the right project'
             }
           >
             {loading ? (

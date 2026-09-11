@@ -223,10 +223,8 @@ export function ProjectDetailPage() {
   // Network status
   const isOnline = useNetworkStatus();
 
-  // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState(
-    "Type what you worked on — we'll log it automatically..."
-  );
+  // Static placeholder for quick add (no AI generation)
+  const quickAddPlaceholder = 'Write what you worked on...';
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
@@ -239,24 +237,6 @@ export function ProjectDetailPage() {
     // The hook will automatically pick up the cache changes
     await sortUnarchivedEntries(email, projectName, sortType);
   }, [email, projectName, sortType]);
-
-  // AI-generated placeholder that describes what quick add is
-  useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
-    (async () => {
-      const result = await askAI(
-        `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log task for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
-      );
-      if (result.success && result.response) {
-        const msg = parseAIResponse(result.response)
-          .replace(/^["']|["']$/g, '')
-          .trim();
-        if (msg && msg.length <= 80) {
-          setAiPlaceholder(msg);
-        }
-      }
-    })();
-  }, [projectName]);
 
   // AI empty message
   useEffect(() => {
@@ -639,7 +619,7 @@ export function ProjectDetailPage() {
               <input
                 type="text"
                 className="quick-entry-input"
-                placeholder={isOnline ? aiPlaceholder : 'Offline — quick add unavailable'}
+                placeholder={isOnline ? quickAddPlaceholder : 'Offline — quick add unavailable'}
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
                 onKeyDown={handleQuickKeyDown}

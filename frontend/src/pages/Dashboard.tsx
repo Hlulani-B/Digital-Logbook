@@ -216,7 +216,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     };
   }, [email, navigate, signOut]);
   const [, setAiEmptyMessage] = useState('No tasks to show right now.');
-  const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -408,17 +407,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   }, [showGreetingToast]);
 
-  // Rotating AI placeholder for quick entry
-  useEffect(() => {
-    const placeholders = [
-      'What are you working on?',
-      'What did you just finish?',
-      'Working on anything exciting?',
-      "What's your current task?",
-      'Tell me about your progress...',
-    ];
-    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
-  }, []);
+  // Simple, static placeholder for quick entry (no AI)
+  const aiPlaceholder = 'Write what you worked on...';
 
   // Close drawer on escape
   useEffect(() => {

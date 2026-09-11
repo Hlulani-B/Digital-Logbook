@@ -58,8 +58,8 @@ export function AllEntriesPage() {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
+  // Static placeholder for quick entry (no AI)
+  const aiPlaceholder = 'Write what you worked on...';
 
   const email = user?.email || '';
 
@@ -162,18 +162,6 @@ export function AllEntriesPage() {
   }, [entries, searchQuery, sortBy]);
 
   const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
-
-  // AI placeholder
-  useEffect(() => {
-    const placeholders = [
-      'What are you working on?',
-      'What did you just finish?',
-      'Working on anything exciting?',
-      "What's your current task?",
-      'Tell me about your progress...',
-    ];
-    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
-  }, []);
 
   return (
     <div className="dash-layout">
