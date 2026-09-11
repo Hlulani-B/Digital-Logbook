@@ -410,39 +410,6 @@ export function EntryBox({
     }
   };
 
-  const handleStartTask = async () => {
-    if (!user_email || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const now = new Date().toISOString();
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        now
-      );
-      if (result?.success === false) {
-        setError(result.message || 'Failed to start item');
-        return;
-      }
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      // Always reload from database to show actual state
-      onUpdated?.({ ...entry, started_at: now });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start item');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleEndTask = async () => {
     if (!user_email || saving) return;
     setSaving(true);
@@ -793,16 +760,6 @@ export function EntryBox({
           )}
         </div>
         <div className="entry-box__meta-right">
-          {!started_at && !ended_at && (
-            <button
-              type="button"
-              className="entry-box__task-btn entry-box__task-btn--start"
-              onClick={handleStartTask}
-              disabled={saving || archived}
-            >
-              ▶ Start Task
-            </button>
-          )}
           {started_at && !ended_at && (
             <div className="entry-box__task-active">
               {elapsed && <span className="entry-box__task-elapsed">{elapsed}</span>}
