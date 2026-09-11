@@ -50,6 +50,9 @@ export async function storeFile(file, filename, userEmail) {
     ? Buffer.from(file, 'base64')
     : file;
 
+  console.log('[storeFile] START, filename=', filename, 'userEmail=', userEmail, 'bufferLen=', buffer.length, 'isBuffer=', Buffer.isBuffer(buffer));
+  console.log('[storeFile] env: SUPABASE_URL=', getSupabaseUrl(), 'hasKey=', !!getSupabaseKey(), 'bucket=', getBucket());
+
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
     throw new TypeError('file must be a non-empty Buffer or base64 string');
   }
@@ -66,6 +69,7 @@ export async function storeFile(file, filename, userEmail) {
   const contentType = guessContentType(filename);
 
   const url = `${getSupabaseUrl()}/storage/v1/object/${getBucket()}/${path}`;
+  console.log('[storeFile] uploading to URL=', url, 'contentType=', contentType);
 
   try {
     const response = await fetch(url, {
@@ -78,6 +82,8 @@ export async function storeFile(file, filename, userEmail) {
       body: buffer,
     });
 
+    console.log('[storeFile] response status=', response.status, 'ok=', response.ok);
+
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       console.error('[storeFile] Upload failed:', response.status, text);
@@ -85,6 +91,7 @@ export async function storeFile(file, filename, userEmail) {
     }
 
     const data = await response.json().catch(() => ({}));
+    console.log('[storeFile] response JSON keys=', Object.keys(data || {}), 'publicUrl=', data?.publicUrl);
     // Supabase returns { Key, ... } on success
     const publicUrl =
       data?.publicUrl ||

@@ -39,16 +39,24 @@ export class Notes {
           ? `note.${entry_type === 'image' ? 'jpg' : 'pdf'}`
           : `note.${entry_type === 'image' ? 'jpg' : 'pdf'}`;
 
+        console.log('[addNote] FILE TYPE detected, entry_type=', entry_type, 'filename=', filename, 'value type=', typeof value, 'value length=', typeof value === 'string' ? value.length : 'N/A');
+
         // 1. Compress
+        console.log('[addNote] Step 1: compressing...');
         const compressed = await compressFile(value, filename);
+        console.log('[addNote] Step 1 done: compressed buffer length=', compressed.length);
 
         // 2. Upload to Supabase Storage
+        console.log('[addNote] Step 2: uploading to storage...');
         const url = await storeFile(compressed, filename, email);
+        console.log('[addNote] Step 2 done: url=', url);
         if (!url) {
+          console.error('[addNote] Storage upload returned null — aborting');
           return { success: false, message: 'Failed to upload file to storage' };
         }
 
         storedValue = url;
+        console.log('[addNote] storedValue set to URL:', storedValue);
       }
 
       const { rows } = await pool.query(

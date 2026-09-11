@@ -58,6 +58,7 @@ function _refreshNotesFromServer(entry_id, cacheKey) {
  * For file/image notes, fetches the actual file and returns base64 data.
  */
 export async function viewNote(note_id) {
+  console.log('[viewNote] calling server for note_id=', note_id);
   try {
     const result = await request(`${PROJECT_URL}/service/notes`, {
       method: 'POST',
@@ -66,6 +67,8 @@ export async function viewNote(note_id) {
         values: { note_id },
       }),
     });
+
+    console.log('[viewNote] server returned: success=', result?.success, 'hasData=', !!result?.data, 'entry_type=', result?.data?.entry_type, 'hasFileData=', !!result?.data?.file_data, 'fileDataLen=', result?.data?.file_data?.length, 'contentType=', result?.data?.content_type, 'fileError=', result?.data?.file_error, 'value=', result?.data?.value?.substring(0, 80));
 
     // Cache the note data (including file_data if present)
     if (result?.success && result.data) {
@@ -91,6 +94,7 @@ export async function viewNote(note_id) {
  */
 export async function addNote(email, entry_id, entry_type, value) {
   const cacheKey = `notes:${entry_id}`;
+  console.log('[addNote] START, entry_type=', entry_type, 'entry_id=', entry_id, 'value type=', typeof value, 'value length=', typeof value === 'string' ? value.length : 'N/A');
 
   // 1. Optimistic: add to cache
   const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
@@ -123,6 +127,7 @@ export async function addNote(email, entry_id, entry_type, value) {
 
   // 3. Sync to server
   try {
+    console.log('[addNote] sending to server, payload size=', JSON.stringify({ email, entry_id, entry_type, value }).length, 'bytes');
     const result = await request(`${PROJECT_URL}/service/notes`, {
       method: 'POST',
       body: JSON.stringify({
@@ -130,6 +135,8 @@ export async function addNote(email, entry_id, entry_type, value) {
         values: { email, entry_id, entry_type, value },
       }),
     });
+
+    console.log('[addNote] server returned: success=', result?.success, 'hasData=', !!result?.data, 'dataId=', result?.data?.id, 'dataValue=', result?.data?.value?.substring(0, 80), 'message=', result?.message);
 
     // 4. Replace optimistic note with real data
     if (result?.success && result.data) {

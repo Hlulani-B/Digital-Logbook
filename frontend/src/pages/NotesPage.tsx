@@ -130,13 +130,16 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   useEffect(() => {
     for (const note of notes) {
       if (note.entry_type === 'image' && !viewedFiles[note.id] && !loadingFiles[note.id]) {
+        console.log('[NotesPage] viewNote START for note', note.id, 'value=', note.value?.substring(0, 80) + '...');
         setLoadingFiles((prev) => ({ ...prev, [note.id]: true }));
         viewNote(note.id).then((result) => {
+          console.log('[NotesPage] viewNote result for', note.id, 'success=', result?.success, 'hasFileData=', !!result?.data?.file_data, 'contentType=', result?.data?.content_type, 'fileDataLen=', result?.data?.file_data?.length, 'fileError=', result?.data?.file_error);
           if (result?.success && result.data) {
             setViewedFiles((prev) => ({ ...prev, [note.id]: result.data }));
           }
           setLoadingFiles((prev) => ({ ...prev, [note.id]: false }));
-        }).catch(() => {
+        }).catch((err) => {
+          console.error('[NotesPage] viewNote FAILED for', note.id, err);
           setLoadingFiles((prev) => ({ ...prev, [note.id]: false }));
         });
       }
@@ -149,13 +152,19 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     let valueToSend: string;
     if (newNote.entry_type === 'image') {
       if (!(newNote.value instanceof File)) return;
+      console.log('[NotesPage] handleAddNote IMAGE START, file=', newNote.value.name, 'size=', newNote.value.size, 'type=', newNote.value.type);
       valueToSend = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result as string;
-          resolve(result.includes(',') ? result.split(',')[1] : result);
+          const base64 = result.includes(',') ? result.split(',')[1] : result;
+          console.log('[NotesPage] FileReader done, base64 length=', base64.length, 'first40=', base64.substring(0, 40));
+          resolve(base64);
         };
-        reader.onerror = reject;
+        reader.onerror = (e) => {
+          console.error('[NotesPage] FileReader FAILED', e);
+          reject(e);
+        };
         reader.readAsDataURL(newNote.value as File);
       });
     } else {
@@ -166,7 +175,9 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     setAdding(true);
     setError(null);
     try {
+      console.log('[NotesPage] calling addNote, entry_type=', newNote.entry_type, 'valueToSend length=', valueToSend.length);
       const result = await addNote(userEmail, entryId, newNote.entry_type, valueToSend);
+      console.log('[NotesPage] addNote returned: success=', result?.success, 'message=', result?.message, 'dataId=', result?.data?.id, 'dataValue=', result?.data?.value?.substring(0, 80));
       if (result?.success) {
         const refreshed = await getNotes(entryId);
         if (refreshed?.success && Array.isArray(refreshed.data)) {
@@ -362,6 +373,9 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
           <div className="notes-panel__grid">
             {notes.map((note) => {
               const config = TYPE_CONFIG[note.entry_type] || TYPE_CONFIG.text;
+              if (note.entry_type === 'image') {
+                console.log('[NotesPage] RENDER image note:', note.id, 'value starts with:', note.value?.substring(0, 60), 'hasViewedFile=', !!viewedFiles[note.id]?.file_data, 'isLoading=', loadingFiles[note.id]);
+              }
               return (
                 <div className={`notes-panel__note notes-panel__note--${note.entry_type}`} key={note.id}>
                   {/* Note header */}

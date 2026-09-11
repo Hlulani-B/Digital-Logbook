@@ -105,20 +105,25 @@ export async function compressFile(file, filename = '', maxSize = MAX_SIZE) {
   let buffer;
   if (typeof file === 'string') {
     buffer = Buffer.from(file, 'base64');
+    console.log('[compressFile] input is base64 string, decoded buffer length=', buffer.length);
   } else if (Buffer.isBuffer(file)) {
     buffer = file;
+    console.log('[compressFile] input is Buffer, length=', buffer.length);
   } else {
     throw new TypeError('file must be a Buffer or a base64 string');
   }
 
   // Already small enough
   if (buffer.length <= maxSize) {
+    console.log('[compressFile] buffer already <= maxSize (' + maxSize + '), skipping compression');
     return buffer;
   }
 
   // Image path
   if (isImage(filename)) {
+    console.log('[compressFile] detected image (' + filename + '), running compressImage...');
     const result = await compressImage(buffer, maxSize);
+    console.log('[compressFile] compressImage done, output format=', result.format, 'length=', result.buffer.length);
     return result.buffer;
   }
 
