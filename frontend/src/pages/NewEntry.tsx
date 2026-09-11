@@ -3,6 +3,7 @@ import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
+import { getFields } from '../functions/project/fields.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import { classifyEntryPayload, type EntryPayload } from '@/lib/entryPayload';
 
@@ -150,6 +151,30 @@ export function EntryBox({
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { openNotes } = useNotes();
+
+  const [fieldDefs, setFieldDefs] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!user_email || !project_name) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getFields(user_email, project_name);
+        if (!cancelled && result?.data) {
+          const defs: Record<string, string> = {};
+          for (const f of result.data) { defs[f.field_name] = f.data_type || 'text'; }
+          setFieldDefs(defs);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user_email, project_name]);
+
+  const parseCustomOptions = (dataType: string): string[] | null => {
+    if (!dataType.startsWith('custom:')) return null;
+    const optionsStr = dataType.slice(7);
+    if (!optionsStr) return [];
+    return optionsStr.split(',').map((o) => o.trim()).filter(Boolean);
+  };
 
   // Live elapsed time for in-progress tasks
   const [elapsed, setElapsed] = useState<string>('');
@@ -491,18 +516,35 @@ export function EntryBox({
               <span>{formatFieldValue(payloadState.value)}</span>
             </div>
           ) : (
-            Object.entries(draftFields).map(([key, value]) => (
+            Object.entries(draftFields).map(([key, value]) => {
+              const customOpts = parseCustomOptions(fieldDefs[key] || '');
+              return (
               <div className="entry-box__field--editing" key={key}>
                 <label className="entry-box__field-key">{formatFieldKey(key)}</label>
-                <input
-                  className="entry-box__field-input"
-                  type="text"
-                  value={value}
-                  onChange={(e) => handleFieldChange(key, e.target.value)}
-                  disabled={saving}
-                />
+                {customOpts ? (
+                  <select
+                    className="entry-box__field-input"
+                    value={value}
+                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="">Select...</option>
+                    {customOpts.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className="entry-box__field-input"
+                    type="text"
+                    value={value}
+                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                    disabled={saving}
+                  />
+                )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
 
