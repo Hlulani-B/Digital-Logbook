@@ -681,3 +681,31 @@ data is processed, or whether it can be disabled.
 | 5 | New project not appearing when creating a task | **Fixed** — live cache subscription + seq-ref race guard on all pages |
 | 6 | Native browser delete/alert dialogs | **Fixed** — inline confirmation + inline errors |
 | 7 | Data privacy / AI trust concerns | **Addressed** — DataDisclaimer + always-available DataDisclaimer2 |
+
+### Quick-Survey Feature Requests
+
+The survey also asked *"Is there any cool or useful feature you would like us
+to add?"* (10 responses). These are suggestions rather than problems, so they
+were intentionally left out of the problem list above, but they are captured
+here for roadmap planning and grouped by theme with the current status.
+
+| Theme | Requested by | Status |
+|-------|--------------|--------|
+| **Countdown / time-to-due** | "a timer that tells you how many hours till your task is due" | **Partially done** — tasks already show overdue/due-soon text (`getOverdueText`); a live hours-remaining countdown is on the roadmap |
+| **Richer, personalised notes** | "more interactive notes like support for memes, diagrams so it feels more personalised" | **Partially done** — the new-task form accepts text / link / image notes; embedded diagrams/meme widgets are on the roadmap |
+| **Per-project colours** | "different colours so that every project can have its own colour" | **Done** — projects carry a `project_color` and it is surfaced across the UI |
+| **Website theme / colour customisation** | "maybe customising colours of website" | **Done** — multiple selectable themes (incl. dark variants) in Settings |
+| **Visual art / inviting landing** | "adding some visual art on the website to attract users"; a motivational quote on the home page ("you go rockstar") so entering feels inviting | **Partially done** — an AI-generated greeting/quote already renders on the Dashboard; more illustrative art is on the roadmap |
+| **Onboarding tutorial video** | "a video or tutorial thing at the beginning … like Study Bunny links a YouTube video on how to use the app" | **Not started** — tracked with problem 2 (onboarding) on the roadmap |
+| **Due reminders / alarm** | "an alarm that will notify us when some entries are due" | **Not started** — candidate future feature (needs scheduling/notifications) |
+| **Social / co-reminder** | "mention others in my entry so they can also be reminded, sort of a combined activity with a friend who has the same app" | **Not started** — social/sharing feature, future consideration |
+| **No request** | "can't think of any, I think the app has more cool features already" / "can't think of any" | — |
+
+!!! note "Prioritisation"
+    Already-shipped requests (project colours, website themes, home-page
+    greeting, image notes) are marked **Done**. Items marked **Partially
+    done** have a foundation in place and need incremental work. **Not
+    started** items (tutorial video, due alarms, social reminders) are logged
+    as candidates for future sprints and ranked by effort and alignment with
+    the app's local-first, privacy-conscious scope.
+
