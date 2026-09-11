@@ -274,7 +274,7 @@ export default function DataPortability() {
             undefined,
             entry.summary
           );
-          const created = Array.isArray(response?.data) ? response.data[0] : response?.data;
+          const created = Array.isArray((response as any)?.data) ? (response as any).data[0] : (response as any)?.data;
           if (response?.success && created?.id) {
             createdEntries.push({
               projectName: entry.project_name,
