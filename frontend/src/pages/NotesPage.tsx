@@ -129,6 +129,8 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   // Load file data for image notes
   useEffect(() => {
     for (const note of notes) {
+      // Skip optimistic notes — they have fake IDs and haven't been uploaded yet
+      if (note._optimistic || (note.id && note.id.toString().startsWith('optimistic-'))) continue;
       if (note.entry_type === 'image' && !viewedFiles[note.id] && !loadingFiles[note.id]) {
         console.log('[NotesPage] viewNote START for note', note.id, 'value=', note.value?.substring(0, 80) + '...');
         setLoadingFiles((prev) => ({ ...prev, [note.id]: true }));
@@ -465,7 +467,12 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                       </a>
                     ) : note.entry_type === 'image' ? (
                       <div className="notes-panel__note-image">
-                        {loadingFiles[note.id] && !viewedFiles[note.id]?.file_data ? (
+                        {note._optimistic || note.value === '(uploading...)' ? (
+                          <div className="notes-panel__note-uploading">
+                            <div className="notes-panel__spinner" />
+                            <span className="notes-panel__note-loading">Uploading image...</span>
+                          </div>
+                        ) : loadingFiles[note.id] && !viewedFiles[note.id]?.file_data ? (
                           <span className="notes-panel__note-loading">Loading...</span>
                         ) : viewedFiles[note.id]?.file_data ? (
                           <img
