@@ -164,7 +164,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             className="quick-entry-input"
             placeholder={
               isOnline
-                ? placeholder || 'Write a task, e.g. "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+                ? placeholder || 'Write an item, e.g. "Fixed login bug for ProjectX, urgent, due tomorrow"...'
                 : 'Offline — Quick add unavailable'
             }
             value={text}
@@ -184,7 +184,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your task using voice — speak naturally and the task will be created for you'}
+              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your item using voice — speak naturally and the item will be created for you'}
               disabled={!isOnline}
               style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
@@ -199,8 +199,8 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               !isOnline
                 ? 'Quick add requires an internet connection'
                 : loading
-                  ? 'Creating your task...'
-                  : 'Create the task — we will parse the text and organize it into the right project'
+                  ? 'Creating your item...'
+                  : 'Create the item — we will parse the text and organize it into the right project'
             }
           >
             {loading ? (

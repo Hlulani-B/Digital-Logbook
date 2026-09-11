@@ -362,10 +362,10 @@ export function EntryBox({
     setMenuOpen(false);
     try {
       const result = await deleteEntryById(user_email, id);
-      if (result?.success === false) throw new Error(result.message || 'Failed to delete task');
+      if (result?.success === false) throw new Error(result.message || 'Failed to delete item');
       onDelete?.(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete task');
+      setError(err instanceof Error ? err.message : 'Failed to delete item');
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -427,7 +427,7 @@ export function EntryBox({
         now
       );
       if (result?.success === false) {
-        setError(result.message || 'Failed to start task');
+        setError(result.message || 'Failed to start item');
         return;
       }
       if (result?.error) {
@@ -437,7 +437,7 @@ export function EntryBox({
       // Always reload from database to show actual state
       onUpdated?.({ ...entry, started_at: now });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start task');
+      setError(err instanceof Error ? err.message : 'Failed to start item');
     } finally {
       setSaving(false);
     }
@@ -461,7 +461,7 @@ export function EntryBox({
         now
       );
       if (result?.success === false) {
-        setError(result.message || 'Failed to end task');
+        setError(result.message || 'Failed to end item');
         return;
       }
       if (result?.error) {
@@ -471,7 +471,7 @@ export function EntryBox({
       // Always reload from database to show actual state
       onUpdated?.({ ...entry, ended_at: now, status: 'done_and_dusted' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to end task');
+      setError(err instanceof Error ? err.message : 'Failed to end item');
     } finally {
       setSaving(false);
     }
@@ -525,7 +525,7 @@ export function EntryBox({
         <div className="entry-box__fields--editing">
           {payloadState.kind === 'opaque' ? (
             <div className="entry-box__field--editing">
-              <label className="entry-box__field-key">Task content</label>
+              <label className="entry-box__field-key">Item content</label>
               <span>{formatFieldValue(payloadState.value)}</span>
             </div>
           ) : (

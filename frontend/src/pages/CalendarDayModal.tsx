@@ -208,7 +208,7 @@ export function CalendarDayModal({
       onEntryAdded();
       setTimeout(() => setSuccessMsg(null), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add task');
+      setError(err instanceof Error ? err.message : 'Failed to add item');
     } finally {
       setSaving(false);
     }
@@ -225,7 +225,7 @@ export function CalendarDayModal({
         <div className="cdm-header">
           <div>
             <h2 className="cdm-date">{formatDateHeading(date)}</h2>
-            <span className="cdm-count">{entries.length} task{entries.length !== 1 ? 's' : ''}</span>
+            <span className="cdm-count">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
           </div>
           <button type="button" className="cdm-close" onClick={onClose} aria-label="Close">
             &times;
@@ -294,13 +294,13 @@ export function CalendarDayModal({
           )}
 
           {entries.length === 0 && !showAddForm && (
-            <p className="cdm-empty">No tasks for this day.</p>
+            <p className="cdm-empty">No items for this day.</p>
           )}
 
           {/* Add entry form */}
           {showAddForm ? (
             <form className="cdm-form" onSubmit={handleSubmit}>
-              <h3 className="cdm-form-title">New Task</h3>
+              <h3 className="cdm-form-title">New Item</h3>
 
               {/* Project selector */}
               <div className="cdm-form-field">
@@ -413,7 +413,7 @@ export function CalendarDayModal({
                   className="cdm-btn cdm-btn--submit"
                   disabled={saving || !selectedProject}
                 >
-                  {saving ? 'Adding...' : 'Add Task'}
+                  {saving ? 'Adding...' : 'Add Item'}
                 </button>
               </div>
             </form>

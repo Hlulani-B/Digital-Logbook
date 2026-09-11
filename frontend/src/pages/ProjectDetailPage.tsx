@@ -239,7 +239,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
-    'No tasks to show yet. Add your first task above!'
+    'No items to show yet. Add your first item above!'
   );
 
   // Refresh entries from server (called after add/update/delete)
@@ -256,7 +256,7 @@ export function ProjectDetailPage() {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when a project has no tasks to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
+          `Generate a motivating message for when a project has no items to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -401,7 +401,7 @@ export function ProjectDetailPage() {
       setQuickMessageType('success');
       await loadEntries();
     } else {
-      setQuickMessage(result.message || 'Failed to create task');
+      setQuickMessage(result.message || 'Failed to create item');
       setQuickMessageType('error');
     }
   };
@@ -641,8 +641,8 @@ export function ProjectDetailPage() {
                 type="button"
                 className="quick-entry-voice"
                 onClick={() => setVoiceOpen(true)}
-                aria-label="Voice task"
-                title={!isOnline ? 'Voice task is not available offline' : 'Record a voice task'}
+                aria-label="Voice item"
+                title={!isOnline ? 'Voice item is not available offline' : 'Record a voice item'}
                 disabled={!isOnline}
                 style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
               >
@@ -700,7 +700,7 @@ export function ProjectDetailPage() {
                 height: 24,
               }}
             />
-            <p>Loading tasks...</p>
+            <p>Loading items...</p>
           </div>
         )}
 
@@ -726,7 +726,7 @@ export function ProjectDetailPage() {
                 </div>
                 <h2 className="empty-title">No results found</h2>
                 <p className="empty-desc">
-                  No tasks in {projectName} match "{searchQuery}".
+                  No items in {projectName} match "{searchQuery}".
                 </p>
               </div>
             ) : viewMode === 'checklist' ? (
@@ -800,7 +800,7 @@ export function ProjectDetailPage() {
                     <line x1="9" y1="14" x2="15" y2="14" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No tasks yet</h2>
+                <h2 className="empty-title">No items yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
             ) : viewMode === 'table' ? (
