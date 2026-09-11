@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 
 function getSupabaseUrl() { return process.env.SUPABASE_URL; }
 function getSupabaseKey() { return process.env.SUPABASE_SERVICE_ROLE_KEY; }
-function getBucket() { return process.env.SUPABASE_STORAGE_BUCKET || 'logbook-files'; }
+function getBucket() { return process.env.SUPABASE_STORAGE_BUCKET || 'Hlulani'; }
 
 /**
  * Guess a MIME type from a filename extension.
