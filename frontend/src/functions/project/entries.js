@@ -231,7 +231,7 @@ async function _syncAddEntryToServer({
           duration,
           summary,
           notes,
-        },
+        }),
       }),
     });
 
