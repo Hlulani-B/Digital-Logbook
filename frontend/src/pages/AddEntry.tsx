@@ -79,6 +79,34 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+/**
+ * Compress an image file client-side using canvas.
+ * Resizes large images to max 1600px and outputs JPEG at 0.7 quality.
+ */
+async function compressImageClient(file: File, maxSize = 1600, quality = 0.7): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+  if (width > maxSize || height > maxSize) {
+    if (width > height) {
+      height = Math.round((height / width) * maxSize);
+      width = maxSize;
+    } else {
+      width = Math.round((width / height) * maxSize);
+      height = maxSize;
+    }
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  const blob = await new Promise<Blob>((resolve) =>
+    canvas.toBlob((b) => resolve(b!), 'image/jpeg', quality)
+  );
+  return new File([blob], file.name, { type: 'image/jpeg' });
+}
+
 export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEntryProps) {
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -165,7 +193,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       for (const note of notes) {
         if (note.entry_type === 'image') {
           if (note.value instanceof File) {
-            const base64 = await fileToBase64(note.value);
+            const compressed = await compressImageClient(note.value);
+            const base64 = await fileToBase64(compressed);
             notesPayload.push({ entry_type: note.entry_type, value: base64 });
           } else if (typeof note.value === 'string' && note.value) {
             notesPayload.push({ entry_type: note.entry_type, value: note.value });

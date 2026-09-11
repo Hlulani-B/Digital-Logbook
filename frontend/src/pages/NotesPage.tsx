@@ -146,6 +146,35 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     }
   }, [notes, viewedFiles, loadingFiles]);
 
+  /**
+   * Compress an image file client-side using canvas.
+   * Resizes large images to max 1600px and outputs JPEG at 0.7 quality.
+   */
+  const compressImageClient = async (file: File, maxSize = 1600, quality = 0.7): Promise<File> => {
+    const bitmap = await createImageBitmap(file);
+    let { width, height } = bitmap;
+    if (width > maxSize || height > maxSize) {
+      if (width > height) {
+        height = Math.round((height / width) * maxSize);
+        width = maxSize;
+      } else {
+        width = Math.round((width / height) * maxSize);
+        height = maxSize;
+      }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/jpeg', quality)
+    );
+    console.log('[NotesPage] compressImageClient:', file.size, '→', blob.size, 'bytes, dims=', width, 'x', height);
+    return new File([blob], file.name, { type: 'image/jpeg' });
+  };
+
   const handleAddNote = async () => {
     if (!entryId || !userEmail || adding) return;
 
@@ -153,6 +182,8 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     if (newNote.entry_type === 'image') {
       if (!(newNote.value instanceof File)) return;
       console.log('[NotesPage] handleAddNote IMAGE START, file=', newNote.value.name, 'size=', newNote.value.size, 'type=', newNote.value.type);
+      // Compress image client-side before sending to avoid request entity too large
+      const compressed = await compressImageClient(newNote.value as File);
       valueToSend = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -165,7 +196,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
           console.error('[NotesPage] FileReader FAILED', e);
           reject(e);
         };
-        reader.readAsDataURL(newNote.value as File);
+        reader.readAsDataURL(compressed);
       });
     } else {
       if (typeof newNote.value !== 'string' || !newNote.value.trim()) return;
