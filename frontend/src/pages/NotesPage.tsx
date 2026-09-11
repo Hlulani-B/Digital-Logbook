@@ -482,24 +482,44 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                         ) : loadingFiles[note.id] && !viewedFiles[note.id]?.file_data ? (
                           <span className="notes-panel__note-loading">Loading...</span>
                         ) : viewedFiles[note.id]?.file_data ? (
-                          <img
-                            src={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
-                            alt="Note"
-                            className="notes-panel__note-img"
-                          />
+                          <>
+                            <img
+                              src={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
+                              alt="Note"
+                              className="notes-panel__note-img"
+                            />
+                            <a
+                              href={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
+                              download={`note-${note.id || 'image'}.${(viewedFiles[note.id].content_type || 'image/jpeg').split('/')[1]}`}
+                              className="notes-panel__note-download"
+                              title="Download image"
+                            >
+                              &#8681; Download
+                            </a>
+                          </>
                         ) : note.value && note.value.startsWith('http') ? (
-                          <img
-                            src={note.value}
-                            alt="Note"
-                            className="notes-panel__note-img"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              const fallback = document.createElement('span');
-                              fallback.className = 'notes-panel__note-fallback';
-                              fallback.textContent = 'Image unavailable';
-                              (e.target as HTMLImageElement).parentNode?.appendChild(fallback);
-                            }}
-                          />
+                          <>
+                            <img
+                              src={note.value}
+                              alt="Note"
+                              className="notes-panel__note-img"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = document.createElement('span');
+                                fallback.className = 'notes-panel__note-fallback';
+                                fallback.textContent = 'Image unavailable';
+                                (e.target as HTMLImageElement).parentNode?.appendChild(fallback);
+                              }}
+                            />
+                            <a
+                              href={note.value}
+                              download
+                              className="notes-panel__note-download"
+                              title="Download image"
+                            >
+                              &#8681; Download
+                            </a>
+                          </>
                         ) : (
                           <span className="notes-panel__note-fallback">Image unavailable</span>
                         )}
