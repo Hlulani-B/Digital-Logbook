@@ -181,6 +181,51 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     };
   }, []);
 
+  // A recently viewed/created shortcut is only useful if the thing it points
+  // at still exists. If the user deletes or archives a project or a task, the
+  // matching quick-jump line must disappear rather than navigate to a dead
+  // target. We decide this against the live cache (source of truth) instead of
+  // hooking every delete/archive call site, so it also catches project→entry
+  // archive cascades, cross-page deletes and offline-queue replays for free.
+  const isRecentItemLive = useCallback(
+    (item: { projectName: string; entryId: string }) => {
+      // Don't evaluate until projects have actually loaded — a momentary empty
+      // cache during first paint would otherwise blank both lists.
+      if (projects.length === 0 && loading) return true;
+
+      // Owning project must exist and not be archived. This single check kills
+      // every shortcut under a deleted or archived project (both sections).
+      const projectActive = projects.some(
+        (p) => p.project_name === item.projectName && !p.archived
+      );
+      if (!projectActive) return false;
+
+      // For real tasks, also verify the specific task still exists and isn't
+      // archived. getAllEntries returns rows with deleted=false, so a deleted
+      // task is absent and an archived task carries archived=true. Synthetic
+      // ids (optimistic-/local-/project:) can't be resolved, so skip the entry
+      // check for those — the project-active check above already passed.
+      const isSyntheticId = /^(project:|optimistic-|local-)/.test(item.entryId);
+      if (!isSyntheticId && entries.length > 0) {
+        const match = entries.find((e) => String(e.id) === String(item.entryId));
+        if (!match) return false; // deleted
+        if (match.archived) return false; // archived
+      }
+      return true;
+    },
+    [projects, entries, loading]
+  );
+
+  const visibleRecentlyViewed = useMemo(
+    () => recentlyViewed.filter(isRecentItemLive),
+    [recentlyViewed, isRecentItemLive]
+  );
+  const visibleRecentlyCreated = useMemo(
+    () => recentlyCreated.filter(isRecentItemLive),
+    [recentlyCreated, isRecentItemLive]
+  );
+
+
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
   const [showGreetingToast, setShowGreetingToast] = useState(false);
@@ -1590,7 +1635,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             />
 
             {/* Recently Viewed Section */}
-            {recentlyViewed.length > 0 && (
+            {visibleRecentlyViewed.length > 0 && (
               <div className="recent-section">
                 <div className="due-soon-section-label">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1600,7 +1645,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <span>Recently viewed</span>
                 </div>
                 <div className="recent-list">
-                  {recentlyViewed.slice(0, 3).map((item) => (
+                  {visibleRecentlyViewed.slice(0, 3).map((item) => (
                     <button
                       key={item.entryId}
                       className="recent-item"
@@ -1621,7 +1666,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             )}
 
             {/* Recently Created Section */}
-            {recentlyCreated.length > 0 && (
+            {visibleRecentlyCreated.length > 0 && (
               <div className="recent-section">
                 <div className="due-soon-section-label">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1630,7 +1675,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <span>Recently created</span>
                 </div>
                 <div className="recent-list">
-                  {recentlyCreated.slice(0, 3).map((item) => (
+                  {visibleRecentlyCreated.slice(0, 3).map((item) => (
                     <button
                       key={item.entryId}
                       className="recent-item"
