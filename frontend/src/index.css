@@ -3477,6 +3477,16 @@ img {
   }
 }
 
+/* Full-width wrappers for dashboard board/checklist views. These must NOT
+   sit inside .entries-feed (a 2-3 column card grid) or the grid track
+   squeezes them into one narrow column and they stack vertically. */
+.dashboard-board-grid,
+.dashboard-checklist-grid {
+  display: block;
+  width: 100%;
+}
+
+
 /* ========== DASHBOARD SECTIONS ========== */
 .dashboard-sections {
   display: flex;

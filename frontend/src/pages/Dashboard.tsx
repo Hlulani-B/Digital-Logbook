@@ -1768,82 +1768,97 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Entries feed — shown when not in projects mode */}
-            {displayMode !== 'projects' && !loading && (
+            {/* Entries feed — shown when not in projects mode. Each display
+                mode gets its own wrapper: cards use the multi-column
+                .entries-feed grid, but board and checklist need full-width
+                containers or the card grid squeezes them into one narrow
+                track and they stack vertically. */}
+            {displayMode !== 'projects' && !loading && filteredEntries.length === 0 && (
               <div className="entries-feed">
-                {filteredEntries.length === 0 ? (
-                  <div className="empty-state animate-in">
-                    <div className="empty-icon">
-                      <svg
-                        width="48"
-                        height="48"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <>
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </>
-                      </svg>
-                    </div>
-                    <h2 className="empty-title">Nothing due soon</h2>
-                    <p className="empty-desc">No tasks are due within the next 3 days.</p>
+                <div className="empty-state animate-in">
+                  <div className="empty-icon">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </>
+                    </svg>
                   </div>
-                ) : displayMode === 'checklist' ? (
-                  <ChecklistView
-                    entries={filteredEntries.map((r) => ({
-                      id: r.id as string,
-                      user_email: r.user_email as string,
-                      project_name: r.project_name as string,
-                      summary: (r.summary as string) || null,
-                      due_date: (r.due_date as string) || null,
-                      status:
-                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as Record<string, unknown> | string | null,
-                      started_at: (r.started_at as string) || null,
-                    }))}
-                    onUpdated={() => loadData()}
-                    onDelete={() => loadData()}
-                    colorMap={dashColorMap}
-                  />
-                ) : displayMode === 'board' ? (
-                  <EntriesByDueDateBoard
-                    entries={filteredEntries.map((r) => ({
-                      id: r.id as string,
-                      user_email: r.user_email as string,
-                      project_name: r.project_name as string,
-                      summary: (r.summary as string) || null,
-                      due_date: (r.due_date as string) || null,
-                      status:
-                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as Record<string, unknown> | string | null,
-                      started_at: (r.started_at as string) || null,
-                    }))}
-                    onUpdated={() => loadData()}
-                    onDelete={() => loadData()}
-                    colorMap={dashColorMap}
-                  />
-                ) : (
-                  filteredEntries.map((row, i) => (
-                    <EntryBox
-                      key={`entry-${row.id || i}`}
-                      entry={row as any}
-                      onUpdated={() => loadData()}
-                      onPriorityChanged={handleSetPriority}
-                      onDelete={() => loadData()}
-                      projectColor={resolveProjectColor(
-                        (row.project_name as string) || '',
-                        dashColorMap
-                      )}
-                    />
-                  ))
-                )}
+                  <h2 className="empty-title">Nothing due soon</h2>
+                  <p className="empty-desc">No tasks are due within the next 3 days.</p>
+                </div>
               </div>
             )}
+
+            {displayMode === 'checklist' && !loading && filteredEntries.length > 0 && (
+              <div className="dashboard-checklist-grid">
+                <ChecklistView
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status:
+                      (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as Record<string, unknown> | string | null,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={dashColorMap}
+                />
+              </div>
+            )}
+
+            {displayMode === 'board' && !loading && filteredEntries.length > 0 && (
+              <div className="dashboard-board-grid">
+                <EntriesByDueDateBoard
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status:
+                      (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as Record<string, unknown> | string | null,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={dashColorMap}
+                />
+              </div>
+            )}
+
+            {displayMode === 'cards' && !loading && filteredEntries.length > 0 && (
+              <div className="entries-feed">
+                {filteredEntries.map((row, i) => (
+                  <EntryBox
+                    key={`entry-${row.id || i}`}
+                    entry={row as any}
+                    onUpdated={() => loadData()}
+                    onPriorityChanged={handleSetPriority}
+                    onDelete={() => loadData()}
+                    projectColor={resolveProjectColor(
+                      (row.project_name as string) || '',
+                      dashColorMap
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+
 
             {/* Calendar Section */}
             <div className="dashboard-calendar-section">
