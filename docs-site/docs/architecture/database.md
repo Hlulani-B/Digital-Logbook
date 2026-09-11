@@ -16,13 +16,29 @@ The database layer needed to satisfy three constraints simultaneously: relationa
 
 **Supabase over Firebase.** Firebase's Realtime Database and Firestore are NoSQL by design — they cannot enforce foreign keys, support joins, or run complex aggregation queries. Our stats page needs `SUM(duration)` across entries grouped by project, and our overdue check needs `WHERE due_date < now()` across all rows. These are trivial in PostgreSQL and awkward or impossible in Firestore.
 
-### Why a local-first (IndexedDB) architecture
+### Why a local-first (SQLite) architecture
 
-The frontend uses IndexedDB as the primary data source, not a cache. This design decision was driven by three factors:
+The frontend uses SQLite (via sql.js) as the primary data source, not a cache. This design decision was driven by three factors:
 
-1. **Instant UI.** Every page render reads from IndexedDB synchronously — no loading spinners, no waiting for network round-trips to Render's free-tier instances (which may be cold-starting). The user sees their data in under 16 ms.
+1. **Instant UI.** Every page render reads from SQLite synchronously — no loading spinners, no waiting for network round-trips to Render's free-tier instances (which may be cold-starting). The user sees their data in under 16 ms.
 2. **Offline resilience.** If the backend is down (Render free instances sleep after 15 minutes of inactivity), the user can still browse, search, and review their existing entries. Mutations queue for the next sync.
 3. **Reduced server load.** Each page view generates zero API calls for data the user has already seen. Only mutations and initial sync hit the backend, keeping us within Render's free-tier bandwidth limits.
+
+### Why SQLite (sql.js) over IndexedDB
+
+The original implementation used IndexedDB via the `idb` library. This was replaced with SQLite (compiled to WebAssembly via sql.js) for the following reasons:
+
+1. **Version conflicts between branches.** When multiple branches of the app are deployed to the same origin (e.g., main at DB version 4, hlulani at version 5), IndexedDB's one-way versioning causes silent hangs. The browser refuses to downgrade, and `openDB()` blocks indefinitely waiting for old connections to close.
+
+2. **Complex upgrade logic.** IndexedDB requires manual `onupgradeneeded` handlers with version checks and store creation/deletion logic. Every schema change requires careful migration code. SQLite uses standard `CREATE TABLE IF NOT EXISTS` — no version negotiation needed.
+
+3. **SQL query support.** IndexedDB's key-value API requires loading entire stores into memory and filtering in JavaScript. SQLite supports indexed queries (`WHERE user_email = ?`, `ORDER BY created_at DESC`), making it easier to reason about data access and more efficient for large datasets.
+
+4. **Schema alignment with Supabase.** SQLite tables can mirror the PostgreSQL schema 1:1 with proper columns and types. This makes the local-first layer a true offline replica rather than a transformed cache blob.
+
+5. **Familiar debugging.** SQLite databases can be inspected with standard tools (DB Browser for SQLite, `sqlite3` CLI). IndexedDB's opaque object stores are harder to debug when data goes missing.
+
+**sql.js** is SQLite compiled to WebAssembly — the entire database engine runs in the browser. The WASM file (~1MB) loads once on first visit, then the app works 100% offline. Data persists to IndexedDB as a binary blob for durability across page refreshes.
 
 ### Why dynamic fields (JSONB) instead of fixed columns
 
@@ -186,6 +202,30 @@ Append-only table — rows are inserted on every create/update/delete action and
 
 Internal keep-alive table. Supabase free-tier projects are paused after prolonged inactivity. The dashboard-service daemon periodically inserts and deletes a row in this table to prevent the database from sleeping. Row Level Security is enabled but no user-facing policies exist — only the service-role key (used by the backend daemon) can access it.
 
+## notes
+
+| Column     | Type         | Notes                                                                |
+| ---------- | ------------ | -------------------------------------------------------------------- |
+| id         | UUID         | PK, default gen_random_uuid()                                        |
+| email      | TEXT         | NOT NULL, owner of the note                                          |
+| entry_id   | UUID         | NOT NULL, FK → entries(id) ON DELETE CASCADE                         |
+| entry_type | TEXT         | NOT NULL, CHECK (entry_type IN ('text','image','pdf','link'))        |
+| value      | TEXT         | NOT NULL, the note content                                           |
+| created_at | TIMESTAMPTZ  | default now()                                                        |
+
+Per-entry personalisation table. Lets users attach free-form notes (text snippets, image URLs, PDF references, or web links) to any entry. The `entry_type` check constraint keeps the type column to a known set of values, and the cascade delete ensures notes are cleaned up automatically when their parent entry is removed. Added based on user feedback requesting more personalisation options.
+
+```sql
+CREATE TABLE notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  entry_id uuid NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  entry_type text NOT NULL CHECK (entry_type IN ('text', 'image', 'pdf', 'link')),
+  value text NOT NULL,
+  created_at timestamp with time zone DEFAULT now()
+);
+```
+
 ## RPC Functions
 
 ### delete_user()
@@ -230,54 +270,58 @@ using their corresponding `fields` definition — for schema flexibility that
 directly matches the brief's requirement to let users "customise the format"
 of their logbook.
 
-## IndexedDB (Client-Side Local Store)
+## SQLite (Client-Side Local Store)
 
-The frontend maintains a local IndexedDB database that mirrors the
+The frontend maintains a local SQLite database (via sql.js WebAssembly) that mirrors the
 PostgreSQL schema. This is the **primary data source** for all UI
 rendering — pages never query the server directly. The architecture is
-local-first: reads come from IndexedDB instantly, and mutations write to
-IndexedDB before syncing to the server.
+local-first: reads come from SQLite instantly, and mutations write to
+SQLite before syncing to the server.
 
-**Database name:** `digital-logbook-cache`
-**Version:** 3
-**Library:** [idb](https://www.npmjs.com/package/idb) (lightweight IndexedDB wrapper)
+**Library:** [sql.js](https://sql.js.org/) (SQLite compiled to WebAssembly)
+**WASM file:** `frontend/public/sql-wasm.wasm` (~1MB, loaded once on first visit)
+**Persistence:** Binary blob stored in IndexedDB under key `sqlitedb`
 **Source file:** `frontend/src/lib/cache.js`
 
-### Object Stores
+### Tables
 
-All stores use `key` as the keyPath. Data is scoped per user by storing
-records under the user's email as the key.
+SQLite tables mirror the PostgreSQL schema. Each table stores data as JSON blobs
+for compatibility with the existing cache API, keyed by user email.
 
-| Store         | Key format                     | Contents                                                                                         | Mirrors PG table |
-| ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------- |
-| `projects`    | `{email}`                      | All projects for the user. Shape: `{ success, projects: [...], key }`                           | `projects`       |
-| `entries`     | `{email}:{project_name}`       | Per-project entries. Shape: `{ success, data: [...], key }`. Also `{email}:due-soon` for computed due-soon entries | `entries`        |
-| `all-entries` | `{email}`                      | All entries across all projects. Shape: `{ success, data: [...], key }`                         | `entries`        |
-| `profile`     | `{email}`                      | User profile (username, avatar, name). Shape: `{ success, data: {...}, key }`                   | `users`          |
-| `search`      | `{email}`                      | Cached search results                                                                           | —                |
-| `archives`    | `{email}:all`                  | Archived entries and projects. Also `archived-projects:{email}` and `unarchived-projects:{email}` | `projects`/`entries` (archived) |
-| `fields`      | `{email}`                      | Custom field definitions per table                                                               | `fields`         |
-| `cache-meta`  | `{key}`                        | Timestamps for stale-while-revalidate checks. Shape: `{ key, timestamp }`                       | —                |
+| Table          | Key format                     | Contents                                                                                         | Mirrors PG table |
+| -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------- |
+| `projects`     | `{email}`                      | All projects for the user. Shape: `{ success, projects: [...], key }`                           | `projects`       |
+| `entries`      | `{email}:{project_name}`       | Per-project entries. Shape: `{ success, data: [...], key }`. Also `{email}:due-soon` for computed due-soon entries | `entries`        |
+| `all_entries`  | `{email}`                      | All entries across all projects. Shape: `{ success, data: [...], key }`                         | `entries`        |
+| `profile`      | `{email}`                      | User profile (username, avatar, name). Shape: `{ success, data: {...}, key }`                   | `users`          |
+| `search`       | `{email}`                      | Cached search results                                                                           | —                |
+| `archives`     | `{email}:all`                  | Archived entries and projects. Also `archived-projects:{email}` and `unarchived-projects:{email}` | `projects`/`entries` (archived) |
+| `fields`       | `{email}`                      | Custom field definitions per table                                                               | `fields`         |
+| `notes`        | `notes:{entry_id}`             | Per-entry notes (text, image, pdf, link)                                                        | `notes`          |
+| `cache_meta`   | `{key}`                        | Timestamps for stale-while-revalidate checks. Shape: `{ key, timestamp }`                       | —                |
+| `offline_queue`| Auto-increment `id`            | Queued offline actions. Shape: `{ action, module, payload, timestamp, attempts }`               | —                |
 
-### How Stores Map to PostgreSQL Tables
+### How Tables Map to PostgreSQL
 
 ```
-PostgreSQL (Supabase)           IndexedDB (Browser)
+PostgreSQL (Supabase)           SQLite (Browser via sql.js)
 ─────────────────────────       ─────────────────────────────
-users          ──────────→      profile store
-projects       ──────────→      projects store
-entries        ──────────→      all-entries store (all rows)
-                                entries store (per-project slices)
-fields         ──────────→      fields store
+users          ──────────→      profile table
+projects       ──────────→      projects table
+entries        ──────────→      all_entries table (all rows)
+                                entries table (per-project slices)
+fields         ──────────→      fields table
+notes          ──────────→      notes table
 activity_log   ──────────→      (not cached — server-only)
 ```
 
 ### Data Flow
 
-1. **App load** — `syncAllData(email)` fetches all data from the server and populates every IndexedDB store. This runs once on login before any page renders.
-2. **Reads** — Pages read exclusively from IndexedDB via the `useCachedData` hook. No server calls during navigation.
-3. **Mutations** — Write to IndexedDB first (optimistic update), then sync to the server. On server failure, the optimistic update is rolled back.
+1. **App load** — `syncAllData(email)` fetches all data from the server and populates every SQLite table. This runs once on login before any page renders.
+2. **Reads** — Pages read exclusively from SQLite via the `useCachedData` hook. No server calls during navigation.
+3. **Mutations** — Write to SQLite first (optimistic update), then sync to the server. On server failure, the optimistic update is rolled back.
 4. **Real-time** — SSE (Server-Sent Events) invalidate relevant cache stores when other clients make changes.
+5. **Persistence** — After every write, the SQLite database is exported as a binary blob and stored in IndexedDB for durability across page refreshes.
 
 ### Event Subscription System
 
@@ -295,12 +339,14 @@ const unsub = cacheSubscribe('projects', email, (newProjects) => {
 
 | File                                        | Purpose                                                    |
 | ------------------------------------------- | ---------------------------------------------------------- |
-| `frontend/src/lib/cache.js`                 | IndexedDB layer: cacheGet, cacheSet, cacheSubscribe, etc.  |
-| `frontend/src/hooks/useCachedData.js`       | React hook: reads IndexedDB, subscribes, triggers fetch    |
-| `frontend/src/CacheFunctions/syncService.js`| Central sync: populates all stores from server             |
+| `frontend/src/lib/cache.js`                 | SQLite layer: cacheGet, cacheSet, cacheSubscribe, etc.     |
+| `frontend/public/sql-wasm.wasm`             | SQLite WebAssembly binary (~1MB)                           |
+| `frontend/src/hooks/useCachedData.js`       | React hook: reads SQLite, subscribes, triggers fetch       |
+| `frontend/src/CacheFunctions/syncService.js`| Central sync: populates all tables from server             |
+| `frontend/src/CacheFunctions/offlineQueue.js`| Offline action queue using SQLite                         |
 | `frontend/src/functions/project/entries.js` | Entry CRUD with optimistic updates and rollback            |
-| `frontend/src/functions/project/project.js` | Project CRUD with IndexedDB-first pattern                  |
-| `frontend/src/functions/profile/profile.js` | Profile fetch with IndexedDB caching                       |
+| `frontend/src/functions/project/project.js` | Project CRUD with SQLite-first pattern                     |
+| `frontend/src/functions/profile/profile.js` | Profile fetch with SQLite caching                          |
 
 ## Schema Migrations
 
@@ -318,7 +364,8 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 | `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                              |
 | `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                 |
 | `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                |
-| `008_create_field_stats_rpc.sql`                  | Generic `get_field_stats()` RPC — standard-format statistics for any owner-defined field |
+| `008_add_project_color.sql`                        | `project_color VARCHAR(7)` column on projects for custom colour picker      |
+| `009_create_notes_table.sql`                       | `notes` table for per-entry personalisation (text, image, pdf, link)        |
 
 ### CLI Commands
 

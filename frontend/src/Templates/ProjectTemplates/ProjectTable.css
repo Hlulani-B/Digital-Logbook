@@ -70,6 +70,17 @@
 
 .ptt-group-name {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ptt-group-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .ptt-group-count {
@@ -464,4 +475,24 @@
 .ptt-bulk-bar__btn--delete:hover {
   background: #dc2626;
   border-color: #b91c1c;
+}
+
+.ptt-bulk-bar__btn--notes {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: var(--text-muted, #737373);
+  border: 1px dashed var(--border, #d4d4d4);
+  transition: all 0.15s ease;
+}
+.ptt-bulk-bar__btn--notes:hover {
+  color: var(--text, #111111);
+  border-color: var(--text-muted, #737373);
+  border-style: solid;
+  background: #f5f5f5;
+}
+.ptt-bulk-bar__btn--notes svg {
+  font-size: 0.85rem;
+  opacity: 0.7;
 }

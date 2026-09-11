@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
@@ -102,6 +104,7 @@ interface EntryRow {
   ended_at?: string | null;
   duration?: string | null;
   status?: EntryStatus;
+  summary?: string | null;
 }
 
 interface EntryBoxProps {
@@ -110,6 +113,7 @@ interface EntryBoxProps {
   onArchiveToggled?: (entryId: string, archived: boolean) => void;
   onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
   onDelete?: (entryId: string) => void;
+  projectColor?: string | null;
 }
 
 export function EntryBox({
@@ -118,6 +122,7 @@ export function EntryBox({
   onArchiveToggled,
   onPriorityChanged,
   onDelete,
+  projectColor,
 }: EntryBoxProps) {
   const {
     id,
@@ -130,6 +135,7 @@ export function EntryBox({
     started_at,
     ended_at,
     status = 'up_next',
+    summary,
   } = entry;
 
   const payloadState = classifyEntryPayload(entries);
@@ -140,8 +146,10 @@ export function EntryBox({
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { openNotes } = useNotes();
 
   // Live elapsed time for in-progress tasks
   const [elapsed, setElapsed] = useState<string>('');
@@ -321,7 +329,6 @@ export function EntryBox({
 
   const handleDelete = async () => {
     if (!user_email || deleting) return;
-    if (!window.confirm('Delete this entry? You can recover it later.')) return;
     setDeleting(true);
     setError(null);
     setMenuOpen(false);
@@ -333,6 +340,7 @@ export function EntryBox({
       setError(err instanceof Error ? err.message : 'Failed to delete entry');
     } finally {
       setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -543,7 +551,10 @@ export function EntryBox({
   }
 
   return (
-    <div className={`entry-box ${archived ? 'entry-box--archived' : ''}`}>
+    <div
+      className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
+      style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
+    >
       <div className="entry-box__top-row">
         <div className="entry-box__menu-wrap" ref={menuRef}>
           <button
@@ -562,6 +573,26 @@ export function EntryBox({
               </button>
               <button
                 type="button"
+                className="entry-box__menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openNotes(entry);
+                }}
+              >
+                View Notes
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openNotes(entry);
+                }}
+              >
+                Add Note
+              </button>
+              <button
+                type="button"
                 className="entry-box__menu-item entry-box__menu-item--danger"
                 onClick={handleToggleArchive}
                 disabled={archiving}
@@ -574,14 +605,55 @@ export function EntryBox({
                     ? 'Unarchive'
                     : 'Archive'}
               </button>
-              <button
-                type="button"
-                className="entry-box__menu-item entry-box__menu-item--danger"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
+              {confirmDelete ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.4rem',
+                    padding: '0.5rem 0.9rem',
+                  }}
+                >
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-dim, #6b7280)' }}>
+                    Delete this entry?
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      style={{
+                        background: '#dc2626',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '0.35rem',
+                        padding: '0.3rem 0.7rem',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {deleting ? 'Deleting...' : 'Yes, delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="btn-secondary"
+                      style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="entry-box__menu-item entry-box__menu-item--danger"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={deleting}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -628,6 +700,10 @@ export function EntryBox({
         </div>
         <span className="entry-box__project">{project_name}</span>
       </div>
+
+      {summary && (
+        <p className="entry-box__summary">{summary}</p>
+      )}
 
       {entryFields.length > 0 && (
         <table className="entry-box__table">
@@ -678,6 +754,16 @@ export function EntryBox({
           {archived && <span className="entry-box__archived-tag">Archived</span>}
         </div>
       </div>
+
+      {/* View Notes button - secondary action on its own line */}
+      <button
+        type="button"
+        className="entry-box__view-notes-btn"
+        onClick={() => openNotes(entry)}
+      >
+        <FiEdit className="entry-box__view-notes-icon" />
+        View Notes
+      </button>
 
       {error && <div className="entry-box__error">{error}</div>}
     </div>

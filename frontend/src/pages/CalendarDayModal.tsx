@@ -33,11 +33,12 @@ interface FieldDef {
 interface CalendarDayModalProps {
   date: Date;
   entries: CalendarEntry[];
-  projects: { project_name: string }[];
+  projects: Array<Record<string, unknown>>;
   userEmail: string;
   onClose: () => void;
   onEntryAdded: () => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  colorMap?: Record<string, string | null>;
 }
 
 function parseFieldValue(value: string, dataType: string): unknown {
@@ -90,6 +91,7 @@ export function CalendarDayModal({
   onClose,
   onEntryAdded,
   onEntryClick,
+  colorMap,
 }: CalendarDayModalProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProject, setSelectedProject] = useState('');
@@ -253,6 +255,10 @@ export function CalendarDayModal({
                   const isCompleted = entryStatus === 'done_and_dusted';
                   const statusColor = STATUS_COLORS[entryStatus] || '#6366f1';
 
+                  const entryColor = colorMap
+                    ? (colorMap[entry.project_name] || null)
+                    : null;
+
                   return (
                     <div
                       key={entry.id}
@@ -265,6 +271,7 @@ export function CalendarDayModal({
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter') onEntryClick(entry); }}
+                      style={entryColor ? { borderLeft: `3px solid ${entryColor}` } : undefined}
                     >
                       <div className="cdm-entry-indicator" style={{ backgroundColor: statusColor }} />
                       <div className="cdm-entry-content">
@@ -308,8 +315,8 @@ export function CalendarDayModal({
                 >
                   <option value="">Select a project...</option>
                   {projects.map((p) => (
-                    <option key={p.project_name} value={p.project_name}>
-                      {p.project_name}
+                    <option key={p.project_name as string} value={p.project_name as string}>
+                      {p.project_name as string}
                     </option>
                   ))}
                 </select>

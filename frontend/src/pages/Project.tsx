@@ -16,6 +16,7 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 
 type ProjectRecord = {
   project_name: string;
+  project_color?: string | null;
   archived?: boolean;
   created_at?: string;
   [key: string]: unknown;
@@ -63,6 +64,68 @@ export function ProjectsPage() {
     // Project settings panel
     const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
     const [settingsProjectName, setSettingsProjectName] = useState("");
+
+  // Multi-select state
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [bulkArchiving, setBulkArchiving] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelect = (name: string) => {
+    setSelectedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProjects.size === projects.length) {
+      setSelectedProjects(new Set());
+    } else {
+      setSelectedProjects(new Set(projects.map((p) => p.project_name)));
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (!email || selectedProjects.size === 0) return;
+    setBulkArchiving(true);
+    try {
+      for (const name of Array.from(selectedProjects)) {
+        const result = await archiveProject(email, name);
+        if (result?.error) {
+          setError(`Could not archive "${name}": ${result.error}`);
+          break;
+        }
+      }
+      setSelectedProjects(new Set());
+      await Promise.all([loadProjects(), loadArchivedProjects()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bulk archive failed');
+    } finally {
+      setBulkArchiving(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!email || selectedProjects.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      for (const name of Array.from(selectedProjects)) {
+        const result = await deleteProject(email, name);
+        if (result?.error) {
+          setError(`Could not delete "${name}": ${result.error}`);
+          break;
+        }
+      }
+      setSelectedProjects(new Set());
+      await loadProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bulk delete failed');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const loadProjects = useCallback(async () => {
     if (!email) return;
@@ -122,6 +185,8 @@ export function ProjectsPage() {
       setNewProjectName('');
       setCreating(false);
       await loadProjects();
+      // Navigate to the newly created project's page
+      navigate(`/project/${encodeURIComponent(trimmed)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create project');
     } finally {
@@ -271,17 +336,70 @@ export function ProjectsPage() {
       {/* Project management cards (rename/archive/delete) */}
       {!loading && projects.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text, #3b3226)' }}>Manage projects</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text, #3b3226)' }}>Manage projects</h2>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', color: 'var(--text-dim, #6b7280)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={selectedProjects.size === projects.length && projects.length > 0}
+                onChange={toggleSelectAll}
+                style={{ accentColor: '#6366f1' }}
+              />
+              Select all
+            </label>
+          </div>
+
+          {/* Bulk action bar */}
+          {selectedProjects.size > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderRadius: '0.75rem', marginBottom: '0.75rem', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#6366f1' }}>
+                {selectedProjects.size} selected
+              </span>
+              <div style={{ flex: 1 }} />
+              <button
+                type="button"
+                onClick={handleBulkArchive}
+                disabled={bulkArchiving}
+                style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                <FiArchive size={13} /> {bulkArchiving ? 'Archiving...' : 'Archive selected'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                <FiTrash2 size={13} /> {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedProjects(new Set())}
+                className="btn-secondary"
+                style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {projects.map((p) => {
               const name = p.project_name;
-              const color = colorForName(name);
+              const color = p.project_color || colorForName(name);
               const isEditing = editingName === name;
               const isConfirming = confirmDelete === name;
               const isConfirmingArchive = confirmArchive === name;
 
               return (
                 <div key={name} className="glass" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', borderLeft: `5px solid ${color}` }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedProjects.has(name)}
+                    onChange={() => toggleSelect(name)}
+                    style={{ accentColor: '#6366f1', flexShrink: 0 }}
+                    aria-label={`Select ${name}`}
+                  />
                   <div aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
 
                   {isEditing ? (
@@ -353,7 +471,7 @@ export function ProjectsPage() {
               <div style={{ display: 'grid', gap: '0.75rem' }}>
                 {archivedProjects.map((p) => {
                   const name = p.project_name;
-                  const color = colorForName(name);
+                  const color = (p as ProjectRecord).project_color || colorForName(name);
                   return (
                     <div key={name} className="glass" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', borderRadius: '0.85rem', borderLeft: `6px solid ${color}` }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
@@ -400,6 +518,7 @@ export function ProjectsPage() {
         open={projectSettingsOpen}
         projectName={settingsProjectName}
         userEmail={email}
+        currentColor={projects.find(p => p.project_name === settingsProjectName)?.project_color || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => { loadProjects(); }}
         onProjectDeleted={() => { loadProjects(); }}

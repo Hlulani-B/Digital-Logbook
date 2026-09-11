@@ -49,6 +49,7 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary,
+          notes,
         } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.addEntry(
@@ -61,7 +62,8 @@ router.post('/entry', async (req, res) => {
           started_at,
           ended_at,
           duration,
-          summary
+          summary,
+          notes
         );
         if (result.success) {
           const entrySummary =
@@ -92,15 +94,7 @@ router.post('/entry', async (req, res) => {
         if (!project_name || !entry_id)
           return res.status(400).json({ error: 'Missing required parameters' });
 
-        let summary = providedSummary;
-        if (summary === undefined && new_entry !== undefined && new_entry !== null) {
-          try {
-            summary = await nlEntry.generateSummary(project_name, new_entry);
-          } catch (err) {
-            console.error('[update] Failed to regenerate summary:', err.message);
-          }
-        }
-
+        // Update entry immediately. Summary regeneration happens in background.
         const result = await entries.updateEntry(
           user_email,
           project_name,
@@ -112,8 +106,17 @@ router.post('/entry', async (req, res) => {
           started_at,
           ended_at,
           duration,
-          summary
+          undefined // summary — regenerated in background below
         );
+
+        // Regenerate summary in background if entry content changed
+        if (result.success && new_entry !== undefined && new_entry !== null) {
+          nlEntry.generateSummary(project_name, new_entry)
+            .then((summary) => {
+              entries.updateEntry(user_email, project_name, entry_id, undefined, undefined, undefined, undefined, undefined, undefined, undefined, summary).catch(() => {});
+            })
+            .catch(() => {});
+        }
         if (result.success) {
           const entrySummary = new_entry
             ? typeof new_entry === 'string'

@@ -14,8 +14,9 @@ import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -48,17 +49,31 @@ function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
     if (typeof parsed === 'string') return parsed;
+    if (Array.isArray(parsed)) {
+      if (parsed.length > 0) {
+        const first = parsed[0];
+        if (typeof first === 'string') return first;
+        if (typeof first === 'object' && first !== null) {
+          return parseAIResponse(JSON.stringify(first));
+        }
+      }
+      return response;
+    }
     if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
+      for (const key of ['placeholder', 'message', 'instruction', 'response', 'text', 'content', 'reply']) {
         if (typeof parsed[key] === 'string') return parsed[key];
       }
       for (const val of Object.values(parsed)) {
         if (typeof val === 'string') return val;
+        if (typeof val === 'object' && val !== null) {
+          const nested = parseAIResponse(JSON.stringify(val));
+          if (nested !== JSON.stringify(val)) return nested;
+        }
       }
     }
     return response;
   } catch {
-    return response;
+    return typeof response === 'string' ? response : String(response);
   }
 }
 
@@ -207,18 +222,22 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
+    console.log('[Dashboard] loadData START, email=', email);
     try {
+      console.log('[Dashboard] Reading cache...');
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
+      console.log('[Dashboard] Cache read done. entries:', !!cachedEntries?.data, 'projects:', !!(cachedProjects?.data || cachedProjects?.projects), 'dueSoon:', !!cachedDueSoon?.data);
       const hasCache =
         cachedEntries?.data ||
         cachedProjects?.data ||
         cachedProjects?.projects ||
         cachedDueSoon?.data;
       if (hasCache) {
+        console.log('[Dashboard] Using cached data');
         if (cachedEntries?.data)
           setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data || cachedProjects?.projects) {
@@ -240,8 +259,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         if (cachedDueSoon?.data)
           setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
+        console.log('[Dashboard] NO CACHE — calling syncAllData...');
         // First visit ever — trigger initial sync, then re-read
+        // But if offline, syncAllData can't fetch from server — skip and show empty state
+        if (!navigator.onLine) {
+          console.log('[Dashboard] No cache and offline — nothing to load yet');
+          return;
+        }
+        console.log('[Dashboard] syncAllData starting...');
         await syncAllData(email);
+        console.log('[Dashboard] syncAllData done, re-reading cache...');
         const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
@@ -271,6 +298,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
+      console.log('[Dashboard] loadData FINALLY — setting loading=false');
       setLoading(false);
     }
   }, [email]);
@@ -286,6 +314,31 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // Subscribe to IndexedDB cache changes — when syncAllData finishes writing
+  // data on first login, this triggers a re-load so data appears without refresh.
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ENTRIES, `${email}:due-soon`, () => loadData()),
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [email, loadData]);
+
+  // Re-read from IndexedDB when the tab/page becomes visible again.
+  // This catches the case where the user creates a project on another page
+  // (e.g. Projects page) and navigates back to the Dashboard.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [loadData]);
 
   // Load archived entries when archives view is active
@@ -373,6 +426,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Project colour map — computed once per projects change
+  const dashColorMap = useMemo(
+    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
+    [projects]
+  );
+
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // Use all entries (unarchived)
@@ -388,12 +447,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
     // Always apply "due soon" filter: only entries with due_date within 3 days
     const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const threeDaysFromNow = new Date(startOfToday.getTime() + 3 * 24 * 60 * 60 * 1000);
     filtered = filtered.filter((e) => {
       if (!e.due_date) return false;
       const due = new Date(e.due_date as string);
       if (isNaN(due.getTime())) return false;
-      return due >= now && due <= threeDaysFromNow;
+      return due >= startOfToday && due <= threeDaysFromNow;
     });
 
     return filtered;
@@ -543,7 +603,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
       if (duplicates.length > 0) {
         const uniqueDuplicates = [...new Set(duplicates)];
-        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(', ')}`);
+        setNewProjectError(`Duplicate column names found: ${uniqueDuplicates.join(', ')}`);
         return;
       }
     }
@@ -554,6 +614,20 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     try {
       const projectName = newProjectName.trim();
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
+
+      // Immediately add the project to local state so the entry picker sees it
+      setProjects((prev) => {
+        if (prev.some((p) => p.project_name === projectName)) return prev;
+        return [
+          ...prev,
+          {
+            project_name: projectName,
+            description: newProjectDescription.trim() || '',
+            archived: false,
+            created_at: new Date().toISOString(),
+          },
+        ];
+      });
 
       // Save any non-empty project fields (best-effort after project is created)
       if (nonEmptyFields.length > 0) {
@@ -566,7 +640,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           .map((r, i) => (r.status === 'rejected' ? nonEmptyFields[i].field_name : null))
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
-          window.alert(
+          setNewProjectError(
             `Project created, but these fields could not be saved: ${failures.join(', ')}`
           );
         }
@@ -575,6 +649,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       setNewProjectOpen(false);
       resetProjectForm();
       await loadData();
+      
+      // Navigate to the newly created project's page
+      navigate(`/project/${encodeURIComponent(projectName)}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create project';
       console.error('Failed to create project:', err);
@@ -828,47 +905,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <button
             className="drawer-item"
             onClick={() => {
-              navigate('/stats');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            My Stats
-          </button>
-          <button
-            className={`drawer-item ${activeView === 'activity' ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/dashboard/activity');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Activity Log
-          </button>
-          <button
-            className="drawer-item"
-            onClick={() => {
               navigate('/calendar');
               setDrawerOpen(false);
             }}
@@ -972,6 +1008,66 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Import & Export
           </button>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/data-disclaimer');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Disclaimer
+          </button>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/stats');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            My Stats
+          </button>
+          <button
+            className={`drawer-item ${activeView === 'activity' ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/dashboard/activity');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Activity Log
+          </button>
         </div>
 
         <div className="drawer-section drawer-projects">
@@ -982,6 +1078,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               .map((project) => {
                 const name = project.project_name as string;
                 const count = entries.filter((e) => e.project_name === name).length;
+                const projColor = (project.project_color as string) || null;
                 return (
                   <div
                     key={name}
@@ -1009,16 +1106,29 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         cursor: 'pointer',
                       }}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
+                      {projColor ? (
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: projColor,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                      )}
                       {name}
                       <span className="drawer-badge">{count}</span>
                     </button>
@@ -1319,6 +1429,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
                     }
                   }}
+                  projectColor={resolveProjectColor(
+                    (row.project_name as string) || '',
+                    dashColorMap
+                  )}
                 />
               ))
             )}
@@ -1391,8 +1505,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
             {/* Quick Entry Bar - Natural Language */}
             <QuickEntryBar
-              onEntryCreated={() => {
+              onEntryCreated={(projectName) => {
                 loadData();
+                // Navigate to the project page if a project name was provided
+                if (projectName) {
+                  navigate(`/project/${encodeURIComponent(projectName)}`);
+                }
               }}
               onVoiceOpen={() => setVoiceOpen(true)}
               placeholder={aiPlaceholder}
@@ -1470,6 +1588,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     }))}
                     onUpdated={() => loadData()}
                     onDelete={() => loadData()}
+                    colorMap={dashColorMap}
                   />
                 ) : displayMode === 'board' ? (
                   <EntriesByDueDateBoard
@@ -1486,6 +1605,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     }))}
                     onUpdated={() => loadData()}
                     onDelete={() => loadData()}
+                    colorMap={dashColorMap}
                   />
                 ) : (
                   filteredEntries.map((row, i) => (
@@ -1495,6 +1615,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       onUpdated={() => loadData()}
                       onPriorityChanged={handleSetPriority}
                       onDelete={() => loadData()}
+                      projectColor={resolveProjectColor(
+                        (row.project_name as string) || '',
+                        dashColorMap
+                      )}
                     />
                   ))
                 )}
@@ -1580,7 +1704,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         {isToday && <span className="calendar-day-today-label">Today</span>}
                       </div>
                       <div className="calendar-day-entries">
-                        {dayEntries.slice(0, 3).map((entry) => (
+                        {dayEntries.slice(0, 3).map((entry) => {
+                          const entryColor = resolveProjectColor(entry.project_name || '', dashColorMap);
+                          return (
                           <div
                             key={entry.id}
                             className={[
@@ -1595,11 +1721,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                             onClick={() =>
                               navigate(`/project/${encodeURIComponent(entry.project_name)}`)
                             }
+                            style={{ borderLeft: `3px solid ${entryColor}` }}
                           >
                             <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
                             <span className="calendar-entry-project">{entry.project_name}</span>
                           </div>
-                        ))}
+                          );
+                        })}
                         {dayEntries.length > 3 && (
                           <span className="calendar-more-label">+{dayEntries.length - 3} more</span>
                         )}
@@ -1724,7 +1852,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 className="project-fields-title"
                 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.5rem' }}
               >
-                Project Fields
+                Project Columns
               </h3>
               {projectFields.length === 0 && (
                 <p
@@ -1734,7 +1862,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     margin: '0 0 0.5rem',
                   }}
                 >
-                  No fields defined. Add fields to build the entry form for this project.
+                  No columns defined. Add columns to build the entry form for this project.
                 </p>
               )}
               {projectFields.map((field, index) => (
@@ -1751,7 +1879,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   <input
                     type="text"
-                    placeholder="Field name"
+                    placeholder="Column name"
                     value={field.field_name}
                     onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
                     className="field-input"
@@ -1791,7 +1919,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     type="button"
                     className="btn-secondary"
                     onClick={() => removeProjectField(index)}
-                    title="Remove field"
+                    title="Remove column"
                   >
                     <FiX size={16} />
                   </button>
@@ -1803,7 +1931,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 onClick={addProjectField}
                 style={{ marginTop: '0.25rem' }}
               >
-                + Add Another Project Field
+                + Add Another Project Column
               </button>
             </div>
 
@@ -1899,6 +2027,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   setNewEntryOpen(false);
                   setNewEntryProject('');
                   loadData();
+                  // Navigate to the project page where the entry was created
+                  navigate(`/project/${encodeURIComponent(newEntryProject)}`);
                 }}
                 onCancel={() => {
                   setNewEntryOpen(false);
@@ -1942,6 +2072,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         open={projectSettingsOpen}
         projectName={activeView}
         userEmail={email}
+        currentColor={dashColorMap[activeView] || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => {
           setActiveView('all');

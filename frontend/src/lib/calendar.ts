@@ -17,6 +17,7 @@ export interface CalendarEntry {
   ended_at?: string | null;
   duration?: string | null;
   archived?: boolean;
+  summary?: string | null;
   created_at?: string;
 }
 
@@ -104,6 +105,11 @@ export function getEntriesForDay(entries: CalendarEntry[], day: Date): CalendarE
 }
 
 export function getEntryTitle(entry: CalendarEntry): string {
+  // Prefer the AI-generated summary if available
+  if (entry.summary && typeof entry.summary === 'string' && entry.summary.trim()) {
+    return entry.summary.trim();
+  }
+
   if (!entry.entries) return 'Untitled entry';
 
   let parsed: Record<string, unknown>;

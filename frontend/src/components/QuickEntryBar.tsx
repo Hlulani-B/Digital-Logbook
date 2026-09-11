@@ -2,9 +2,10 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 
 import { FiMic } from 'react-icons/fi';
 import { addNaturalLanguageEntry } from '../functions/project/natural_language.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface QuickEntryBarProps {
-  onEntryCreated?: () => void;
+  onEntryCreated?: (projectName?: string) => void;
   onVoiceOpen?: () => void;
   placeholder?: string;
 }
@@ -16,6 +17,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
   const [toast, setToast] = useState('');
   const [messageType, setMessageType] = useState(''); // "success" | "error"
   const inputRef = useRef(null);
+  const isOnline = useNetworkStatus();
 
   useEffect(() => {
     if (message) {
@@ -47,6 +49,17 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       const data = result.data as Record<string, unknown>;
       const isProjectOnly = data?.project_only === true;
       const isMulti = data?.multi === true;
+      
+      // Extract project name for navigation
+      let projectName: string | undefined;
+      if (isProjectOnly) {
+        projectName = (data?.project as string) || undefined;
+      } else if (!isMulti) {
+        // For single entry, get project from the entry data
+        const entryData = data?.data as Record<string, unknown> | undefined;
+        projectName = (entryData?.project_name as string) || (data?.project as string) || undefined;
+      }
+      
       if (isMulti) {
         const results = data.results as Record<string, unknown[]> | undefined;
         const oldCount = results?.old?.length || 0;
@@ -66,7 +79,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       if (comment && getAiMessagesEnabled()) {
         setToast(comment as string);
       }
-      if (onEntryCreated) onEntryCreated();
+      if (onEntryCreated) onEntryCreated(projectName);
     } else {
       setMessage(result.message || 'Failed to create entry');
       setMessageType('error');
@@ -103,12 +116,15 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             type="text"
             className="quick-entry-input"
             placeholder={
-              placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+              isOnline
+                ? placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+                : 'Offline — Quick add unavailable'
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={loading}
+            disabled={loading || !isOnline}
+            title={!isOnline ? 'Quick add is not available offline' : undefined}
           />
           {/* Voice button */}
           {onVoiceOpen && (
@@ -117,12 +133,19 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title="Record a voice entry"
+              title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+              disabled={!isOnline}
+              style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
               <FiMic size={16} />
             </button>
           )}
-          <button type="submit" className="quick-entry-submit" disabled={loading || !text.trim()}>
+          <button
+            type="submit"
+            className="quick-entry-submit"
+            disabled={loading || !text.trim() || !isOnline}
+            title={!isOnline ? 'Quick add is not available offline' : undefined}
+          >
             {loading ? (
               <svg
                 className="animate-spin"

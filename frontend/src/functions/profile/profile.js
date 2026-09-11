@@ -1,5 +1,6 @@
 import { request, PROFILE_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
+import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 // ── GET functions ──────────────────────────────────────────────
 
@@ -8,6 +9,17 @@ import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
  * Writes to IndexedDB (triggers subscription), returns result for compatibility.
  */
 export async function getProfile(email) {
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+    if (cached) {
+      console.log('[getProfile] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getProfile] Offline and no cache');
+    return { success: false, offline: true };
+  }
+
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -20,6 +32,12 @@ export async function getProfile(email) {
     return result;
   } catch (err) {
     console.error('[getProfile] Failed:', err);
+    // Fallback to cache on any server failure
+    const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+    if (cached) {
+      console.log('[getProfile] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false };
   }
 }
@@ -42,7 +60,18 @@ export async function updateUsername(email, username) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[updateUsername] Offline, queuing action');
+    await addToQueue('updateUsername', 'profile', {
+      email,
+      username,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -54,9 +83,13 @@ export async function updateUsername(email, username) {
     }
     return result;
   } catch (err) {
-    console.error('[updateUsername] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROFILE, email, cached);
-    return { success: false, message: err.message || 'Failed to update username' };
+    // 4. On failure, queue for retry (don't rollback)
+    console.error('[updateUsername] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateUsername', 'profile', {
+      email,
+      username,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -96,7 +129,17 @@ export async function updateName(email, new_name) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    console.log('[updateName] Offline, queuing action');
+    await addToQueue('updateName', 'profile', {
+      email,
+      new_name,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -108,9 +151,12 @@ export async function updateName(email, new_name) {
     }
     return result;
   } catch (err) {
-    console.error('[updateName] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROFILE, email, cached);
-    return { success: false, message: err.message || 'Failed to update name' };
+    console.error('[updateName] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateName', 'profile', {
+      email,
+      new_name,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -130,7 +176,17 @@ export async function updateAvatar(email, avatarUrl) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    console.log('[updateAvatar] Offline, queuing action');
+    await addToQueue('updateAvatar', 'profile', {
+      email,
+      avatarUrl,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -142,9 +198,12 @@ export async function updateAvatar(email, avatarUrl) {
     }
     return result;
   } catch (err) {
-    console.error('[updateAvatar] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROFILE, email, cached);
-    return { success: false, message: err.message || 'Failed to update avatar' };
+    console.error('[updateAvatar] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateAvatar', 'profile', {
+      email,
+      avatarUrl,
+    });
+    return { success: true, queued: true };
   }
 }
 

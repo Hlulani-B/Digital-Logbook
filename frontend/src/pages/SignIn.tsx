@@ -158,6 +158,7 @@ export function SignIn() {
         await routeAfterAuth(email);
       } else {
         await signUpWithEmail(email, password);
+        sessionStorage.setItem('dl_new_signup', 'true');
         setSuccess(
           'Account created! Please check your email to confirm your account before signing in.'
         );

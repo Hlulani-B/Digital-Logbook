@@ -24,6 +24,7 @@ import {
   parseDueDate,
 } from '@/lib/calendar';
 import './Calendar.css';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 const WEEK_STARTS_ON: 0 | 1 = 0; // Sunday
 const VISIBLE_TASKS_PER_CELL = 4;
@@ -62,6 +63,7 @@ function CalendarDayCell({
   onEntryClick,
   onDayClick,
   isOverdue: isDayOverdue,
+  colorMap,
 }: {
   date: Date;
   isCurrentMonth: boolean;
@@ -72,6 +74,7 @@ function CalendarDayCell({
   onEntryClick: (entry: CalendarEntry) => void;
   onDayClick: (date: Date) => void;
   isOverdue: (date: Date) => boolean;
+  colorMap?: Record<string, string | null>;
 }) {
   const isToday = isSameDay(date, new Date());
   const isDropTarget = dragging !== null;
@@ -117,6 +120,7 @@ function CalendarDayCell({
             draggable
             onDragStart={() => onDragStart(entry, date)}
             onClick={() => onEntryClick(entry)}
+            projectColor={colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined}
           />
         ))}
         {hiddenCount > 0 && (
@@ -142,11 +146,13 @@ function CalendarEntryPill({
   draggable,
   onDragStart,
   onClick,
+  projectColor,
 }: {
   entry: CalendarEntry;
   draggable?: boolean;
   onDragStart?: () => void;
   onClick?: () => void;
+  projectColor?: string;
 }) {
   const status = entry.status ?? 'up_next';
   const isCompleted = status === 'done_and_dusted';
@@ -174,6 +180,7 @@ function CalendarEntryPill({
         if (e.key === 'Enter' || e.key === ' ') onClick?.();
       }}
       title={`${getEntryTitle(entry)}${entry.project_name ? ` · ${entry.project_name}` : ''}`}
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
       <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
       <span className="calendar-entry-project">{entry.project_name}</span>
@@ -187,7 +194,7 @@ export function CalendarPage() {
   const email = user?.email ?? '';
 
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
-  const [projects, setProjects] = useState<{ project_name: string }[]>([]);
+  const [projects, setProjects] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -237,9 +244,7 @@ export function CalendarPage() {
         const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter(
           (p: Record<string, unknown>) => !p.archived
         );
-        setProjects(
-          projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string }))
-        );
+        setProjects(projs);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
@@ -332,6 +337,9 @@ export function CalendarPage() {
   const handleEntryAdded = () => {
     loadEntries();
   };
+
+  // Build colour map from projects
+  const colorMap = useMemo(() => buildProjectColorMap(projects), [projects]);
 
   // Entries for the currently selected day
   const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
@@ -446,6 +454,7 @@ export function CalendarPage() {
                     onEntryClick={handleEntryClick}
                     onDayClick={handleDayClick}
                     isOverdue={isDayOverdue}
+                    colorMap={colorMap}
                   />
                 );
               })}
@@ -477,6 +486,7 @@ export function CalendarPage() {
             onClose={handleModalClose}
             onEntryAdded={handleEntryAdded}
             onEntryClick={handleEntryClick}
+            colorMap={colorMap}
           />
         )}
       </main>

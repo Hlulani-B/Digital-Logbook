@@ -15,6 +15,7 @@ import fieldRoutes from './Routes/field.js';
 import archiveRoutes from './Routes/archive.js';
 import activityRoutes from './Routes/activity.js';
 import aiRoutes from './Routes/ai.js';
+import notesRoutes from './Routes/notes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -51,7 +52,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 // Safe preflight wildcard handler for Express 5 (regex instead of '*')
 app.options(/(.*)/, cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 // ── OpenAPI / Swagger UI ──────────────────────────────────────
 try {
@@ -83,6 +84,7 @@ app.use('/service', requireAuth, fieldRoutes);
 app.use('/service', requireAuth, archiveRoutes);
 app.use('/service', requireAuth, activityRoutes);
 app.use('/service', requireAuth, aiRoutes);
+app.use('/service', requireAuth, notesRoutes);
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);

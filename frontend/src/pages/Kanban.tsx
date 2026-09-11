@@ -18,6 +18,7 @@ import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
@@ -35,10 +36,12 @@ function KanbanCard({
   entry,
   onDragStart,
   onClick,
+  projectColor,
 }: {
   entry: CalendarEntry;
   onDragStart: () => void;
   onClick: () => void;
+  projectColor?: string;
 }) {
   const status = getEntryStatus(entry);
   const due = parseDueDate(entry.due_date);
@@ -62,6 +65,7 @@ function KanbanCard({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onClick();
       }}
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
       <div className="kanban-card-title">{getEntryTitle(entry)}</div>
       <div className="kanban-card-meta">
@@ -88,6 +92,7 @@ function KanbanColumn({
   onDragStart,
   onDrop,
   onEntryClick,
+  colorMap,
 }: {
   status: EntryStatus;
   entries: CalendarEntry[];
@@ -95,6 +100,7 @@ function KanbanColumn({
   onDragStart: (entry: CalendarEntry) => void;
   onDrop: (status: EntryStatus) => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  colorMap?: Record<string, string | null>;
 }) {
   const isDropTarget = dragging !== null && getEntryStatus(dragging) !== status;
 
@@ -127,6 +133,7 @@ function KanbanColumn({
             entry={entry}
             onDragStart={() => onDragStart(entry)}
             onClick={() => onEntryClick(entry)}
+            projectColor={colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined}
           />
         ))}
       </div>
@@ -211,6 +218,7 @@ export function KanbanPage() {
   );
 
   const groupedEntries = useMemo(() => groupEntriesByStatus(filteredEntries), [filteredEntries]);
+  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
 
   const handleDragStart = (entry: CalendarEntry) => {
     setDragging(entry);
@@ -327,39 +335,40 @@ export function KanbanPage() {
             </div>
           )}
 
-          {loading ? (
-            <div className="kanban-loading">
-              <span className="kanban-spinner" />
-              Loading board…
-            </div>
-          ) : filteredEntries.length === 0 ? (
-            <div className="kanban-empty">
-              <p>No tasks match the current filter.</p>
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setProjectFilter('');
-                  setSearchQuery('');
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            <div className="kanban-board">
-              {STATUS_ORDER.map((status) => (
-                <KanbanColumn
-                  key={status}
-                  status={status}
-                  entries={groupedEntries[status]}
-                  dragging={dragging}
-                  onDragStart={handleDragStart}
-                  onDrop={handleDrop}
-                  onEntryClick={handleEntryClick}
-                />
-              ))}
-            </div>
-          )}
+      {loading ? (
+        <div className="kanban-loading">
+          <span className="kanban-spinner" />
+          Loading board…
+        </div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="kanban-empty">
+          <p>No tasks match the current filter.</p>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              setProjectFilter('');
+              setSearchQuery('');
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <div className="kanban-board">
+          {STATUS_ORDER.map((status) => (
+            <KanbanColumn
+              key={status}
+              status={status}
+              entries={groupedEntries[status]}
+              dragging={dragging}
+              onDragStart={handleDragStart}
+              onDrop={handleDrop}
+              onEntryClick={handleEntryClick}
+              colorMap={colorMap}
+            />
+          ))}
+        </div>
+      )}
 
           {updatingId && (
             <div className="kanban-toast" aria-live="polite">

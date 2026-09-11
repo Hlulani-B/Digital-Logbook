@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { NotesProvider, useNotes } from '@/context/NotesContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { syncAllData } from '@/CacheFunctions';
+import { OfflineSyncToasts } from '@/components/OfflineSyncToasts';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { SignIn } from '@/pages/SignIn';
 import { AuthCallback } from '@/pages/AuthCallback';
 import { AuthRestore } from '@/pages/AuthRestore';
@@ -27,6 +30,9 @@ import { KanbanPage } from '@/pages/Kanban';
 import { TodayPage } from '@/pages/Today';
 import { TimelinePage } from '@/pages/Timeline';
 import DataPortability from '@/pages/DataPortability';
+import { DataDisclaimer } from '@/pages/DataDisclaimer';
+import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
+import { NotesPage } from '@/pages/NotesPage';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -81,12 +87,26 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * NotesOverlay — renders NotesPage as an overlay when notesEntry is set in context.
+ * This keeps the current page visible in the background.
+ */
+function NotesOverlay() {
+  const { notesEntry, closeNotes } = useNotes();
+  
+  if (!notesEntry) return null;
+  
+  return <NotesPage entryData={notesEntry} onClose={closeNotes} />;
+}
+
 export function App() {
   return (
     <BrowserRouter>
       <ThemeInitializer>
         <AuthProvider>
+          <NotesProvider>
           <DataSyncInitializer>
+          <OfflineBanner />
           <Routes>
             <Route
               path="/"
@@ -124,52 +144,52 @@ export function App() {
             />
             <Route
               path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/all"
-              element={
-                <ProtectedRoute>
-                  <AllEntriesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/entries"
-              element={
-                <ProtectedRoute>
-                  <AllEntriesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/archives"
-              element={
-                <ProtectedRoute>
-                  <ArchivesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/activity"
-              element={
-                <ProtectedRoute>
-                  <ActivityPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/create-profile"
-              element={
-                <ProtectedRoute>
-                  <CreateProfile />
-                </ProtectedRoute>
-              }
-            />
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/all"
+                element={
+                  <ProtectedRoute>
+                    <AllEntriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/entries"
+                element={
+                  <ProtectedRoute>
+                    <AllEntriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/archives"
+                element={
+                  <ProtectedRoute>
+                    <ArchivesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/activity"
+                element={
+                  <ProtectedRoute>
+                    <ActivityPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-profile"
+                element={
+                  <ProtectedRoute>
+                    <CreateProfile />
+                  </ProtectedRoute>
+                }
+              />
             <Route
               path="/avatar"
               element={
@@ -268,6 +288,22 @@ export function App() {
               }
             />
             <Route
+              path="/data-disclaimer"
+              element={
+                <ProtectedRoute>
+                  <DataDisclaimer />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/data-disclaimer-info"
+              element={
+                <ProtectedRoute>
+                  <DataDisclaimer2 />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/data-portability"
               element={
                 <ProtectedRoute>
@@ -277,7 +313,10 @@ export function App() {
             />
             <Route path="*" element={<Navigate to="/signin" replace />} />
           </Routes>
+          <OfflineSyncToasts />
+          <NotesOverlay />
           </DataSyncInitializer>
+          </NotesProvider>
         </AuthProvider>
       </ThemeInitializer>
     </BrowserRouter>

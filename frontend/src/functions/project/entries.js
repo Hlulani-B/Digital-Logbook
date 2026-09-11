@@ -1,5 +1,6 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
+import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 function withoutUndefined(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined));
@@ -37,8 +38,10 @@ export async function getEntries(user_email, project_name) {
 /**
  * Fetch ALL entries for a user.
  * Writes result to IndexedDB (triggers subscription), does not return data.
+ * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getAllEntries(user_email) {
+  console.log('[getAllEntries] called for', user_email);
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -47,8 +50,19 @@ export async function getAllEntries(user_email) {
         values: { user_email },
       }),
     });
+    console.log('[getAllEntries] server returned:', result?.success, Array.isArray(result?.data) ? `len=${result.data.length}` : 'no-data');
 
     if (result?.success) {
+      const data = Array.isArray(result.data) ? result.data : [];
+      // Don't clobber good cache with empty server response
+      if (data.length === 0) {
+        const existing = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+        const existingData = existing?.data || [];
+        if (Array.isArray(existingData) && existingData.length > 0) {
+          console.warn('[getAllEntries] Server returned 0 entries but cache has', existingData.length, '— keeping cache');
+          return result; // return without writing to cache
+        }
+      }
       await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, result);
     }
     return result;
@@ -121,7 +135,8 @@ export async function addEntry(
   started_at,
   ended_at,
   duration,
-  summary
+  summary,
+  notes
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -160,7 +175,45 @@ export async function addEntry(
     await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: optimisticAll });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[addEntry] Offline, queuing action');
+    await addToQueue('addEntry', 'entries', {
+      user_email,
+      project_name,
+      entry_object,
+      due_date,
+      priority,
+      status,
+      started_at,
+      ended_at,
+      duration,
+      summary,
+      notes,
+    });
+    return { success: true, queued: true, data: undefined, message: undefined };
+  }
+
+  // 3. Sync to server in background (don't block the UI)
+  _syncAddEntryToServer({
+    user_email, project_name, entry_object, due_date, priority, status,
+    started_at, ended_at, duration, summary, notes, cacheKey, cached, cachedAll,
+  });
+
+  // Return immediately — optimistic entry is already in IndexedDB
+  return { success: true, optimistic: true, data: undefined, message: undefined };
+}
+
+/**
+ * Internal: sync an addEntry action to the server in the background.
+ * Fires after the optimistic write; replaces optimistic data with real server data on success,
+ * or queues for retry on failure.
+ */
+async function _syncAddEntryToServer({
+  user_email, project_name, entry_object, due_date, priority, status,
+  started_at, ended_at, duration, summary, notes, cacheKey, cached, cachedAll,
+}) {
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -175,15 +228,16 @@ export async function addEntry(
           status,
           started_at,
           ended_at,
+          duration,
           summary,
-        }),
+          notes,
+        },
       }),
     });
 
-    // 3. On success, update cache with returned data (no re-fetch needed)
+    // On success, replace optimistic entry with real data in cache
     if (result?.success && result.data) {
       const newEntry = Array.isArray(result.data) ? result.data[0] : result.data;
-      // Replace optimistic entry with real data in per-project cache
       if (cached) {
         const currentData = cached.data || cached;
         const newData = Array.isArray(currentData)
@@ -195,7 +249,6 @@ export async function addEntry(
           : currentData;
         await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
       }
-      // Replace in all-entries cache
       if (cachedAll) {
         const currentAll = cachedAll.data || cachedAll;
         const newAll = Array.isArray(currentAll)
@@ -208,17 +261,13 @@ export async function addEntry(
         await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
       }
     }
-    return result;
   } catch (err) {
-    // 4. On failure, rollback optimistic entry
-    console.error('[addEntry] Server sync failed, rolling back:', err);
-    if (cached) {
-      await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
-    }
-    if (cachedAll) {
-      await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
-    }
-    return { success: false, message: err.message || 'Failed to add entry' };
+    // On failure, queue for retry (optimistic entry stays in cache)
+    console.error('[addEntry] Server sync failed, queuing for retry:', err);
+    await addToQueue('addEntry', 'entries', {
+      user_email, project_name, entry_object, due_date, priority, status,
+      started_at, ended_at, duration, notes,
+    });
   }
 }
 
@@ -281,7 +330,27 @@ export async function updateEntry(
     });
   }
 
-  // 3. Sync to server
+  // 3. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[updateEntry] Offline, queuing action');
+    await addToQueue('updateEntry', 'entries', {
+      user_email,
+      project_name,
+      entry_id,
+      new_entry,
+      due_date,
+      priority,
+      status,
+      started_at,
+      ended_at,
+      duration,
+      summary,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 4. Sync to server
   try {
     console.log('[updateEntry] Sending to server:', { entry_id, priority, status, project_name });
     const result = await request(`${PROJECT_URL}/service/entry`, {
@@ -305,7 +374,7 @@ export async function updateEntry(
 
     console.log('[updateEntry] Server response:', JSON.stringify(result));
 
-    // 4a. Server returned success — update cache with authoritative server data
+    // 5a. Server returned success — update cache with authoritative server data
     if (result?.success && result.data) {
       const updatedEntry = Array.isArray(result.data) ? result.data[0] : result.data;
       // Re-read current cache (not stale reference) and replace the entry
@@ -330,20 +399,42 @@ export async function updateEntry(
         await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
       }
     }
-    // 4b. Server returned failure — ROLLBACK optimistic update
+    // 5b. Server returned failure — queue for retry
     else if (result && !result.success) {
-      console.warn('[updateEntry] Server returned failure, rolling back:', result.message);
-      if (cachedBefore) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cachedBefore);
-      if (cachedAllBefore) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAllBefore);
+      console.warn('[updateEntry] Server returned failure, queuing for retry:', result.message);
+      await addToQueue('updateEntry', 'entries', {
+        user_email,
+        project_name,
+        entry_id,
+        new_entry,
+        due_date,
+        priority,
+        status,
+        started_at,
+        ended_at,
+        duration,
+        summary,
+      });
     }
 
     return result;
   } catch (err) {
-    // 5. On network error, rollback
-    console.error('[updateEntry] Server sync failed, rolling back:', err);
-    if (cachedBefore) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cachedBefore);
-    if (cachedAllBefore) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAllBefore);
-    return { success: false, message: err.message || 'Failed to update entry' };
+    // 6. On network error, queue for retry (don't rollback)
+    console.error('[updateEntry] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateEntry', 'entries', {
+      user_email,
+      project_name,
+      entry_id,
+      new_entry,
+      due_date,
+      priority,
+      status,
+      started_at,
+      ended_at,
+      duration,
+      summary,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -379,7 +470,19 @@ export async function deleteEntry(user_email, project_name, entry) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[deleteEntry] Offline, queuing action');
+    await addToQueue('deleteEntry', 'entries', {
+      user_email,
+      project_name,
+      entry,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -394,11 +497,14 @@ export async function deleteEntry(user_email, project_name, entry) {
     }
     return result;
   } catch (err) {
-    // 3. Rollback on failure
-    console.error('[deleteEntry] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cached);
-    if (cachedAll) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
-    return { success: false, message: err.message || 'Failed to delete entry' };
+    // 4. On failure, queue for retry (don't rollback)
+    console.error('[deleteEntry] Server sync failed, queuing for retry:', err);
+    await addToQueue('deleteEntry', 'entries', {
+      user_email,
+      project_name,
+      entry,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -443,7 +549,18 @@ export async function deleteEntryById(user_email, entry_id) {
     await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: filtered });
   }
 
-  // 4. Sync to server
+  // 4. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[deleteEntryById] Offline, queuing action');
+    await addToQueue('deleteEntryById', 'entries', {
+      user_email,
+      entry_id,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 5. Sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -458,16 +575,12 @@ export async function deleteEntryById(user_email, entry_id) {
     }
     return result;
   } catch (err) {
-    console.error('[deleteEntryById] Server sync failed, rolling back:', err);
-    // Rollback all-entries cache
-    if (cachedAll) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAll);
-    // Rollback per-project cache
-    if (projectName) {
-      const cacheKey = `${user_email}:${projectName}`;
-      const cachedProject = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-      // Re-fetch and restore — simplest rollback is to re-read from server
-      // For now, just leave the optimistic removal (server will still have the entry)
-    }
-    return { success: false, message: err.message || 'Failed to delete entry' };
+    // 6. On failure, queue for retry
+    console.error('[deleteEntryById] Server sync failed, queuing for retry:', err);
+    await addToQueue('deleteEntryById', 'entries', {
+      user_email,
+      entry_id,
+    });
+    return { success: true, queued: true };
   }
 }

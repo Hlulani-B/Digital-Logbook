@@ -250,47 +250,6 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
             Archives
           </button>
           <button
-            className={`drawer-item ${isActive('/stats') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/stats');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            My Stats
-          </button>
-          <button
-            className={`drawer-item ${isActive('/dashboard/activity') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/dashboard/activity');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Activity Log
-          </button>
-          <button
             className={`drawer-item ${isActive('/calendar') ? 'active' : ''}`}
             onClick={() => {
               navigate('/calendar');
@@ -396,6 +355,66 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
             </svg>
             Import & Export
           </button>
+          <button
+            className={`drawer-item ${isActive('/data-disclaimer-info') ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/data-disclaimer-info');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Disclaimer
+          </button>
+          <button
+            className={`drawer-item ${isActive('/stats') ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/stats');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            My Stats
+          </button>
+          <button
+            className={`drawer-item ${isActive('/dashboard/activity') ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/dashboard/activity');
+              setDrawerOpen(false);
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Activity Log
+          </button>
         </div>
 
         <div className="drawer-section drawer-projects">
@@ -406,6 +425,7 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
               .map((project) => {
                 const name = project.project_name as string;
                 const count = safeEntries.filter((e) => e.project_name === name).length;
+                const projColor = (project.project_color as string) || null;
                 return (
                   <div
                     key={name}
@@ -433,16 +453,29 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
                         cursor: 'pointer',
                       }}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
+                      {projColor ? (
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: projColor,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                      )}
                       {name}
                       <span className="drawer-badge">{count}</span>
                     </button>

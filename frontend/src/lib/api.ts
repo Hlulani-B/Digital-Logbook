@@ -5,28 +5,55 @@ export const PROJECT_URL =
 export const PROFILE_URL =
   import.meta.env.VITE_PROFILE_SERVICE_URL || 'https://profile-service-0zk7.onrender.com';
 
-export async function request<T>(url: string, options?: RequestInit): Promise<T> {
+const DEFAULT_TIMEOUT_MS = 90_000; // 90s — Render free-tier cold start + AI processing
+
+export async function request<T>(
+  url: string,
+  options?: RequestInit & { timeoutMs?: number }
+): Promise<T> {
+  const start = Date.now();
+  const shortUrl = url.replace(/https?:\/\/[^/]+/, '');
+  console.log(`[api] → ${options?.method || 'GET'} ${shortUrl} timeout=${options?.timeoutMs ?? 90}s`);
+
   const { getSupabase } = await import('./supabase');
   const {
     data: { session },
   } = await getSupabase().auth.getSession();
   const token = session?.access_token || '';
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: token ? `Bearer ${token}` : '',
-      ...options?.headers,
-    },
-  });
+  const { timeoutMs: _timeoutMs, ...fetchOptions } = options ?? {};
+  const timeoutMs = _timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body}`);
+  try {
+    const res = await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+        ...options?.headers,
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.log(`[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`);
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+
+    console.log(`[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`);
+    return res.json() as Promise<T>;
+  } catch (err: unknown) {
+    console.log(`[api] ✗ ${options?.method || 'GET'} ${shortUrl} ERROR in ${Date.now() - start}ms:`, (err as Error)?.message);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-
-  return res.json() as Promise<T>;
 }
 
 export const api = {

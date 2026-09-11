@@ -193,9 +193,7 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 
 | Role | Responsibility |
 |---|---|
-| **Test lead (Hlulani Baloyi)** | Writes new tests for complex features, reviews test quality, maintains the test inventory, ensures CI stays green |
-| **Each developer** | Writes tests for their own feature alongside the implementation |
-| **PR reviewer** | Checks that new code has corresponding tests before approving |
+| **Test lead (Hlulani Baloyi)** | Writes all tests across frontend and backend services, reviews test quality, maintains the test inventory, ensures CI stays green |
 
 ### Review Cadence
 
@@ -355,3 +353,127 @@ After implementation, the team:
 
 !!! note "Continuous improvement"
     The feedback process itself is reviewed and refined at each sprint retrospective based on what worked and what didn't.
+
+---
+
+## User Feedback Session — External Tester (Sprint 2)
+
+### Tester Profile
+
+- External tester based in **New Zealand**
+- Self-hosts **Trilium Notes** and **Vikunja**
+- Skeptical of hosted note-taking apps with AI features
+- **Core concern:** trust and data control — not features
+
+### Questions Asked & Answers Given
+
+#### 1. Sign-up: Password policy not stated upfront
+
+**Feedback:** The password policy requires special characters, but this is only discovered via an error *after* submission. It should be stated on the form before the user types.
+
+**Finding:** The password policy is enforced server-side by Supabase Auth. The frontend sign-up form only displayed *"Password must be at least 6 characters"* — no mention of special characters.
+
+**Resolution:** Deferred — assigned to another team member to update the password hint on the sign-up form to include the special character requirement.
+
+---
+
+#### 2. Project → Entry sync bug
+
+**Feedback:** After creating a project, a new entry doesn't see the project until the page is reloaded. The client-side state/cache appears stale after project creation.
+
+**Finding:** The Dashboard's `projects` React state was only updated via `loadData()` which reads from IndexedDB. When navigating between pages (e.g. creating a project on the Projects page, then going back to the Dashboard), the component did not re-read from IndexedDB because React Router kept it mounted.
+
+**How it was solved:**
+
+1. Added a direct `setProjects()` state update in `handleCreateProject` immediately after `addProject()` succeeds — the new project is appended to local state so the entry picker sees it instantly, without relying on IndexedDB.
+2. Added a `visibilitychange` event listener on the Dashboard that calls `loadData()` whenever the page becomes visible again — catches the case where the user creates a project on another page and navigates back.
+
+**Files modified:** `frontend/src/pages/Dashboard.tsx`
+
+---
+
+#### 3. Delete confirmation uses native browser dialog
+
+**Feedback:** Delete confirmation uses `window.confirm()` / `window.alert()` instead of an in-app dialog — inconsistent UI, looks unpolished.
+
+**Finding:** Two places used native browser dialogs:
+
+- `NewEntry.tsx`: `window.confirm('Delete this entry?')` for entry deletion
+- `Dashboard.tsx`: `window.alert(...)` for project field creation failure warnings
+
+**How it was solved:**
+
+1. **Entry delete (`NewEntry.tsx`):** Replaced `window.confirm` with an inline confirmation pattern — clicking "Delete" shows a "Delete?" prompt with "Yes, delete" and "Cancel" buttons directly in the menu dropdown (same pattern already used on the Projects page).
+2. **Field creation warning (`Dashboard.tsx`):** Replaced `window.alert` with `setNewProjectError(...)` which displays the warning as an inline error message in the project creation form, consistent with all other error display in the app.
+
+**Files modified:** `frontend/src/pages/NewEntry.tsx`, `frontend/src/pages/Dashboard.tsx`
+
+---
+
+#### 4. Perceived slowness
+
+**Feedback:** The app feels slow.
+
+**Finding:** This is explained by the hosting setup, not code:
+
+- Render free tier has cold starts / spin-down after inactivity
+- The tester is in New Zealand while the app is hosted in South Africa, adding significant network latency on top of cold-start delays
+
+**Resolution:** Not a code issue. Known limitation of the current free-tier hosting. Noted as a disclaimer about expected performance.
+
+---
+
+#### 5. Navigation back to home/dashboard
+
+**Feedback:** Does navigation back to home/dashboard work correctly?
+
+**Finding:** Works fine, no issues reported.
+
+**Resolution:** No fix needed.
+
+---
+
+#### 6. AI integration — privacy concerns
+
+**Feedback:** The tester avoided the AI features entirely, citing not knowing where their data goes. A clear privacy disclaimer is needed.
+
+**Finding:** The app had no upfront disclosure about what data the AI processes, where it is sent, or what rights the user has. This is a significant trust gap — especially for privacy-conscious users who self-host alternatives like Trilium Notes.
+
+**How it was solved:**
+
+Created a new `DataDisclaimer.tsx` page shown **once** after account creation (before the dashboard). It transparently covers:
+
+- **Where data lives:** Supabase cloud database (PostgreSQL), local IndexedDB cache in the browser, Render hosting
+- **How AI is used:** Only processes entry text + project names; no access to password/email; optional AI messages can be turned off in Settings; no training on user data
+- **Quick Add accuracy warning:** AI may misread intent — users should verify entries are filed correctly after using Quick Add, as the AI can assign entries to the wrong project, guess incorrect priorities, or parse dates incorrectly
+- **User rights & control:** Data export (JSON format) via Settings, account deletion with 30-day grace period, data is never sold or shared with advertisers
+- **Open source:** The code is publicly auditable — anyone can inspect exactly what happens with their data
+
+The page is shown only for new accounts (tracked via `sessionStorage` flag set during signup and in `AuthCallback` for new OAuth/email-confirmation users). Existing users signing in skip it entirely.
+
+**Files created:** `frontend/src/pages/DataDisclaimer.tsx`
+**Files modified:** `frontend/src/pages/SignIn.tsx`, `frontend/src/pages/AuthCallback.tsx`, `frontend/src/pages/FrequencySetup.tsx`, `frontend/src/App.tsx`, `frontend/src/index.css`
+
+---
+
+#### 7. General: Trust/data-control is the core objection
+
+**Feedback:** The tester self-hosts Trilium Notes + Vikunja and is skeptical of hosted note apps with AI baked in.
+
+**Finding:** The concern is not about features but about **data sovereignty** — where does my data go, who can see it, and can I get it back?
+
+**Resolution:** Addressed by the Data Disclaimer page (item 6 above) which explicitly covers data storage location, AI processing scope, data export, and account deletion. The open-source nature of the project is also highlighted as an auditability advantage.
+
+---
+
+### Summary of Tester Feedback Fixes
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | Password policy not shown upfront | Deferred (assigned to another team member) |
+| 2 | Project → entry sync bug | **Fixed** — direct state update + visibility listener |
+| 3 | Native browser confirm/alert dialogs | **Fixed** — inline confirmation UI |
+| 4 | Perceived slowness | Not a code issue (Render free tier + NZ↔SA latency) |
+| 5 | Navigation back to dashboard | No issues found |
+| 6 | AI privacy disclaimer | **Fixed** — new DataDisclaimer page for new signups |
+| 7 | Trust/data-control concerns | **Addressed** via disclaimer page + open-source note |

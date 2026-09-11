@@ -1,22 +1,25 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 type Entry = Record<string, unknown>;
 
 export function AllEntriesPage() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +111,16 @@ export function AllEntriesPage() {
   }, [email]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  
+    // Subscribe to cache changes — re-load when syncAllData writes new data
+    useEffect(() => {
+      if (!email) return;
+      const unsubs = [
+        cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+        cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      ];
+      return () => unsubs.forEach((unsub) => unsub());
+    }, [email, loadData]);
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
@@ -147,6 +160,8 @@ export function AllEntriesPage() {
 
     return filtered;
   }, [entries, searchQuery, sortBy]);
+
+  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
 
   // AI placeholder
   useEffect(() => {
@@ -220,7 +235,13 @@ export function AllEntriesPage() {
 
         {/* Quick Entry Bar */}
         <QuickEntryBar
-          onEntryCreated={() => loadData()}
+          onEntryCreated={(projectName) => {
+            loadData();
+            // Navigate to the project page if a project name was provided
+            if (projectName) {
+              navigate(`/project/${encodeURIComponent(projectName)}`);
+            }
+          }}
           onVoiceOpen={() => setVoiceOpen(true)}
           placeholder={aiPlaceholder}
         />
@@ -265,6 +286,7 @@ export function AllEntriesPage() {
               }))}
               onUpdated={() => loadData()}
               onDelete={() => loadData()}
+              colorMap={colorMap}
             />
           </div>
         )}
@@ -283,6 +305,7 @@ export function AllEntriesPage() {
               }))}
               onUpdated={() => loadData()}
               onDelete={() => loadData()}
+              colorMap={colorMap}
             />
           </div>
         )}
@@ -295,6 +318,7 @@ export function AllEntriesPage() {
             onDeleteSelected={async () => {
               await loadData();
             }}
+            colorMap={colorMap}
           />
         )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
@@ -306,6 +330,10 @@ export function AllEntriesPage() {
                 onUpdated={() => loadData()}
                 onPriorityChanged={handleSetPriority}
                 onDelete={() => loadData()}
+                projectColor={resolveProjectColor(
+                  (row.project_name as string) || '',
+                  buildProjectColorMap(projects as Array<Record<string, unknown>>)
+                )}
               />
             ))}
           </div>

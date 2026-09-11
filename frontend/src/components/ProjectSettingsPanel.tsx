@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { editProjectName, deleteProject } from '@/functions/project/project.js';
+import { editProjectName, deleteProject, setProjectColor } from '@/functions/project/project.js';
 import { getFields, addField, editField } from '@/functions/project/fields.js';
 import { archiveProject } from '@/functions/project/archives.js';
-import { FiEdit2, FiArchive } from 'react-icons/fi';
+import { FiEdit2, FiArchive, FiCheck } from 'react-icons/fi';
 
 interface ProjectSettingsPanelProps {
   open: boolean;
   projectName: string;
   userEmail: string;
+  currentColor?: string | null;
   onClose: () => void;
   onProjectUpdated?: () => void;
   onProjectDeleted?: () => void;
@@ -24,6 +25,7 @@ export function ProjectSettingsPanel({
   open,
   projectName,
   userEmail,
+  currentColor,
   onClose,
   onProjectUpdated,
   onProjectDeleted,
@@ -51,6 +53,15 @@ export function ProjectSettingsPanel({
   const [editFieldType, setEditFieldType] = useState('');
   const [editFieldRequired, setEditFieldRequired] = useState(false);
 
+  // Project colour
+  const PROJECT_COLORS = [
+    '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#f59e0b', '#eab308',
+    '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+    '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#6b7280',
+  ];
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [savingColor, setSavingColor] = useState(false);
+
   // Reset state when panel opens or projectName changes
   useEffect(() => {
     if (open) {
@@ -58,8 +69,9 @@ export function ProjectSettingsPanel({
       setConfirmDelete(false);
       setError(null);
       setFieldError(null);
+      setSelectedColor(currentColor || null);
     }
-  }, [open, projectName]);
+  }, [open, projectName, currentColor]);
 
   // Load fields when panel opens
   useEffect(() => {
@@ -254,9 +266,95 @@ export function ProjectSettingsPanel({
 
           <hr className="divider" />
 
-          {/* ── Fields ── */}
+          {/* ── Project Colour ── */}
           <div className="panel-section">
-            <p className="panel-section-title">Fields</p>
+            <p className="panel-section-title">Project Colour</p>
+            <p className="field-hint" style={{ marginBottom: '0.75rem' }}>
+              Choose a colour to identify this project across the app.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              {/* None option */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setSelectedColor(null);
+                  setSavingColor(true);
+                  try {
+                    await setProjectColor(userEmail, projectName, null);
+                  } catch { /* optimistic update already applied */ }
+                  finally { setSavingColor(false); }
+                }}
+                disabled={savingColor}
+                aria-label="No colour"
+                title="No colour"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'var(--surface, #fff)',
+                  border: selectedColor === null ? '2px solid var(--accent, #111)' : '2px dashed var(--border, #ccc)',
+                  cursor: savingColor ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.15s ease',
+                  transform: selectedColor === null ? 'scale(1.15)' : 'scale(1)',
+                  boxShadow: selectedColor === null
+                    ? '0 0 0 3px var(--bg, #fff), 0 0 0 5px var(--accent, #111)'
+                    : '0 1px 3px rgba(0,0,0,0.12)',
+                  position: 'relative',
+                }}
+              >
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted, #999)' }}>✕</span>
+              </button>
+              {PROJECT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={async () => {
+                    setSelectedColor(c);
+                    setSavingColor(true);
+                    try {
+                      await setProjectColor(userEmail, projectName, c);
+                    } catch { /* optimistic update already applied */ }
+                    finally { setSavingColor(false); }
+                  }}
+                  disabled={savingColor}
+                  aria-label={`Set colour ${c}`}
+                  title={c}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: c,
+                    border: 'none',
+                    cursor: savingColor ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.15s ease',
+                    transform: selectedColor === c ? 'scale(1.15)' : 'scale(1)',
+                    boxShadow: selectedColor === c
+                      ? `0 0 0 3px var(--bg, #fff), 0 0 0 5px ${c}`
+                      : '0 1px 3px rgba(0,0,0,0.12)',
+                  }}
+                >
+                  {selectedColor === c && (
+                    <FiCheck size={14} color="#fff" />
+                  )}
+                </button>
+              ))}
+            </div>
+            {savingColor && (
+              <p className="field-hint" style={{ margin: 0 }}>Saving colour...</p>
+            )}
+          </div>
+
+          <hr className="divider" />
+
+          {/* ── Columns ── */}
+          <div className="panel-section">
+            <p className="panel-section-title">Columns</p>
 
             {fieldError && (
               <div
@@ -276,12 +374,12 @@ export function ProjectSettingsPanel({
             )}
 
             {loadingFields ? (
-              <p className="field-hint">Loading fields...</p>
+              <p className="field-hint">Loading columns...</p>
             ) : (
               <>
                 {fields.length === 0 && (
                   <p className="field-hint" style={{ marginBottom: '1rem' }}>
-                    No fields defined for this project.
+                    No columns defined for this project.
                   </p>
                 )}
 
@@ -378,7 +476,7 @@ export function ProjectSettingsPanel({
                             className="btn-secondary"
                             onClick={() => startEditField(f)}
                             style={{ padding: '0.35rem 0.55rem', fontSize: '0.85rem' }}
-                            title="Edit field"
+                            title="Edit column"
                           >
                             <FiEdit2 size={16} />
                           </button>
@@ -402,7 +500,7 @@ export function ProjectSettingsPanel({
                 >
                   <input
                     type="text"
-                    placeholder="New field name"
+                    placeholder="New column name"
                     value={newFieldName}
                     onChange={(e) => setNewFieldName(e.target.value)}
                     className="field-input"

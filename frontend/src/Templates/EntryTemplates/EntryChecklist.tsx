@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
 import { classifyEntryPayload } from '@/lib/entryPayload';
 
@@ -19,6 +21,7 @@ interface ChecklistEntryCardProps {
   entry: ChecklistEntry;
   onUpdated?: () => void;
   onDelete?: (entryId: string) => void;
+  projectColor?: string;
 }
 
 const DONE_STATUS: EntryStatus = 'done_and_dusted';
@@ -50,18 +53,15 @@ function getSummary(entry: ChecklistEntry): string {
   return typeof payload.value === 'string' ? payload.value : 'Untitled entry';
 }
 
-export default function ChecklistEntryCard({
-  entry,
-  onUpdated,
-  onDelete,
-}: ChecklistEntryCardProps) {
+export default function ChecklistEntryCard({ entry, onUpdated, onDelete, projectColor }: ChecklistEntryCardProps) {
   const isDone = entry.status === DONE_STATUS;
   const [checking, setChecking] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const { openNotes } = useNotes();
+  
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
   const [draftDueDate, setDraftDueDate] = useState(
@@ -163,6 +163,7 @@ export default function ChecklistEntryCard({
         className={`checklist-card ${isDone ? 'checklist-card--done' : ''}`}
         data-status={entry.status}
         onClick={handleCardClick}
+        style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
       >
         <span className="checklist-project">{entry.project_name}</span>
         <div className="checklist-card-row">
@@ -188,6 +189,60 @@ export default function ChecklistEntryCard({
             </p>
             <p className="checklist-due">{formatDate(entry.due_date)}</p>
           </div>
+        </div>
+        <button
+          type="button"
+          className="checklist-card-notes-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            openNotes(entry);
+          }}
+        >
+          <FiEdit className="checklist-card-notes-icon" />
+          View Notes
+        </button>
+        {/* Context menu for edit/delete (shown on hover) */}
+        <div className="checklist-card-menu">
+          <button 
+            className="checklist-card-menu-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditOpen(true);
+            }}
+            title="Edit"
+          >
+            Edit
+          </button>
+          <button 
+            className="checklist-card-menu-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openNotes(entry);
+            }}
+            title="View Notes"
+          >
+            View Notes
+          </button>
+          <button 
+            className="checklist-card-menu-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openNotes(entry);
+            }}
+            title="Add Note"
+          >
+            Add Note
+          </button>
+          <button 
+            className="checklist-card-menu-btn checklist-card-menu-btn--delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteOpen(true);
+            }}
+            title="Delete"
+          >
+            Delete
+          </button>
         </div>
       </div>
 
@@ -261,30 +316,6 @@ export default function ChecklistEntryCard({
           </div>
         </div>
       )}
-
-      {/* Context menu for edit/delete */}
-      <div className="checklist-card-menu">
-        <button
-          className="checklist-card-menu-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditOpen(true);
-          }}
-          title="Edit"
-        >
-          Edit
-        </button>
-        <button
-          className="checklist-card-menu-btn checklist-card-menu-btn--delete"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDeleteOpen(true);
-          }}
-          title="Delete"
-        >
-          Delete
-        </button>
-      </div>
     </>
   );
 }
@@ -294,9 +325,10 @@ interface ChecklistViewProps {
   entries: ChecklistEntry[];
   onUpdated?: () => void;
   onDelete?: (entryId: string) => void;
+  colorMap?: Record<string, string | null>;
 }
 
-export function ChecklistView({ entries, onUpdated, onDelete }: ChecklistViewProps) {
+export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: ChecklistViewProps) {
   if (!entries || entries.length === 0) {
     return (
       <div className="checklist-empty">
@@ -321,6 +353,7 @@ export function ChecklistView({ entries, onUpdated, onDelete }: ChecklistViewPro
           entry={entry}
           onUpdated={onUpdated}
           onDelete={onDelete}
+          projectColor={colorMap ? (colorMap[entry.project_name] || undefined) : undefined}
         />
       ))}
     </div>
