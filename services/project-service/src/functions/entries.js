@@ -850,7 +850,7 @@ CORRECT matched=0/1 with entry:
 
 TEST: Ask yourself, "If I only created the project and NO entry, would the user feel that their message was fully handled?" If YES → matched=2. If NO (they described work you'd lose) → matched=0/1/3 with an entry.
 
-If matched=2, your response MUST have `"fields": {}` and `"new_fields": []` (empty), and MUST NOT invent a task description. The comment should explain that the project was created and remind them they can log entries into it.
+If matched=2, your response MUST have "fields": {} and "new_fields": [] (empty), and MUST NOT invent a task description. The comment should explain that the project was created and remind them they can log entries into it.
 
 === STEP 5: FIELD NAMES AND VALUES — PARAPHRASE NEATLY (STRICT) ===
 
