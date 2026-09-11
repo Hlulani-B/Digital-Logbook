@@ -189,7 +189,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // hooking every delete/archive call site, so it also catches project→entry
   // archive cascades, cross-page deletes and offline-queue replays for free.
   const isRecentItemLive = useCallback(
-    (item: { projectName: string; entryId: string }) => {
+    (item: { projectName: string; entryId: string; createdAt?: string; viewedAt?: string }) => {
+      // Grace period: items created/viewed within the last 60 seconds are always
+      // considered live. This avoids a race where trackCreatedEntry fires
+      // before loadData() has updated the projects/entries state.
+      const ts = item.createdAt || item.viewedAt;
+      if (ts) {
+        const age = Date.now() - new Date(ts).getTime();
+        if (age < 60_000) return true;
+      }
+
       // Don't evaluate until projects have actually loaded — a momentary empty
       // cache during first paint would otherwise blank both lists.
       if (projects.length === 0 && loading) return true;
@@ -760,6 +769,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       setNewProjectOpen(false);
       resetProjectForm();
+      trackCreatedEntry({ entryId: `project:${projectName}`, projectName, title: `Project: ${projectName}` });
       await loadData();
       
       // Navigate to the newly created project's page
