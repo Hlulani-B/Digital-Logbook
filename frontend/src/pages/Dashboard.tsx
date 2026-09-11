@@ -1561,10 +1561,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       key={item.entryId}
                       className="recent-item"
                       onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
-                      title={item.title}
+                      title={item.type === 'project' ? `View project: ${item.title}` : item.title}
                     >
-                      <span className="recent-item-title">{item.title}</span>
-                      <span className="recent-item-project">{item.projectName}</span>
+                      <span className="recent-item-title">
+                        {item.type === 'project' && <span className="recent-item-badge">Project</span>}
+                        {item.title}
+                      </span>
+                      {item.type === 'entry' && (
+                        <span className="recent-item-project">{item.projectName}</span>
+                      )}
                     </button>
                   ))}
                 </div>

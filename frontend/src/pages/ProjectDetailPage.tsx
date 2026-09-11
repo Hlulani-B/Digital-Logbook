@@ -15,6 +15,7 @@ import {
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
+import { trackViewedProject } from '@/lib/recentlyViewed';
 import { setPriority } from '@/functions/project/priority.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
@@ -106,6 +107,13 @@ export function ProjectDetailPage() {
   const sortType = sortBy === 'priority' ? 1 : 0;
   const cacheKey = projectName ? `${email}:${projectName}` : email;
   const cacheStore = projectName ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
+
+  // Track this project as recently viewed when the page loads
+  useEffect(() => {
+    if (projectName) {
+      trackViewedProject({ projectName, title: projectName });
+    }
+  }, [projectName]);
 
   // Read from IndexedDB immediately
   useEffect(() => {
