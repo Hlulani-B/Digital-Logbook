@@ -628,6 +628,19 @@ in-context help to disambiguate labels.
 3. **Tooltips on the ambiguous view-mode controls and buttons** to clarify
    cards / checklist / board on the spot. (commit `f1768b0`)
 
+!!! tip "Follow-up (post-Sprint 2)"
+    The rename to *"task"* fixed the entry/project confusion but created a
+    new one — the word collided with the Kanban "task board", with
+    sprint-planning vocabulary used elsewhere in the course, and with the
+    way our own docs described team-internal work. **A second rename,
+    "task → item" across every user-facing string in the frontend, shipped
+    as [PR #137](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/137)
+    (commit `ff5b77e`, 19 files, 62 strings).** Internal identifiers,
+    CSS classes, cache keys and DB columns still say `entry` / `task`;
+    only the UI vocabulary was unified. This is documented as
+    [US16](./user-stories.md#us16-see-the-individual-logbook-record-called-by-the-same-word-everywhere)
+    and captured in [Open Questions & Decisions](./decisions.md#settled).
+
 ### 4. Creating a task is not repeatable or memorable
 
 !!! info "Gitea issue"

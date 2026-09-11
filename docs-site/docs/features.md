@@ -146,7 +146,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Provides fast access to common actions: New Entry, View All Entries, Export Data.
 
-**Why it was implemented:** Reduces friction for frequent tasks, improving workflow efficiency.
+**Why it was implemented:** Reduces friction for frequent actions, improving workflow efficiency.
 
 **How it works:**
 
@@ -183,7 +183,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - Days are navigated with Previous, Next, and Today controls
 - Overdue entries are highlighted in red and completed entries are shown in green with a strikethrough
 - Dragging an entry onto another day calls `updateEntry()` with the new due date and updates the local list immediately
-- Days with many tasks show the first few entries plus a "+N more" indicator and remain scrollable
+- Days with many items show the first few entries plus a "+N more" indicator and remain scrollable
 
 **Key files:**
 
@@ -195,7 +195,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Shows entries as cards in three columns based on their status: Up Next, In Motion, and Done & Dusted. Cards can be dragged between columns to change status, and the change is saved immediately.
 
-**Why it was implemented:** Provides a task-board view of work in progress and makes it easy to advance or complete entries without opening each one.
+**Why it was implemented:** Provides an item-board view of work in progress and makes it easy to advance or complete entries without opening each one.
 
 **How it works:**
 
@@ -237,19 +237,19 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ### 14. Timeline
 
-**What it does:** Lays tasks out horizontally against time, with bars spanning start to due date and SVG arrows drawn between dependent tasks. The view is scrollable and zoomable across at least a month.
+**What it does:** Lays items out horizontally against time, with bars spanning start to due date and SVG arrows drawn between dependent items. The view is scrollable and zoomable across at least a month.
 
-**Why it was implemented:** Gives a project-planning view of work over time and makes task chains visible.
+**Why it was implemented:** Gives a project-planning view of work over time and makes item chains visible.
 
 **How it works:**
 
 - Fetches all unarchived, incomplete entries using `getAllEntries()`
 - Resolves each entry's start date (`started_at`, then `created_at`, then one day before `due_date`) and end date (`due_date`, then one day after start)
 - Reads dependency IDs from `entries.dependencies` or `entries.depends_on`
-- Assigns rows greedily to avoid overlapping bars, which keeps sequential chained tasks on separate rows
-- Renders an SVG timeline with grid lines, a "today" marker, task bars, and curved arrows between dependencies
+- Assigns rows greedily to avoid overlapping bars, which keeps sequential chained items on separate rows
+- Renders an SVG timeline with grid lines, a "today" marker, item bars, and curved arrows between dependencies
 - Zoom buttons scale the day width from 50% to 400%
-- Empty state is shown when no dated, incomplete tasks exist
+- Empty state is shown when no dated, incomplete items exist
 
 **Key files:**
 
@@ -261,7 +261,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Exports all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and imports them back in. Round-trip safe: an export-then-import cycle reproduces the original row count exactly. Malformed rows are reported by line number rather than failing halfway. iCalendar export produces RFC 5545 compliant .ics files that open in Google Calendar, Outlook, and Apple Calendar.
 
-**Why it was implemented:** Users need to back up their data, migrate between accounts, move data in and out of the logbook without vendor lock-in, and integrate tasks with external calendar applications.
+**Why it was implemented:** Users need to back up their data, migrate between accounts, move data in and out of the logbook without vendor lock-in, and integrate items with external calendar applications.
 
 **How it works:**
 
@@ -423,7 +423,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Each entry has a priority (0=urgent+important, 1=urgent, 2=not urgent, null=none) and status.
 
-**Why it was implemented:** Helps users prioritize tasks and track completion.
+**Why it was implemented:** Helps users prioritize items and track completion.
 
 **How it works:**
 

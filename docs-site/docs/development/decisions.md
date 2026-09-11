@@ -17,6 +17,7 @@ methodology for the Sprint 1 rubric (Stakeholder Interaction, Project Methodolog
 | What is `dashboard-service` responsible for?                    | Cross-project summaries and aggregated data for the dashboard view                                                                                                       | Team consensus          |
 | Which basic field types are supported?                          | Text, number, date, and boolean for Sprint 1                                                                                                                             | Implemented             |
 | What should the `main` vs `services` branch structure be?       | `main` is the default branch. Feature branches are created off `main` and merged back. The older `services` branch is no longer active                                   | Team consensus          |
+| What word should we use for a single logbook record in the UI?  | **"Item"** (plural **"items"**). Chosen over *entry* (too generic, clashes with the DB term) and *task* (clashes with kanban "task board" and with sprint-planning vocabulary). Internal identifiers, CSS classes, cache keys and DB columns still say `entry` / `task`; only what the user sees was unified. See [US16](./user-stories.md#us16-see-the-individual-logbook-record-called-by-the-same-word-everywhere). | PR #137, commit `ff5b77e` |
 
 ## Open — needs a team decision
 
