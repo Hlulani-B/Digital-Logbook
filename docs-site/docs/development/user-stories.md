@@ -267,4 +267,38 @@ project-colour work tracked with the same feedback tag; migration
 | AT2 | User reopens the app on a different device | Dashboard loads | The stored colour is present cross-device (server-side persistence, not localStorage) |
 | AT3 | User opens Settings → Theme | User selects a dark variant | Theme applies instantly via CSS variables and persists in preferences |
 
+### US16. See the individual logbook record called by the same word everywhere
+
+**Source:** Post-Sprint-2 terminology review. The Sprint-2 rename
+(`Entry` → `Task`, PR #113) fixed one confusion but created another —
+"task" collided with kanban "task board", with the sprint-planning sense
+of the word used in course material, and with the way our own docs
+described team-internal work. Internal identifiers, CSS classes and
+data-key lookups were never called "task"; only the UI was, so users
+still saw `entry` / `task` / `item` depending on where they looked.
+
+**Gitea PR:** [#137](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/137) — merged as `cef84ac`.
+**Shipped:** commit `ff5b77e` (19 files, 62 user-facing strings).
+
+**Who:** As any user
+**What:** I want the app to call a single logbook record an *"item"*
+everywhere it appears on screen, so that the vocabulary matches the
+docs, the DB, the export files, and the code
+**Why:** So that I never have to translate between three words for the
+same thing.
+
+| Test | Given | When | Then |
+| ---- | ----- | ---- | ---- |
+| AT1 | User is on any surface that lists logbook records (Dashboard, All Items, Calendar, Kanban, Today, Timeline, Project detail, Quick Add, Add Entry) | User reads headings, buttons, tooltips, empty states and messages | The word is *"item" / "items"*; the word *"task"* does not appear anywhere user-facing |
+| AT2 | User exports data or reads the Data Portability help | User inspects labels | Same *"item"* vocabulary as the UI |
+| AT3 | Developer greps for user-facing "task" in `frontend/src` | Only non-user-facing contexts remain | Remaining matches are identifiers, CSS classes, `data-key` lookups, and internal comments; no UI string contains "task" |
+
+!!! info "Scope"
+    Internal identifiers (`entry`, `entries`, `task`, database columns,
+    cache keys, event names, CSS classes, `data-key` attributes, AI
+    prompt keys) are unchanged — this is a **UI-only** rename. The
+    database still calls the row an "entry" and the code still calls
+    it an "entry" in most places; only what the user sees was unified
+    to "item". This avoids a costly migration for zero user benefit.
+
 <!-- AI Attribution: Formatting and table generation provided by Gemini (Model: Gemini 1.5 Pro). Purpose: Agile user story structuring and markdown formatting. -->
