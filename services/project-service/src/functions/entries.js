@@ -1129,9 +1129,9 @@ Respond with ONLY this JSON, nothing else:`;
               null  // summary — generated in background
             );
             if (addResult.success) {
-              results.old.push({ project_name: projName, fields: fieldValues, summary: null });
-              // Generate summary in background
               const entryId = addResult.data?.[0]?.id;
+              results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+              // Generate summary in background
               if (entryId) {
                 this.generateSummary(projName, fieldValues)
                   .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
@@ -1173,9 +1173,9 @@ Respond with ONLY this JSON, nothing else:`;
                 null  // summary — generated in background
               );
               if (addResult.success) {
-                results.old.push({ project_name: projName, fields: fieldValues, summary: null });
-                // Generate summary in background
                 const entryId = addResult.data?.[0]?.id;
+                results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+                // Generate summary in background
                 if (entryId) {
                   this.generateSummary(projName, fieldValues)
                     .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
@@ -1224,14 +1224,15 @@ Respond with ONLY this JSON, nothing else:`;
               null  // summary — generated in background
             );
             if (addResult.success) {
+              const entryId = addResult.data?.[0]?.id;
               results.new.push({
                 project_name: projName,
                 fields: fieldValues,
                 summary: null,
                 new_fields: newFields,
+                entry_id: entryId,
               });
               // Generate summary in background
-              const entryId = addResult.data?.[0]?.id;
               if (entryId) {
                 this.generateSummary(projName, fieldValues)
                   .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })

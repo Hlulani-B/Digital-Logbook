@@ -8,6 +8,7 @@ import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -225,8 +226,12 @@ export function AllEntriesPage() {
         <QuickEntryBar
           onEntryCreated={(info) => {
             loadData();
-            // Navigate to the project page if a project name was provided
-            if (info?.projectName) {
+            // Track every created entry (single OR multi) in "Recently created".
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
+            // Navigate only when there's exactly one unambiguous target.
+            if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
               navigate(`/project/${encodeURIComponent(info.projectName)}`);
             }
           }}
@@ -329,7 +334,19 @@ export function AllEntriesPage() {
       </main>
 
       {/* Voice Feature */}
-      {voiceOpen && <VoiceFeature onClose={() => setVoiceOpen(false)} onEntryCreated={() => { loadData(); setVoiceOpen(false); }} />}
+      {voiceOpen && (
+        <VoiceFeature
+          onClose={() => setVoiceOpen(false)}
+          onEntryCreated={(info) => {
+            loadData();
+            setVoiceOpen(false);
+            // Mirror the QuickEntryBar behaviour: track every created entry.
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

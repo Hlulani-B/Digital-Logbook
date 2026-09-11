@@ -10,7 +10,7 @@ import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js
  * Shows animated pulse rings and real-time transcript while recording.
  * On stop, lets user review transcript and send to quick-add.
  *
- * @param {{ onClose: () => void, onEntryCreated?: () => void }} props
+ * @param {{ onClose: () => void, onEntryCreated?: (info?: { entryId?: string, projectName?: string, title?: string, created?: Array<{ entryId?: string, projectName: string, title: string }> }) => void }} props
  */
 export default function VoiceFeature({ onClose, onEntryCreated }) {
   const [status, setStatus] = useState('idle'); // idle | recording | recorded | sending | done | error
@@ -118,18 +118,56 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       const isProjectOnly = data.project_only === true;
       const isMulti = data.multi === true;
 
-      // Build confirmation message
-      let confirmMsg = 'Entry created!';
+      // Build a `created[]` list covering every branch (single, project-only,
+      // multi-project) so consumers can populate "Recently created" the same
+      // way they do for the QuickEntryBar. Mirrors QuickEntryBar's payload.
+      const trimmed = transcript.trim();
+      const fallbackTitle = ((data.summary) || trimmed).slice(0, 100) || 'New entry';
+      const titleFrom = (fields) => {
+        if (fields) {
+          const first = Object.values(fields).find((v) => typeof v === 'string' && v.length > 0);
+          if (typeof first === 'string') return first.slice(0, 100);
+        }
+        return fallbackTitle;
+      };
+      const created = [];
+      let projectName;
+      let entryId;
+      let title;
+
       if (isMulti) {
-        const oldCount = data.results?.old?.length || 0;
-        const newCount = data.results?.new?.length || 0;
-        confirmMsg = `Added ${oldCount + newCount} ${oldCount + newCount === 1 ? 'entry' : 'entries'}!`;
+        const results = data.results || {};
+        for (const item of [...(results.old || []), ...(results.new || [])]) {
+          if (!item.project_name) continue;
+          created.push({
+            entryId: item.entry_id,
+            projectName: item.project_name,
+            title: titleFrom(item.fields),
+          });
+        }
+      } else if (isProjectOnly) {
+        projectName = data.project;
+        if (projectName) created.push({ projectName, title: `Project: ${projectName}` });
+      } else {
+        projectName = data.project;
+        entryId = data.entry_id;
+        title = titleFrom(data.fields);
+        if (projectName && title) created.push({ entryId, projectName, title });
+      }
+
+      // Confirmation message
+      let confirmMsg;
+      if (isMulti) {
+        const total = created.length;
+        confirmMsg = `Added ${total} ${total === 1 ? 'entry' : 'entries'} — see "Recently created" on Dashboard.`;
       } else if (isProjectOnly) {
         confirmMsg = `Project "${data.project}" created!`;
+      } else {
+        confirmMsg = 'Entry created!';
       }
       setAiConfirmation(confirmMsg);
       setStatus('done');
-      if (onEntryCreated) onEntryCreated();
+      if (onEntryCreated) onEntryCreated({ entryId, projectName, title, created });
       setTimeout(onClose, 4000);
     } else {
       const actualError = result.message || 'Failed to create entry. Please try again.';

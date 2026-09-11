@@ -962,9 +962,14 @@ export function ProjectDetailPage() {
         {voiceOpen && (
           <VoiceFeature
             onClose={() => setVoiceOpen(false)}
-            onEntryCreated={() => {
+            onEntryCreated={(info) => {
               setVoiceOpen(false);
               loadEntries();
+              // Track every entry the voice flow created so it shows up
+              // in the Dashboard's "Recently created" list too.
+              for (const item of info?.created ?? []) {
+                trackCreatedEntry(item);
+              }
             }}
           />
         )}

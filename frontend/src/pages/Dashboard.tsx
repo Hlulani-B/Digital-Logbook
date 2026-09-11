@@ -1509,12 +1509,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <QuickEntryBar
               onEntryCreated={(info) => {
                 loadData();
-                // Track the created entry
-                if (info?.projectName && info?.title) {
-                  trackCreatedEntry({ entryId: info.entryId, projectName: info.projectName, title: info.title });
+                // Populate "Recently created" with every entry the backend
+                // actually created (single-match OR multi-match).
+                for (const item of info?.created ?? []) {
+                  trackCreatedEntry(item);
                 }
-                // Navigate to the project page if a project name was provided
-                if (info?.projectName) {
+                // Only navigate when there's exactly one clear target —
+                // for multi-match we intentionally stop here and let the
+                // "Recently created" section drive navigation.
+                if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
                   navigate(`/project/${encodeURIComponent(info.projectName)}`);
                 }
               }}
@@ -2126,9 +2129,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {voiceOpen && (
         <VoiceFeature
           onClose={() => setVoiceOpen(false)}
-          onEntryCreated={() => {
+          onEntryCreated={(info) => {
             setVoiceOpen(false);
             loadData();
+            // Voice creates exactly the same shape of result as QuickEntryBar,
+            // so track every entry in the `created[]` list the same way.
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
           }}
         />
       )}
