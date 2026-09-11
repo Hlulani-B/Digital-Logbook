@@ -73,19 +73,25 @@ field.
 
 ## projects
 
-| Column       | Type         | Notes                                     |
-| ------------ | ------------ | ----------------------------------------- |
-| id           | BIGSERIAL    | PK, auto-generated                        |
-| project_name | VARCHAR(255) | NOT NULL                                  |
-| user_email   | VARCHAR(255) | NOT NULL, FK → users(email)               |
-| description  | TEXT         | nullable                                  |
-| archived     | BOOLEAN      | default false                             |
-| deleted      | BOOLEAN      | NOT NULL default false — soft-delete flag |
-| created_at   | TIMESTAMPTZ  | default now()                             |
+| Column        | Type         | Notes                                                            |
+| ------------- | ------------ | ---------------------------------------------------------------- |
+| id            | BIGSERIAL    | PK, auto-generated                                               |
+| project_name  | VARCHAR(255) | NOT NULL                                                         |
+| user_email    | VARCHAR(255) | NOT NULL, FK → users(email)                                      |
+| description   | TEXT         | nullable                                                         |
+| archived      | BOOLEAN      | default false                                                    |
+| deleted       | BOOLEAN      | NOT NULL default false — soft-delete flag                        |
+| project_color | VARCHAR(7)   | nullable hex string (e.g. `#ec4899`), NULL = fall back to hash   |
+| created_at    | TIMESTAMPTZ  | default now()                                                    |
 
 The pair `(user_email, project_name)` is unique, so one user cannot have two
 projects with the same name. `description` was added after the initial schema
-to let users record a short project summary.
+to let users record a short project summary. `project_color` was added in
+Sprint 2 in response to user feedback asking for per-project personalisation
+(see `testing.md` — Quick-Survey feature request "different colours so that
+every project can have its own colour"). Chosen from an 18-swatch picker in
+the project settings panel; when NULL the frontend falls back to a
+name-derived colour.
 
 ## fields
 
@@ -110,6 +116,7 @@ to let users record a short project summary.
 | entries      | JSONB                 | NOT NULL, dynamic field values                |
 | due_date     | TIMESTAMPTZ           | nullable, indexed                             |
 | priority     | priority_level (ENUM) | nullable                                      |
+| status       | entry_status (ENUM)   | NOT NULL, default `'up_next'` — see below     |
 | archived     | BOOLEAN               | default false                                 |
 | started_at   | TIMESTAMPTZ           | nullable, set when user starts a work session |
 | ended_at     | TIMESTAMPTZ           | nullable, set when user stops the session     |
@@ -117,6 +124,13 @@ to let users record a short project summary.
 | summary      | TEXT                  | nullable, AI-generated one-sentence summary         |
 | deleted      | BOOLEAN               | default false — soft-delete flag              |
 | created_at   | TIMESTAMPTZ           | default CURRENT_TIMESTAMP                     |
+
+!!! warning "Migration drift on `status`"
+    The baseline migration declares `status VARCHAR(30) DEFAULT 'up_next'`,
+    but the production database has been updated out-of-band to use an
+    `entry_status` ENUM. `000_baseline_full_schema.sql` should be re-aligned
+    with production so a fresh `npm run db:migrate` on a new environment
+    produces the same shape as the live DB.
 
 ```sql
 ALTER TABLE entries
@@ -212,8 +226,25 @@ Internal keep-alive table. Supabase free-tier projects are paused after prolonge
 | entry_type | TEXT         | NOT NULL, CHECK (entry_type IN ('text','image','pdf','link'))        |
 | value      | TEXT         | NOT NULL, the note content                                           |
 | created_at | TIMESTAMPTZ  | default now()                                                        |
+| deleted    | BOOLEAN      | default false — soft-delete flag                                     |
 
 Per-entry personalisation table. Lets users attach free-form notes (text snippets, image URLs, PDF references, or web links) to any entry. The `entry_type` check constraint keeps the type column to a known set of values, and the cascade delete ensures notes are cleaned up automatically when their parent entry is removed. Added based on user feedback requesting more personalisation options.
+
+## ai_provider_cooldowns
+
+| Column         | Type         | Notes                                                            |
+| -------------- | ------------ | ---------------------------------------------------------------- |
+| provider       | VARCHAR(100) | PK — the AI provider identifier (e.g. `groq`, `openrouter`)      |
+| cooldown_until | TIMESTAMPTZ  | NOT NULL, default `now()` — wall-clock time the provider is retryable again |
+| deleted        | BOOLEAN      | NOT NULL default false — soft-delete flag                        |
+
+Small state table used by the project-service AI router to rate-limit calls
+across multiple upstream providers. When a provider returns HTTP 429 or
+throws a network error, the service stamps `cooldown_until` with a backoff
+deadline and skips that provider on subsequent requests until the deadline
+passes. This keeps the entry-summary and Quick-Add features working even
+when one provider is throttled, without needing to store cooldown state in
+process memory (which would be lost on cold start of a Render free instance).
 
 ```sql
 CREATE TABLE notes (
@@ -365,6 +396,7 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 | `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                 |
 | `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                |
 | `008_add_project_color.sql`                        | `project_color VARCHAR(7)` column on projects for custom colour picker      |
+| `008_create_field_stats_rpc.sql`                   | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project) |
 | `009_create_notes_table.sql`                       | `notes` table for per-entry personalisation (text, image, pdf, link)        |
 
 ### CLI Commands

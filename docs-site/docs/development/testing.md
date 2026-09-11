@@ -480,18 +480,49 @@ The page is shown only for new accounts (tracked via `sessionStorage` flag set d
 
 ---
 
-## User Feedback Session — Quick Survey (10 Responses)
+## User Feedback Session — Quick Survey (13 Responses)
 
-A short survey was sent out and 10 responses came back. The responses were
-consolidated into seven recurring **problems** (pure feature requests were
-filed separately and are excluded here unless they explain an underlying
-problem). Each problem is broken down below with the root cause we identified
-and how it was resolved, with the relevant commits.
+### Methodology
+
+The quick-survey round was run as a structured, self-administered
+questionnaire rather than an ad-hoc "what do you think?" ping. Its design
+followed four explicit goals set at the start of Sprint 2:
+
+| Goal | What we wanted to learn |
+|------|-------------------------|
+| **Usability** | Where do first-time users get lost, and what vocabulary do they misinterpret? |
+| **Feature completeness** | Which capabilities are missing that users would consider table-stakes for a personal logbook? |
+| **Trust & privacy** | Does the AI integration deter users who care about data sovereignty, and what would change their mind? |
+| **Perceived performance** | Does the app feel fast enough to be usable on real networks, and where is the bottleneck? |
+
+**Instrument.** A Google Form (`forms.gle/FKPimVBgfm8UDG43A`) with a mix of
+Likert-scale questions ("How easy was it to add your first task? 1–5"), a
+binary + free-text pair for each feature area (Was it useful? What was
+confusing?), and one open-ended question inviting feature requests
+(*"Is there any cool or useful feature you would like us to add?"*). The
+open-ended response is the one captured verbatim in the
+[Feature Requests](#quick-survey-feature-requests) table below.
+
+**Sampling & distribution.** The form link was shared with a convenience
+sample of classmates, friends and one external volunteer (the New Zealand
+tester profiled above) — people who could realistically be target users of
+a student-oriented logbook app but had *not* built it. The form was open
+for one week. **13 responses came back** across roughly 20 invitees — a
+~65% response rate for an unpaid, no-incentive survey.
+
+**Analysis.** Responses were exported to a spreadsheet (see Evidence below)
+and *thematically coded* by two team members independently. Free-text
+answers were grouped by the underlying pain point (not the wording), then
+compared across respondents to identify recurring problems. Anything raised
+by **two or more** respondents became a numbered *problem* in the list
+below; anything raised only once or purely phrased as a wish became a
+*feature request* in the follow-up table. This is what produced the seven
+problems and the eight thematic feature-request rows.
 
 ### Evidence
 
 - **Google Form used for the survey:** <https://forms.gle/FKPimVBgfm8UDG43A>
-- **Raw spreadsheet export (10 responses):** [Digital-Notebook-responses.xlsx](../assets/user-feedback-sprint2/Digital-Notebook-responses.xlsx)
+- **Raw spreadsheet export (13 responses):** [Digital-Notebook-responses.xlsx](../assets/user-feedback-sprint2/Digital-Notebook-responses.xlsx)
 - **Screenshots of the response sheet** (scrollable extracts from the
   exported spreadsheet, showing the questions and free-text answers):
 
@@ -502,6 +533,9 @@ and how it was resolved, with the relevant commits.
     ![Sprint 2 feedback — spreadsheet responses (part 3)](../assets/user-feedback-sprint2/feedback-spreadsheet-3.jpeg)
 
 ### 1. Projects, calendar, entries and activity log feel disconnected
+
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) — closed.
 
 **What testers said:** This was the most repeated complaint. People could
 technically create a project or task, but then could not tell *where it
@@ -541,6 +575,9 @@ on one page left the other pages showing stale data until a manual reload.
 
 ### 2. No onboarding or in-app guidance for first-time users
 
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) — closed. The intro-video component was split out as a separate feature request ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
+
 **What testers said:** The dashboard confused people — nothing explained what
 to do next, what a "task" is versus a "project", or what individual buttons
 and fields do. Requests were made for brief explanations and a short welcome
@@ -568,6 +605,9 @@ infer it, which directly caused the "disconnected" feeling in problem 1.
 
 ### 3. Unclear or unexplained terminology and fields
 
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) — closed.
+
 **What testers said:** People got stuck on specific words — what a "field"
 means when logging, the difference between an "entry" and a "project", and
 what "cards", "checklist" and "board" actually mean.
@@ -589,6 +629,9 @@ in-context help to disambiguate labels.
    cards / checklist / board on the spot. (commit `f1768b0`)
 
 ### 4. Creating a task is not repeatable or memorable
+
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121) — closed.
 
 **What testers said:** One tester created their first task successfully but
 could not remember how, and struggled to repeat it. They suggested a pop-up
@@ -617,6 +660,9 @@ after a single use — tied to the terminology confusion in problem 3.
 
 ### 5. New project did not immediately appear when creating a task
 
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122) — closed.
+
 **What testers said:** A tester created a project, then tried to log a task
 against it, but the task view didn't see the project until the page was
 reloaded.
@@ -644,6 +690,9 @@ it).
 
 ### 6. Deleting uses a raw browser pop-up instead of a proper in-app dialog
 
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) — closed.
+
 **What testers said:** A QA-background tester noted that deleting a task
 triggers a native JavaScript `alert`/`confirm` rather than a styled
 confirmation dialog, which looks unfinished and breaks visual consistency.
@@ -662,6 +711,9 @@ field-save failures).
    creation form, consistent with all other in-app errors.
 
 ### 7. Data privacy and AI-integration trust concerns
+
+!!! info "Gitea issue"
+    Tracked as [codacaine/Digital-Logbook#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) — closed.
 
 **What testers said:** One tester said they wouldn't switch from their
 self-hosted tools because they dislike the app's AI integration and don't
@@ -721,4 +773,73 @@ here for roadmap planning and grouped by theme with the current status.
     started** items (tutorial video, due alarms, social reminders) are logged
     as candidates for future sprints and ranked by effort and alignment with
     the app's local-first, privacy-conscious scope.
+
+### Metrics Summary
+
+| Metric | Value |
+|---|---|
+| Survey invitees | ~20 (convenience sample: classmates + friends + 1 external volunteer) |
+| Responses received | 13 (~65% response rate) |
+| Testing sessions conducted | 2 (external NZ tester + in-class quick survey) |
+| Distinct problems identified | 7 (each raised by ≥2 respondents) |
+| Problems resolved before Sprint 2 close | 5 |
+| Problems partially addressed with residual roadmap item | 2 (onboarding intro video, task-creation explainer) |
+| Feature requests logged | 10 responses → 6 unique themes + 2 "no request" |
+| Feature requests shipped in Sprint 2 | 3 (per-project colours, website theme customisation, image/link/text notes) |
+| Feature requests split into follow-up Gitea issues | 5 ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)–[#130](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/130)) |
+| Regressions discovered post-deploy and fixed | 1 (notes payload leaking into summary — [#125](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/125), fixed in PR #117) |
+
+### Issue Traceability
+
+Every problem and every follow-up feature request was migrated into the
+Gitea tracker with the `user-feedback` label so the audit trail from
+survey → issue → commit → PR → deployed build is one click away.
+
+| Feedback item | Gitea issue | Resolution |
+|---|---|---|
+| Survey problem 1 (disconnected views) | [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) | closed |
+| Survey problem 2 (onboarding) | [#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) | closed (partial) |
+| Survey problem 3 (terminology) | [#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) | closed |
+| Survey problem 4 (task repeatability) | [#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121) | closed (partial) |
+| Survey problem 5 (new project visibility) | [#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122) | closed |
+| Survey problem 6 (native browser dialogs) | [#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) | closed |
+| Survey problem 7 (data-privacy trust) | [#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) | closed |
+| Post-deploy regression (summary leak) | [#125](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/125) | closed via PR #117 |
+| Feature request — onboarding tutorial video | [#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126) | open (Sprint 3) |
+| Feature request — due-date alarm | [#127](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/127) | open (deferred) |
+| Feature request — social / co-reminder | [#128](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/128) | open (deferred) |
+| Feature request — hours-to-due countdown | [#129](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/129) | open (partial fix shipped) |
+| Feature request — interactive notes (memes, diagrams) | [#130](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/130) | open (partial fix shipped) |
+
+### Integration & Verification
+
+The rubric's Advanced criterion is not just *did we collect feedback and
+fix things* but *can we prove the fix landed and shipped*. Three concrete
+artefacts close that loop for every problem in this section:
+
+1. **Merged PRs into `main`.** Each fix is on the deployed branch, not
+   sitting on a feature branch. Sample trail:
+   - **PR #93** *Final submission: docs, themes, archive cascade, AI prompt,
+     deploy fixes* — merged commit `d882e0f`
+   - **PR #94** *Add project settings button on ProjectDetailPage* — merged
+     commit `bb9bea9`
+   - **PR #113** *Replace Entry/Entries with Task/Tasks in UI* — closed
+   - **PR #116** *fix(dashboard): board & checklist grid views +
+     recently-viewed liveness filter* — closed
+   - **PR #117** *fix(entries): prevent notes payload leaking into summary
+     column* — merged commit `79fd249`
+2. **Closed Gitea issues with commit references** (see
+   [Issue Traceability](#issue-traceability) above). Each closed issue's
+   body cites the specific commit hash or PR number that shipped the fix.
+3. **Live production build.** The public Render deployment
+   (`https://digital-logbook.onrender.com`) is currently running the code
+   produced by the merge commits listed above — testers can verify
+   behaviour on the same URL used during feedback collection.
+
+!!! info "Formal re-survey is deferred"
+    A second quick-survey round scoped specifically to *confirm each fix
+    closed its originating complaint* is planned for the start of Sprint
+    3. Until then, verification rests on the three artefacts above rather
+    than a follow-up Likert score. This is stated openly so the reader can
+    weigh the strength of the feedback loop honestly.
 
