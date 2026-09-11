@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { addEntry } from '../functions/project/entries.js';
 import { getFields } from '../functions/project/fields.js';
 
-type NoteType = 'text' | 'link' | 'image' | 'pdf';
+type NoteType = 'text' | 'link' | 'image';
 
 interface NoteDraft {
   entry_type: NoteType;
@@ -163,7 +163,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       // Build notes array — read files as base64
       const notesPayload: { entry_type: string; value: string }[] = [];
       for (const note of notes) {
-        if (note.entry_type === 'image' || note.entry_type === 'pdf') {
+        if (note.entry_type === 'image') {
           if (note.value instanceof File) {
             const base64 = await fileToBase64(note.value);
             notesPayload.push({ entry_type: note.entry_type, value: base64 });
@@ -350,7 +350,6 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                   <option value="text">Text</option>
                   <option value="link">Link</option>
                   <option value="image">Image</option>
-                  <option value="pdf">PDF</option>
                 </select>
 
                 {(note.entry_type === 'text' || note.entry_type === 'link') ? (
@@ -372,7 +371,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                       ref={(el) => { fileInputRefs.current[idx] = el; }}
                       type="file"
                       className="add-entry__note-file"
-                      accept={note.entry_type === 'image' ? 'image/*' : '.pdf'}
+                      accept="image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {

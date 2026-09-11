@@ -4,7 +4,7 @@ import { getNotes, addNote, viewNote, updateNote, deleteNote } from '@/functions
 import { getEntryTitle } from '@/lib/calendar';
 import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 
-type NoteType = 'text' | 'link' | 'image' | 'pdf';
+type NoteType = 'text' | 'link' | 'image';
 
 interface Note {
   id: string;
@@ -58,7 +58,6 @@ const TYPE_CONFIG: Record<NoteType, { label: string; icon: string; color: string
   text: { label: 'Text', icon: 'T', color: '#6b7280' },
   link: { label: 'Link', icon: '\u{1F517}', color: '#3b82f6' },
   image: { label: 'Image', icon: '\u{1F5BC}', color: '#8b5cf6' },
-  pdf: { label: 'PDF', icon: '\u{1F4C4}', color: '#ef4444' },
 };
 
 interface NotesPageProps {
@@ -127,10 +126,10 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     return () => unsub();
   }, [entryId]);
 
-  // Load file data for image/pdf notes
+  // Load file data for image notes
   useEffect(() => {
     for (const note of notes) {
-      if ((note.entry_type === 'image' || note.entry_type === 'pdf') && !viewedFiles[note.id] && !loadingFiles[note.id]) {
+      if (note.entry_type === 'image' && !viewedFiles[note.id] && !loadingFiles[note.id]) {
         setLoadingFiles((prev) => ({ ...prev, [note.id]: true }));
         viewNote(note.id).then((result) => {
           if (result?.success && result.data) {
@@ -148,7 +147,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     if (!entryId || !userEmail || adding) return;
 
     let valueToSend: string;
-    if (newNote.entry_type === 'image' || newNote.entry_type === 'pdf') {
+    if (newNote.entry_type === 'image') {
       if (!(newNote.value instanceof File)) return;
       valueToSend = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -299,7 +298,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                     ref={fileInputRef}
                     type="file"
                     className="notes-panel__add-file"
-                    accept={newNote.entry_type === 'image' ? 'image/*' : '.pdf'}
+                    accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) setNewNote({ ...newNote, value: file });
@@ -310,7 +309,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                     <span className="notes-panel__file-name">{newNote.value.name}</span>
                   ) : (
                     <span className="notes-panel__file-placeholder">
-                      {newNote.entry_type === 'image' ? 'Choose an image...' : 'Choose a PDF...'}
+                      Choose an image...
                     </span>
                   )}
                 </div>
@@ -437,31 +436,6 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                           />
                         ) : (
                           <span className="notes-panel__note-fallback">Image unavailable</span>
-                        )}
-                      </div>
-                    ) : note.entry_type === 'pdf' ? (
-                      <div className="notes-panel__note-pdf">
-                        {note.value && note.value.startsWith('http') ? (
-                          <a
-                            className="notes-panel__note-download"
-                            href={note.value}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            View PDF
-                          </a>
-                        ) : loadingFiles[note.id] ? (
-                          <span className="notes-panel__note-loading">Loading...</span>
-                        ) : viewedFiles[note.id]?.file_data ? (
-                          <a
-                            className="notes-panel__note-download"
-                            href={`data:${viewedFiles[note.id].content_type || 'application/pdf'};base64,${viewedFiles[note.id].file_data}`}
-                            download="note.pdf"
-                          >
-                            Download PDF
-                          </a>
-                        ) : (
-                          <span className="notes-panel__note-fallback">PDF unavailable</span>
                         )}
                       </div>
                     ) : null}
