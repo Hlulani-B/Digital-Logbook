@@ -74,12 +74,11 @@ const OPENROUTER_MODELS = [
 ];
 
 const CEREBRAS_MODELS = [
-  // Public endpoints as of Sept 2026 (older llama-* IDs retired)
+  // Public endpoints as of Sept 2026 — Cerebras' /v1/models list now returns
+  // only these two IDs (older llama-* IDs retired; keeping them just wastes
+  // a 404 round-trip before the next model is tried).
   'gpt-oss-120b',
   'qwen-3.8-27b',
-  // Legacy IDs — kept as fallback in case the account still has them
-  'llama-3.3-70b',
-  'llama3.1-8b',
 ];
 
 const GEMINI_MODELS = [
@@ -97,13 +96,14 @@ const GEMINI_MODELS = [
 ];
 
 const HF_MODELS = [
-  // Free-tier friendly first (small / widely mirrored)
-  'microsoft/Phi-4-mini-instruct',
-  'google/gemma-3-27b-it',
-  'mistralai/Mistral-7B-Instruct-v0.3',
-  'Qwen/Qwen2.5-72B-Instruct',
-  // Larger / gated — kept as fallbacks for accounts with PRO or gated access
-  'meta-llama/Llama-3.3-70B-Instruct',
+  // Verified against https://huggingface.co/docs/inference-providers/en/tasks/chat-completion
+  // "Recommended models" list. Anything not on that list risks a
+  // "Model X is not supported by any Inference Provider" 400.
+  'openai/gpt-oss-120b',
+  'Qwen/Qwen3-4B-Thinking-2507',
+  'Qwen/Qwen2.5-7B-Instruct-1M',
+  'Qwen/Qwen2.5-Coder-32B-Instruct',
+  'google/gemma-2-2b-it',
   'deepseek-ai/DeepSeek-R1',
 ];
 
