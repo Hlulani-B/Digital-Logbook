@@ -43,7 +43,7 @@ import {
   addMonths,
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
-import { getRecentlyViewed, trackViewedEntry, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
 import { getRecentlyCreated, trackCreatedEntry, type RecentlyCreatedEntry } from '@/lib/recentlyCreated';
 
 /** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
