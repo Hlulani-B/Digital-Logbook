@@ -488,6 +488,19 @@ filed separately and are excluded here unless they explain an underlying
 problem). Each problem is broken down below with the root cause we identified
 and how it was resolved, with the relevant commits.
 
+### Evidence
+
+- **Google Form used for the survey:** <https://forms.gle/FKPimVBgfm8UDG43A>
+- **Raw spreadsheet export (10 responses):** [Digital-Notebook-responses.xlsx](../assets/user-feedback-sprint2/Digital-Notebook-responses.xlsx)
+- **Screenshots of the response sheet** (scrollable extracts from the
+  exported spreadsheet, showing the questions and free-text answers):
+
+    ![Sprint 2 feedback — spreadsheet responses (part 1)](../assets/user-feedback-sprint2/feedback-spreadsheet-1.jpeg)
+
+    ![Sprint 2 feedback — spreadsheet responses (part 2)](../assets/user-feedback-sprint2/feedback-spreadsheet-2.jpeg)
+
+    ![Sprint 2 feedback — spreadsheet responses (part 3)](../assets/user-feedback-sprint2/feedback-spreadsheet-3.jpeg)
+
 ### 1. Projects, calendar, entries and activity log feel disconnected
 
 **What testers said:** This was the most repeated complaint. People could
