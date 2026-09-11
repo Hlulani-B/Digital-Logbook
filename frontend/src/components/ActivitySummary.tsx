@@ -24,24 +24,25 @@ function parseAIResponse(response: string): string {
         const first = parsed[0];
         if (typeof first === 'string') return first;
         if (typeof first === 'object' && first !== null) {
-          return parseAIResponse(JSON.stringify(first));
+          const inner = parseAIResponse(JSON.stringify(first));
+          if (inner) return inner;
         }
       }
-      return response;
+      return '';
     }
     if (typeof parsed === 'object' && parsed !== null) {
       for (const key of ['placeholder', 'message', 'instruction', 'response', 'text', 'content', 'reply']) {
-        if (typeof parsed[key] === 'string') return parsed[key];
+        if (typeof parsed[key] === 'string' && parsed[key].trim()) return parsed[key];
       }
       for (const val of Object.values(parsed)) {
-        if (typeof val === 'string') return val;
+        if (typeof val === 'string' && val.trim()) return val;
         if (typeof val === 'object' && val !== null) {
           const nested = parseAIResponse(JSON.stringify(val));
-          if (nested !== JSON.stringify(val)) return nested;
+          if (nested) return nested;
         }
       }
     }
-    return response;
+    return '';
   } catch {
     return typeof response === 'string' ? response : String(response);
   }
