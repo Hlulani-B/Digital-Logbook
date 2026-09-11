@@ -31,7 +31,7 @@ interface ViewedNote {
 interface EntryData {
   id: string;
   summary?: string | null;
-  entries?: Record<string, unknown> | string | null;
+  entries?: Record<string, unknown> | string | number | boolean | unknown[] | null;
   project_name?: string;
   status?: string;
   priority?: string | null;
