@@ -3916,14 +3916,6 @@ img {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.entry-box__task-btn--start {
-  background: var(--success, #4a7c59);
-  color: #fff;
-  border-color: var(--success, #4a7c59);
-}
-.entry-box__task-btn--start:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
 .entry-box__task-btn--end {
   background: var(--danger, #a0522d);
   color: #fff;

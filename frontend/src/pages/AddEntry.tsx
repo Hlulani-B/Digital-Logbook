@@ -224,7 +224,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
         dueDate ? new Date(dueDate).toISOString() : null,
         priorityLabel,
         statusValue,
-        null, // started_at - set via Start Task button
+        null, // started_at - set automatically when status becomes in_motion
         null, // ended_at - set via End Task button
         null, // duration - calculated in Supabase
         null, // summary - AI-generated in the background on the server
