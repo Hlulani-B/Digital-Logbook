@@ -14,6 +14,7 @@ interface Note {
   value: string;
   created_at: string;
   deleted?: boolean;
+  _optimistic?: boolean;
 }
 
 interface NoteDraft {
