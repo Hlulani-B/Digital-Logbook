@@ -259,3 +259,69 @@ meeting is enough to count as evidence.
 - Update remaining documentation where required.
 - Prepare for the Sprint Review and demonstration on 25 August 2026.
 - Begin planning for Sprint 2 based on feedback received during the review.
+
+---
+
+## Meeting 9 — 2 September 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
+
+**Context:** Sprint 2 kickoff. The team met to discuss the plan for the new sprint and align on priorities based on feedback from the Sprint 1 review.
+
+**What we did:**
+
+- Discussed Sprint 2 goals and task allocation.
+- Reviewed feedback from the Sprint 1 review session.
+- Aligned on priorities for the upcoming sprint.
+
+**Decisions made:**
+
+- Sprint 2 tasks were distributed among team members.
+- Team agreed to focus on addressing Sprint 1 feedback items while continuing new feature development.
+
+**Proof of meeting:**
+
+![Team call screenshot showing all attendees](../assets/meetings/Screenshot 2026-09-02 201547-47bb96d4.png)
+
+---
+
+## Daily Standup — 7 September 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
+
+**What we did:**
+
+- Each team member provided a brief update on their current progress.
+- Discussed any blockers and coordinated on integration points.
+
+---
+
+## Daily Standup — 9 September 2026
+
+**Venue:** Online (Microsoft Teams)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)
+
+**What we did:**
+
+- Each team member provided a brief update on their current progress.
+- Discussed any blockers and coordinated on next steps.
+
+---
+
+## Client Meeting — 10 September 2026
+
+**Venue:** Discussion Room 3, Wartenweiler Library (in person)
+**Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team) + client/tutor
+
+**Context:** Sprint 2 progress demonstration and user testing session with the client.
+
+**What we did:**
+
+- Demonstrated our current progress on the Digital Logbook application to the client. The client responded positively and liked what was shown.
+- Conducted a user testing session where participants tested the app and provided comments and feedback.
+
+**Decisions made:**
+
+- Client feedback and user testing comments will be reviewed and incorporated into the next development cycle.
