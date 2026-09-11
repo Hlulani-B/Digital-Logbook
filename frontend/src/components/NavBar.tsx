@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { FiArchive } from 'react-icons/fi';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { colorForName } from '@/lib/projectColorMap';
 
 interface NavBarProps {
@@ -65,13 +65,13 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
   });
 
   useEffect(() => {
+    if (!user?.email) return () => {};
+
     const loadProfile = async () => {
-      if (!user?.email) return;
       try {
-        const cached = await cacheGet(CACHE_STORES.PROFILE, user.email);
+        const cached = await cacheGet(CACHE_STORES.PROFILE, user.email!);
         if (cached?.data) {
           const profile = cached.data;
-          // Field names from profile service: avatar, username, name
           const preferredName = profile.username || profile.name || profile.display_name || user.email;
           const avatarUrl = profile.avatar || user?.user_metadata?.avatar_url || '';
           setProfileData({ preferredName, avatarUrl });
@@ -80,7 +80,12 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
         console.error('[NavBar] Failed to load profile from cache:', err);
       }
     };
+
     loadProfile();
+
+    // Re-read when syncAllData writes the profile to IndexedDB
+    const unsub = cacheSubscribe(CACHE_STORES.PROFILE, user.email, () => loadProfile());
+    return () => unsub();
   }, [user?.email, user?.user_metadata]);
 
   const handleLogout = async () => {
