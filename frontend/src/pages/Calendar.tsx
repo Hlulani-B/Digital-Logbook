@@ -53,18 +53,6 @@ function toISODate(date: Date): string {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
 }
 
-function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
-  if (!entries) return {};
-  if (typeof entries === 'string') {
-    try {
-      return JSON.parse(entries);
-    } catch {
-      return {};
-    }
-  }
-  return entries;
-}
-
 function CalendarDayCell({
   date,
   isCurrentMonth,
@@ -313,18 +301,7 @@ export function CalendarPage() {
     setUpdating(true);
     try {
       const newDueDate = toISODate(date);
-      const result = await updateEntry(
-        email,
-        entry.project_name,
-        entry.id,
-        parseEntryObject(entry.entries),
-        newDueDate,
-        entry.priority,
-        entry.status ?? 'up_next',
-        entry.started_at ?? null,
-        entry.ended_at ?? null,
-        entry.duration ?? null
-      );
+      const result = await updateEntry(email, entry.project_name, entry.id, undefined, newDueDate);
 
       if (result?.success === false) {
         setError(result.message || 'Failed to reschedule entry');

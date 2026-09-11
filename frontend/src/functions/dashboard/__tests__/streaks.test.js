@@ -33,7 +33,9 @@ describe('calculateStreaks', () => {
   });
 
   it('deduplicates entries on the same day', () => {
+    // Anchor to noon so the +1h/+2h offsets never cross midnight
     const today = new Date();
+    today.setHours(12, 0, 0, 0);
     const result = calculateStreaks([
       { created_at: today.toISOString() },
       { created_at: new Date(today.getTime() + 3600000).toISOString() },

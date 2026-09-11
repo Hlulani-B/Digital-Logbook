@@ -244,6 +244,25 @@ Permanently removes accounts whose 30-day grace period has expired. Iterates ove
 
 Aggregates per-project statistics for the Stats page. Accepts a user email and returns `project_name`, `entry_count`, `total_duration` (sum of `ended_at - started_at` for completed entries, or `now() - started_at` for in-progress entries), and `in_progress` count. Only includes non-archived, non-deleted entries. Ordered by `total_duration DESC` so the most time-intensive projects appear first.
 
+### get_field_stats()
+
+Generic field-statistics RPC. Where `get_project_stats()` hard-codes one metric (time per project), `get_field_stats()` knows nothing about any field in advance. It takes a user email and an optional project name, flattens every entry's `entries` JSONB with `jsonb_each_text`, resolves each field's `data_type` from the `fields` table (inferring it from the values themselves when the owner never declared one), and returns one row per field in the standard statistics format:
+
+| Column | Type | Meaning |
+| --- | --- | --- |
+| `field_name` | TEXT | the owner-defined field name |
+| `data_type` | TEXT | declared or inferred type (`number`, `text`, `boolean`, `date`) |
+| `entry_count` | BIGINT | entries considered |
+| `filled` | BIGINT | entries where the field has a value |
+| `total` | NUMERIC | sum of values — `NULL` for types that cannot be totalled |
+| `groups` | JSONB | `[{"value", "count"}]` — group by value |
+| `series` | JSONB | `[{"bucket", "value"}]` — daily buckets for plotting over time (sums for numbers, counts otherwise) |
+| `by_project` | JSONB | `[{"key", "count", "total"}]` — compare across projects |
+
+#### The standard statistics format
+
+Statistics follow one format wherever they go: the frontend engine (`computeFieldStats` in `frontend/src/functions/dashboard/stats.js`), the Quick Stats panel, the My Stats page, and this RPC all express a field's statistics the same way — a **total** where the type allows it, a **group-by** of value counts, a **compare** across projects, and a daily **series** for plotting over time. Capabilities come from the field's `data_type` (the owner's declaration), never from hard-coded knowledge of a particular field, so a field defined tomorrow works everywhere without further changes.
+
 ## Trade-off
 
 This design trades some query complexity — values have to be interpreted

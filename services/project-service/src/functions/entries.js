@@ -6,6 +6,10 @@ import { Notes } from './notes/notes_crud.js';
 import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 import leven from 'leven';
 
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export class Entries {
   async addEntry(
     user_email,
@@ -29,16 +33,15 @@ export class Entries {
       if (status !== undefined && status !== null) insertData.status = status;
       if (started_at !== undefined && started_at !== null) insertData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) insertData.ended_at = ended_at;
-      if (duration !== undefined && duration !== null) insertData.duration = duration;
       if (summary !== undefined && summary !== null) insertData.summary = summary;
 
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
 
       const columns = Object.keys(insertData);
-      const values = Object.values(insertData).map((v) =>
-        v !== null && typeof v === 'object' ? JSON.stringify(v) : v
+      const values = Object.values(insertData).map((value) =>
+        value !== null && typeof value === 'object' ? JSON.stringify(value) : value
       );
-      const placeholders = columns.map((_, i) => `$${i + 1}`);
+      const placeholders = columns.map((_, index) => `$${index + 1}`);
 
       const { rows } = await pool.query(
         `INSERT INTO entries (${columns.join(', ')})
@@ -90,8 +93,15 @@ export class Entries {
       if (!pool) throw new Error('Database pool not initialized');
 
       const updateData = {};
+      const hasEntryPatch = new_entry !== undefined && new_entry !== null;
 
-      if (new_entry !== undefined && new_entry !== null) {
+      if (hasEntryPatch) {
+        if (!isPlainObject(new_entry)) {
+          return {
+            success: false,
+            message: 'Legacy entry content cannot be replaced with a structured update.',
+          };
+        }
         updateData.entries = new_entry;
       }
       if (due_date !== undefined) updateData.due_date = due_date;
@@ -116,22 +126,30 @@ export class Entries {
       const params = [];
       let idx = 1;
       for (const [key, value] of Object.entries(updateData)) {
-        const val = value !== null && typeof value === 'object' ? JSON.stringify(value) : value;
+        if (key === 'entries') {
+          setClauses.push(`entries = entries || $${idx++}::jsonb`);
+          params.push(JSON.stringify(value));
+          continue;
+        }
         setClauses.push(`${key} = $${idx++}`);
-        params.push(val);
+        params.push(value);
       }
+      const entryIdIndex = idx++;
+      const userEmailIndex = idx++;
+      const projectNameIndex = idx++;
       params.push(entry_id, user_email, project_name);
+      const entryPatchCondition = hasEntryPatch ? " AND jsonb_typeof(entries) = 'object'" : '';
 
       const { rows } = await pool.query(
         `UPDATE entries SET ${setClauses.join(', ')}
-         WHERE id = $${idx++} AND user_email = $${idx++} AND project_name = $${idx}
+         WHERE id = $${entryIdIndex} AND user_email = $${userEmailIndex} AND project_name = $${projectNameIndex}${entryPatchCondition}
          RETURNING *`,
         params
       );
 
       if (!rows || rows.length === 0) {
         console.error(
-          '[updateEntry] No rows matched. id:',
+          '[updateEntry] No compatible row matched. id:',
           entry_id,
           'user:',
           user_email,
@@ -140,7 +158,7 @@ export class Entries {
         );
         return {
           success: false,
-          message: 'Entry not found. Check that the entry exists and belongs to this user/project.',
+          message: 'Entry not found or its legacy content cannot be updated as structured fields.',
         };
       }
 
@@ -483,7 +501,8 @@ export function getDate(text) {
   // ── 5b. "X days/weeks from now" ──
   const xFromNowMatch = cleaned.match(/\b(\d+|a|an)\s+(day|days|week|weeks)\s+from\s+now\b/);
   if (xFromNowMatch) {
-    const num = xFromNowMatch[1] === 'a' || xFromNowMatch[1] === 'an' ? 1 : parseInt(xFromNowMatch[1], 10);
+    const num =
+      xFromNowMatch[1] === 'a' || xFromNowMatch[1] === 'an' ? 1 : parseInt(xFromNowMatch[1], 10);
     const unit = xFromNowMatch[2];
     const daysToAdd = unit.startsWith('week') ? num * 7 : num;
     dueDate = toISODate(addDays(today, daysToAdd));
@@ -493,9 +512,12 @@ export function getDate(text) {
 
   // ── 5c. "X days/weeks from [day name]" e.g. "2 days from friday" ──
   for (let i = 0; i < DAY_NAMES.length; i++) {
-    const xFromDayMatch = cleaned.match(new RegExp(`\\b(\\d+|a|an)\\s+(day|days|week|weeks)\\s+from\\s+${DAY_NAMES[i]}\\b`));
+    const xFromDayMatch = cleaned.match(
+      new RegExp(`\\b(\\d+|a|an)\\s+(day|days|week|weeks)\\s+from\\s+${DAY_NAMES[i]}\\b`)
+    );
     if (xFromDayMatch) {
-      const num = xFromDayMatch[1] === 'a' || xFromDayMatch[1] === 'an' ? 1 : parseInt(xFromDayMatch[1], 10);
+      const num =
+        xFromDayMatch[1] === 'a' || xFromDayMatch[1] === 'an' ? 1 : parseInt(xFromDayMatch[1], 10);
       const unit = xFromDayMatch[2];
       const offsetDays = unit.startsWith('week') ? num * 7 : num;
       // Find the next occurrence of the named day, then add the offset
@@ -589,8 +611,12 @@ export class Natural_language {
   async generateSummary(projectName, entryObject) {
     try {
       // If entry has no meaningful fields, just use project name
-      const hasContent = entryObject && typeof entryObject === 'object' &&
-        Object.values(entryObject).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+      const hasContent =
+        entryObject &&
+        typeof entryObject === 'object' &&
+        Object.values(entryObject).some(
+          (v) => v !== null && v !== undefined && String(v).trim() !== ''
+        );
       if (!hasContent) return projectName;
 
       const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
@@ -633,7 +659,9 @@ If the entry has no real content, use the project name as the summary.`;
             if (match) return match[1].trim();
           }
         }
-      } catch { /* retry failed */ }
+      } catch {
+        /* retry failed */
+      }
 
       // Final fallback: project name
       return projectName;
@@ -679,9 +707,10 @@ If the entry has no real content, use the project name as the summary.`;
         ? `The "comment" field is a DIRECT MESSAGE shown to the user as a notification on screen. You MUST write 5-8 full sentences — this is NOT optional. Write like a warm, thoughtful friend texting them back. NEVER say "The user" — talk TO them directly using "you" and "your". You MUST mention the specific project name by name. You MUST acknowledge the specific task they described. You MUST add a genuine, thoughtful remark about the work itself — not generic filler. If matched=0 (new project created), you MUST explain: (1) what the new project is called, (2) why you chose that specific name instead of a generic one, (3) what custom fields you set up and why, (4) encourage them to keep logging entries there. If matched=1 (existing project), you MUST explain: (1) which project it was added to, (2) what the entry contains, (3) a thoughtful remark about the work. NEVER write anything vague like "Added your entry" or "Created a project" — always be specific and detailed.\n- CORRECT (5+ sentences): "Added to WebApp — that login page fix sounds like it was much needed! Bug fixes on auth flows are always satisfying because users feel the impact immediately. I didn't catch a due date in your text though, so it's left blank for now — you can always edit the entry to add one when you know the deadline. Keep those fixes coming!"\n- WRONG (too short/vague): "Added to WebApp. Nice bug fix."\n- WRONG (talking about 'the user'): "The user mentioned a bug fix so I added it to the WebApp project."\n- CORRECT for new project (5+ sentences): "Created 'Backend API Refactor' for you — I chose this name because your entry specifically mentions refactoring the REST endpoints, which is distinct from your other projects. I set up fields like 'endpoint_name' and 'refactor_type' so future entries will have meaningful structure. This kind of work deserves its own space rather than being lumped into a generic bucket. Feel free to log more refactoring work there!"\n- WRONG for new project (too generic): "Created a new project and added your entry."`
         : `The "comment" field is a DIRECT MESSAGE shown to the user as a notification on screen. You MUST write 6-10 full sentences — this is NOT optional. Write like a warm, thoughtful friend texting them back. Let them know that no due date was set because no date reference (like "today", "tomorrow", "Monday", "in 3 days", "2 days from now", etc.) was found in their text. Suggest they can edit the entry later to add a due date if needed. NEVER say "The user" — talk TO them directly using "you" and "your". You MUST mention the specific project name by name. You MUST acknowledge the specific task they described. You MUST add a genuine, thoughtful remark about the work itself — not generic filler. If matched=0 (new project created), you MUST explain: (1) what the new project is called, (2) why you chose that specific name instead of a generic one, (3) what custom fields you set up and why, (4) encourage them to keep logging entries there. If matched=1 (existing project), you MUST explain: (1) which project it was added to, (2) what the entry contains, (3) a thoughtful remark about the work.\n- CORRECT (6+ sentences): "Added to WebApp — that login page fix sounds like it was much needed! Bug fixes on auth flows are always satisfying because users feel the impact immediately. I didn't catch a due date in your text though, since you didn't mention anything like 'today', 'tomorrow', or a specific day. No worries though — you can always edit the entry later to add a deadline when you know it. The entry is safely logged and you can come back to set the date whenever it makes sense. Keep up the good work!"\n- WRONG (too short/vague): "Added to WebApp. No due date set."\n- WRONG (talking about 'the user'): "The user wants to fix a bug in WebApp. I added the entry but no due date was set."\n- CORRECT for new project (6+ sentences): "Created 'Backend API Refactor' for you — I chose this name because your entry specifically mentions refactoring the REST endpoints, which is quite different from your other projects like WebApp or MobileApp. I set up custom fields like 'endpoint_name' and 'refactor_type' so that future refactoring entries will have proper structure and be easy to find later. This kind of focused work really deserves its own dedicated space rather than being thrown into a generic 'Tasks' or 'Work' bucket. I didn't pick up a due date from your text, so it's unset for now — but you can always edit it later when you have a deadline in mind. Feel free to keep logging your refactoring progress there!"\n- WRONG for new project (too generic): "Created a new project and added your entry. No due date set."`;
 
-      const projectListInfo = projectsWithFields.length > 0
-        ? JSON.stringify(projectsWithFields)
-        : '(none — the user has no projects yet)';
+      const projectListInfo =
+        projectsWithFields.length > 0
+          ? JSON.stringify(projectsWithFields)
+          : '(none — the user has no projects yet)';
 
       const prompt = `You are parsing a quick natural-language log entry into structured data. Today is ${today}.
 

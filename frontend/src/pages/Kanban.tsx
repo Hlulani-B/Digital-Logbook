@@ -20,18 +20,6 @@ import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
-function parseEntryObject(entries: CalendarEntry['entries']): Record<string, unknown> {
-  if (!entries) return {};
-  if (typeof entries === 'string') {
-    try {
-      return JSON.parse(entries);
-    } catch {
-      return {};
-    }
-  }
-  return entries;
-}
-
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
 }
@@ -178,12 +166,18 @@ export function KanbanPage() {
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
       if (cachedEntries?.data) {
-        const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter((e: CalendarEntry) => !e.archived);
+        const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter(
+          (e: CalendarEntry) => !e.archived
+        );
         setEntries(data);
       }
       if (cachedProjects?.data || cachedProjects?.projects) {
         const rawProjects = cachedProjects.data || cachedProjects.projects || [];
-        setProjects((Array.isArray(rawProjects) ? rawProjects : []).filter((p: { archived?: boolean }) => !p.archived));
+        setProjects(
+          (Array.isArray(rawProjects) ? rawProjects : []).filter(
+            (p: { archived?: boolean }) => !p.archived
+          )
+        );
       }
       if (!cachedEntries?.data && !cachedProjects?.data && !cachedProjects?.projects) {
         // First visit ever — trigger initial sync
@@ -193,12 +187,18 @@ export function KanbanPage() {
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
         if (freshEntries?.data) {
-          const data = (Array.isArray(freshEntries.data) ? freshEntries.data : []).filter((e: CalendarEntry) => !e.archived);
+          const data = (Array.isArray(freshEntries.data) ? freshEntries.data : []).filter(
+            (e: CalendarEntry) => !e.archived
+          );
           setEntries(data);
         }
         if (freshProjects?.data || freshProjects?.projects) {
           const rawProjects = freshProjects.data || freshProjects.projects || [];
-          setProjects((Array.isArray(rawProjects) ? rawProjects : []).filter((p: { archived?: boolean }) => !p.archived));
+          setProjects(
+            (Array.isArray(rawProjects) ? rawProjects : []).filter(
+              (p: { archived?: boolean }) => !p.archived
+            )
+          );
         }
       }
     } catch (err) {
@@ -243,13 +243,12 @@ export function KanbanPage() {
         email,
         entry.project_name,
         entry.id,
-        parseEntryObject(entry.entries),
-        entry.due_date,
-        entry.priority,
+        undefined,
+        undefined,
+        undefined,
         targetStatus,
         updatedEntry.started_at,
-        updatedEntry.ended_at,
-        entry.duration ?? null
+        updatedEntry.ended_at
       );
 
       if (result?.success === false || result?.error) {
@@ -270,63 +269,71 @@ export function KanbanPage() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar projects={projects as Array<Record<string, unknown>>} entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <NavBar
+        projects={projects as Array<Record<string, unknown>>}
+        entries={entries as unknown as Array<Record<string, unknown>>}
+        activeView="all"
+      />
       <main className="dash-main">
-      <div className="kanban-page">
-        <Header title="Kanban Board" entries={entries as unknown as Array<Record<string, unknown>>} projects={projects as Array<Record<string, unknown>>} />
-
-      <div className="kanban-toolbar">
-        <div className="kanban-filter">
-          <label htmlFor="project-filter" className="kanban-filter-label">
-            Project
-          </label>
-          <select
-            id="project-filter"
-            className="kanban-select"
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-          >
-            <option value="">All projects</option>
-            {projects.map((p) => (
-              <option key={p.project_name} value={p.project_name}>
-                {p.project_name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="kanban-filter kanban-filter--grow">
-          <label htmlFor="search-filter" className="kanban-filter-label">
-            Search
-          </label>
-          <input
-            id="search-filter"
-            type="text"
-            className="kanban-search"
-            placeholder="Search tasks…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+        <div className="kanban-page">
+          <Header
+            title="Kanban Board"
+            entries={entries as unknown as Array<Record<string, unknown>>}
+            projects={projects as Array<Record<string, unknown>>}
           />
-        </div>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => {
-            setProjectFilter('');
-            setSearchQuery('');
-          }}
-        >
-          Clear filters
-        </button>
-      </div>
 
-      {error && (
-        <div className="kanban-error" role="alert">
-          {error}
-          <button type="button" className="kanban-error-close" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
-      )}
+          <div className="kanban-toolbar">
+            <div className="kanban-filter">
+              <label htmlFor="project-filter" className="kanban-filter-label">
+                Project
+              </label>
+              <select
+                id="project-filter"
+                className="kanban-select"
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+              >
+                <option value="">All projects</option>
+                {projects.map((p) => (
+                  <option key={p.project_name} value={p.project_name}>
+                    {p.project_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="kanban-filter kanban-filter--grow">
+              <label htmlFor="search-filter" className="kanban-filter-label">
+                Search
+              </label>
+              <input
+                id="search-filter"
+                type="text"
+                className="kanban-search"
+                placeholder="Search tasks…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setProjectFilter('');
+                setSearchQuery('');
+              }}
+            >
+              Clear filters
+            </button>
+          </div>
+
+          {error && (
+            <div className="kanban-error" role="alert">
+              {error}
+              <button type="button" className="kanban-error-close" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            </div>
+          )}
 
       {loading ? (
         <div className="kanban-loading">
@@ -363,14 +370,14 @@ export function KanbanPage() {
         </div>
       )}
 
-      {updatingId && (
-        <div className="kanban-toast" aria-live="polite">
-          <span className="kanban-spinner" />
-          Updating status…
+          {updatingId && (
+            <div className="kanban-toast" aria-live="polite">
+              <span className="kanban-spinner" />
+              Updating status…
+            </div>
+          )}
         </div>
-      )}
-    </div>
-    </main>
+      </main>
     </div>
   );
 }

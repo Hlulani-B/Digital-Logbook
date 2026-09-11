@@ -20,8 +20,19 @@ function parseDate(value: unknown): Date | null {
 
 function parseDependencies(entries: Record<string, unknown> | string | null): (string | number)[] {
   if (!entries) return [];
-  const obj =
-    typeof entries === 'string' ? (JSON.parse(entries) as Record<string, unknown>) : entries;
+
+  let obj: Record<string, unknown>;
+  if (typeof entries === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(entries);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return [];
+      obj = parsed as Record<string, unknown>;
+    } catch {
+      return [];
+    }
+  } else {
+    obj = entries;
+  }
 
   const raw = obj.dependencies ?? obj.depends_on ?? obj.blocked_by ?? [];
   if (!Array.isArray(raw)) return [];

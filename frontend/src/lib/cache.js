@@ -1,12 +1,12 @@
 /**
  * SQLite caching layer with event-driven subscriptions.
  * Uses sql.js (SQLite compiled to WebAssembly) for local-first storage.
- * 
+ *
  * This module provides a local-first caching mechanism:
  * - Read operations: Return cached data immediately, then fetch fresh data in background
  * - Write operations: Update SQLite first (optimistic), then sync to server
  * - Components subscribe to cache changes via useCachedData hook
- * 
+ *
  * Pattern: SQLite-first with stale-while-revalidate
  */
 
@@ -62,7 +62,11 @@ function emitCacheChange(store, key, data) {
   if (subs) {
     const payload = data?.data !== undefined ? data.data : data;
     subs.forEach((cb) => {
-      try { cb(payload); } catch (e) { console.warn('[Cache] Subscriber error:', e); }
+      try {
+        cb(payload);
+      } catch (e) {
+        console.warn('[Cache] Subscriber error:', e);
+      }
     });
   }
 }
@@ -289,7 +293,7 @@ export async function clearUserCache(email) {
  * Stale-while-revalidate pattern implementation.
  * Returns cached data immediately if available, then fetches fresh data
  * and calls the onUpdate callback when fresh data arrives.
- * 
+ *
  * @param {Object} options
  * @param {string} options.store - The table name
  * @param {string} options.key - The cache key
@@ -344,7 +348,7 @@ export async function staleWhileRevalidate({
 /**
  * Cache wrapper for read operations.
  * Wraps a fetch function with SQLite caching.
- * 
+ *
  * @param {string} store - Table name
  * @param {string} key - Cache key
  * @param {Function} fetchFn - Async function to fetch data

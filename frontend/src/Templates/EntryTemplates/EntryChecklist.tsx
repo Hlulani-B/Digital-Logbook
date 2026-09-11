@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
+import { classifyEntryPayload } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -37,25 +38,19 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function getSummary(entry: ChecklistEntry): string {
-  // Try to get summary from the summary field first
   if (entry.summary) return entry.summary;
-  
-  // Try to extract from entries object
-  if (entry.entries) {
-    const entries = typeof entry.entries === 'string' 
-      ? (() => { try { return JSON.parse(entry.entries as string); } catch { return {}; } })()
-      : entry.entries;
-    
-    // Look for common summary field names
+
+  const payload = classifyEntryPayload(entry.entries);
+  if (payload.kind === 'object') {
     const summaryKeys = ['summary', 'title', 'name', 'task', 'description'];
     for (const key of summaryKeys) {
-      if (entries[key] && typeof entries[key] === 'string') {
-        return entries[key] as string;
+      if (payload.value[key] && typeof payload.value[key] === 'string') {
+        return payload.value[key] as string;
       }
     }
   }
-  
-  return 'Untitled entry';
+
+  return typeof payload.value === 'string' ? payload.value : 'Untitled entry';
 }
 
 export default function ChecklistEntryCard({ entry, onUpdated, onDelete, projectColor }: ChecklistEntryCardProps) {
@@ -69,8 +64,10 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
   
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
-  const [draftDueDate, setDraftDueDate] = useState(entry.due_date ? entry.due_date.slice(0, 10) : '');
-  
+  const [draftDueDate, setDraftDueDate] = useState(
+    entry.due_date ? entry.due_date.slice(0, 10) : ''
+  );
+
   const editRef = useRef<HTMLDivElement>(null);
   const deleteRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +89,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
   const handleCheckboxClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (checking || !entry.user_email || !entry.project_name) return;
-    
+
     setChecking(true);
     try {
       const newStatus = isDone ? 'up_next' : DONE_STATUS;
@@ -100,13 +97,12 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
         entry.user_email,
         entry.project_name,
         entry.id,
-        undefined, // entries
-        entry.due_date,
-        undefined, // priority
+        undefined,
+        undefined,
+        undefined,
         newStatus,
         entry.status === 'in_motion' ? entry.started_at : undefined,
-        newStatus === DONE_STATUS ? new Date().toISOString() : undefined,
-        undefined, // duration
+        newStatus === DONE_STATUS ? new Date().toISOString() : undefined
       );
       onUpdated?.();
     } catch (err) {
@@ -124,31 +120,22 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
     if (!entry.user_email || !entry.project_name || saving) return;
     setSaving(true);
     setError(null);
-    
+
     try {
-      // Build entries object (keep existing data)
-      let entriesObj: Record<string, unknown> = {};
-      if (entry.entries) {
-        entriesObj = typeof entry.entries === 'string'
-          ? (() => { try { return JSON.parse(entry.entries as string); } catch { return {}; } })()
-          : { ...entry.entries };
-      }
-      
-      // Save summary directly to the summary column (as-is, no transformation)
       await updateEntry(
         entry.user_email,
         entry.project_name,
         entry.id,
-        entriesObj,
+        undefined,
         draftDueDate || null,
-        undefined, // priority
-        undefined, // status
-        undefined, // started_at
-        undefined, // ended_at
-        undefined, // duration
-        draftSummary, // summary — saved as-is to the database
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        draftSummary
       );
-      
+
       setEditOpen(false);
       onUpdated?.();
     } catch (err) {
@@ -172,7 +159,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
 
   return (
     <>
-      <div 
+      <div
         className={`checklist-card ${isDone ? 'checklist-card--done' : ''}`}
         data-status={entry.status}
         onClick={handleCardClick}
@@ -189,7 +176,11 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
             onClick={handleCheckboxClick}
             disabled={checking}
           >
-            {isDone && <span className="checklist-check" aria-hidden="true">✓</span>}
+            {isDone && (
+              <span className="checklist-check" aria-hidden="true">
+                ✓
+              </span>
+            )}
           </button>
 
           <div className="checklist-body">
@@ -261,7 +252,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           <div className="checklist-dialog" ref={editRef} onClick={(e) => e.stopPropagation()}>
             <h3 className="checklist-dialog-title">Edit Entry</h3>
             {error && <p className="checklist-dialog-error">{error}</p>}
-            
+
             <div className="checklist-dialog-field">
               <label>Summary</label>
               <textarea
@@ -271,7 +262,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
                 placeholder="Enter summary..."
               />
             </div>
-            
+
             <div className="checklist-dialog-field">
               <label>Due Date</label>
               <input
@@ -280,15 +271,15 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
                 onChange={(e) => setDraftDueDate(e.target.value)}
               />
             </div>
-            
+
             <div className="checklist-dialog-actions">
-              <button 
+              <button
                 className="checklist-dialog-btn checklist-dialog-btn--cancel"
                 onClick={() => setEditOpen(false)}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="checklist-dialog-btn checklist-dialog-btn--save"
                 onClick={handleSaveEdit}
                 disabled={saving}
@@ -309,13 +300,13 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
               Are you sure you want to delete this entry? This cannot be undone.
             </p>
             <div className="checklist-dialog-actions">
-              <button 
+              <button
                 className="checklist-dialog-btn checklist-dialog-btn--cancel"
                 onClick={() => setDeleteOpen(false)}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="checklist-dialog-btn checklist-dialog-btn--delete"
                 onClick={handleConfirmDelete}
               >

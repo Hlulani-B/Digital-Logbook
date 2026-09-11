@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getAllEntries } from '@/functions/project/entries';
 import { getProjectsByEmail } from '@/functions/project/project';
-import { getArchives, getArchivedProjects } from '@/functions/project/archives';
+import {
+  archiveEntry,
+  archiveProject,
+  getArchives,
+  getArchivedProjects,
+} from '@/functions/project/archives';
 import { addEntry } from '@/functions/project/entries';
 import { addProject } from '@/functions/project/project';
-import { archiveEntry } from '@/functions/project/archives';
+import { addField, getFields } from '@/functions/project/fields';
 import {
   buildExportBundle,
   exportToCSV,
@@ -14,6 +19,7 @@ import {
   exportToJSON,
   exportToMarkdown,
   type RawEntryRow,
+  type RawFieldRow,
   type RawProjectRow,
 } from '@/lib/export';
 import { parseImport, type ImportResult } from '@/lib/import';
@@ -21,6 +27,13 @@ import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { cacheGet, CACHE_STORES } from '@/lib/cache';
 import './DataPortability.css';
+
+type ImportOutcome = {
+  projects: number;
+  fields: number;
+  entries: number;
+  failures: string[];
+};
 
 export default function DataPortability() {
   const { user, loading } = useAuth();
@@ -31,6 +44,7 @@ export default function DataPortability() {
   const [importing, setImporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importOutcome, setImportOutcome] = useState<ImportOutcome | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
 
   const userEmail = user?.email ?? '';
@@ -64,10 +78,10 @@ export default function DataPortability() {
       setExporting(true);
       setExportSuccess(null);
       setImportResult(null);
+      setImportOutcome(null);
       setImportSuccess(false);
 
       try {
-        // Fetch all data: projects + entries (active and archived)
         const [projectsRes, archivedProjectsRes, entriesRes, archivedEntriesRes] =
           await Promise.all([
             getProjectsByEmail(userEmail),
@@ -80,55 +94,57 @@ export default function DataPortability() {
           projectsRes?.data ??
           projectsRes?.projects ??
           []
-        ).map((p: Record<string, unknown>) => ({
-          project_name: p.project_name as string,
-          description: (p.description as string) ?? '',
+        ).map((project: Record<string, unknown>) => ({
+          project_name: project.project_name as string,
+          description: (project.description as string) ?? '',
           archived: false,
         }));
-
         const archivedProjects: RawProjectRow[] = (
           archivedProjectsRes?.data ??
           archivedProjectsRes?.projects ??
           []
-        ).map((p: Record<string, unknown>) => ({
-          project_name: p.project_name as string,
-          description: (p.description as string) ?? '',
+        ).map((project: Record<string, unknown>) => ({
+          project_name: project.project_name as string,
+          description: (project.description as string) ?? '',
           archived: true,
         }));
+        const allProjects = [
+          ...new Map(
+            [...activeProjects, ...archivedProjects].map((project) => [
+              project.project_name,
+              project,
+            ])
+          ).values(),
+        ];
 
-        const allProjects = [...activeProjects, ...archivedProjects];
-
-        const activeEntries: RawEntryRow[] = (entriesRes?.data ?? []).map(
-          (e: Record<string, unknown>) => ({
-            project_name: e.project_name as string,
-            entries: e.entries as Record<string, unknown>,
-            due_date: (e.due_date as string) ?? null,
-            priority: (e.priority as string) ?? null,
-            status: (e.status as string) ?? 'up_next',
-            started_at: (e.started_at as string) ?? null,
-            ended_at: (e.ended_at as string) ?? null,
-            duration: (e.duration as string) ?? null,
-            archived: false,
-          })
+        const toExportedEntry = (
+          entry: Record<string, unknown>,
+          archived: boolean
+        ): RawEntryRow => ({
+          project_name: entry.project_name as string,
+          entries: entry.entries as RawEntryRow['entries'],
+          due_date: (entry.due_date as string) ?? null,
+          priority: (entry.priority as string) ?? null,
+          status: (entry.status as string) ?? 'up_next',
+          started_at: (entry.started_at as string) ?? null,
+          ended_at: (entry.ended_at as string) ?? null,
+          duration: (entry.duration as string) ?? null,
+          summary: (entry.summary as string) ?? null,
+          archived,
+        });
+        const activeEntries = (entriesRes?.data ?? [])
+          .filter((entry: Record<string, unknown>) => entry.archived !== true)
+          .map((entry: Record<string, unknown>) => toExportedEntry(entry, false));
+        const archivedEntries = (archivedEntriesRes?.data ?? []).map(
+          (entry: Record<string, unknown>) => toExportedEntry(entry, true)
         );
-
-        const archivedEntries: RawEntryRow[] = (archivedEntriesRes?.data ?? []).map(
-          (e: Record<string, unknown>) => ({
-            project_name: e.project_name as string,
-            entries: e.entries as Record<string, unknown>,
-            due_date: (e.due_date as string) ?? null,
-            priority: (e.priority as string) ?? null,
-            status: (e.status as string) ?? 'up_next',
-            started_at: (e.started_at as string) ?? null,
-            ended_at: (e.ended_at as string) ?? null,
-            duration: (e.duration as string) ?? null,
-            archived: true,
-          })
-        );
-
         const allEntries = [...activeEntries, ...archivedEntries];
 
-        const bundle = buildExportBundle(userEmail, allProjects, allEntries);
+        const fieldResults = await Promise.all(
+          allProjects.map((project) => getFields(userEmail, project.project_name ?? ''))
+        );
+        const fields: RawFieldRow[] = fieldResults.flatMap((result) => result?.data ?? []);
+        const bundle = buildExportBundle(userEmail, allProjects, allEntries, fields);
 
         let content: string;
         let mimeType: string;
@@ -187,6 +203,7 @@ export default function DataPortability() {
       if (!userEmail) return;
       setImporting(true);
       setImportResult(null);
+      setImportOutcome(null);
       setImportSuccess(false);
       setExportSuccess(null);
 
@@ -195,57 +212,118 @@ export default function DataPortability() {
         const result = parseImport(text, file.name);
         setImportResult(result);
 
-        if (result.projects.length === 0 && result.entries.length === 0) {
-          setImporting(false);
+        if (
+          result.projects.length === 0 &&
+          result.fields.length === 0 &&
+          result.entries.length === 0
+        ) {
           return;
         }
 
-        // Create projects first
+        const failures: string[] = [];
         const createdProjects = new Set<string>();
         for (const project of result.projects) {
-          const res = await addProject(userEmail, project.project_name, project.description);
-          if (res?.success) {
+          const response = await addProject(userEmail, project.project_name, project.description);
+          if (response?.success) {
             createdProjects.add(project.project_name);
+          } else {
+            failures.push(
+              `Project "${project.project_name}": ${response?.message ?? 'creation failed'}`
+            );
           }
         }
 
-        // Create entries
-        const createdEntryIds: Array<{ projectName: string; entryId: string }> = [];
+        let createdFields = 0;
+        for (const field of result.fields) {
+          if (!createdProjects.has(field.table_name)) {
+            failures.push(
+              `Field "${field.field_name}": project "${field.table_name}" was not created`
+            );
+            continue;
+          }
+          const response = await addField(
+            userEmail,
+            field.table_name,
+            field.field_name,
+            field.data_type ?? 'text',
+            field.is_required
+          );
+          if (response?.success) {
+            createdFields += 1;
+          } else {
+            failures.push(`Field "${field.field_name}": ${response?.message ?? 'creation failed'}`);
+          }
+        }
+
+        const createdEntries: Array<{ projectName: string; entryId: string; archived: boolean }> =
+          [];
         for (const entry of result.entries) {
-          const res = await addEntry(
+          if (!createdProjects.has(entry.project_name)) {
+            failures.push(`Entry in "${entry.project_name}": project was not created`);
+            continue;
+          }
+          const response = await addEntry(
             userEmail,
             entry.project_name,
-            entry.entries ?? { title: entry.project_name },
+            entry.entries,
             entry.due_date,
             entry.priority,
             entry.status,
             entry.started_at,
             entry.ended_at,
-            entry.duration
+            undefined,
+            entry.summary
           );
-          if (res?.success && (res as any)?.data?.id) {
-            createdEntryIds.push({
+          const created = Array.isArray(response?.data) ? response.data[0] : response?.data;
+          if (response?.success && created?.id) {
+            createdEntries.push({
               projectName: entry.project_name,
-              entryId: (res as any).data.id,
+              entryId: created.id,
+              archived: entry.archived,
             });
-          }
-        }
-
-        // Archive entries that were archived in the export
-        for (let i = 0; i < result.entries.length; i++) {
-          const entry = result.entries[i];
-          if (entry.archived && createdEntryIds[i]) {
-            await archiveEntry(
-              userEmail,
-              createdEntryIds[i].projectName,
-              createdEntryIds[i].entryId
+          } else {
+            failures.push(
+              `Entry in "${entry.project_name}": ${response?.message ?? 'creation failed'}`
             );
           }
         }
 
-        setImportSuccess(true);
+        for (const entry of createdEntries.filter((created) => created.archived)) {
+          const response = await archiveEntry(userEmail, entry.projectName, entry.entryId);
+          if (!response?.success) {
+            failures.push(
+              `Archived entry in "${entry.projectName}": ${response?.message ?? 'archive failed'}`
+            );
+          }
+        }
+
+        for (const project of result.projects.filter((project) => project.archived)) {
+          if (!createdProjects.has(project.project_name)) continue;
+          const response = await archiveProject(userEmail, project.project_name);
+          if (!response?.success) {
+            failures.push(
+              `Archived project "${project.project_name}": ${response?.message ?? 'archive failed'}`
+            );
+          }
+        }
+
+        await Promise.all([getProjectsByEmail(userEmail), getAllEntries(userEmail)]);
+        setImportOutcome({
+          projects: createdProjects.size,
+          fields: createdFields,
+          entries: createdEntries.length,
+          failures,
+        });
+        setImportSuccess(failures.length === 0);
       } catch (err) {
         console.error('[DataPortability] Import failed:', err);
+        setImportOutcome({
+          projects: 0,
+          fields: 0,
+          entries: 0,
+          failures: [err instanceof Error ? err.message : 'Import failed'],
+        });
+        setImportSuccess(false);
       } finally {
         setImporting(false);
       }
@@ -308,214 +386,169 @@ export default function DataPortability() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar
-        projects={cachedProjects}
-        entries={cachedEntries}
-        activeView="all"
-      />
+      <NavBar projects={cachedProjects} entries={cachedEntries} activeView="all" />
 
       <main className="dash-main">
         <Header title="Import & Export" entries={cachedEntries} projects={cachedProjects} />
 
         <div className="data-page">
-
-      {/* ── Export section ── */}
-      <div className="data-section">
-        <h2>
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Export
-        </h2>
-        <p>
-          Download all your projects and entries, including archived items. JSON, CSV, and Markdown
-          exports are round-trip safe — importing them into an empty database reproduces the
-          original data exactly. The iCalendar export opens in Google Calendar, Outlook, and Apple
-          Calendar.
-        </p>
-        <div className="data-export-buttons">
-          <button className="btn-primary" onClick={() => handleExport('json')} disabled={exporting}>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            {exporting ? 'Exporting…' : 'Export as JSON'}
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => handleExport('csv')}
-            disabled={exporting}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            {exporting ? 'Exporting…' : 'Export as CSV'}
-          </button>
-          <button className="btn-secondary" onClick={() => handleExport('md')} disabled={exporting}>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            {exporting ? 'Exporting…' : 'Export as Markdown'}
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => handleExport('ics')}
-            disabled={exporting}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            {exporting ? 'Exporting…' : 'Export as iCalendar'}
-          </button>
-        </div>
-        {exportSuccess && (
-          <div className="data-success">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            {exportSuccess}
-          </div>
-        )}
-      </div>
-
-      {/* ── Import section ── */}
-      <div className="data-section">
-        <h2>
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Import
-        </h2>
-        <p>
-          Upload a previously exported JSON, CSV, or Markdown file. Projects are created first, then
-          entries. Invalid rows are reported and skipped.
-        </p>
-        <div
-          className={`data-import-area${dragOver ? ' drag-over' : ''}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-        >
-          <input
-            id="data-import-file"
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.csv,.md,.markdown"
-            onChange={handleFileChange}
-          />
-          <label htmlFor="data-import-file">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            Choose a file or drop it here
-          </label>
-          <p>Supported formats: JSON, CSV, Markdown</p>
-        </div>
-
-        {importing && (
-          <div className="data-loading">
-            <svg
-              className="animate-spin"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-            </svg>
-            Importing data…
-          </div>
-        )}
-
-        {importResult && !importing && (
-          <div className="data-result">
-            <h3>Import Report</h3>
-            <div className="data-result-stats">
-              <span className="success">✓ {importResult.projects.length} projects</span>
-              <span className="success">✓ {importResult.entries.length} entries</span>
-              {importResult.rejections.length > 0 && (
-                <span className="warning">⚠ {importResult.rejections.length} rejected</span>
-              )}
+          {/* ── Export section ── */}
+          <div className="data-section">
+            <h2>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export
+            </h2>
+            <p>
+              Download all your projects and entries, including archived items. JSON is the
+              complete, versioned backup format. CSV and Markdown are interoperable views, while
+              iCalendar opens in Google Calendar, Outlook, and Apple Calendar.
+            </p>
+            <div className="data-export-buttons">
+              <button
+                className="btn-primary"
+                onClick={() => handleExport('json')}
+                disabled={exporting}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                {exporting ? 'Exporting…' : 'Export as JSON'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => handleExport('csv')}
+                disabled={exporting}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                {exporting ? 'Exporting…' : 'Export as CSV'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => handleExport('md')}
+                disabled={exporting}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                {exporting ? 'Exporting…' : 'Export as Markdown'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => handleExport('ics')}
+                disabled={exporting}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                {exporting ? 'Exporting…' : 'Export as iCalendar'}
+              </button>
             </div>
-            {importSuccess && (
+            {exportSuccess && (
               <div className="data-success">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {exportSuccess}
+              </div>
+            )}
+          </div>
+
+          {/* ── Import section ── */}
+          <div className="data-section">
+            <h2>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Import
+            </h2>
+            <p>
+              Upload a previously exported JSON, CSV, or Markdown file. JSON restores projects,
+              custom fields, and entries in order; invalid and failed records are reported.
+            </p>
+            <div
+              className={`data-import-area${dragOver ? ' drag-over' : ''}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              <input
+                id="data-import-file"
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.csv,.md,.markdown"
+                onChange={handleFileChange}
+              />
+              <label htmlFor="data-import-file">
                 <svg
                   width="16"
                   height="16"
@@ -528,24 +561,91 @@ export default function DataPortability() {
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                Import complete
+                Choose a file or drop it here
+              </label>
+              <p>Supported formats: JSON, CSV, Markdown</p>
+            </div>
+
+            {importing && (
+              <div className="data-loading">
+                <svg
+                  className="animate-spin"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                </svg>
+                Importing data…
               </div>
             )}
-            {importResult.rejections.length > 0 && (
-              <div className="data-result-rejections">
-                <h4>Rejected rows</h4>
-                <ul>
-                  {importResult.rejections.map((r, i) => (
-                    <li key={i}>
-                      <strong>Line {r.line}:</strong> {r.reason}
-                    </li>
-                  ))}
-                </ul>
+
+            {importResult && !importing && (
+              <div className="data-result">
+                <h3>Import Report</h3>
+                <div className="data-result-stats">
+                  <span className="success">
+                    ✓ {importOutcome?.projects ?? importResult.projects.length} projects
+                  </span>
+                  <span className="success">
+                    ✓ {importOutcome?.fields ?? importResult.fields.length} fields
+                  </span>
+                  <span className="success">
+                    ✓ {importOutcome?.entries ?? importResult.entries.length} entries
+                  </span>
+                  {importResult.rejections.length > 0 && (
+                    <span className="warning">⚠ {importResult.rejections.length} rejected</span>
+                  )}
+                  {importOutcome && importOutcome.failures.length > 0 && (
+                    <span className="warning">⚠ {importOutcome.failures.length} failed</span>
+                  )}
+                </div>
+                {importSuccess && (
+                  <div className="data-success">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    Import complete
+                  </div>
+                )}
+                {importOutcome && importOutcome.failures.length > 0 && (
+                  <div className="data-result-rejections">
+                    <h4>Restore failures</h4>
+                    <ul>
+                      {importOutcome.failures.map((failure, index) => (
+                        <li key={index}>{failure}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {importResult.rejections.length > 0 && (
+                  <div className="data-result-rejections">
+                    <h4>Rejected rows</h4>
+                    <ul>
+                      {importResult.rejections.map((r, i) => (
+                        <li key={i}>
+                          <strong>Line {r.line}:</strong> {r.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
         </div>
       </main>
     </div>

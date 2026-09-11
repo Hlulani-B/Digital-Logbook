@@ -4,6 +4,7 @@ import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
+import { classifyEntryPayload, type EntryPayload } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -94,7 +95,7 @@ interface EntryRow {
   id: string;
   user_email: string;
   project_name: string;
-  entries: Record<string, unknown>;
+  entries: EntryPayload;
   created_at: string;
   due_date?: string | null;
   priority?: string | null;
@@ -133,23 +134,12 @@ export function EntryBox({
     archived,
     started_at,
     ended_at,
-    duration,
     status = 'up_next',
     summary,
   } = entry;
 
-  // Parse entries if they come as a JSON string from the database
-  const parsedEntries = (() => {
-    if (!entries) return {};
-    if (typeof entries === 'string') {
-      try {
-        return JSON.parse(entries);
-      } catch {
-        return {};
-      }
-    }
-    return entries;
-  })();
+  const payloadState = classifyEntryPayload(entries);
+  const parsedEntries = payloadState.kind === 'object' ? payloadState.value : {};
 
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -191,7 +181,6 @@ export function EntryBox({
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
   const [draftStartedAt, setDraftStartedAt] = useState(toInputDate(started_at));
   const [draftEndedAt, setDraftEndedAt] = useState(toInputDate(ended_at));
-  const [draftDuration, setDraftDuration] = useState(duration || '');
   const [draftPriorityValue, setDraftPriorityValue] = useState(
     priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
   );
@@ -208,7 +197,15 @@ export function EntryBox({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  const SKIP_FIELDS = new Set(['created', 'started', 'ended', 'duration', 'created_at', 'started_at', 'ended_at']);
+  const SKIP_FIELDS = new Set([
+    'created',
+    'started',
+    'ended',
+    'duration',
+    'created_at',
+    'started_at',
+    'ended_at',
+  ]);
   const entryFields = Object.entries(parsedEntries || {}).filter(([key]) => !SKIP_FIELDS.has(key));
   const dueLabel = formatDate(due_date);
 
@@ -227,7 +224,6 @@ export function EntryBox({
     setDraftDueDate(toInputDate(due_date));
     setDraftStartedAt(toInputDate(started_at));
     setDraftEndedAt(toInputDate(ended_at));
-    setDraftDuration(duration || '');
     setDraftPriorityValue(
       priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
     );
@@ -247,14 +243,18 @@ export function EntryBox({
     setError(null);
 
     try {
-      const newEntryObject: Record<string, unknown> = {};
-      for (const [key, val] of Object.entries(draftFields)) {
-        try {
-          newEntryObject[key] = JSON.parse(val);
-        } catch {
-          newEntryObject[key] = val;
-        }
-      }
+      const newEntryObject: Record<string, unknown> | undefined =
+        payloadState.kind === 'opaque'
+          ? undefined
+          : Object.fromEntries(
+              Object.entries(draftFields).map(([key, value]) => {
+                try {
+                  return [key, JSON.parse(value)];
+                } catch {
+                  return [key, value];
+                }
+              })
+            );
 
       // Convert priority index to label string (or null for "No priority")
       const newPriorityLabel =
@@ -263,17 +263,15 @@ export function EntryBox({
       const newDueDate = draftDueDate ? new Date(draftDueDate).toISOString() : null;
       const newStartedAt = draftStartedAt ? new Date(draftStartedAt).toISOString() : null;
       const newEndedAt = draftEndedAt ? new Date(draftEndedAt).toISOString() : null;
-      const newDuration = draftDuration || null;
 
       const updatedEntry: EntryRow = {
         ...entry,
-        entries: newEntryObject,
+        entries: newEntryObject ?? entries,
         due_date: newDueDate,
         priority: newPriorityLabel,
         status: draftStatus,
         started_at: newStartedAt,
         ended_at: newEndedAt,
-        duration: newDuration,
       };
 
       // Single update call with all schema columns
@@ -286,8 +284,7 @@ export function EntryBox({
         newPriorityLabel,
         draftStatus,
         newStartedAt,
-        newEndedAt,
-        newDuration
+        newEndedAt
       );
 
       if (result?.success === false) {
@@ -362,13 +359,12 @@ export function EntryBox({
         user_email,
         project_name,
         id,
-        entries,
-        due_date,
-        priority,
+        undefined,
+        undefined,
+        undefined,
         newStatus,
         newStartedAt,
-        newEndedAt,
-        duration
+        newEndedAt
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to update status');
@@ -396,13 +392,11 @@ export function EntryBox({
         user_email,
         project_name,
         id,
-        entries,
-        due_date,
-        priority,
-        status,
-        now,
-        null,
-        null
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        now
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to start task');
@@ -431,13 +425,12 @@ export function EntryBox({
         user_email,
         project_name,
         id,
-        entries,
-        due_date,
-        priority,
+        undefined,
+        undefined,
+        undefined,
         'done_and_dusted',
-        started_at,
-        now,
-        null
+        undefined,
+        now
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to end task');
@@ -492,18 +485,25 @@ export function EntryBox({
         {error && <div className="entry-box__error">{error}</div>}
 
         <div className="entry-box__fields--editing">
-          {Object.entries(draftFields).map(([key, value]) => (
-            <div className="entry-box__field--editing" key={key}>
-              <label className="entry-box__field-key">{formatFieldKey(key)}</label>
-              <input
-                className="entry-box__field-input"
-                type="text"
-                value={value}
-                onChange={(e) => handleFieldChange(key, e.target.value)}
-                disabled={saving}
-              />
+          {payloadState.kind === 'opaque' ? (
+            <div className="entry-box__field--editing">
+              <label className="entry-box__field-key">Entry content</label>
+              <span>{formatFieldValue(payloadState.value)}</span>
             </div>
-          ))}
+          ) : (
+            Object.entries(draftFields).map(([key, value]) => (
+              <div className="entry-box__field--editing" key={key}>
+                <label className="entry-box__field-key">{formatFieldKey(key)}</label>
+                <input
+                  className="entry-box__field-input"
+                  type="text"
+                  value={value}
+                  onChange={(e) => handleFieldChange(key, e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+            ))
+          )}
         </div>
 
         <div className="entry-box__field--editing">
