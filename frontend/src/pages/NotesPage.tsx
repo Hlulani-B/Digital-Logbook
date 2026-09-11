@@ -420,19 +420,26 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                       </a>
                     ) : note.entry_type === 'image' ? (
                       <div className="notes-panel__note-image">
-                        {note.value && note.value.startsWith('http') ? (
-                          <img
-                            src={note.value}
-                            alt="Note"
-                            className="notes-panel__note-img"
-                          />
-                        ) : loadingFiles[note.id] ? (
+                        {loadingFiles[note.id] && !viewedFiles[note.id]?.file_data ? (
                           <span className="notes-panel__note-loading">Loading...</span>
                         ) : viewedFiles[note.id]?.file_data ? (
                           <img
                             src={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
                             alt="Note"
                             className="notes-panel__note-img"
+                          />
+                        ) : note.value && note.value.startsWith('http') ? (
+                          <img
+                            src={note.value}
+                            alt="Note"
+                            className="notes-panel__note-img"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const fallback = document.createElement('span');
+                              fallback.className = 'notes-panel__note-fallback';
+                              fallback.textContent = 'Image unavailable';
+                              (e.target as HTMLImageElement).parentNode?.appendChild(fallback);
+                            }}
                           />
                         ) : (
                           <span className="notes-panel__note-fallback">Image unavailable</span>
