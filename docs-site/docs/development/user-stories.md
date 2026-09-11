@@ -5,6 +5,14 @@ flow from login through project creation, template definition, entry
 capture, timeline, and basic statistics — not the whole Digital Logbook
 feature set.
 
+!!! tip "Feedback traceability"
+    Stories that were *refined* in Sprint 2 in response to the quick-survey
+    are marked with a **Refined by:** note pointing at the originating
+    problem, Gitea issue and shipped commit/PR. Stories that were *created
+    new* in Sprint 2 sit under
+    [Sprint 2 Feedback-Derived Stories](#sprint-2-feedback-derived-stories)
+    at the end of this file.
+
 ## Demo flow
 
 1. User signs in.
@@ -42,6 +50,14 @@ feature set.
 | AT2  | The user has no projects yet        | The dashboard loads | The system shows an empty-state message and a create-project action      |
 | AT3  | The user has active projects        | The dashboard loads | The system lists the active projects with basic summary information      |
 
+**Refined by:** Sprint 2 Quick-Survey problem 1 ("Projects, calendar, entries
+and activity log feel disconnected"). The dashboard was extended with
+*Recently created* and *Recently viewed* quick-jump strips (liveness-filtered
+against the current projects and entries) and every data-loading page was
+subscribed to `cacheSubscribe` so writes elsewhere appear without a reload.
+Tracked as Gitea issue [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118)
+(closed), shipped in commits `dfd6e2b`, `69e472d`, `352b5be`, `121dbae`.
+
 ## US3. Create a project
 
 **Who:** As a signed-in user
@@ -53,6 +69,14 @@ feature set.
 | AT1  | The user is on the dashboard                | The user opens the create-project form | The system displays fields for project name and description                |
 | AT2  | The user enters a valid unique project name | The user saves the project             | The project is created and appears in the active projects list             |
 | AT3  | The user leaves the project name empty      | The user tries to save the project     | The system rejects the form and explains that the project name is required |
+
+**Refined by:** Sprint 2 Quick-Survey problems 1 and 5. After creation the
+app now redirects straight to `/project/:projectName` so the new project's
+owning surface is immediately visible (commit `7c2331e`), and the projects
+list is patched directly in React state + subscribed via `cacheSubscribe`,
+so downstream pages see the new project without a reload (issues
+[#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118),
+[#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122)).
 
 ## US4. Define the project entry format
 
@@ -77,6 +101,18 @@ feature set.
 | AT1  | The project has an active entry format                            | The owner opens quick entry for that project      | The system displays only fields defined in that project's active format            |
 | AT2  | The quick-entry form is open                                      | The owner enters valid values and saves the entry | The system stores the entry against the selected project and confirms it was saved |
 | AT3  | The entry format contains predictable fields or built-in metadata | The quick-entry form opens                        | The system pre-fills date/time/project where possible while still allowing edits   |
+
+**Refined by:** Sprint 2 Quick-Survey problems 1, 4 and 5. Every task-creation
+surface (Dashboard FAB, Project page, AllEntries, Calendar, Timeline,
+QuickAdd, voice capture) was unified so the muscle memory transfers
+between pages, and each of them now records the new task into the
+*Recently created* strip. Task-creation is also protected by a sequence-ref
+race guard so the project the user just created is guaranteed to be
+selectable immediately. Tracked as issues
+[#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118),
+[#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121),
+[#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122)
+(closed); shipped in commits `7c2331e`, `f8cdb96`, `db1b73f`.
 
 ## US6. View project entries in a timeline
 
@@ -134,5 +170,101 @@ feature set.
 | Test | Given                                                | When                                        | Then                                                                                                                                                                                       |
 | ---- | ---------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | AT1  | The user is authenticated and logged into the system | The user navigates to the Activity Log page | The system displays a chronological list of all past activities, showing the date, time, and description of the action performed, and sorted with the most recent activity displayed first |
+
+## Sprint 2 Feedback-Derived Stories
+
+These stories were created *new* in Sprint 2, directly from the quick-survey
+findings. Each cites the originating problem number, the Gitea issue it is
+tracked under, and the PR / merge commit that shipped it — closing the
+feedback → story → implementation loop that the "User Feedback" and
+"Bug Tracker" rubric rows both require.
+
+### US11. See clearly what a "task" is and how it relates to a project
+
+**Source:** Sprint 2 Quick-Survey problem 3 (unclear terminology).
+**Gitea issue:** [#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) — closed.
+**Shipped:** PR #113 (`Replace Entry/Entries with Task/Tasks in UI`).
+
+**Who:** As a first-time user
+**What:** I want the app to call the things by names I already understand
+**Why:** So that I do not have to build a new mental model to use it.
+
+| Test | Given | When | Then |
+| ---- | ----- | ---- | ---- |
+| AT1 | User is on any entry-list surface | User reads the page | Labels say "Task" / "Tasks" not "Entry" / "Entries" |
+| AT2 | User opens Project Settings | User sees the format builder | Column definitions are labelled "Columns" with a tooltip |
+| AT3 | User hovers a project name in a task row | A tooltip appears | The tooltip names the project and the row links to it |
+
+### US12. See and reach the last things I created or opened
+
+**Source:** Sprint 2 Quick-Survey problem 1 (disconnected).
+**Gitea issue:** [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) — closed.
+**Shipped:** commits `dfd6e2b`, `69e472d`, `352b5be`, `d000307`, PR #116.
+
+**Who:** As a returning user
+**What:** I want the dashboard to show me my last few creations and last few views
+**Why:** So that I can pick up where I left off without hunting.
+
+| Test | Given | When | Then |
+| ---- | ----- | ---- | ---- |
+| AT1 | User just added a task from any surface | User lands on the Dashboard | The task appears in *Recently created* and links to its project |
+| AT2 | User just visited a project | User navigates back to the Dashboard | The project appears at the top of *Recently viewed* |
+| AT3 | A project or task in the recents has been deleted or archived | Dashboard re-renders | The stale recents entry is filtered out automatically |
+
+### US13. Understand exactly what data the app stores and how AI is used
+
+**Source:** Sprint 2 Quick-Survey problem 7 (data-privacy trust) + external
+tester feedback items 6 and 7.
+**Gitea issue:** [#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) — closed.
+**Shipped:** commits `21d6ce1` and predecessor; new pages `DataDisclaimer.tsx`
+and `DataDisclaimer2.tsx`.
+
+**Who:** As a privacy-conscious new user
+**What:** I want an upfront, honest disclosure of where my data lives and what the AI does with it
+**Why:** So that I can decide whether to trust the app before entering anything.
+
+| Test | Given | When | Then |
+| ---- | ----- | ---- | ---- |
+| AT1 | User just completed sign-up | Router hands off to `/data-disclaimer` | A one-time page appears listing Supabase, IndexedDB, Render, AI scope, opt-out, export, deletion grace period |
+| AT2 | User accepts the disclaimer | User clicks Continue | Flag is cleared and the user lands on the dashboard |
+| AT3 | User is signing in later (not a new signup) | Route runs `routeUser` | The disclaimer is skipped; the always-available `DataDisclaimer2` page is linked from the NavBar drawer |
+
+### US14. Confirm destructive actions with an in-app dialog, not a browser pop-up
+
+**Source:** Sprint 2 Quick-Survey problem 6 (native browser alerts) + external
+tester feedback item 3.
+**Gitea issue:** [#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) — closed.
+**Shipped:** commits touching `NewEntry.tsx` and `Dashboard.tsx` in the
+tester-feedback batch.
+
+**Who:** As any user
+**What:** I want delete/undo confirmations to look like the rest of the app
+**Why:** So that the experience feels polished and does not flash a browser chrome.
+
+| Test | Given | When | Then |
+| ---- | ----- | ---- | ---- |
+| AT1 | User opens the entry row menu | User clicks *Delete* | An inline "Delete? / Yes, delete / Cancel" prompt appears in the menu itself |
+| AT2 | Project field-save partially fails on the dashboard | The failure returns | The message renders inline in the form; no `window.alert` |
+| AT3 | User clicks *Cancel* on any inline prompt | Prompt disappears | No mutation was issued to the server |
+
+### US15. Give each project its own colour, and pick a website theme
+
+**Source:** Sprint 2 Quick-Survey feature requests ("different colours so
+that every project can have its own colour" and "customising colours of
+website").
+**Gitea issues:** [#93](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/93) (themes),
+project-colour work tracked with the same feedback tag; migration
+`008_add_project_color.sql`.
+**Shipped:** PR #93, commit `c0c9bce`.
+
+**Who:** As a returning user with many projects
+**What:** I want to colour-code projects and pick a global theme
+**Why:** So that the app feels personal and I can recognise projects at a glance.
+
+| Test | Given | When | Then |
+| ---- | ----- | ---- | ---- |
+| AT1 | User opens Project Settings on any project | User selects a swatch | `project_color` is stored server-side, cache is patched optimistically, all surfaces update |
+| AT2 | User reopens the app on a different device | Dashboard loads | The stored colour is present cross-device (server-side persistence, not localStorage) |
+| AT3 | User opens Settings → Theme | User selects a dark variant | Theme applies instantly via CSS variables and persists in preferences |
 
 <!-- AI Attribution: Formatting and table generation provided by Gemini (Model: Gemini 1.5 Pro). Purpose: Agile user story structuring and markdown formatting. -->
