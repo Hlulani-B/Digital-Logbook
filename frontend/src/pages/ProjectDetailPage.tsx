@@ -159,9 +159,17 @@ export function ProjectDetailPage() {
     };
   }, [cacheStore, cacheKey]);
 
+  // Guards against overlapping background fetches. sortUnarchivedEntries
+  // is triggered by both the mount/sortType effect below and every add/
+  // update/delete handler via loadEntries; without a seq check a stale
+  // fetch could flip loading off while a newer one is still in flight.
+  const entriesFetchSeq = useRef(0);
+  const projectColorSeq = useRef(0);
+
   // Fetch from server in background
   useEffect(() => {
     if (!email || !projectName) return;
+    const seq = ++entriesFetchSeq.current;
     // Only show loading spinner on initial load (no cached data yet)
     setEntries((prev) => {
       if (prev.length === 0) setLoading(true);
@@ -169,6 +177,7 @@ export function ProjectDetailPage() {
     });
     (async () => {
       await sortUnarchivedEntries(email, projectName, sortType);
+      if (seq !== entriesFetchSeq.current) return;
       setLoading(false); // Data arrived from server
     })();
   }, [email, projectName, sortType]);
@@ -176,8 +185,10 @@ export function ProjectDetailPage() {
   // Subscribe to project colour changes from settings panel
   useEffect(() => {
     if (!email || !projectName) return;
+    const seq = ++projectColorSeq.current;
     const unsub = cacheSubscribe(CACHE_STORES.PROJECTS, email, async () => {
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== projectColorSeq.current) return;
       if (cachedProjects) {
         const list = cachedProjects.data || cachedProjects.projects || [];
         const match = (Array.isArray(list) ? list : []).find(

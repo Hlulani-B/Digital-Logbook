@@ -90,13 +90,22 @@ export function TimelinePage() {
   const [cachedEntries, setCachedEntries] = useState<Array<Record<string, unknown>>>([]);
   const [cachedProjects, setCachedProjects] = useState<Array<Record<string, unknown>>>([]);
 
+  // Guards against overlapping load calls. Both functions have mount
+  // effects + cacheSubscribe listeners firing them near-simultaneously
+  // during a sync burst; without a seq check a stale call that finishes
+  // late can clobber the fresher snapshot.
+  const loadCacheSeq = useRef(0);
+  const loadDataSeq = useRef(0);
+
   const loadCacheData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadCacheSeq.current;
     try {
       const [ce, cp] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadCacheSeq.current) return;
       if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
       if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
     } catch (err) {
@@ -110,11 +119,13 @@ export function TimelinePage() {
 
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadDataSeq.current;
     setLoading(true);
     setError(null);
     // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (seq !== loadDataSeq.current) return;
       if (cached?.data) {
         const data = (Array.isArray(cached.data) ? cached.data : []).filter(
           (entry: CalendarEntry) => !entry.archived
@@ -124,6 +135,7 @@ export function TimelinePage() {
         // First visit ever — trigger initial sync
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (seq !== loadDataSeq.current) return;
         const data = (Array.isArray(fresh?.data) ? fresh.data : []).filter(
           (entry: CalendarEntry) => !entry.archived
         );
@@ -132,7 +144,7 @@ export function TimelinePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load timeline');
     } finally {
-      setLoading(false);
+      if (seq === loadDataSeq.current) setLoading(false);
     }
   }, [email]);
 

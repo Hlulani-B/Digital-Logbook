@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
@@ -117,13 +117,21 @@ export function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Guard against overlapping loadData calls — mount effect + two
+  // cacheSubscribe listeners can fire concurrently, and the syncAllData
+  // fallback path gives a stale call plenty of time to finish after a
+  // newer one has already committed fresh state.
+  const loadSeq = useRef(0);
+
   // Load data — read ONLY from IndexedDB. Mutations update it directly.
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     setError(null);
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== loadSeq.current) return;
       if (cachedProjects) {
         const pList = cachedProjects.data || cachedProjects.projects || [];
         setProjects(Array.isArray(pList) ? pList : []);
@@ -136,6 +144,7 @@ export function TodayPage() {
         setLoading(true);
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (seq !== loadSeq.current) return;
         if (fresh?.data) {
           const data = (Array.isArray(fresh.data) ? fresh.data : []).filter((entry: CalendarEntry) => !entry.archived);
           setEntries(data);
@@ -144,7 +153,7 @@ export function TodayPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load today view');
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 

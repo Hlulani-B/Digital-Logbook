@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
@@ -82,13 +82,19 @@ export function AllEntriesPage() {
   }, [email, signOut]);
 
   // Load data — read ONLY from IndexedDB. Mutations update it directly.
+  // Guard against overlapping calls: mount effect + two cacheSubscribe
+  // listeners + SSE onEntry can all fire loadData within the same tick.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadSeq.current) return;
       const hasCache = cachedEntries?.data || cachedProjects?.data;
       if (hasCache) {
         if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
@@ -101,13 +107,14 @@ export function AllEntriesPage() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
+        if (seq !== loadSeq.current) return;
         if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
       }
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 

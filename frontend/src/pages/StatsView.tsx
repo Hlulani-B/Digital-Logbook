@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -253,14 +253,20 @@ export function StatsView() {
   const [loading, setLoading] = useState(true);
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
 
+  // Guard against overlapping loadData calls (mount effect + two
+  // cacheSubscribe listeners firing near-simultaneously during a sync).
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadSeq.current) return;
       if (cachedEntries?.data)
         setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
       if (cachedProjects?.data)
@@ -275,6 +281,7 @@ export function StatsView() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
+        if (seq !== loadSeq.current) return;
         if (freshEntries?.data)
           setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data)
@@ -284,7 +291,7 @@ export function StatsView() {
     } catch (err) {
       console.error('[StatsView] Failed to load stats data:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 

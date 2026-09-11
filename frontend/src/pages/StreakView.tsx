@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
 import { NavBar } from '@/components/NavBar';
@@ -19,23 +19,30 @@ export function StreakView() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Guard against overlapping loadData calls (mount effect + the
+  // ALL_ENTRIES cacheSubscribe listener + the syncAllData fallback).
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     // Read ONLY from IndexedDB. Mutations update it directly.
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (seq !== loadSeq.current) return;
       if (cached?.data) {
         setEntries(Array.isArray(cached.data) ? cached.data : []);
       } else {
         // First visit ever — trigger initial sync
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (seq !== loadSeq.current) return;
         if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
       }
     } catch (err) {
       console.error('[StreakView] Failed to load entries:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 

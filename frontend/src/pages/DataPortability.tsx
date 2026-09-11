@@ -53,13 +53,20 @@ export default function DataPortability() {
   const [cachedEntries, setCachedEntries] = useState<Array<Record<string, unknown>>>([]);
   const [cachedProjects, setCachedProjects] = useState<Array<Record<string, unknown>>>([]);
 
+  // Guard against overlapping loadCacheData calls — mount effect +
+  // two cacheSubscribe listeners can fire during the same sync burst,
+  // and a stale late finisher would clobber the fresher snapshot.
+  const loadCacheSeq = useRef(0);
+
   const loadCacheData = useCallback(async () => {
     if (!userEmail) return;
+    const seq = ++loadCacheSeq.current;
     try {
       const [ce, cp] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, userEmail),
         cacheGet(CACHE_STORES.PROJECTS, userEmail),
       ]);
+      if (seq !== loadCacheSeq.current) return;
       if (ce?.data) setCachedEntries(Array.isArray(ce.data) ? ce.data : []);
       if (cp?.data) setCachedProjects(Array.isArray(cp.data) ? cp.data : []);
     } catch (err) {

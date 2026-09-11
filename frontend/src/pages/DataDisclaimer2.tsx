@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { FiShield, FiDatabase, FiCpu, FiLock } from 'react-icons/fi';
 import { NavBar } from '../components/NavBar.tsx';
 import { Header } from '../components/Header.tsx';
@@ -17,12 +17,20 @@ export function DataDisclaimer2() {
   const [projects, setProjects] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
 
+  // Guard against overlapping loadData calls — two cacheSubscribe listeners
+  // (PROJECTS + ALL_ENTRIES) plus the mount effect can all fire during the
+  // same sync burst, and a stale call finishing late would overwrite the
+  // fresh snapshot with an earlier one.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     const [p, e] = await Promise.all([
       cacheGet(CACHE_STORES.PROJECTS, email),
       cacheGet(CACHE_STORES.ALL_ENTRIES, email),
     ]);
+    if (seq !== loadSeq.current) return;
     if (p?.data || p?.projects) setProjects(p.data || p.projects || []);
     if (e?.data) setEntries(Array.isArray(e.data) ? e.data : []);
   }, [email]);
