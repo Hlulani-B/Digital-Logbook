@@ -614,7 +614,7 @@ export function ProjectSettingsPanel({
             ) : (
               <div className="confirm-box">
                 <p>
-                  Are you sure? This will delete all entries in this project. This action cannot be
+                  Are you sure? This will delete all tasks in this project. This action cannot be
                   undone.
                 </p>
                 <div className="confirm-actions">

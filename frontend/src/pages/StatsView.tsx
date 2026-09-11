@@ -494,8 +494,8 @@ export function StatsView() {
               <h2>No stats yet</h2>
               <p>
                 {scopeProject
-                  ? `Log entries in ${scopeProject} — with custom fields or a running timer — to see stats here.`
-                  : 'Log entries — with custom fields or a running timer — to see stats here.'}
+                  ? `Log tasks in ${scopeProject} — with custom fields or a running timer — to see stats here.`
+                  : 'Log tasks — with custom fields or a running timer — to see stats here.'}
               </p>
             </div>
           ) : (

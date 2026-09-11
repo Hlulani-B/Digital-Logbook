@@ -221,7 +221,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
-    'No entries to show yet. Add your first entry above!'
+    'No tasks to show yet. Add your first task above!'
   );
 
   // Refresh entries from server (called after add/update/delete)
@@ -236,7 +236,7 @@ export function ProjectDetailPage() {
     if (!getAiMessagesEnabled()) return;
     (async () => {
       const result = await askAI(
-        `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log entry for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
+        `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log task for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
       );
       if (result.success && result.response) {
         const msg = parseAIResponse(result.response)
@@ -256,7 +256,7 @@ export function ProjectDetailPage() {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when a project has no entries to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
+          `Generate a motivating message for when a project has no tasks to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -401,7 +401,7 @@ export function ProjectDetailPage() {
       setQuickMessageType('success');
       await loadEntries();
     } else {
-      setQuickMessage(result.message || 'Failed to create entry');
+      setQuickMessage(result.message || 'Failed to create task');
       setQuickMessageType('error');
     }
   };
@@ -641,8 +641,8 @@ export function ProjectDetailPage() {
                 type="button"
                 className="quick-entry-voice"
                 onClick={() => setVoiceOpen(true)}
-                aria-label="Voice entry"
-                title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+                aria-label="Voice task"
+                title={!isOnline ? 'Voice task is not available offline' : 'Record a voice task'}
                 disabled={!isOnline}
                 style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
               >
@@ -700,7 +700,7 @@ export function ProjectDetailPage() {
                 height: 24,
               }}
             />
-            <p>Loading entries...</p>
+            <p>Loading tasks...</p>
           </div>
         )}
 
@@ -726,7 +726,7 @@ export function ProjectDetailPage() {
                 </div>
                 <h2 className="empty-title">No results found</h2>
                 <p className="empty-desc">
-                  No entries in {projectName} match "{searchQuery}".
+                  No tasks in {projectName} match "{searchQuery}".
                 </p>
               </div>
             ) : viewMode === 'checklist' ? (
@@ -800,7 +800,7 @@ export function ProjectDetailPage() {
                     <line x1="9" y1="14" x2="15" y2="14" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No entries yet</h2>
+                <h2 className="empty-title">No tasks yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
             ) : viewMode === 'table' ? (

@@ -197,7 +197,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [, setAiEmptyMessage] = useState('No entries to show right now.');
+  const [, setAiEmptyMessage] = useState('No tasks to show right now.');
   const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
 
   // New project modal
@@ -483,7 +483,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+          `Generate a motivating message for when there are no tasks to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -881,7 +881,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Entries
+            All Tasks
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -1544,7 +1544,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     height: 24,
                   }}
                 />
-                <p>Loading entries...</p>
+                <p>Loading tasks...</p>
               </div>
             )}
 
@@ -1571,7 +1571,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       </svg>
                     </div>
                     <h2 className="empty-title">Nothing due soon</h2>
-                    <p className="empty-desc">No entries are due within the next 3 days.</p>
+                    <p className="empty-desc">No tasks are due within the next 3 days.</p>
                   </div>
                 ) : displayMode === 'checklist' ? (
                   <ChecklistView
@@ -1779,7 +1779,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 <line x1="12" y1="11" x2="12" y2="17" />
                 <line x1="9" y1="14" x2="15" y2="14" />
               </svg>
-              New Entry
+              New Task
             </button>
             <button
               className="fab-menu-item"
@@ -1974,7 +1974,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
             {!newEntryProject ? (
               <>
-                <h2 className="modal-title">New Entry</h2>
+                <h2 className="modal-title">New Task</h2>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Select a project:
                 </p>
