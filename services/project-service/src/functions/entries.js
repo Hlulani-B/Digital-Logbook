@@ -957,6 +957,7 @@ Respond with ONLY this JSON, nothing else:`;
         return {
           success: addResult.success,
           message: addResult.message,
+          entry_id: addResult.data?.[0]?.id || null,
           project: parsed.project,
           fields: parsed.fields,
           priority: priorityLabel,
@@ -1263,6 +1264,7 @@ Respond with ONLY this JSON, nothing else:`;
       return {
         success: addResult.success,
         message: addResult.message,
+        entry_id: addResult.data?.[0]?.id || null,
         project: newProjectName,
         fields: parsed.fields,
         priority: priorityLabel,

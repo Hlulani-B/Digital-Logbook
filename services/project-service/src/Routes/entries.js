@@ -266,6 +266,7 @@ router.post('/natural-language-entry', async (req, res) => {
     if (result.success) {
       sendToUser(user_email, 'entry_parsed', {
         success: true,
+        entry_id: result.entry_id || null,
         project: result.project,
         fields: result.fields,
         priority: result.priority,

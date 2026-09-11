@@ -16,6 +16,7 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { trackViewedProject } from '@/lib/recentlyViewed';
+import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { setPriority } from '@/functions/project/priority.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
@@ -960,9 +961,16 @@ export function ProjectDetailPage() {
               <AddEntry
                 user_email={email}
                 project_name={projectName!}
-                onAdded={() => {
+                onAdded={(result) => {
                   setNewEntryOpen(false);
                   loadEntries();
+                  // Track in recently created
+                  const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
+                  if (created?.id && projectName) {
+                    const entries = created.entries;
+                    const title = typeof entries === 'string' ? entries : (typeof entries === 'object' && entries ? Object.values(entries).find((v: any) => typeof v === 'string' && v.length > 0) as string : null) || created.summary || projectName;
+                    trackCreatedEntry({ entryId: created.id, projectName, title: String(title).slice(0, 100) });
+                  }
                 }}
                 onCancel={() => setNewEntryOpen(false)}
               />

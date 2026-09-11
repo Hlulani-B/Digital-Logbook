@@ -11,7 +11,7 @@
  */
 
 const STORAGE_KEY = 'recentlyCreatedEntries.v1';
-const MAX_ITEMS = 5;
+const MAX_ITEMS = 3;
 
 export interface RecentlyCreatedEntry {
   entryId: string;
@@ -45,21 +45,22 @@ export function getRecentlyCreated(): RecentlyCreatedEntry[] {
 }
 
 export function trackCreatedEntry(input: {
-  entryId: string;
+  entryId?: string;
   projectName: string;
   title: string;
 }): void {
   if (typeof window === 'undefined') return;
-  if (!input.entryId) return;
+  if (!input.projectName) return;
+  const entryId = input.entryId || `local-${Date.now()}`;
   const current = getRecentlyCreated();
   const next: RecentlyCreatedEntry[] = [
     {
-      entryId: input.entryId,
+      entryId,
       projectName: input.projectName,
       title: input.title,
       createdAt: new Date().toISOString(),
     },
-    ...current.filter((c) => c.entryId !== input.entryId),
+    ...current.filter((c) => c.entryId !== entryId),
   ].slice(0, MAX_ITEMS);
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));

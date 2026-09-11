@@ -1533,7 +1533,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               onEntryCreated={(info) => {
                 loadData();
                 // Track the created entry
-                if (info?.entryId && info?.projectName && info?.title) {
+                if (info?.projectName && info?.title) {
                   trackCreatedEntry({ entryId: info.entryId, projectName: info.projectName, title: info.title });
                 }
                 // Navigate to the project page if a project name was provided
@@ -2129,8 +2129,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   // Track the created entry
                   const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
                   if (created?.id && newEntryProject) {
-                    const title = typeof created.entries === 'string' ? created.entries : (created.summary || newEntryProject);
-                    trackCreatedEntry({ entryId: created.id, projectName: newEntryProject, title: title?.slice(0, 100) || newEntryProject });
+                    const title = typeof created.entries === 'string' ? created.entries : (typeof created.entries === 'object' && created.entries ? Object.values(created.entries).find((v: any) => typeof v === 'string' && v.length > 0) as string : null) || created.summary || newEntryProject;
+                    trackCreatedEntry({ entryId: created.id, projectName: newEntryProject, title: String(title).slice(0, 100) });
                   }
                   // Navigate to the project page where the entry was created
                   navigate(`/project/${encodeURIComponent(newEntryProject)}`);

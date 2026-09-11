@@ -57,19 +57,17 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       if (isProjectOnly) {
         projectName = (data?.project as string) || undefined;
       } else if (!isMulti) {
-        // For single entry, get project from the entry data
-        const entryData = data?.data as Record<string, unknown> | undefined;
-        projectName = (entryData?.project_name as string) || (data?.project as string) || undefined;
-        entryId = (entryData?.id as string) || undefined;
-        // Title can be in entries field or summary
-        const entries = entryData?.entries;
-        if (typeof entries === 'string') {
-          title = entries.slice(0, 100);
-        } else if (entries && typeof entries === 'object') {
-          title = (entries as Record<string, unknown>).task as string || (entries as Record<string, unknown>).title as string || undefined;
+        // Backend returns entry_id and project at top level
+        projectName = (data?.project as string) || undefined;
+        entryId = (data?.entry_id as string) || undefined;
+        // Title comes from fields (the AI-parsed entry content)
+        const fields = data?.fields as Record<string, unknown> | undefined;
+        if (fields) {
+          const firstValue = Object.values(fields).find((v) => typeof v === 'string' && v.length > 0);
+          if (firstValue) title = (firstValue as string).slice(0, 100);
         }
         if (!title) {
-          title = (entryData?.summary as string) || text.trim().slice(0, 100);
+          title = (data?.summary as string) || text.trim().slice(0, 100);
         }
       }
       
