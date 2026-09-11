@@ -502,19 +502,28 @@ on one page left the other pages showing stale data until a manual reload.
 
 **How it was solved:**
 
-1. **Recently created / Recently viewed sections on the Dashboard** — every
+1. **Redirect to the project page after creating a project or task** — the
+   most direct fix for "I made it but can't find it". Creating a project
+   (from the Dashboard or the Projects page), adding a task via the
+   New-task modal, or Quick Adding a task now navigates straight to that
+   project's page (`/project/:projectName`), so the user lands exactly where
+   the thing they just made lives. Quick Add was extended to pass the
+   resolved project name to its `onEntryCreated` consumers (Dashboard and
+   All Entries) so they can route there. Project-detail's own add flow only
+   refreshes, since the user is already on that page. (commit `7c2331e`)
+2. **Recently created / Recently viewed sections on the Dashboard** — every
    task creation path (manual add, Quick Add, voice, and multi-project
    matches) now records the new entry (`entryId` + `projectName` + `title`)
    and surfaces the last three in a tappable *Recently created* strip that
    navigates straight to the owning project. Project visits are tracked the
    same way in *Recently viewed*.
    (commits `dfd6e2b`, `69e472d`, `352b5be`, `d000307`)
-2. **Every page subscribes to cache changes** — Kanban, Today, Calendar,
+3. **Every page subscribes to cache changes** — Kanban, Today, Calendar,
    Timeline, StatsView, StreakView, Project, AllEntries, DataPortability and
    the disclaimer pages now use `cacheSubscribe`, so a write on one page
    live-updates the others without a reload, making them feel like one
    system. (commit `121dbae`)
-3. **Cross-page click-through** — project names in task views carry a hover
+4. **Cross-page click-through** — project names in task views carry a hover
    tooltip and click straight through to the project. (commit `0afb11c`)
 
 ### 2. No onboarding or in-app guidance for first-time users
