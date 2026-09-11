@@ -221,7 +221,7 @@ export function TodayPage() {
           <h2 className="today-empty-title">You are all caught up</h2>
           <p className="today-empty-message">
             Nothing is overdue, due today, or in progress. Enjoy the moment, or head to the
-            dashboard to plan your next task.
+            dashboard to plan your next item.
           </p>
           <button className="btn-primary" onClick={() => navigate('/dashboard')}>
             Go to Dashboard

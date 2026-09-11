@@ -232,12 +232,12 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       );
 
       if (result?.success === false) {
-        throw new Error((result as any).message || 'Failed to add task');
+        throw new Error((result as any).message || 'Failed to add item');
       }
 
       onAdded?.(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add task');
+      setError(err instanceof Error ? err.message : 'Failed to add item');
     } finally {
       setSaving(false);
     }
@@ -247,7 +247,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
     return (
       <div className="add-entry">
         <div className="add-entry__header">
-          <h2 className="add-entry__title">New Task</h2>
+          <h2 className="add-entry__title">New Item</h2>
           <span className="add-entry__project">{project_name}</span>
         </div>
         <div className="add-entry__loading">Loading columns...</div>
@@ -258,7 +258,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
   return (
     <form className="add-entry" onSubmit={handleSubmit}>
       <div className="add-entry__header">
-        <h2 className="add-entry__title">New Task</h2>
+        <h2 className="add-entry__title">New Item</h2>
         <span className="add-entry__project">{project_name}</span>
       </div>
 
@@ -488,7 +488,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           className="add-entry__btn add-entry__btn--submit"
           disabled={saving || loadingFields}
         >
-          {saving ? 'Adding...' : 'Add Task'}
+          {saving ? 'Adding...' : 'Add Item'}
         </button>
       </div>
     </form>

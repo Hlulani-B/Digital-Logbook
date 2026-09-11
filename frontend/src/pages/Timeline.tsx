@@ -306,8 +306,8 @@ export function TimelinePage() {
           </div>
           <h2 className="timeline-empty-title">No timeline data</h2>
           <p className="timeline-empty-message">
-            There are no dated, incomplete tasks to display. Add entries with start and due dates,
-            or set dependencies in the task details to see them linked here.
+            There are no dated, incomplete items to display. Add entries with start and due dates,
+            or set dependencies in the item details to see them linked here.
           </p>
           <button className="btn-primary" onClick={() => navigate('/dashboard')}>
             Go to Dashboard

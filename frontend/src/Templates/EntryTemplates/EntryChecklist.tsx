@@ -333,7 +333,7 @@ export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: Checkl
   if (!entries || entries.length === 0) {
     return (
       <div className="checklist-empty">
-        <p>No tasks yet</p>
+        <p>No items yet</p>
       </div>
     );
   }

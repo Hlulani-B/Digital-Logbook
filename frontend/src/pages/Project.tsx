@@ -513,9 +513,9 @@ export function ProjectsPage() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>(read-only)</span>
                 </div>
                 {loadingEntries ? (
-                  <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '1.5rem' }}>Loading tasks...</p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '1.5rem' }}>Loading items...</p>
                 ) : archivedEntries.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '2rem 0' }}>No tasks in this project.</p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-dim, #6b7280)', padding: '2rem 0' }}>No items in this project.</p>
                 ) : (
                   <div style={{ display: 'grid', gap: '0.5rem' }}>
                     {archivedEntries.map((entry, i) => (

@@ -271,7 +271,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [, setAiEmptyMessage] = useState('No tasks to show right now.');
+  const [, setAiEmptyMessage] = useState('No items to show right now.');
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -575,7 +575,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when there are no tasks to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+          `Generate a motivating message for when there are no items to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -1003,7 +1003,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Tasks
+            All Items
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -1094,7 +1094,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/timeline');
               setDrawerOpen(false);
             }}
-            title="See a chronological timeline of all your tasks across projects"
+            title="See a chronological timeline of all your items across projects"
           >
             <svg
               width="16"
@@ -1158,7 +1158,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               navigate('/stats');
               setDrawerOpen(false);
             }}
-            title="View statistics and insights about your tasks"
+            title="View statistics and insights about your items"
           >
             <svg
               width="16"
@@ -1282,7 +1282,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               setNewProjectOpen(true);
               setDrawerOpen(false);
             }}
-            title="Create a new project to organize your tasks"
+            title="Create a new project to organize your items"
           >
             <svg
               width="16"
@@ -1729,7 +1729,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     height: 24,
                   }}
                 />
-                <p>Loading tasks...</p>
+                <p>Loading items...</p>
               </div>
             )}
 
@@ -1805,7 +1805,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     </svg>
                   </div>
                   <h2 className="empty-title">Nothing due soon</h2>
-                  <p className="empty-desc">No tasks are due within the next 3 days.</p>
+                  <p className="empty-desc">No items are due within the next 3 days.</p>
                 </div>
               </div>
             )}
@@ -2012,7 +2012,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   setNewEntryOpen(true);
                   setFabOpen(false);
                 }}
-                title="Create a new task in one of your projects"
+                title="Create a new item in one of your projects"
               >
                 <svg
                   width="16"
@@ -2027,7 +2027,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <line x1="12" y1="11" x2="12" y2="17" />
                   <line x1="9" y1="14" x2="15" y2="14" />
                 </svg>
-                New Task
+                New Item
               </button>
             ) : (
               <div className="fab-menu-hint" title="You need to create a project first">
@@ -2045,7 +2045,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 setNewProjectOpen(true);
                 setFabOpen(false);
               }}
-              title="Create a new project to organize your tasks"
+              title="Create a new project to organize your items"
             >
               <svg
                 width="16"
@@ -2065,7 +2065,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           className={`fab ${fabOpen ? 'fab-open' : ''}`}
           onClick={() => setFabOpen(!fabOpen)}
           aria-label="Quick actions"
-          title="Quick actions: create a new task or project"
+          title="Quick actions: create a new item or project"
         >
           <svg
             width="20"
@@ -2286,7 +2286,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
             {!newEntryProject ? (
               <>
-                <h2 className="modal-title">New Task</h2>
+                <h2 className="modal-title">New Item</h2>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Select a project:
                 </p>

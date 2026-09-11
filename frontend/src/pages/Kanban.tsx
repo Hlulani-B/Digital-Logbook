@@ -327,7 +327,7 @@ export function KanbanPage() {
                 id="search-filter"
                 type="text"
                 className="kanban-search"
-                placeholder="Search tasks…"
+                placeholder="Search items…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -360,7 +360,7 @@ export function KanbanPage() {
         </div>
       ) : filteredEntries.length === 0 ? (
         <div className="kanban-empty">
-          <p>No tasks match the current filter.</p>
+          <p>No items match the current filter.</p>
           <button
             className="btn-secondary"
             onClick={() => {
