@@ -836,10 +836,13 @@ artefacts close that loop for every problem in this section:
    produced by the merge commits listed above — testers can verify
    behaviour on the same URL used during feedback collection.
 
-!!! info "Formal re-survey is deferred"
-    A second quick-survey round scoped specifically to *confirm each fix
-    closed its originating complaint* is planned for the start of Sprint
-    3. Until then, verification rests on the three artefacts above rather
-    than a follow-up Likert score. This is stated openly so the reader can
-    weigh the strength of the feedback loop honestly.
+!!! info "Why no targeted re-survey"
+    The Google Form was configured to collect responses **anonymously** (no
+    email capture), so it is not possible to go back to the specific
+    respondents who raised each problem and ask them to confirm the fix.
+    Integration is therefore evidenced by the three artefacts above (merged
+    PRs, closed Gitea issues with commit references, and the live
+    production build) rather than a follow-up Likert score. A fresh
+    survey round open to new participants is planned for the start of
+    Sprint 3 as a broader regression check.
 
