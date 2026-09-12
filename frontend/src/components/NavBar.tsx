@@ -30,18 +30,19 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
   );
 
   useEffect(() => {
+    if (!user?.email) return;
+    const email = user.email!;
     const loadData = async () => {
-      if (!user?.email) return;
       try {
         // Load projects from IndexedDB
-        const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, user.email);
+        const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
         if (cachedProjects?.data || cachedProjects?.projects) {
           const rawProjects = cachedProjects.data || cachedProjects.projects || [];
           const projectsList = Array.isArray(rawProjects) ? rawProjects : [];
           setProjects(projectsList.filter((p: Record<string, unknown>) => !p.archived));
         }
         // Load entries from IndexedDB
-        const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, user.email);
+        const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (cachedEntries?.data) {
           const entriesList = Array.isArray(cachedEntries.data) ? cachedEntries.data : [];
           setEntries(entriesList);
@@ -51,6 +52,13 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
       }
     };
     loadData();
+
+    // Re-read when syncAllData or mutations write new projects/entries to cache
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
   }, [user?.email]);
 
   // Use props if provided, otherwise use IndexedDB data
