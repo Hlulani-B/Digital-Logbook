@@ -1,22 +1,5 @@
 # Stakeholder Interaction
 
-This page documents stakeholder engagement during the Digital Logbook project.
-
-## Sprint 1
-
-### Client Meeting
-
-Below is proof of interaction with the client/stakeholder during Sprint 1. This meeting covered project requirements, expectations, and alignment on the Sprint 1 deliverables.
-
-![Sprint 1 Client Meeting](../assets/sprint1-client-meeting.jpg)
-
-#### Key Takeaways
-
-- Confirmed the core user flow: sign in, create project, define entry format, capture entries, view timeline, see statistics
-- Agreed on the technology stack (React frontend, Node/Express microservices, Supabase backend)
-- Discussed the importance of the natural-language entry feature and voice capture
-- Aligned on deployment strategy (Render for backend services)
-
 ## Sprint 2
 
 ### Client Meeting — 10 September 2026
@@ -45,7 +28,7 @@ Below is proof of interaction with the client/stakeholder during Sprint 1. This 
 
 **Proof of meeting:**
 
-![Client Meeting Proof](meetings/meeting-09-2026-09-10.jpeg)
+![Client Meeting Proof](../assets/meetings/meeting-09-2026-09-10.jpeg)
 
 ### Stakeholder Feedback Review — 12 September 2026
 
@@ -78,4 +61,4 @@ Below is proof of interaction with the client/stakeholder during Sprint 1. This 
 
 **Proof of meeting:**
 
-![Standup Proof](meetings/meeting-09-2026-09-12.png)
+![Standup Proof](../assets/meetings/meeting-09-2026-09-12.png)
