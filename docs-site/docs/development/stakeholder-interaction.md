@@ -45,7 +45,7 @@ Below is proof of interaction with the client/stakeholder during Sprint 1. This 
 
 **Proof of meeting:**
 
-![Client Meeting Proof](WhatsApp Image 2026-09-10 at 14.36.19.jpeg)
+![Client Meeting Proof](meetings/meeting-09-2026-09-10.jpeg)
 
 ### Stakeholder Feedback Review — 12 September 2026
 
@@ -78,4 +78,4 @@ Below is proof of interaction with the client/stakeholder during Sprint 1. This 
 
 **Proof of meeting:**
 
-![Standup Proof](meetings/Screenshot 2026-09-12 152030.png)
+![Standup Proof](meetings/meeting-09-2026-09-12.png)

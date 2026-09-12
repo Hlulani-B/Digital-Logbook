@@ -295,7 +295,7 @@ meeting is enough to count as evidence.
 
 **Proof of meeting:**
 
-![Meeting Proof](meetings/Screenshot 2026-09-02 201547.png)
+![Meeting Proof](meetings/meeting-09-2026-09-02.png)
 
 ---
 
@@ -421,7 +421,7 @@ back, and closed out remaining blockers.
 
 **Proof of meeting:**
 
-![Client Meeting Proof](WhatsApp Image 2026-09-10 at 14.36.19.jpeg)
+![Client Meeting Proof](meetings/meeting-09-2026-09-10.jpeg)
 
 ---
 
@@ -476,4 +476,4 @@ session, and replanned the remaining Sprint 2 work around it.
 
 **Proof of meeting:**
 
-![Standup Proof](meetings/Screenshot 2026-09-12 152030.png)
+![Standup Proof](meetings/meeting-09-2026-09-12.png)
