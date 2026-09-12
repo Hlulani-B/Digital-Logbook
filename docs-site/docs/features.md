@@ -544,7 +544,7 @@ After the 30-day grace period, a background process permanently removes the acco
 **Key files:**
 
 - `frontend/src/pages/VoiceFeature.jsx` — Voice recording UI
-- `docs-site/docs/architecture/voice-feature.md` — Voice feature documentation
+- `docs-site/docs/Architecture/voice-feature.md` — Voice feature documentation
 
 ### 29. Data Export
 

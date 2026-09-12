@@ -28,7 +28,7 @@ let anyone push to or modify the repository.
 
 ## CI/CD constraints
 
-See [CI/CD & Deployment](../architecture/cicd-deployment.md) for the full
+See [CI/CD & Deployment](../Architecture/cicd-deployment.md) for the full
 writeup — summary of the two blocking constraints we had to design around:
 
 1. Gitea Actions isn't enabled on `sdp.ms.wits.ac.za`.
@@ -41,14 +41,14 @@ Solved with a Gitea → GitHub push mirror → Render pipeline.
 Three separate issues surfaced while deploying the backend services — folder
 structure mismatch, a missing `start` script, and an entry-point path
 mismatch. Full detail and fixes in
-[CI/CD & Deployment](../architecture/cicd-deployment.md#problems-hit-during-deployment-and-fixes).
+[CI/CD & Deployment](../Architecture/cicd-deployment.md#problems-hit-during-deployment-and-fixes).
 
 ## Database design
 
 Chose a dynamic, table-per-project schema (`fields` + `entries` with JSONB)
 over a fixed-column schema, specifically to avoid needing a migration every
 time a user customises their entry format. Full reasoning in
-[Database Schema](../architecture/database.md).
+[Database Schema](../Architecture/database.md).
 
 ## Frontend push delay
 

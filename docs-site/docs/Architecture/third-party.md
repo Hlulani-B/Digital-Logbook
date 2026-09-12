@@ -699,7 +699,7 @@ Supertest mounts the Express app in-memory (no `listen()` call), sends HTTP requ
 
 **How it is used:**
 
-`docs-site/mkdocs.yml` configures the site title, theme, navigation tree, and plugins. The `docs/` directory contains Markdown files organized by category: `architecture/` (database, tech stack, third-party dependencies), `deployment/` (Render setup, environment variables), `api/` (endpoint documentation). Running `mkdocs build` produces a static HTML site in `docs-site/site/`, which Render deploys as a static site.
+`docs-site/mkdocs.yml` configures the site title, theme, navigation tree, and plugins. The `docs/` directory contains Markdown files organized by category: `Architecture/` (database, tech stack, UI design), `Meetings/` and `Stakeholder_Interactions/` (sprint-by-sprint logs), `User_Stories/`, `Project_Management/` (methodology, decisions, work tracker), and `Testing/`. Running `mkdocs build` produces a static HTML site in `docs-site/site/`, which Render deploys as a static site.
 
 ---
 
