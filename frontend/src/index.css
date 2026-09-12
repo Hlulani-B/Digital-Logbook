@@ -7213,13 +7213,14 @@ img {
   gap: 0.3rem;
   padding: 0.35rem 0.7rem;
   border-radius: 0.375rem;
-  background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  background: transparent;
+  color: var(--text-dim, #999);
   font-size: 0.75rem;
   text-decoration: none;
 }
 .notes-panel__note-download:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--surface-hover);
+  color: var(--text);
 }
 .notes-panel__note-footer {
   display: flex;
@@ -7235,6 +7236,9 @@ img {
   font-size: 0.7rem;
   cursor: pointer;
   border-radius: 0.25rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 .notes-panel__note-action:hover {
   background: var(--surface-hover);

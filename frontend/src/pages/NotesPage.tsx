@@ -597,14 +597,6 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                               alt="Note"
                               className="notes-panel__note-img"
                             />
-                            <a
-                              href={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
-                              download={`note-${note.id || 'image'}.${(viewedFiles[note.id].content_type || 'image/jpeg').split('/')[1]}`}
-                              className="notes-panel__note-download"
-                              title="Download image"
-                            >
-                              &#8681; Download
-                            </a>
                           </>
                         ) : note.value && note.value.startsWith('http') ? (
                           <>
@@ -620,14 +612,6 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                                 (e.target as HTMLImageElement).parentNode?.appendChild(fallback);
                               }}
                             />
-                            <a
-                              href={note.value}
-                              download
-                              className="notes-panel__note-download"
-                              title="Download image"
-                            >
-                              &#8681; Download
-                            </a>
                           </>
                         ) : (
                           <span className="notes-panel__note-fallback">Image unavailable</span>
@@ -674,6 +658,26 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                       >
                         Edit
                       </button>
+                    )}
+                    {note.entry_type === 'image' && viewedFiles[note.id]?.file_data && (
+                      <a
+                        href={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
+                        download={`note-${note.id || 'image'}.${(viewedFiles[note.id].content_type || 'image/jpeg').split('/')[1]}`}
+                        className="notes-panel__note-action"
+                        title="Download image"
+                      >
+                        Download
+                      </a>
+                    )}
+                    {note.entry_type === 'image' && !viewedFiles[note.id]?.file_data && note.value?.startsWith('http') && (
+                      <a
+                        href={note.value}
+                        download
+                        className="notes-panel__note-action"
+                        title="Download image"
+                      >
+                        Download
+                      </a>
                     )}
                     <button
                       type="button"
