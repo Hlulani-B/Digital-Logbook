@@ -1563,25 +1563,29 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   Projects
                 </button>
+              </div>
+              <div className="feed-view-group">
                 <span className="feed-view-label">View:</span>
-                <button
-                  className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('cards')}
-                >
-                  Cards
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('checklist')}
-                >
-                  Checklist
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('board')}
-                >
-                  Board
-                </button>
+                <div className="feed-view-toggle">
+                  <button
+                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('checklist')}
+                  >
+                    Checklist
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('board')}
+                  >
+                    Board
+                  </button>
+                </div>
               </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>
