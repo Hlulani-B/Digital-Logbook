@@ -36,7 +36,10 @@ export function SignIn() {
     { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
     { label: 'One lowercase letter (a-z)', met: /[a-z]/.test(password) },
     { label: 'One number (0-9)', met: /[0-9]/.test(password) },
-    { label: 'One special character (!@#$...)', met: /[^A-Za-z0-9]/.test(password) },
+    {
+      label: 'One special character (!@#$%^&*()_+-=[]{}|;:,.<>?/~)',
+      met: /[!@#$%^&*()_+\-=[\]{}|;:,.<>?/~]/.test(password),
+    },
     {
       label: 'Passwords match',
       met: confirmPassword.length > 0 && password === confirmPassword,
