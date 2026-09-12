@@ -8118,31 +8118,3 @@ img {
   border: 1px solid var(--accent);
   text-shadow: none;
 }
-
-/* Dashed screenshot placeholder inside a step description */
-.tour-img-slot {
-  margin-top: 0.65rem;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  border: 1.5px dashed var(--border-hover, var(--border));
-  border-radius: 0.5rem;
-  background: var(--bg-subtle, transparent);
-}
-
-.tour-img-slot-badge {
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.tour-img-slot-hint {
-  font-size: 0.7rem;
-  font-style: italic;
-  color: var(--text-dim);
-  text-align: center;
-}

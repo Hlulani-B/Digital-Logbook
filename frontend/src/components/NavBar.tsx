@@ -193,6 +193,7 @@ export function NavBar({
             <button
               type="button"
               className="nav-tour-btn"
+              data-tour="nav-guide"
               onClick={() => startAppTour()}
               aria-label="Start the guided tour"
               title="Take the tour"
