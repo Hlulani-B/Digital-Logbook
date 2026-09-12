@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
-import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
+import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
+import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import { classifyEntryPayload, cleanSummaryText, type EntryPayload } from '@/lib/entryPayload';
 
@@ -155,6 +156,12 @@ export function EntryBox({
   const menuRef = useRef<HTMLDivElement>(null);
   const { openNotes } = useNotes();
 
+  const [refPickerOpen, setRefPickerOpen] = useState<'project' | null>(null);
+  const [refEntries, setRefEntries] = useState<any[]>([]);
+  const [refProjects, setRefProjects] = useState<any[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
+  const [calcField, setCalcField] = useState<string | null>(null);
+
   const [fieldDefs, setFieldDefs] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!user_email || !project_name) return;
@@ -233,8 +240,12 @@ export function EntryBox({
     'created_at',
     'started_at',
     'ended_at',
+    '_entry_ref',
+    '_project_ref',
   ]);
-  const entryFields = Object.entries(parsedEntries || {}).filter(([key]) => !SKIP_FIELDS.has(key));
+  const entryFields = Object.entries(parsedEntries || {}).filter(
+    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
+  );
   const dueLabel = formatDate(due_date);
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
@@ -444,6 +455,60 @@ export function EntryBox({
     }
   };
 
+  const openProjectRefPicker = async () => {
+    setRefLoading(true);
+    setRefPickerOpen('project');
+    try {
+      const result = await getProjectsByEmail(user_email);
+      const projects = result?.projects || result?.data || [];
+      setRefProjects(projects);
+    } catch {}
+    setRefLoading(false);
+  };
+
+  const selectProjectRef = async (project: any) => {
+    const ref = { project_name: project.project_name };
+    const newEntries = { ...parsedEntries, _project_ref: ref };
+    await updateEntry(user_email, project_name, id, newEntries);
+    setRefPickerOpen(null);
+    onUpdated?.({ ...entry, entries: newEntries });
+  };
+
+  const removeProjectRef = async () => {
+    const newEntries = { ...parsedEntries };
+    delete newEntries._project_ref;
+    await updateEntry(user_email, project_name, id, newEntries);
+    onUpdated?.({ ...entry, entries: newEntries });
+  };
+
+  const openCalcPicker = async (fieldName: string) => {
+    setCalcField(fieldName);
+    try {
+      const result = await getEntries(user_email, project_name);
+      if (result?.data) setRefEntries(result.data);
+    } catch {}
+  };
+
+  const doCalculation = (type: 'sum' | 'average') => {
+    if (!calcField) return;
+    const values = refEntries
+      .map((e: any) => {
+        const data = typeof e.entries === 'object' && e.entries ? e.entries : {};
+        const val = Number(data[calcField]);
+        return isNaN(val) ? null : val;
+      })
+      .filter((v): v is number => v !== null);
+    if (values.length === 0) { setCalcField(null); return; }
+    const result = type === 'sum'
+      ? values.reduce((a, b) => a + b, 0)
+      : values.reduce((a, b) => a + b, 0) / values.length;
+    const newEntries = { ...parsedEntries, [`_calc_${calcField}`]: { type, value: result } };
+    updateEntry(user_email, project_name, id, newEntries).then(() => {
+      onUpdated?.({ ...entry, entries: newEntries });
+    });
+    setCalcField(null);
+  };
+
   if (isEditing) {
     return (
       <div className="entry-box entry-box--editing">
@@ -573,6 +638,7 @@ export function EntryBox({
   }
 
   return (
+    <>
     <div
       className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
       style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
@@ -737,15 +803,77 @@ export function EntryBox({
         <p className="entry-box__summary">{safeSummary}</p>
       )}
 
+      {/* Project reference area */}
+      <div className="entry-box__project-ref-area">
+        {!!parsedEntries._project_ref && (
+          <div className="entry-box__ref-row">
+            <span className="entry-box__ref-label">Project ref:</span>
+            <button
+              type="button"
+              className="entry-box__ref-link"
+              onClick={(e) => {
+                e.stopPropagation();
+                const ref = parsedEntries._project_ref as any;
+                navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+              }}
+            >
+              📁 {(parsedEntries._project_ref as any).project_name}
+            </button>
+            <button
+              type="button"
+              className="entry-box__ref-remove"
+              onClick={(e) => { e.stopPropagation(); removeProjectRef(); }}
+              title="Remove reference"
+            >×</button>
+          </div>
+        )}
+        <button
+          type="button"
+          className="entry-box__ref-btn"
+          onClick={(e) => { e.stopPropagation(); openProjectRefPicker(); }}
+        >
+          + Project Reference
+        </button>
+      </div>
+
       {entryFields.length > 0 && (
         <table className="entry-box__table">
           <tbody>
-            {entryFields.map(([key, value]) => (
-              <tr className="entry-box__row" key={key}>
-                <td className="entry-box__field-key">{formatFieldKey(key)}</td>
-                <td className="entry-box__field-value">{formatFieldValue(value)}</td>
-              </tr>
-            ))}
+            {entryFields.map(([key, value]) => {
+              const isNumeric = fieldDefs[key] === 'number';
+              const calcKey = `_calc_${key}`;
+              const calcResult = parsedEntries[calcKey] as { type: string; value: number } | undefined;
+              return (
+                <React.Fragment key={key}>
+                  <tr className="entry-box__row">
+                    <td className="entry-box__field-key">{formatFieldKey(key)}</td>
+                    <td className="entry-box__field-value">
+                      {formatFieldValue(value)}
+                      {isNumeric && (
+                        <button
+                          type="button"
+                          className="entry-box__calc-btn"
+                          onClick={(e) => { e.stopPropagation(); openCalcPicker(key); }}
+                          title="Calculate sum or average"
+                        >
+                          Calculate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {calcResult && (
+                    <tr className="entry-box__row entry-box__row--calc">
+                      <td className="entry-box__field-key entry-box__field-key--calc">
+                        {calcResult.type === 'sum' ? 'Σ' : 'μ'} {formatFieldKey(key)}
+                      </td>
+                      <td className="entry-box__field-value entry-box__field-value--calc">
+                        {Number(calcResult.value).toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -789,6 +917,56 @@ export function EntryBox({
 
       {error && <div className="entry-box__error">{error}</div>}
     </div>
+
+    {/* Project Reference Picker Modal */}
+    {refPickerOpen && (
+      <div className="modal-overlay" onClick={() => setRefPickerOpen(null)}>
+        <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="ref-picker-header">
+            <h3>Select a Project</h3>
+            <button type="button" className="ref-picker-close" onClick={() => setRefPickerOpen(null)}>×</button>
+          </div>
+          {refLoading ? (
+            <div className="ref-picker-loading">Loading...</div>
+          ) : (
+            <div className="ref-picker-list">
+              {refProjects.map((p: any) => (
+                <button
+                  key={p.project_name}
+                  type="button"
+                  className="ref-picker-item"
+                  onClick={() => selectProjectRef(p)}
+                >
+                  <span className="ref-picker-item-project">{p.project_name}</span>
+                </button>
+              ))}
+              {refProjects.length === 0 && <div className="ref-picker-empty">No projects found</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* Calculation Picker Modal */}
+    {calcField && (
+      <div className="modal-overlay" onClick={() => setCalcField(null)}>
+        <div className="ref-picker-modal ref-picker-modal--small" onClick={(e) => e.stopPropagation()}>
+          <div className="ref-picker-header">
+            <h3>Calculate {formatFieldKey(calcField)}</h3>
+            <button type="button" className="ref-picker-close" onClick={() => setCalcField(null)}>×</button>
+          </div>
+          <div className="calc-picker-actions">
+            <button type="button" className="calc-picker-btn" onClick={() => doCalculation('sum')}>
+              Sum
+            </button>
+            <button type="button" className="calc-picker-btn" onClick={() => doCalculation('average')}>
+              Average
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
