@@ -24,7 +24,7 @@ team working in two-week sprints.
 
 | Artifact            | Where it lives                              | Purpose                                                   |
 | ------------------- | ------------------------------------------- | --------------------------------------------------------- |
-| **Product Backlog** | [User Stories](user-stories.md)             | All known requirements, prioritised by sprint             |
+| **Product Backlog** | [User Stories](../User_Stories/sprint-one.md)             | All known requirements, prioritised by sprint             |
 | **Sprint Backlog**  | Trello board (team-private)                 | Tasks selected for the current sprint, assigned to owners |
 | **Increment**       | Deployed services on Render + live frontend | Working software at the end of each sprint                |
 | **Sprint Review**   | This documentation site                     | Demonstrable output: docs, tests, deployed URLs           |
@@ -134,9 +134,9 @@ force pushes are blocked by branch protection on Gitea.
 | Coverage              | Vitest / Jest `--coverage`        | Local + CI (badges in README) |
 | Build                 | Vite (frontend) / Node (services) | CI on every push              |
 
-See [Code Quality Tools](code-quality.md) for full details.
+See [Code Quality Tools](../Testing/code-quality.md) for full details.
 
-See [Code Quality Tools](code-quality.md) for full details.
+See [Code Quality Tools](../Testing/code-quality.md) for full details.
 
 ---
 
@@ -150,4 +150,4 @@ criterion that this methodology supports:
 | Version Control (10%)     | This repo — organised structure, CI pipeline, linting, coverage badges, all members committed                                                                           |
 | Work Tracker (5%)         | [Work Tracker](work-tracker.md) (public sprint backlog with task owners, status, and evidence); private Trello board used for daily coordination                        |
 | Git Methodology (5%)      | This page (branching strategy, commit convention, PR workflow)                                                                                                          |
-| Project Methodology (10%) | This page (Scrum), plus [User Stories](user-stories.md), [Meetings](meetings.md), [Development Log](log.md), [Decisions](decisions.md), [Work Tracker](work-tracker.md) |
+| Project Methodology (10%) | This page (Scrum), plus [User Stories](../User_Stories/sprint-one.md), [Meetings](../Meetings/sprint-one-meetings.md), [Development Log](log.md), [Decisions](decisions.md), [Work Tracker](work-tracker.md) |

@@ -329,10 +329,10 @@ Confirmed with stakeholder at next demo
 
 All feedback is tracked in:
 
-- **Meeting logs** (`development/meetings.md`) — dated entries with attendees, discussion points, and action items
-- **Stakeholder interaction log** (`development/stakeholder-interaction.md`) — summary of all client touchpoints and outcomes
-- **User stories** (`development/user-stories.md`) — sprint-scoped stories derived from feedback
-- **Decisions log** (`development/decisions.md`) — architectural or product decisions made in response to feedback
+- **Meeting logs** (`Meetings/sprint-one-meetings.md`, `Meetings/sprint-two-meetings.md`) — dated entries with attendees, discussion points, and action items
+- **Stakeholder interaction log** (`Stakeholder_Interactions/sprint-one.md`, `Stakeholder_Interactions/sprint-two.md`) — summary of all client touchpoints and outcomes
+- **User stories** (`User_Stories/sprint-one.md`, `User_Stories/sprint-two.md`) — sprint-scoped stories derived from feedback
+- **Decisions log** (`Project_Management/decisions.md`) — architectural or product decisions made in response to feedback
 
 ### Acceptance Criteria for Feedback-Derived Stories
 
@@ -638,8 +638,8 @@ in-context help to disambiguate labels.
     (commit `ff5b77e`, 19 files, 62 strings).** Internal identifiers,
     CSS classes, cache keys and DB columns still say `entry` / `task`;
     only the UI vocabulary was unified. This is documented as
-    [US16](./user-stories.md#us16-see-the-individual-logbook-record-called-by-the-same-word-everywhere)
-    and captured in [Open Questions & Decisions](./decisions.md#settled).
+    [US16](../User_Stories/sprint-one.md#us16-see-the-individual-logbook-record-called-by-the-same-word-everywhere)
+    and captured in [Open Questions & Decisions](../Project_Management/decisions.md#settled).
 
 ### 4. Creating a task is not repeatable or memorable
 
