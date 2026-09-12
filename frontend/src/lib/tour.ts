@@ -7,12 +7,18 @@
  * 'dl-tour-navigate' window event, the TourNavigator in App.tsx calls
  * navigate(), and driver.js waits for the anchor element (waitForElement)
  * before measuring. The tour asks the shell to open the navigation drawer for
- * drawer steps and closes it again for the top-bar steps. Completion is
- * remembered in localStorage so the one-time offer banner on the dashboard
- * does not nag; the tour can always be replayed from the "Guide" button.
+ * drawer steps and closes it again for the top-bar steps.
+ *
+ * The tour also runs itself: each stop auto-advances after roughly the time it
+ * takes to speak out loud (countdown bar under the popover — hovering pauses
+ * it, pressing Back hands control back to the user for good), and a friendly
+ * voice reads each stop via the browser's speech synthesis, toggled by the
+ * speaker button on the popover. Completion is remembered in localStorage so
+ * the one-time offer banner on the dashboard does not nag; the tour can
+ * always be replayed from the "Guide" button.
  */
 import { driver } from 'driver.js';
-import type { DriveStep } from 'driver.js';
+import type { DriveStep, Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 
 export const TOUR_COMPLETED_KEY = 'dl_tour_completed';
@@ -57,6 +63,126 @@ const closeDrawer = () => window.dispatchEvent(new CustomEvent('dl-tour-close-dr
 const navigateTo = (path: string) =>
   window.dispatchEvent(new CustomEvent('dl-tour-navigate', { detail: { path } }));
 
+// ── Voice guide (browser speech synthesis — no API keys, no cost) ──
+
+const VOICE_PREF_KEY = 'dl_tour_voice';
+const VOICE_ON_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+const VOICE_OFF_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+
+function readVoicePref(): boolean {
+  try {
+    return localStorage.getItem(VOICE_PREF_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function setVoicePref(on: boolean): void {
+  try {
+    localStorage.setItem(VOICE_PREF_KEY, on ? 'on' : 'off');
+  } catch {
+    /* preference simply won't persist */
+  }
+}
+
+let voiceEnabled = readVoicePref();
+let currentSpeech = '';
+let preferredVoice: SpeechSynthesisVoice | null = null;
+
+/** Best available English voice — neural/online voices first, then any English. */
+function pickVoice(): SpeechSynthesisVoice | null {
+  if (preferredVoice) return preferredVoice;
+  if (!('speechSynthesis' in window)) return null;
+  const english = window.speechSynthesis
+    .getVoices()
+    .filter((voice) => voice.lang.toLowerCase().startsWith('en'));
+  preferredVoice =
+    english.find((voice) => /natural|neural|online/i.test(voice.name)) ??
+    english.find((voice) => /google/i.test(voice.name)) ??
+    english.find((voice) => /zira|aria|samantha|female/i.test(voice.name)) ??
+    english[0] ??
+    null;
+  return preferredVoice;
+}
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  // Voices load asynchronously — drop the cache so a later stop can pick better.
+  window.speechSynthesis.onvoiceschanged = () => {
+    preferredVoice = null;
+  };
+}
+
+function speak(text: string): void {
+  if (!voiceEnabled || !text || !('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voice = pickVoice();
+  if (voice) utterance.voice = voice;
+  utterance.rate = 0.95;
+  utterance.pitch = 1.05;
+  window.speechSynthesis.speak(utterance);
+}
+
+function stopSpeaking(): void {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function pauseSpeaking(): void {
+  try {
+    if ('speechSynthesis' in window) window.speechSynthesis.pause();
+  } catch {
+    /* some voices cannot pause — the countdown still pauses */
+  }
+}
+
+function resumeSpeaking(): void {
+  try {
+    if ('speechSynthesis' in window) window.speechSynthesis.resume();
+  } catch {
+    /* matching pauseSpeaking */
+  }
+}
+
+/** Decode the few HTML entities used in step copy and drop any tags. */
+function speechText(title: string, description: string): string {
+  const decode = (value: string) =>
+    value
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  const plain = decode(description)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `${decode(title)}. ${plain}`;
+}
+
+const AUTO_MIN_MS = 6500;
+const AUTO_MAX_MS = 18000;
+
+/** Rough speech duration at ~150 words/min, plus a beat to take in the spotlight. */
+function estimateSpeechMs(text: string): number {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.min(AUTO_MAX_MS, Math.max(AUTO_MIN_MS, (words / 2.5) * 1000 + 1500));
+}
+
+/**
+ * Bridge from the steps back to the running tour. driver.js fires either the
+ * step-level hook or the config-level one — never both — and every step
+ * already owns its step-level hooks, so the guide is wired in explicitly
+ * from liveStep instead of through the driver config.
+ */
+type TourGuide = {
+  onStepShown: (index: number, title: string, description: string, driver: Driver) => void;
+  stopAutoAdvance: () => void;
+};
+
+let activeGuide: TourGuide | null = null;
+
 type LiveStepOptions = {
   /** Route the tour should be on when this step shows (undefined = stay put). */
   path?: string;
@@ -100,6 +226,12 @@ function liveStep(opts: LiveStepOptions): DriveStep {
         if (drawer === 'close') closeDrawer();
         if (navigated) window.setTimeout(() => hookOpts.driver.refresh(), 250);
       }
+      activeGuide?.onStepShown(
+        hookOpts.state.activeIndex ?? 0,
+        title,
+        description,
+        hookOpts.driver
+      );
     },
   };
 }
@@ -231,17 +363,17 @@ function buildSteps(): DriveStep[] {
 
   // Dashboard-only stop — QuickEntryBar does not exist on other pages.
   if (document.querySelector('[data-tour="quick-entry"]')) {
-    steps.push({
-      element: '[data-tour="quick-entry"]',
-      popover: {
+    steps.push(
+      liveStep({
+        element: '[data-tour="quick-entry"]',
         title: 'Quick entry',
         description:
           'The fastest way to log work: type naturally — "Submit chapter 3 by Friday for COMS3011" — ' +
           'and the logbook files it for you. Try it after the tour.',
         side: 'top',
         align: 'start',
-      },
-    });
+      })
+    );
   }
 
   steps.push(
@@ -265,6 +397,65 @@ export function startAppTour(): void {
   if (steps.length === 0) return;
   const startPath = window.location.pathname;
 
+  // ── Auto-advance + voice-guide state (one tour run) ──
+  let autoAdvance = true; // pressing Back hands control back to the user
+  let hoverPaused = false;
+  let currentIndex = 0;
+  let stepDelay = AUTO_MIN_MS;
+  let tick: number | undefined;
+  let driverRef: Driver | undefined;
+
+  const clearTick = () => {
+    if (tick !== undefined) {
+      window.clearInterval(tick);
+      tick = undefined;
+    }
+  };
+
+  const setBarPercent = (pct: number) => {
+    const fill = document.querySelector<HTMLElement>('.dl-tour-popover .tour-auto-fill');
+    if (fill) fill.style.width = `${pct}%`;
+  };
+
+  // Countdown shown as a bar draining under the popover. Pauses while the
+  // pointer is over the popover or the tab is hidden, and never fires on the
+  // final stop — that one waits for the user to press Finish.
+  const scheduleAutoAdvance = () => {
+    clearTick();
+    if (!autoAdvance || currentIndex >= steps.length - 1) {
+      document.querySelector('.dl-tour-popover .tour-auto')?.remove();
+      return;
+    }
+    setBarPercent(100);
+    let elapsed = 0;
+    tick = window.setInterval(() => {
+      if (hoverPaused || document.hidden) return;
+      elapsed += 100;
+      setBarPercent(Math.max(0, 100 - (elapsed / stepDelay) * 100));
+      if (elapsed >= stepDelay) {
+        clearTick();
+        driverRef?.moveNext();
+      }
+    }, 100);
+  };
+
+  activeGuide = {
+    onStepShown: (index, title, description, drv) => {
+      driverRef = drv;
+      currentIndex = index;
+      currentSpeech = speechText(title, description);
+      // Longer stops linger longer, so the voice never gets cut off.
+      stepDelay = estimateSpeechMs(currentSpeech);
+      speak(currentSpeech);
+      scheduleAutoAdvance();
+    },
+    stopAutoAdvance: () => {
+      autoAdvance = false;
+      clearTick();
+      document.querySelector('.dl-tour-popover .tour-auto')?.remove();
+    },
+  };
+
   // Most targets live in the drawer — open it and give the slide-in
   // animation a moment before measuring element positions.
   openDrawer();
@@ -286,7 +477,56 @@ export function startAppTour(): void {
       doneBtnText: 'Finish',
       progressText: 'Step {{current}} of {{total}}',
       steps,
+      // Stepping backwards means the user wants the wheel — stop
+      // auto-advancing for the rest of the tour so it never runs away.
+      onPrevClick: (_element, _step, opts) => {
+        activeGuide?.stopAutoAdvance();
+        opts.driver.movePrevious();
+      },
+      onDeselected: () => clearTick(),
+      onPopoverRender: (popover) => {
+        if (autoAdvance && !popover.wrapper.querySelector('.tour-auto')) {
+          const bar = document.createElement('div');
+          bar.className = 'tour-auto';
+          bar.innerHTML = '<div class="tour-auto-fill"></div>';
+          popover.wrapper.appendChild(bar);
+          setBarPercent(100);
+        }
+        // Hovering the popover pauses the countdown and the voice.
+        popover.wrapper.addEventListener('mouseenter', () => {
+          hoverPaused = true;
+          pauseSpeaking();
+        });
+        popover.wrapper.addEventListener('mouseleave', () => {
+          hoverPaused = false;
+          resumeSpeaking();
+        });
+        if (!popover.footer.querySelector('.tour-voice-btn')) {
+          const voiceBtn = document.createElement('button');
+          voiceBtn.type = 'button';
+          voiceBtn.className = 'tour-voice-btn';
+          voiceBtn.title = voiceEnabled ? 'Mute voice guide' : 'Unmute voice guide';
+          voiceBtn.setAttribute('aria-label', voiceBtn.title);
+          voiceBtn.setAttribute('aria-pressed', String(voiceEnabled));
+          voiceBtn.innerHTML = voiceEnabled ? VOICE_ON_SVG : VOICE_OFF_SVG;
+          voiceBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            voiceEnabled = !voiceEnabled;
+            setVoicePref(voiceEnabled);
+            voiceBtn.title = voiceEnabled ? 'Mute voice guide' : 'Unmute voice guide';
+            voiceBtn.setAttribute('aria-label', voiceBtn.title);
+            voiceBtn.setAttribute('aria-pressed', String(voiceEnabled));
+            voiceBtn.innerHTML = voiceEnabled ? VOICE_ON_SVG : VOICE_OFF_SVG;
+            if (voiceEnabled) speak(currentSpeech);
+            else stopSpeaking();
+          });
+          popover.footer.appendChild(voiceBtn);
+        }
+      },
       onDestroyed: (_element, _step, opts) => {
+        clearTick();
+        stopSpeaking();
+        activeGuide = null;
         closeDrawer();
         // Only count it as completed when the user reached the final step —
         // closing early (X, Escape, overlay click) leaves it re-runnable.
