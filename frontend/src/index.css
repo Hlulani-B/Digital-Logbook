@@ -7972,3 +7972,160 @@ img {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* ── Guided tour (driver.js) ───────────────────────────────────────── */
+
+/* "Guide" button in the top bar */
+.nav-tour-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.nav-tour-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+@media (max-width: 640px) {
+  .nav-tour-label {
+    display: none;
+  }
+
+  .nav-tour-btn {
+    padding: 0.35rem;
+  }
+}
+
+/* One-time offer banner on the dashboard */
+.tour-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+.tour-offer-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, var(--text));
+}
+
+.tour-offer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tour-offer-dismiss {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.tour-offer-dismiss:hover {
+  color: var(--text);
+}
+
+/* Tour popover theming — driven by the app's CSS variables so every
+   built-in theme (light, dark, pink, ...) adapts automatically. */
+.dl-tour-popover {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  max-width: 330px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.dl-tour-popover .driver-popover-title {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.dl-tour-popover .driver-popover-description {
+  color: var(--text-secondary, var(--text-dim));
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.dl-tour-popover .driver-popover-progress-text {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.dl-tour-popover .driver-popover-arrow {
+  background: var(--surface) !important;
+}
+
+.dl-tour-popover .driver-popover-close-btn {
+  color: var(--text-muted);
+}
+
+.dl-tour-popover .driver-popover-close-btn:hover {
+  color: var(--text);
+}
+
+.dl-tour-popover .driver-popover-prev-btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  text-shadow: none;
+}
+
+.dl-tour-popover .driver-popover-next-btn {
+  background: var(--accent);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  text-shadow: none;
+}
+
+/* Dashed screenshot placeholder inside a step description */
+.tour-img-slot {
+  margin-top: 0.65rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1.5px dashed var(--border-hover, var(--border));
+  border-radius: 0.5rem;
+  background: var(--bg-subtle, transparent);
+}
+
+.tour-img-slot-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tour-img-slot-hint {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-dim);
+  text-align: center;
+}
