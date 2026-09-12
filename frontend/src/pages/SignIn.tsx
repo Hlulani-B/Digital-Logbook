@@ -32,15 +32,18 @@ export function SignIn() {
   // Live password requirements for sign-up — shown before submit so users
   // know what is expected instead of discovering it from an error popup.
   const passwordRequirements = [
-    { label: 'At least 6 characters', met: password.length >= 6 },
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { label: 'One lowercase letter (a-z)', met: /[a-z]/.test(password) },
+    { label: 'One number (0-9)', met: /[0-9]/.test(password) },
+    { label: 'One special character (!@#$...)', met: /[^A-Za-z0-9]/.test(password) },
     {
       label: 'Passwords match',
       met: confirmPassword.length > 0 && password === confirmPassword,
       pending: confirmPassword.length === 0,
     },
   ];
-  const signupRequirementsMet =
-    mode === 'signup' && password.length >= 6 && password === confirmPassword;
+  const signupRequirementsMet = mode === 'signup' && passwordRequirements.every((r) => r.met);
 
   // Restore-prompt state (for soft-deleted accounts signing back in)
   const [restoreEmail, setRestoreEmail] = useState<string | null>(
@@ -158,9 +161,12 @@ export function SignIn() {
       return;
     }
 
-    if (mode === 'signup' && password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    if (mode === 'signup') {
+      const unmet = passwordRequirements.find((r) => !r.met);
+      if (unmet) {
+        setError(`Password requirement not met: ${unmet.label}`);
+        return;
+      }
     }
 
     setEmailLoading(true);
@@ -411,7 +417,6 @@ export function SignIn() {
                     id="password"
                     type="password"
                     required
-                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="field-input"
@@ -489,7 +494,7 @@ export function SignIn() {
                       id="confirmPassword"
                       type="password"
                       required
-                      minLength={6}
+                      minLength={8}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="field-input"
