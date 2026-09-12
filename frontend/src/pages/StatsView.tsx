@@ -431,7 +431,7 @@ export function StatsView() {
             projects={projects}
             dueSoonCount={shownDueSoonCount}
           />
-          <div className="stats-page">
+          <div className="stats-page" data-tour="page-stats">
             <div className="feed-loading">
               <div
                 className="animate-spin spinner-circle"
@@ -459,7 +459,7 @@ export function StatsView() {
           projects={projects}
           dueSoonCount={shownDueSoonCount}
         />
-        <div className="stats-page">
+        <div className="stats-page" data-tour="page-stats">
           {/* Scope chip — shown while stats are scoped to one project */}
           {scopeProject && (
             <div className="stats-scope-chip glass">
