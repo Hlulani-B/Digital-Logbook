@@ -161,7 +161,7 @@ back, and closed out remaining blockers.
 
 ---
 
-## Daily Standup — 12 September 2026
+## Client Meeting — 12 September 2026
 
 **Venue:** Online (Microsoft Teams)
 **Attendees:** Hlulani, Siphesihle, Lupa, Sicelo, Zamo, Nasiphi (full team)

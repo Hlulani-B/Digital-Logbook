@@ -73,16 +73,16 @@ field.
 
 ## projects
 
-| Column        | Type         | Notes                                                            |
-| ------------- | ------------ | ---------------------------------------------------------------- |
-| id            | BIGSERIAL    | PK, auto-generated                                               |
-| project_name  | VARCHAR(255) | NOT NULL                                                         |
-| user_email    | VARCHAR(255) | NOT NULL, FK → users(email)                                      |
-| description   | TEXT         | nullable                                                         |
-| archived      | BOOLEAN      | default false                                                    |
-| deleted       | BOOLEAN      | NOT NULL default false — soft-delete flag                        |
-| project_color | VARCHAR(7)   | nullable hex string (e.g. `#ec4899`), NULL = fall back to hash   |
-| created_at    | TIMESTAMPTZ  | default now()                                                    |
+| Column        | Type         | Notes                                                          |
+| ------------- | ------------ | -------------------------------------------------------------- |
+| id            | BIGSERIAL    | PK, auto-generated                                             |
+| project_name  | VARCHAR(255) | NOT NULL                                                       |
+| user_email    | VARCHAR(255) | NOT NULL, FK → users(email)                                    |
+| description   | TEXT         | nullable                                                       |
+| archived      | BOOLEAN      | default false                                                  |
+| deleted       | BOOLEAN      | NOT NULL default false — soft-delete flag                      |
+| project_color | VARCHAR(7)   | nullable hex string (e.g. `#ec4899`), NULL = fall back to hash |
+| created_at    | TIMESTAMPTZ  | default now()                                                  |
 
 The pair `(user_email, project_name)` is unique, so one user cannot have two
 projects with the same name. `description` was added after the initial schema
@@ -126,11 +126,11 @@ name-derived colour.
 | created_at   | TIMESTAMPTZ           | default CURRENT_TIMESTAMP                     |
 
 !!! warning "Migration drift on `status`"
-    The baseline migration declares `status VARCHAR(30) DEFAULT 'up_next'`,
-    but the production database has been updated out-of-band to use an
-    `entry_status` ENUM. `000_baseline_full_schema.sql` should be re-aligned
-    with production so a fresh `npm run db:migrate` on a new environment
-    produces the same shape as the live DB.
+The baseline migration declares `status VARCHAR(30) DEFAULT 'up_next'`,
+but the production database has been updated out-of-band to use an
+`entry_status` ENUM. `000_baseline_full_schema.sql` should be re-aligned
+with production so a fresh `npm run db:migrate` on a new environment
+produces the same shape as the live DB.
 
 ```sql
 ALTER TABLE entries
@@ -218,25 +218,25 @@ Internal keep-alive table. Supabase free-tier projects are paused after prolonge
 
 ## notes
 
-| Column     | Type         | Notes                                                                |
-| ---------- | ------------ | -------------------------------------------------------------------- |
-| id         | UUID         | PK, default gen_random_uuid()                                        |
-| email      | TEXT         | NOT NULL, owner of the note                                          |
-| entry_id   | UUID         | NOT NULL, FK → entries(id) ON DELETE CASCADE                         |
-| entry_type | TEXT         | NOT NULL, CHECK (entry_type IN ('text','image','pdf','link'))        |
-| value      | TEXT         | NOT NULL, the note content                                           |
-| created_at | TIMESTAMPTZ  | default now()                                                        |
-| deleted    | BOOLEAN      | default false — soft-delete flag                                     |
+| Column     | Type        | Notes                                                         |
+| ---------- | ----------- | ------------------------------------------------------------- |
+| id         | UUID        | PK, default gen_random_uuid()                                 |
+| email      | TEXT        | NOT NULL, owner of the note                                   |
+| entry_id   | UUID        | NOT NULL, FK → entries(id) ON DELETE CASCADE                  |
+| entry_type | TEXT        | NOT NULL, CHECK (entry_type IN ('text','image','pdf','link')) |
+| value      | TEXT        | NOT NULL, the note content                                    |
+| created_at | TIMESTAMPTZ | default now()                                                 |
+| deleted    | BOOLEAN     | default false — soft-delete flag                              |
 
 Per-entry personalisation table. Lets users attach free-form notes (text snippets, image URLs, PDF references, or web links) to any entry. The `entry_type` check constraint keeps the type column to a known set of values, and the cascade delete ensures notes are cleaned up automatically when their parent entry is removed. Added based on user feedback requesting more personalisation options.
 
 ## ai_provider_cooldowns
 
-| Column         | Type         | Notes                                                            |
-| -------------- | ------------ | ---------------------------------------------------------------- |
-| provider       | VARCHAR(100) | PK — the AI provider identifier (e.g. `groq`, `openrouter`)      |
+| Column         | Type         | Notes                                                                       |
+| -------------- | ------------ | --------------------------------------------------------------------------- |
+| provider       | VARCHAR(100) | PK — the AI provider identifier (e.g. `groq`, `openrouter`)                 |
 | cooldown_until | TIMESTAMPTZ  | NOT NULL, default `now()` — wall-clock time the provider is retryable again |
-| deleted        | BOOLEAN      | NOT NULL default false — soft-delete flag                        |
+| deleted        | BOOLEAN      | NOT NULL default false — soft-delete flag                                   |
 
 Small state table used by the project-service AI router to rate-limit calls
 across multiple upstream providers. When a provider returns HTTP 429 or
@@ -279,16 +279,16 @@ Aggregates per-project statistics for the Stats page. Accepts a user email and r
 
 Generic field-statistics RPC. Where `get_project_stats()` hard-codes one metric (time per project), `get_field_stats()` knows nothing about any field in advance. It takes a user email and an optional project name, flattens every entry's `entries` JSONB with `jsonb_each_text`, resolves each field's `data_type` from the `fields` table (inferring it from the values themselves when the owner never declared one), and returns one row per field in the standard statistics format:
 
-| Column | Type | Meaning |
-| --- | --- | --- |
-| `field_name` | TEXT | the owner-defined field name |
-| `data_type` | TEXT | declared or inferred type (`number`, `text`, `boolean`, `date`) |
-| `entry_count` | BIGINT | entries considered |
-| `filled` | BIGINT | entries where the field has a value |
-| `total` | NUMERIC | sum of values — `NULL` for types that cannot be totalled |
-| `groups` | JSONB | `[{"value", "count"}]` — group by value |
-| `series` | JSONB | `[{"bucket", "value"}]` — daily buckets for plotting over time (sums for numbers, counts otherwise) |
-| `by_project` | JSONB | `[{"key", "count", "total"}]` — compare across projects |
+| Column        | Type    | Meaning                                                                                             |
+| ------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `field_name`  | TEXT    | the owner-defined field name                                                                        |
+| `data_type`   | TEXT    | declared or inferred type (`number`, `text`, `boolean`, `date`)                                     |
+| `entry_count` | BIGINT  | entries considered                                                                                  |
+| `filled`      | BIGINT  | entries where the field has a value                                                                 |
+| `total`       | NUMERIC | sum of values — `NULL` for types that cannot be totalled                                            |
+| `groups`      | JSONB   | `[{"value", "count"}]` — group by value                                                             |
+| `series`      | JSONB   | `[{"bucket", "value"}]` — daily buckets for plotting over time (sums for numbers, counts otherwise) |
+| `by_project`  | JSONB   | `[{"key", "count", "total"}]` — compare across projects                                             |
 
 #### The standard statistics format
 
@@ -319,18 +319,18 @@ SQLite before syncing to the server.
 SQLite tables mirror the PostgreSQL schema. Each table stores data as JSON blobs
 for compatibility with the existing cache API, keyed by user email.
 
-| Table          | Key format                     | Contents                                                                                         | Mirrors PG table |
-| -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------- |
-| `projects`     | `{email}`                      | All projects for the user. Shape: `{ success, projects: [...], key }`                           | `projects`       |
-| `entries`      | `{email}:{project_name}`       | Per-project entries. Shape: `{ success, data: [...], key }`. Also `{email}:due-soon` for computed due-soon entries | `entries`        |
-| `all_entries`  | `{email}`                      | All entries across all projects. Shape: `{ success, data: [...], key }`                         | `entries`        |
-| `profile`      | `{email}`                      | User profile (username, avatar, name). Shape: `{ success, data: {...}, key }`                   | `users`          |
-| `search`       | `{email}`                      | Cached search results                                                                           | —                |
-| `archives`     | `{email}:all`                  | Archived entries and projects. Also `archived-projects:{email}` and `unarchived-projects:{email}` | `projects`/`entries` (archived) |
-| `fields`       | `{email}`                      | Custom field definitions per table                                                               | `fields`         |
-| `notes`        | `notes:{entry_id}`             | Per-entry notes (text, image, pdf, link)                                                        | `notes`          |
-| `cache_meta`   | `{key}`                        | Timestamps for stale-while-revalidate checks. Shape: `{ key, timestamp }`                       | —                |
-| `offline_queue`| Auto-increment `id`            | Queued offline actions. Shape: `{ action, module, payload, timestamp, attempts }`               | —                |
+| Table           | Key format               | Contents                                                                                                           | Mirrors PG table                |
+| --------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| `projects`      | `{email}`                | All projects for the user. Shape: `{ success, projects: [...], key }`                                              | `projects`                      |
+| `entries`       | `{email}:{project_name}` | Per-project entries. Shape: `{ success, data: [...], key }`. Also `{email}:due-soon` for computed due-soon entries | `entries`                       |
+| `all_entries`   | `{email}`                | All entries across all projects. Shape: `{ success, data: [...], key }`                                            | `entries`                       |
+| `profile`       | `{email}`                | User profile (username, avatar, name). Shape: `{ success, data: {...}, key }`                                      | `users`                         |
+| `search`        | `{email}`                | Cached search results                                                                                              | —                               |
+| `archives`      | `{email}:all`            | Archived entries and projects. Also `archived-projects:{email}` and `unarchived-projects:{email}`                  | `projects`/`entries` (archived) |
+| `fields`        | `{email}`                | Custom field definitions per table                                                                                 | `fields`                        |
+| `notes`         | `notes:{entry_id}`       | Per-entry notes (text, image, pdf, link)                                                                           | `notes`                         |
+| `cache_meta`    | `{key}`                  | Timestamps for stale-while-revalidate checks. Shape: `{ key, timestamp }`                                          | —                               |
+| `offline_queue` | Auto-increment `id`      | Queued offline actions. Shape: `{ action, module, payload, timestamp, attempts }`                                  | —                               |
 
 ### How Tables Map to PostgreSQL
 
@@ -368,16 +368,16 @@ const unsub = cacheSubscribe('projects', email, (newProjects) => {
 
 ### Key Files
 
-| File                                        | Purpose                                                    |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `frontend/src/lib/cache.js`                 | SQLite layer: cacheGet, cacheSet, cacheSubscribe, etc.     |
-| `frontend/public/sql-wasm.wasm`             | SQLite WebAssembly binary (~1MB)                           |
-| `frontend/src/hooks/useCachedData.js`       | React hook: reads SQLite, subscribes, triggers fetch       |
-| `frontend/src/CacheFunctions/syncService.js`| Central sync: populates all tables from server             |
-| `frontend/src/CacheFunctions/offlineQueue.js`| Offline action queue using SQLite                         |
-| `frontend/src/functions/project/entries.js` | Entry CRUD with optimistic updates and rollback            |
-| `frontend/src/functions/project/project.js` | Project CRUD with SQLite-first pattern                     |
-| `frontend/src/functions/profile/profile.js` | Profile fetch with SQLite caching                          |
+| File                                          | Purpose                                                |
+| --------------------------------------------- | ------------------------------------------------------ |
+| `frontend/src/lib/cache.js`                   | SQLite layer: cacheGet, cacheSet, cacheSubscribe, etc. |
+| `frontend/public/sql-wasm.wasm`               | SQLite WebAssembly binary (~1MB)                       |
+| `frontend/src/hooks/useCachedData.js`         | React hook: reads SQLite, subscribes, triggers fetch   |
+| `frontend/src/CacheFunctions/syncService.js`  | Central sync: populates all tables from server         |
+| `frontend/src/CacheFunctions/offlineQueue.js` | Offline action queue using SQLite                      |
+| `frontend/src/functions/project/entries.js`   | Entry CRUD with optimistic updates and rollback        |
+| `frontend/src/functions/project/project.js`   | Project CRUD with SQLite-first pattern                 |
+| `frontend/src/functions/profile/profile.js`   | Profile fetch with SQLite caching                      |
 
 ## Schema Migrations
 
@@ -385,20 +385,21 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 
 ### Migration Files
 
-| File                                              | Purpose                                                                                              |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                |
-| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                 |
-| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                     |
-| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                    |
-| `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job |
-| `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                              |
-| `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                 |
-| `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                |
-| `008_add_project_color.sql`                        | `project_color VARCHAR(7)` column on projects for custom colour picker      |
-| `008_create_field_stats_rpc.sql`                   | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project) |
-| `009_create_notes_table.sql`                       | `notes` table for per-entry personalisation (text, image, pdf, link)        |
-| `010_purge_unconfirmed_signups.sql`                | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days |
+| File                                              | Purpose                                                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                                                                   |
+| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                                                                    |
+| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                                                                        |
+| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                                                                       |
+| `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job                                                    |
+| `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                                                                                                          |
+| `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                                                                                             |
+| `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                                                                                            |
+| `008_add_project_color.sql`                       | `project_color VARCHAR(7)` column on projects for custom colour picker                                                                                  |
+| `008_create_field_stats_rpc.sql`                  | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project)                                                              |
+| `009_create_notes_table.sql`                      | `notes` table for per-entry personalisation (text, image, pdf, link)                                                                                    |
+| `010_purge_unconfirmed_signups.sql`               | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days                                                            |
+| `011_create_notifications.sql`                    | `notifications` table (due-soon/overdue feed), `users.email_notifications` preference, `generate_due_notifications()` RPC + hourly pg_cron/pg_net cycle |
 
 ### CLI Commands
 
@@ -460,6 +461,8 @@ const pool = new Pool({
 | `SUPABASE_SERVICE_ROLE_KEY` | project-service                    | Supabase service-role key (bypasses RLS for server operations)    |
 | `VITE_SUPABASE_URL`         | frontend                           | Build-time Supabase URL (exposed to the browser)                  |
 | `VITE_SUPABASE_ANON_KEY`    | frontend                           | Build-time Supabase anon key (safe to expose — RLS protects data) |
+| `BREVO_API_KEY`             | project-service                    | Brevo transactional-email API key (due-date notification emails)  |
+| `BREVO_SENDER_EMAIL`        | project-service                    | Verified Brevo sender address used for notification emails        |
 
 All secrets are configured through the Render dashboard (not in the repository) and injected as environment variables at runtime. Locally, they are loaded from `.env` files via `dotenv`.
 
@@ -499,8 +502,11 @@ Supabase enforces Row Level Security on all tables. The backend services use the
 
 ### Scheduled Jobs
 
-| Job                   | Schedule                         | Purpose                                                                |
-| --------------------- | -------------------------------- | ---------------------------------------------------------------------- |
-| `purge-deleted-users` | `0 0 * * *` (midnight UTC daily) | Permanently removes soft-deleted accounts past the 30-day grace period |
+| Job                      | Schedule                         | Purpose                                                                                                            |
+| ------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `purge-deleted-users`    | `0 0 * * *` (midnight UTC daily) | Permanently removes soft-deleted accounts past the 30-day grace period                                             |
+| `due-notification-cycle` | `7 * * * *` (hourly)             | Inserts due-soon (24h) / overdue notification rows, then pokes project-service to send pending emails via `pg_net` |
 
 Requires the `pg_cron` Supabase extension. The job calls `purge_deleted_users()`, which hard-deletes from all tables and removes the `auth.users` row.
+
+The notification cycle uses `pg_net` (best-effort — if project-service is asleep on Render's free tier the POST fails silently and the next hourly run retries, since pending rows keep `emailed = false`). Any active app session also flushes pending emails opportunistically on its bell polls.

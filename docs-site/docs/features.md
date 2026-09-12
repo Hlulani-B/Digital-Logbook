@@ -107,6 +107,28 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `frontend/src/components/SettingsPanel.tsx` — Settings UI
 
+### Due-Date Notifications (Email + In-App)
+
+**What it does:** Alerts you before an entry's due date passes and again if it becomes overdue — both as an email and as an in-app bell icon with an unread badge.
+
+**Why it was implemented:** Users were missing deadlines because due dates were only visible by opening the Calendar or Today page. Proactive reminders close that gap without requiring the user to check the app.
+
+**How it works:**
+
+- An hourly `pg_cron` job (migration 011) scans `entries` and inserts a `due_soon` notification when a deadline is within 24 hours and an `overdue` notification when it has passed — one per entry per type, enforced by a unique constraint so you are never spammed
+- Emails are sent through the Brevo HTTP API from project-service; pending rows are marked `emailed = true` only after Brevo accepts, so a failed send retries on the next cycle
+- Render free-tier services sleep, so the cron pokes the service over HTTP (`pg_net`) and any active app session also flushes pending emails opportunistically
+- The SettingsPanel **Email notifications** toggle is persisted to `users.email_notifications` and honoured by the sender; the in-app bell works regardless
+- The bell polls every 60 seconds (and on window focus), shows an unread-count badge, and opens a dropdown with Mark-all-read; clicking a notification navigates to its project
+- Notifications for completed, archived, or deleted entries are cleared automatically; read notifications are pruned after 30 days
+
+**Key files:**
+
+- `supabase/migrations/011_create_notifications.sql` — table, preference column, generator RPC, cron schedule
+- `services/project-service/src/functions/notifications/notifications.js` — feed queries + Brevo sender
+- `services/project-service/src/Routes/notifications.js` — RPC endpoints
+- `frontend/src/components/NotificationsBell.tsx` — bell UI
+
 ---
 
 ## Dashboard & Navigation
