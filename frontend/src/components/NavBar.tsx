@@ -6,6 +6,7 @@ import { NotificationsBell } from '@/components/NotificationsBell';
 import { FiArchive } from 'react-icons/fi';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { colorForName } from '@/lib/projectColorMap';
+import { startAppTour } from '@/lib/tour';
 
 interface NavBarProps {
   projects?: Array<Record<string, unknown>>;
@@ -123,6 +124,19 @@ export function NavBar({
 
   const isActive = (path: string) => location.pathname === path;
 
+  // The guided tour (lib/tour.ts) asks the shell to open/close the drawer so
+  // its steps can anchor to drawer items.
+  useEffect(() => {
+    const open = () => setDrawerOpen(true);
+    const close = () => setDrawerOpen(false);
+    window.addEventListener('dl-tour-open-drawer', open);
+    window.addEventListener('dl-tour-close-drawer', close);
+    return () => {
+      window.removeEventListener('dl-tour-open-drawer', open);
+      window.removeEventListener('dl-tour-close-drawer', close);
+    };
+  }, []);
+
   return (
     <>
       {/* Top Navigation */}
@@ -131,6 +145,7 @@ export function NavBar({
           <div className="nav-left-group">
             <button
               className="nav-hamburger"
+              data-tour="menu"
               onClick={() => setDrawerOpen(!drawerOpen)}
               aria-label="Toggle menu"
             >
@@ -175,8 +190,33 @@ export function NavBar({
           </div>
 
           <div className="nav-right-group">
-            <NotificationsBell email={user?.email || ''} />
-            <div className="nav-user">
+            <button
+              type="button"
+              className="nav-tour-btn"
+              onClick={() => startAppTour()}
+              aria-label="Start the guided tour"
+              title="Take the tour"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span className="nav-tour-label">Guide</span>
+            </button>
+            <div data-tour="nav-bell">
+              <NotificationsBell email={user?.email || ''} />
+            </div>
+            <div className="nav-user" data-tour="nav-profile">
               <ProfileMenu
                 displayName={profileData.preferredName}
                 email={user?.email || ''}
@@ -216,6 +256,7 @@ export function NavBar({
         <div className="drawer-section">
           <p className="drawer-section-title">Views</p>
           <button
+            data-tour="drawer-home"
             className={`drawer-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
             onClick={() => {
               navigate('/dashboard');
@@ -278,6 +319,7 @@ export function NavBar({
             Archives
           </button>
           <button
+            data-tour="drawer-calendar"
             className={`drawer-item ${isActive('/calendar') ? 'active' : ''}`}
             onClick={() => {
               navigate('/calendar');
@@ -300,6 +342,7 @@ export function NavBar({
             Calendar
           </button>
           <button
+            data-tour="drawer-kanban"
             className={`drawer-item ${isActive('/kanban') ? 'active' : ''}`}
             onClick={() => {
               navigate('/kanban');
@@ -322,6 +365,7 @@ export function NavBar({
             Kanban
           </button>
           <button
+            data-tour="drawer-today"
             className={`drawer-item ${isActive('/today') ? 'active' : ''}`}
             onClick={() => {
               navigate('/today');
@@ -342,6 +386,7 @@ export function NavBar({
             Today
           </button>
           <button
+            data-tour="drawer-timeline"
             className={`drawer-item ${isActive('/timeline') ? 'active' : ''}`}
             onClick={() => {
               navigate('/timeline');
@@ -363,6 +408,7 @@ export function NavBar({
             Timeline
           </button>
           <button
+            data-tour="drawer-import-export"
             className={`drawer-item ${isActive('/data-portability') ? 'active' : ''}`}
             onClick={() => {
               navigate('/data-portability');
@@ -403,6 +449,7 @@ export function NavBar({
             Disclaimer
           </button>
           <button
+            data-tour="drawer-stats"
             className={`drawer-item ${isActive('/stats') ? 'active' : ''}`}
             onClick={() => {
               navigate('/stats');
@@ -446,7 +493,9 @@ export function NavBar({
         </div>
 
         <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title">Projects</p>
+          <p className="drawer-section-title" data-tour="drawer-projects">
+            Projects
+          </p>
           <div className="drawer-project-list">
             {safeProjects
               .filter((p) => !p.archived)
@@ -527,6 +576,7 @@ export function NavBar({
 
         <div className="drawer-footer">
           <button
+            data-tour="drawer-new-project"
             className="btn-primary drawer-new-btn"
             onClick={() => {
               if (onNewProject) onNewProject();
