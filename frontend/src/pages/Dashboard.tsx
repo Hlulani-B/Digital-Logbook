@@ -1563,6 +1563,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   Projects
                 </button>
+                <span className="feed-view-label">View:</span>
                 <button
                   className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
                   onClick={() => setDisplayMode('cards')}
