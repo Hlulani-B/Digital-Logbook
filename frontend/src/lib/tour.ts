@@ -1,12 +1,15 @@
 /**
  * Interactive getting-started tour for new users, built on driver.js.
  *
- * Steps anchor to [data-tour="..."] attributes in the shell (NavBar) and the
- * Dashboard so they survive class-name refactors. The tour asks the shell to
- * open the navigation drawer first — most targets live inside it — and closes
- * it again for the top-bar steps. Completion is remembered in localStorage so
- * the one-time offer banner on the dashboard does not nag; the tour can
- * always be replayed from the "Guide" button in the top bar.
+ * Steps anchor to [data-tour="..."] attributes in the shells (the shared
+ * NavBar and the dashboard's inline nav/drawer) and in each view page. View
+ * steps open the real page as they are described: the tour dispatches a
+ * 'dl-tour-navigate' window event, the TourNavigator in App.tsx calls
+ * navigate(), and driver.js waits for the anchor element (waitForElement)
+ * before measuring. The tour asks the shell to open the navigation drawer for
+ * drawer steps and closes it again for the top-bar steps. Completion is
+ * remembered in localStorage so the one-time offer banner on the dashboard
+ * does not nag; the tour can always be replayed from the "Guide" button.
  */
 import { driver } from 'driver.js';
 import type { DriveStep } from 'driver.js';
@@ -51,109 +54,179 @@ function markTourCompleted(): void {
 
 const openDrawer = () => window.dispatchEvent(new CustomEvent('dl-tour-open-drawer'));
 const closeDrawer = () => window.dispatchEvent(new CustomEvent('dl-tour-close-drawer'));
+const navigateTo = (path: string) =>
+  window.dispatchEvent(new CustomEvent('dl-tour-navigate', { detail: { path } }));
 
-/** A step anchored inside the navigation drawer. */
-function drawerStep(selector: string, title: string, description: string): DriveStep {
+type LiveStepOptions = {
+  /** Route the tour should be on when this step shows (undefined = stay put). */
+  path?: string;
+  element: string;
+  title: string;
+  description: string;
+  side?: 'top' | 'right' | 'bottom' | 'left';
+  align?: 'start' | 'center' | 'end';
+  /** 'open' keeps the nav drawer open for this step; 'close' puts it away. */
+  drawer?: 'open' | 'close';
+};
+
+/**
+ * A tour step that brings its subject on screen for real: if the app is on
+ * another route, it asks the shell to navigate there, then lets driver.js
+ * wait for the anchor element and re-measure once the page has rendered.
+ */
+function liveStep(opts: LiveStepOptions): DriveStep {
+  const { path, element, title, description, side = 'bottom', align = 'start', drawer } = opts;
+  let navigated = false;
+
   return {
-    element: selector,
-    popover: { title, description, side: 'right', align: 'start' },
-    // Re-open the drawer when arriving here (e.g. stepping Back from a
-    // top-bar step that had closed it).
-    onHighlighted: openDrawer,
+    element,
+    // Give a freshly navigated page time to render its anchor before falling
+    // back to a centered popover.
+    waitForElement: 2500,
+    popover: { title, description, side, align },
+    onHighlightStarted: () => {
+      navigated = !!path && window.location.pathname !== path;
+      if (navigated && path) navigateTo(path);
+    },
+    onHighlighted: (_element, _step, hookOpts) => {
+      if (drawer === 'open') {
+        // The target page may still be mounting its tour listeners after a
+        // route change — re-request the drawer shortly and repaint.
+        window.setTimeout(() => {
+          openDrawer();
+          hookOpts.driver.refresh();
+        }, 350);
+      } else {
+        if (drawer === 'close') closeDrawer();
+        if (navigated) window.setTimeout(() => hookOpts.driver.refresh(), 250);
+      }
+    },
   };
 }
 
 function buildSteps(): DriveStep[] {
   const steps: DriveStep[] = [
-    {
-      // Welcome stop, anchored to the hamburger so the very first step already
-      // shows the style used throughout: the arrow points at whatever is being
-      // described and the spotlight puts it in focus.
+    liveStep({
       element: '[data-tour="menu"]',
-      popover: {
-        title: 'Welcome to your Digital Logbook',
-        description:
-          'A two-minute tour of the essentials. Every stop highlights the part of the app it describes, ' +
-          'starting with this menu — it is already open. Move at your own pace; you can close this anytime ' +
-          'and replay it from the Guide button in the top bar.',
-        side: 'bottom',
-        align: 'start',
-      },
-    },
-    drawerStep(
-      '[data-tour="drawer-home"]',
-      'Home',
-      'Your dashboard: everything you are working on, with due-soon highlights. ' +
-        'The number on the right counts your entries.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-today"]',
-      'Today',
-      'A focused list of what is due today and what deserves attention first — ' +
-        'a good place to start each session.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-kanban"]',
-      'Kanban',
-      'Drag entries between Up next, In motion, and Done &amp; dusted to track progress at a glance.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-timeline"]',
-      'Timeline',
-      'See your entries laid out over time, including dependencies between them.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-calendar"]',
-      'Calendar',
-      'A month view of all your due dates. Click a day to see what is on it.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-stats"]',
-      'My Stats',
-      'Progress charts, streaks, and how you spend your time.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-import-export"]',
-      'Import &amp; Export',
-      'Download your data as JSON, CSV, Markdown, or iCalendar — and restore from a backup. ' +
-        'Your data stays yours.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-projects"]',
-      'Projects',
-      'Group related entries under a project — like a module or a client. ' +
-        'Each project gets its own page and colour.'
-    ),
-    drawerStep(
-      '[data-tour="drawer-new-project"]',
-      'Create &amp; manage projects',
-      'Create a new project from here, or open Manage Projects to rename, recolour, and archive. ' +
-        'Archived projects are never lost — they move to Archives.'
-    ),
-    {
+      title: 'Welcome to your Digital Logbook',
+      description:
+        'A two-minute tour of the essentials. Each view opens for real as we reach it, so you can see ' +
+        'exactly what is being described. Move at your own pace; you can close this anytime and replay ' +
+        'it from the Guide button in the top bar.',
+      drawer: 'open',
+      side: 'bottom',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/dashboard',
+      element: '[data-tour="drawer-home"]',
+      title: 'Home',
+      description:
+        'Your dashboard: everything you are working on, with due-soon highlights. ' +
+        'The number on the right counts your entries.',
+      drawer: 'open',
+      side: 'right',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/today',
+      element: '[data-tour="page-today"]',
+      title: 'Today',
+      description:
+        'This is Today — a focused list of what is due today and what deserves attention first. ' +
+        'A good place to start each session.',
+      side: 'top',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/kanban',
+      element: '[data-tour="page-kanban"]',
+      title: 'Kanban',
+      description:
+        'This is Kanban — drag entries between Up next, In motion, and Done &amp; dusted to track ' +
+        'progress at a glance.',
+      side: 'top',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/timeline',
+      element: '[data-tour="page-timeline"]',
+      title: 'Timeline',
+      description:
+        'This is Timeline — your entries laid out over time, including dependencies between them.',
+      side: 'top',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/calendar',
+      element: '[data-tour="page-calendar"]',
+      title: 'Calendar',
+      description:
+        'This is Calendar — a month view of all your due dates. Click a day to see what is on it.',
+      side: 'top',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/stats',
+      element: '[data-tour="page-stats"]',
+      title: 'My Stats',
+      description: 'This is My Stats — progress charts, streaks, and how you spend your time.',
+      side: 'top',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/data-portability',
+      element: '[data-tour="page-import-export"]',
+      title: 'Import &amp; Export',
+      description:
+        'Download your data as JSON, CSV, Markdown, or iCalendar — and restore from a backup. ' +
+        'Your data stays yours.',
+      side: 'top',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/dashboard',
+      element: '[data-tour="drawer-projects"]',
+      title: 'Projects',
+      description:
+        'Group related entries under a project — like a module or a client. ' +
+        'Each project gets its own page and colour.',
+      drawer: 'open',
+      side: 'right',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/dashboard',
+      element: '[data-tour="drawer-new-project"]',
+      title: 'Create &amp; manage projects',
+      description:
+        'Create a new project from here, or open Manage Projects to rename, recolour, and archive. ' +
+        'Archived projects are never lost — they move to Archives.',
+      drawer: 'open',
+      side: 'right',
+      align: 'start',
+    }),
+    liveStep({
+      path: '/dashboard',
       element: '[data-tour="nav-bell"]',
-      popover: {
-        title: 'Notifications',
-        description:
-          'The bell collects due-soon and overdue alerts. Click it for a quick panel, ' +
-          'or View all for the full history. Email alerts can be switched on or off in Settings.',
-        side: 'bottom',
-        align: 'end',
-      },
-      // Drawer steps are done — put it away so the top bar is visible.
-      onHighlighted: closeDrawer,
-    },
-    {
+      title: 'Notifications',
+      description:
+        'The bell collects due-soon and overdue alerts. Click it for a quick panel, ' +
+        'or View all for the full history. Email alerts can be switched on or off in Settings.',
+      drawer: 'close',
+      side: 'bottom',
+      align: 'end',
+    }),
+    liveStep({
+      path: '/dashboard',
       element: '[data-tour="nav-profile"]',
-      popover: {
-        title: 'Profile &amp; settings',
-        description:
-          'Your avatar menu: manage your profile, open settings (theme, week start, notifications), ' +
-          'reset your password, or sign out.',
-        side: 'bottom',
-        align: 'end',
-      },
-    },
+      title: 'Profile &amp; settings',
+      description:
+        'Your avatar menu: manage your profile, open settings (theme, week start, notifications), ' +
+        'reset your password, or sign out.',
+      side: 'bottom',
+      align: 'end',
+    }),
   ];
 
   // Dashboard-only stop — QuickEntryBar does not exist on other pages.
@@ -171,17 +244,17 @@ function buildSteps(): DriveStep[] {
     });
   }
 
-  steps.push({
-    element: '[data-tour="nav-guide"]',
-    popover: {
+  steps.push(
+    liveStep({
+      element: '[data-tour="nav-guide"]',
       title: 'You are all set',
       description:
         'That is the whole app. If you ever want a refresher, press this Guide button — ' +
-        'the tour will point out each feature again. Now go log something.',
+        'the tour will walk you through each feature again. Now go log something.',
       side: 'bottom',
       align: 'end',
-    },
-  });
+    })
+  );
 
   return steps;
 }
@@ -190,6 +263,7 @@ function buildSteps(): DriveStep[] {
 export function startAppTour(): void {
   const steps = buildSteps();
   if (steps.length === 0) return;
+  const startPath = window.location.pathname;
 
   // Most targets live in the drawer — open it and give the slide-in
   // animation a moment before measuring element positions.
@@ -217,8 +291,13 @@ export function startAppTour(): void {
         // Only count it as completed when the user reached the final step —
         // closing early (X, Escape, overlay click) leaves it re-runnable.
         const state = opts?.state as { activeIndex?: number } | undefined;
-        if ((state?.activeIndex ?? 0) >= steps.length - 1) {
+        const completed = (state?.activeIndex ?? 0) >= steps.length - 1;
+        if (completed) {
           markTourCompleted();
+        } else if (startPath && window.location.pathname !== startPath) {
+          // The tour moved the user between pages — take them back to where
+          // they started instead of leaving them stranded mid-app.
+          navigateTo(startPath);
         }
       },
     });

@@ -120,7 +120,9 @@ function CalendarDayCell({
             draggable
             onDragStart={() => onDragStart(entry, date)}
             onClick={() => onEntryClick(entry)}
-            projectColor={colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined}
+            projectColor={
+              colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined
+            }
           />
         ))}
         {hiddenCount > 0 && (
@@ -368,7 +370,7 @@ export function CalendarPage() {
       <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
       <main className="dash-main">
         <Header title="Calendar" entries={entries as unknown as Array<Record<string, unknown>>} />
-        <div className="calendar-page">
+        <div className="calendar-page" data-tour="page-calendar">
           <div className="calendar-toolbar">
             <div className="calendar-nav">
               <button type="button" className="btn-icon" onClick={handlePrev} aria-label="Previous">

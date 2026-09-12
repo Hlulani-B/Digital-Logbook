@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { NotesProvider, useNotes } from '@/context/NotesContext';
@@ -100,9 +100,30 @@ function NotesOverlay() {
   return <NotesPage entryData={notesEntry} onClose={closeNotes} />;
 }
 
+/**
+ * TourNavigator — lets the guided tour (lib/tour.ts) change routes by
+ * dispatching a 'dl-tour-navigate' window event, so each described view can
+ * open for real mid-tour. Mounted once inside the Router.
+ */
+function TourNavigator() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const onTourNavigate = (e: Event) => {
+      const path = (e as CustomEvent<{ path?: string }>).detail?.path;
+      if (path) navigate(path);
+    };
+    window.addEventListener('dl-tour-navigate', onTourNavigate);
+    return () => window.removeEventListener('dl-tour-navigate', onTourNavigate);
+  }, [navigate]);
+
+  return null;
+}
+
 export function App() {
   return (
     <BrowserRouter>
+      <TourNavigator />
       <ThemeInitializer>
         <AuthProvider>
           <NotesProvider>
