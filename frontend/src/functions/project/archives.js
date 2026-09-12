@@ -6,12 +6,23 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 /**
  * Fetch archives for a user/project.
- * Writes to IndexedDB, returns result for compatibility.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function getArchives(user_email, project_name) {
   const cacheKey = project_name
     ? `${user_email}:${project_name}`
     : `${user_email}:all`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getArchives] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getArchives] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
 
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
@@ -28,6 +39,12 @@ export async function getArchives(user_email, project_name) {
     return result;
   } catch (err) {
     console.error('[getArchives] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getArchives] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }

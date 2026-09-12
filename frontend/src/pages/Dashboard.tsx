@@ -445,7 +445,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Load archived entries when archives view is active
   useEffect(() => {
     if (activeView !== 'archives' || !email) return;
-    (async () => {
+    const loadArchives = async () => {
       try {
         const result = await getArchives(email, null);
         if (result?.success !== false) {
@@ -454,7 +454,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       } catch (err) {
         console.error('Failed to load archived entries:', err);
       }
-    })();
+    };
+    loadArchives();
+    // Re-read when archives cache changes (e.g., after archive/unarchive actions)
+    const unsub = cacheSubscribe(CACHE_STORES.ARCHIVES, `${email}:all`, () => loadArchives());
+    return () => unsub();
   }, [activeView, email]);
 
   // AI-generated greeting ΓÇö shown as a toast (respects AI messages preference)
