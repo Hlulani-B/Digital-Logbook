@@ -51,9 +51,21 @@ export async function getArchives(user_email, project_name) {
 
 /**
  * Fetch unarchived entries.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function getUnarchived(user_email, project_name) {
   const cacheKey = `unarchived:${user_email}:${project_name || 'all'}`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getUnarchived] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getUnarchived] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
 
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
@@ -70,15 +82,33 @@ export async function getUnarchived(user_email, project_name) {
     return result;
   } catch (err) {
     console.error('[getUnarchived] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getUnarchived] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }
 
 /**
  * Fetch archived projects.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function getArchivedProjects(user_email) {
   const cacheKey = `archived-projects:${user_email}`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getArchivedProjects] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getArchivedProjects] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
 
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
@@ -95,15 +125,33 @@ export async function getArchivedProjects(user_email) {
     return result;
   } catch (err) {
     console.error('[getArchivedProjects] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getArchivedProjects] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }
 
 /**
  * Fetch unarchived projects.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function getUnarchivedProjects(user_email) {
   const cacheKey = `unarchived-projects:${user_email}`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getUnarchivedProjects] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getUnarchivedProjects] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
 
   try {
     const result = await request(`${PROJECT_URL}/service/archive`, {
@@ -120,6 +168,12 @@ export async function getUnarchivedProjects(user_email) {
     return result;
   } catch (err) {
     console.error('[getUnarchivedProjects] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ARCHIVES, cacheKey);
+    if (cached) {
+      console.log('[getUnarchivedProjects] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }

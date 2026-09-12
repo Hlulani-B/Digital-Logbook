@@ -55,10 +55,30 @@ function _refreshNotesFromServer(entry_id, cacheKey) {
 
 /**
  * View a single note by ID.
+ * Cache-first: returns cached data immediately, refreshes from server in background.
  * For file/image notes, fetches the actual file and returns base64 data.
  */
 export async function viewNote(note_id) {
-  console.log('[viewNote] calling server for note_id=', note_id);
+  const cacheKey = `note:${note_id}`;
+  console.log('[viewNote] called for note_id=', note_id);
+
+  // 1. Return cached data first (instant)
+  const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+  if (cached?.success && cached.data) {
+    console.log('[viewNote] Serving from cache, refreshing in background');
+    // Refresh from server in background (don't block the caller)
+    _refreshNoteFromServer(note_id, cacheKey);
+    return { ...cached, _fromCache: true };
+  }
+
+  // 2. No cache — must wait for server
+  console.log('[viewNote] No cache, fetching from server...');
+  return _fetchNoteFromServer(note_id, cacheKey);
+}
+
+/** Internal: fetch note from server and write to cache */
+async function _fetchNoteFromServer(note_id, cacheKey) {
+  console.log('[_fetchNoteFromServer] Fetching from server for note_id=', note_id);
   try {
     const result = await request(`${PROJECT_URL}/service/notes`, {
       method: 'POST',
@@ -68,17 +88,22 @@ export async function viewNote(note_id) {
       }),
     });
 
-    console.log('[viewNote] server returned: success=', result?.success, 'hasData=', !!result?.data, 'entry_type=', result?.data?.entry_type, 'hasFileData=', !!result?.data?.file_data, 'fileDataLen=', result?.data?.file_data?.length, 'contentType=', result?.data?.content_type, 'fileError=', result?.data?.file_error, 'value=', result?.data?.value?.substring(0, 80));
+    console.log('[_fetchNoteFromServer] server returned: success=', result?.success, 'hasData=', !!result?.data);
 
     // Cache the note data (including file_data if present)
     if (result?.success && result.data) {
-      await cacheSet(CACHE_STORES.NOTES, `note:${note_id}`, result);
+      await cacheSet(CACHE_STORES.NOTES, cacheKey, result);
     }
     return result;
   } catch (err) {
-    console.error('[viewNote] Failed:', err);
+    console.error('[_fetchNoteFromServer] Failed:', err);
     return { success: false, message: err.message };
   }
+}
+
+/** Internal: background refresh of note from server */
+function _refreshNoteFromServer(note_id, cacheKey) {
+  _fetchNoteFromServer(note_id, cacheKey).catch(() => {});
 }
 
 // ── POST/PUT functions — IndexedDB-first, then sync ───────────
