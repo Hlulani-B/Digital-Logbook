@@ -638,6 +638,11 @@ export function SignIn() {
             <img src="/notebook.jpeg" alt="Digital Logbook" className="split-caption-img" />
             <h2>Digital Logbook</h2>
             <p>Track your time, own your progress</p>
+            <nav className="split-caption-links" aria-label="Page sections">
+              <a href="#ss-about">About</a>
+              <a href="#ss-about-us">About Us</a>
+              <a href="#ss-features">Features</a>
+            </nav>
           </div>
         </div>
 
