@@ -287,6 +287,7 @@ When the AI put an existing project in the `new` array (instead of `old`), the b
 The AI was copying the user's raw speech verbatim (e.g., "gonna grab some food") or extracting just keywords (e.g., "food") instead of writing clean, well-phrased descriptions.
 
 **Fix:** Updated the AI prompt (Steps 0 and 5) to enforce strict paraphrasing:
+
 - Step 0: "PARAPHRASE neatly into clear, well-written task descriptions" with explicit correct/wrong examples
 - Step 5: Renamed from "PRESERVE FULL TEXT" to "PARAPHRASE NEATLY (STRICT)" — the AI must rewrite casual speech into clean descriptions, not copy raw text or extract keywords
 
@@ -309,6 +310,7 @@ The voice feature was making extra AI calls for spoken prompts, confirmation mes
 Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscellaneous Tasks" card and others to be cut off at the viewport edge instead of wrapping or shrinking.
 
 **Root cause:** Multiple CSS issues:
+
 1. `.entries-feed` grid used `1fr` instead of `minmax(0, 1fr)` — `1fr` allows grid blowout where content wider than the column forces it open
 2. `<table>` elements inside cards have intrinsic minimum width that resists shrinking
 3. `.entry-box__field-key` had `white-space: nowrap` forcing field labels to never wrap
@@ -316,6 +318,7 @@ Entry cards in the Dashboard feed were overflowing the grid, causing the "Miscel
 5. `.entry-box__project` had no overflow handling — long project names forced the card wider
 
 **Fix:**
+
 - `.entries-feed`: Changed all `1fr` to `minmax(0, 1fr)` across all breakpoints
 - `.entry-box`: Added `overflow: hidden` + `max-width: 100%`
 - `.entry-box__table`: Added `table-layout: fixed`
@@ -350,12 +353,12 @@ Every page load required a full network round-trip to Supabase before the UI cou
 
 The implementation uses the `idb` library (lightweight Promise-based IndexedDB wrapper) and provides:
 
-| Component | Purpose |
-|---|---|
+| Component          | Purpose                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------- |
 | `src/lib/cache.js` | Core caching module with `cacheGet`, `cacheSet`, `cacheDelete`, `staleWhileRevalidate` |
-| Cache stores | `projects`, `entries`, `all-entries`, `profile`, `search` — one per data type |
-| Read functions | `getEntries`, `getAllEntries`, `getProjectsByEmail`, `getProfile` — cache-first reads |
-| Write functions | All add/update/delete operations — invalidate cache on success |
+| Cache stores       | `projects`, `entries`, `all-entries`, `profile`, `search` — one per data type          |
+| Read functions     | `getEntries`, `getAllEntries`, `getProjectsByEmail`, `getProfile` — cache-first reads  |
+| Write functions    | All add/update/delete operations — invalidate cache on success                         |
 
 **How it works:**
 
@@ -365,23 +368,23 @@ The implementation uses the `idb` library (lightweight Promise-based IndexedDB w
 
 **Web caching context:** "Web caching" is the umbrella term for storing data closer to where it's used instead of fetching it fresh every time. IndexedDB caching is one legitimate branch:
 
-| Type | Persists across reloads? | Handles structured data? | Use case |
-|---|---|---|---|
-| In-memory (React Query) | No | Limited | Fast but ephemeral |
-| LocalStorage | Yes | No (key-value only) | Simple flags/tokens |
-| **IndexedDB** | **Yes** | **Yes (mini local database)** | **Structured/relational data** |
-| Server-side (Express) | N/A | N/A | Backend API responses |
-| HTTP/browser (cache headers) | Varies | N/A | Low-level resource caching |
+| Type                         | Persists across reloads? | Handles structured data?      | Use case                       |
+| ---------------------------- | ------------------------ | ----------------------------- | ------------------------------ |
+| In-memory (React Query)      | No                       | Limited                       | Fast but ephemeral             |
+| LocalStorage                 | Yes                      | No (key-value only)           | Simple flags/tokens            |
+| **IndexedDB**                | **Yes**                  | **Yes (mini local database)** | **Structured/relational data** |
+| Server-side (Express)        | N/A                      | N/A                           | Backend API responses          |
+| HTTP/browser (cache headers) | Varies                   | N/A                           | Low-level resource caching     |
 
 IndexedDB caching is arguably stronger than in-memory caching because it survives refreshes and can support offline behaviour.
 
 **Performance impact:**
 
-| Metric | Before | After |
-|---|---|---|
-| First page load | ~500–1000ms | ~500–1000ms (first visit only) |
-| Subsequent loads | ~500–1000ms | <10ms (IndexedDB read) |
-| Navigation between pages | Full network fetch each time | Instant from cache |
+| Metric                   | Before                       | After                          |
+| ------------------------ | ---------------------------- | ------------------------------ |
+| First page load          | ~500–1000ms                  | ~500–1000ms (first visit only) |
+| Subsequent loads         | ~500–1000ms                  | <10ms (IndexedDB read)         |
+| Navigation between pages | Full network fetch each time | Instant from cache             |
 
 ### Issue 32: IndexedDB Cache Not Cleared on Sign-Out
 
@@ -405,15 +408,15 @@ After submitting a natural language entry, the user had to wait for the full rou
 
 **Implementation:**
 
-| Component | File | Purpose |
-|---|---|---|
-| SSE Registry | `services/project-service/src/functions/sseRegistry.js` | Manages per-user SSE connections |
-| SSE Endpoint | `GET /service/nl-stream` | Persistent SSE stream for each user |
-| SSE Push | `POST /service/natural-language-entry` | Pushes parsed data via SSE after AI returns |
-| Auth Middleware | `services/project-service/src/middleware/auth.js` | Accepts JWT via query param for SSE |
-| SSE Manager | `frontend/src/lib/sse.js` | Frontend SSE connection with auto-reconnect |
-| React Hook | `frontend/src/hooks/useSSEEntries.ts` | Connects SSE events to IndexedDB + UI |
-| AuthContext | `frontend/src/context/AuthContext.tsx` | Disconnects SSE on sign-out |
+| Component       | File                                                    | Purpose                                     |
+| --------------- | ------------------------------------------------------- | ------------------------------------------- |
+| SSE Registry    | `services/project-service/src/functions/sseRegistry.js` | Manages per-user SSE connections            |
+| SSE Endpoint    | `GET /service/nl-stream`                                | Persistent SSE stream for each user         |
+| SSE Push        | `POST /service/natural-language-entry`                  | Pushes parsed data via SSE after AI returns |
+| Auth Middleware | `services/project-service/src/middleware/auth.js`       | Accepts JWT via query param for SSE         |
+| SSE Manager     | `frontend/src/lib/sse.js`                               | Frontend SSE connection with auto-reconnect |
+| React Hook      | `frontend/src/hooks/useSSEEntries.ts`                   | Connects SSE events to IndexedDB + UI       |
+| AuthContext     | `frontend/src/context/AuthContext.tsx`                  | Disconnects SSE on sign-out                 |
 
 **Flow:**
 
@@ -436,6 +439,7 @@ The `dashboard-service` had a `setInterval` daemon that was supposed to ping Sup
 **Root cause:** Render free tier does not support long-running background processes. The container is put to sleep when no HTTP traffic arrives. Node.js `setInterval` is paused along with everything else.
 
 **Fix:** Replaced the passive daemon with an active external trigger. A GitHub Actions workflow (`.github/workflows/keep-alive.yml`) sends `curl` to `GET /service/health-ping` every 10 minutes. This endpoint:
+
 1. Wakes the Render container (prevents Render sleep)
 2. Calls `ping()` which writes "hello hlulani" to Supabase (prevents Supabase pause)
 
@@ -453,10 +457,13 @@ The SSE implementation used the browser's `EventSource` API to listen for real-t
 
 ```javascript
 let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-if (!token && req.query?.token) { token = req.query.token; }
+if (!token && req.query?.token) {
+  token = req.query.token;
+}
 ```
 
 The frontend SSE manager constructs the URL as:
+
 ```javascript
 const url = `${PROJECT_URL}/service/nl-stream?token=${encodeURIComponent(token)}`;
 ```
@@ -473,10 +480,14 @@ The SSE registry tests (14 tests) failed because the module-level `Map` that sto
 
 ```javascript
 // sseRegistry.js
-export function _resetRegistry() { connections.clear(); }
+export function _resetRegistry() {
+  connections.clear();
+}
 
 // sseRegistry.test.js
-beforeEach(() => { _resetRegistry(); });
+beforeEach(() => {
+  _resetRegistry();
+});
 ```
 
 The underscore prefix signals this is test-only and should not be used in production code.
@@ -512,6 +523,7 @@ The application showed AI-generated toasts (greeting on dashboard load, entry co
 **Root cause:** The AI greeting toast in `Dashboard.tsx` and the AI comment toast in `QuickEntryBar.tsx` fired unconditionally. No preference flag existed in localStorage or the settings panel.
 
 **Fix:**
+
 1. Created `frontend/src/functions/aiMessages.ts` — a `getAiMessagesEnabled()` / `setAiMessagesEnabled()` pair backed by `localStorage` key `dl_ai_messages` (default: `true`).
 2. Added an **AI messages** toggle to `SettingsPanel.tsx` under Notifications section.
 3. Added an **AI messages** toggle to `FrequencySetup.tsx` onboarding page so new users can opt out during signup.
@@ -531,6 +543,7 @@ Entries stored full structured field data (JSON objects) but no human-readable s
 **Root cause:** The `entries` table had no `summary` column. The AI parsing flow generated structured fields but never produced a concise one-sentence summary.
 
 **Fix:**
+
 1. Created migration `007_add_summary_column.sql` — adds `summary TEXT` column to `entries` table.
 2. Added `generateSummary()` method to `Natural_language` class in `entries.js` — makes a separate lightweight AI call with the project name + entry object to produce a ≤20-word summary.
 3. Modified all 5 `addEntry()` call sites in the natural language flow (matched=0, 1, 3-old, 3-new-existing, 3-new-new) to generate and store summaries.
@@ -539,3 +552,28 @@ Entries stored full structured field data (JSON objects) but no human-readable s
 6. Created `scripts/backfill-summaries.js` — iterates all existing entries with `summary IS NULL`, calls AI for each, and updates the column.
 
 The retrieval queries (`getEntries`, `getAllEntries`, `sortUnarchivedEntries`) already use `SELECT *`, so they automatically include the new column with zero changes.
+
+---
+
+## Guided Tour
+
+### Issue 40: Tour Narration Cut Off Mid-Sentence and Repeated Step Titles
+
+After the guided tour voice feature shipped, two narration problems were reported:
+
+1. The voice read the step title and then a description that restated it ("My Stats. This is My Stats — …"), which sounded redundant and irritating.
+2. Auto-advance used a word-count estimate of how long the speech would take, so on longer stops the tour moved on and cut the voice off before it finished reading.
+
+**Root cause:**
+
+1. Step descriptions were written as standalone sentences that repeated the title for context; when the spoken text is `title + description`, the title is heard twice.
+2. A heuristic timer (`words / 2.5 + 1500 ms`, clamped to 6.5–18 s) is shorter than real neural-voice utterances at the chosen rate, so the timer fired first.
+
+**Fix:**
+
+1. Rewrote the six view-step descriptions so they add information instead of restating the title — the voice now says "My Stats. Progress charts, streaks, and how you spend your time."
+2. Replaced the timer with utterance-end-driven pacing: the tour only advances after the `speechSynthesis` utterance fires `onend`, with per-step token guards so stale callbacks from a cancelled utterance are ignored, and handlers detached before `cancel()` because cancelling fires a spurious `end` event. The progress bar now only visualises pacing, and a generous hard cap guards against a stuck speech engine.
+
+**Takeaway:** Pace text-to-speech off the speech engine's completion events, never a duration estimate; and when composing spoken text from multiple fields, make the fields non-overlapping so nothing is repeated aloud.
+
+**Pull requests:** [#164](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/164) (voice + auto-advance), [#165](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/165) (pacing + narration copy fix)

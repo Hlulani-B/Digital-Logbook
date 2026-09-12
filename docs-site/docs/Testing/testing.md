@@ -16,14 +16,14 @@ This page documents three pillars of our quality assurance strategy:
 
 ### Testing Tools and Frameworks
 
-| Layer | Tool | Purpose |
-|---|---|---|
-| Test runner | **Vitest** | Unit and integration tests for frontend and backend |
-| Component rendering | **@testing-library/react** | Render React components, simulate user interactions |
-| DOM assertions | **@testing-library/jest-dom** | Semantic assertions (`toBeDisabled`, `toHaveTextContent`) |
-| IndexedDB polyfill | **fake-indexeddb** | Integration tests that exercise the real cache layer |
-| Backend HTTP tests | **Vitest + supertest** | Endpoint tests for each microservice |
-| CI pipeline | **Gitea Actions** | Automated test runs on every push and PR |
+| Layer               | Tool                          | Purpose                                                   |
+| ------------------- | ----------------------------- | --------------------------------------------------------- |
+| Test runner         | **Vitest**                    | Unit and integration tests for frontend and backend       |
+| Component rendering | **@testing-library/react**    | Render React components, simulate user interactions       |
+| DOM assertions      | **@testing-library/jest-dom** | Semantic assertions (`toBeDisabled`, `toHaveTextContent`) |
+| IndexedDB polyfill  | **fake-indexeddb**            | Integration tests that exercise the real cache layer      |
+| Backend HTTP tests  | **Vitest + supertest**        | Endpoint tests for each microservice                      |
+| CI pipeline         | **Gitea Actions**             | Automated test runs on every push and PR                  |
 
 ### What Types of Tests Are Run
 
@@ -32,6 +32,7 @@ This page documents three pillars of our quality assurance strategy:
 Unit tests verify individual functions and components in isolation. All external dependencies (Supabase, fetch, IndexedDB) are mocked.
 
 **Examples:**
+
 - Pure functions: `formatDuration`, `isOverdue`, `calculateStreaks`, `searchAll`
 - API helpers: `request()` with auth headers and error handling
 - Auth context: sign-in, sign-up, OAuth, password reset, account deletion
@@ -42,6 +43,7 @@ Unit tests verify individual functions and components in isolation. All external
 Integration tests verify that multiple modules work together correctly. These use real IndexedDB (via `fake-indexeddb`) and test the full data flow.
 
 **Examples:**
+
 - **Cache layer** — `cacheSet` → `cacheGet` → `cacheSubscribe` event flow, isolation between users, `clearUserCache`
 - **Entry CRUD** — optimistic write → server sync → cache update, rollback on failure
 - **Sync service** — `syncAllData` populates all IndexedDB stores from server responses
@@ -132,10 +134,10 @@ npx vitest run src/components/__tests__/NavBar.test.tsx
 
 The CI pipeline at `.gitea/workflows/test.yml` runs on every push and pull request to `main`. It has two separate jobs:
 
-| Job | What it runs |
-|---|---|
-| **Frontend Unit Tests** | All tests except `src/__integration__/` |
-| **Frontend Integration Tests** | Only `src/__integration__/` |
+| Job                            | What it runs                            |
+| ------------------------------ | --------------------------------------- |
+| **Frontend Unit Tests**        | All tests except `src/__integration__/` |
+| **Frontend Integration Tests** | Only `src/__integration__/`             |
 
 ```yaml
 jobs:
@@ -151,15 +153,15 @@ Both jobs appear separately in the Gitea Actions UI. If any test fails, the pipe
 
 ### Mocking Approach
 
-| Dependency | Mock strategy | Reason |
-|---|---|---|
-| Supabase client | `vi.mock('@/lib/supabase')` | Prevents real database/auth calls |
-| `fetch` / `request()` | `vi.fn()` or `vi.mock('@/lib/api')` | Isolates from network |
-| React Router | `<MemoryRouter>` wrapper | Controls navigation in tests |
-| IndexedDB | `fake-indexeddb/auto` | Real IndexedDB API in jsdom for integration tests |
-| `localStorage` | `localStorage.clear()` in `beforeEach` | Prevents test pollution |
-| Child components | `vi.mock('../Component')` | Tests one component in isolation |
-| Auth context | `vi.mock('@/context/AuthContext')` | Provides mock user for component tests |
+| Dependency            | Mock strategy                          | Reason                                            |
+| --------------------- | -------------------------------------- | ------------------------------------------------- |
+| Supabase client       | `vi.mock('@/lib/supabase')`            | Prevents real database/auth calls                 |
+| `fetch` / `request()` | `vi.fn()` or `vi.mock('@/lib/api')`    | Isolates from network                             |
+| React Router          | `<MemoryRouter>` wrapper               | Controls navigation in tests                      |
+| IndexedDB             | `fake-indexeddb/auto`                  | Real IndexedDB API in jsdom for integration tests |
+| `localStorage`        | `localStorage.clear()` in `beforeEach` | Prevents test pollution                           |
+| Child components      | `vi.mock('../Component')`              | Tests one component in isolation                  |
+| Auth context          | `vi.mock('@/context/AuthContext')`     | Provides mock user for component tests            |
 
 ### Coverage Expectations
 
@@ -191,8 +193,8 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 
 ### Responsibilities
 
-| Role | Responsibility |
-|---|---|
+| Role                           | Responsibility                                                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | **Test lead (Hlulani Baloyi)** | Writes all tests across frontend and backend services, reviews test quality, maintains the test inventory, ensures CI stays green |
 
 ### Review Cadence
@@ -213,80 +215,80 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 
 ### Frontend Unit Tests (31 files, 397 tests)
 
-| Test file | What it covers | # tests |
-|---|---|---|
-| `functions/dashboard/__tests__/stats.test.js` | `formatDuration`, `formatInterval`, `calculateTotalTimeTracked`, `calculateProjectStats` | 18 |
-| `functions/dashboard/__tests__/overdue.test.js` | `isOverdue`, `getOverdueText` | 12 |
-| `functions/dashboard/__tests__/streaks.test.js` | `calculateStreaks`, `streakLabel` | 9 |
-| `functions/dashboard/__tests__/search.test.js` | `searchAll`, `searchProject`, `searchProjects` | 7 |
-| `functions/__tests__/tone.test.ts` | `getTone`, `setTone`, `getToneInstruction`, `TONE_OPTIONS` | 11 |
-| `functions/__tests__/aiMessages.test.ts` | AI messages enabled/disabled toggle | 3 |
-| `lib/__tests__/api.test.ts` | `request()` (auth headers, errors, JSON), `api.*.health()` | 8 |
-| `lib/__tests__/cache.test.js` | `cacheGet`, `cacheSet`, `cacheSubscribe`, `cacheDelete` | 12 |
-| `lib/__tests__/sse.test.js` | SSE connect, disconnect, event dispatch | 8 |
-| `lib/__tests__/sse.integration.test.js` | SSE → cache invalidation end-to-end flow | 8 |
-| `lib/__tests__/calendar.test.ts` | Calendar date calculations | 6 |
-| `lib/__tests__/today.test.ts` | Today view filtering logic | 5 |
-| `lib/__tests__/kanban.test.ts` | Kanban board grouping | 4 |
-| `lib/__tests__/timeline.test.ts` | Timeline sorting | 4 |
-| `lib/__tests__/validation.test.ts` | Input validation rules | 7 |
-| `lib/__tests__/import-export.test.ts` | Data import/export | 5 |
-| `lib/__tests__/migrations.test.ts` | IndexedDB schema migrations | 4 |
-| `context/__tests__/AuthContext.test.tsx` | Sign-in, sign-up, OAuth, password reset, delete/restore | 12 |
-| `hooks/__tests__/useInactivityLogout.test.tsx` | Inactivity logout timer | 4 |
-| `components/__tests__/ProtectedRoute.test.tsx` | Auth gating, loading state, redirect | 5 |
-| `components/__tests__/QuickEntryBar.test.tsx` | Form submission, success/error, voice, Enter key | 11 |
-| `components/__tests__/ProfileMenu.test.tsx` | Dropdown, avatar, keyboard, outside click | 12 |
-| `components/__tests__/NavBar.test.tsx` | Navigation, drawer, projects, settings event | 19 |
-| `components/__tests__/Header.test.tsx` | Title, settings event listener, Stats integration | 8 |
-| `components/__tests__/Stats.test.tsx` | Panel open/close, counts, activeProject | 10 |
-| `components/__tests__/AppShell.test.tsx` | Layout, navigation, drawer | 10 |
-| `pages/__tests__/AllEntries.test.tsx` | Display modes, sort, localStorage persistence | 13 |
-| `pages/__tests__/SignIn.test.tsx` | Form fields, OAuth, mode toggle | 14 |
-| `Templates/__tests__/EntryChecklist.test.tsx` | Card rendering, status, ChecklistView | 11 |
-| `Templates/__tests__/EntriesByDueDateBoard.test.tsx` | Columns, sorting, deleted entries | 8 |
-| `Templates/__tests__/ProjectTable.test.tsx` | Summaries, statuses, priorities, dates | 8 |
+| Test file                                            | What it covers                                                                           | # tests |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------- |
+| `functions/dashboard/__tests__/stats.test.js`        | `formatDuration`, `formatInterval`, `calculateTotalTimeTracked`, `calculateProjectStats` | 18      |
+| `functions/dashboard/__tests__/overdue.test.js`      | `isOverdue`, `getOverdueText`                                                            | 12      |
+| `functions/dashboard/__tests__/streaks.test.js`      | `calculateStreaks`, `streakLabel`                                                        | 9       |
+| `functions/dashboard/__tests__/search.test.js`       | `searchAll`, `searchProject`, `searchProjects`                                           | 7       |
+| `functions/__tests__/tone.test.ts`                   | `getTone`, `setTone`, `getToneInstruction`, `TONE_OPTIONS`                               | 11      |
+| `functions/__tests__/aiMessages.test.ts`             | AI messages enabled/disabled toggle                                                      | 3       |
+| `lib/__tests__/api.test.ts`                          | `request()` (auth headers, errors, JSON), `api.*.health()`                               | 8       |
+| `lib/__tests__/cache.test.js`                        | `cacheGet`, `cacheSet`, `cacheSubscribe`, `cacheDelete`                                  | 12      |
+| `lib/__tests__/sse.test.js`                          | SSE connect, disconnect, event dispatch                                                  | 8       |
+| `lib/__tests__/sse.integration.test.js`              | SSE → cache invalidation end-to-end flow                                                 | 8       |
+| `lib/__tests__/calendar.test.ts`                     | Calendar date calculations                                                               | 6       |
+| `lib/__tests__/today.test.ts`                        | Today view filtering logic                                                               | 5       |
+| `lib/__tests__/kanban.test.ts`                       | Kanban board grouping                                                                    | 4       |
+| `lib/__tests__/timeline.test.ts`                     | Timeline sorting                                                                         | 4       |
+| `lib/__tests__/validation.test.ts`                   | Input validation rules                                                                   | 7       |
+| `lib/__tests__/import-export.test.ts`                | Data import/export                                                                       | 5       |
+| `lib/__tests__/migrations.test.ts`                   | IndexedDB schema migrations                                                              | 4       |
+| `context/__tests__/AuthContext.test.tsx`             | Sign-in, sign-up, OAuth, password reset, delete/restore                                  | 12      |
+| `hooks/__tests__/useInactivityLogout.test.tsx`       | Inactivity logout timer                                                                  | 4       |
+| `components/__tests__/ProtectedRoute.test.tsx`       | Auth gating, loading state, redirect                                                     | 5       |
+| `components/__tests__/QuickEntryBar.test.tsx`        | Form submission, success/error, voice, Enter key                                         | 11      |
+| `components/__tests__/ProfileMenu.test.tsx`          | Dropdown, avatar, keyboard, outside click                                                | 12      |
+| `components/__tests__/NavBar.test.tsx`               | Navigation, drawer, projects, settings event                                             | 19      |
+| `components/__tests__/Header.test.tsx`               | Title, settings event listener, Stats integration                                        | 8       |
+| `components/__tests__/Stats.test.tsx`                | Panel open/close, counts, activeProject                                                  | 10      |
+| `components/__tests__/AppShell.test.tsx`             | Layout, navigation, drawer                                                               | 10      |
+| `pages/__tests__/AllEntries.test.tsx`                | Display modes, sort, localStorage persistence                                            | 13      |
+| `pages/__tests__/SignIn.test.tsx`                    | Form fields, OAuth, mode toggle                                                          | 14      |
+| `Templates/__tests__/EntryChecklist.test.tsx`        | Card rendering, status, ChecklistView                                                    | 11      |
+| `Templates/__tests__/EntriesByDueDateBoard.test.tsx` | Columns, sorting, deleted entries                                                        | 8       |
+| `Templates/__tests__/ProjectTable.test.tsx`          | Summaries, statuses, priorities, dates                                                   | 8       |
 
 ### Frontend Integration Tests (5 files, 47 tests)
 
-| Test file | What it covers | # tests |
-|---|---|---|
-| `__integration__/cache.integration.test.js` | IndexedDB round-trips, subscriptions, timestamps, `clearUserCache` isolation | 14 |
-| `__integration__/entries-crud.integration.test.js` | Optimistic add/update/delete, rollback on server failure, dual cache updates | 11 |
-| `__integration__/sync-service.integration.test.js` | `syncAllData` populates all stores, error resilience, `computeDueSoon`, `syncProjectEntries` | 10 |
-| `__integration__/auth-cache.integration.test.js` | Sign-out clears cache, SSE disconnect, delete account flow, user isolation | 4 |
-| `__integration__/use-cached-data.integration.test.tsx` | Hook reads cache immediately, background fetch, reactive updates, convenience hooks | 8 |
+| Test file                                              | What it covers                                                                               | # tests |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------- |
+| `__integration__/cache.integration.test.js`            | IndexedDB round-trips, subscriptions, timestamps, `clearUserCache` isolation                 | 14      |
+| `__integration__/entries-crud.integration.test.js`     | Optimistic add/update/delete, rollback on server failure, dual cache updates                 | 11      |
+| `__integration__/sync-service.integration.test.js`     | `syncAllData` populates all stores, error resilience, `computeDueSoon`, `syncProjectEntries` | 10      |
+| `__integration__/auth-cache.integration.test.js`       | Sign-out clears cache, SSE disconnect, delete account flow, user isolation                   | 4       |
+| `__integration__/use-cached-data.integration.test.tsx` | Hook reads cache immediately, background fetch, reactive updates, convenience hooks          | 8       |
 
 ### Backend Tests (17 files)
 
-| Service | Test file | What it covers |
-|---|---|---|
-| auth-service | `src/__tests__/index.test.js` | Health endpoint, Supabase auth integration |
-| dashboard-service | `src/__tests__/daemon.test.js` | Health ping daemon (table creation, insert, consume) |
-| dashboard-service | `src/__tests__/healthPing.test.js` | `/service/health-ping` endpoint |
-| dashboard-service | `src/__tests__/search.test.js` | Search endpoint |
-| profile-service | `src/__tests__/login.test.js` | User login/check endpoint |
-| profile-service | `src/__tests__/profile.test.js` | Profile CRUD |
-| project-service | `src/__tests__/entries.test.js` | Entry CRUD endpoints |
-| project-service | `src/__tests__/project.test.js` | Project CRUD endpoints |
-| project-service | `src/__tests__/field.test.js` | Custom field management |
-| project-service | `src/__tests__/archives.test.js` | Archive/unarchive endpoints |
-| project-service | `src/__tests__/priority.test.js` | Priority update endpoint |
-| project-service | `src/__tests__/activityLog.test.js` | Activity log endpoints |
-| project-service | `src/__tests__/getDate.test.js` | Date formatting utility |
-| project-service | `src/__tests__/natural_language.test.js` | NL parsing |
-| project-service | `src/__tests__/openapi.test.js` | OpenAPI spec validation |
-| project-service | `src/__tests__/sse.integration.test.js` | SSE connection and event broadcasting |
-| project-service | `src/__tests__/sseRegistry.test.js` | SSE client registry |
+| Service           | Test file                                | What it covers                                       |
+| ----------------- | ---------------------------------------- | ---------------------------------------------------- |
+| auth-service      | `src/__tests__/index.test.js`            | Health endpoint, Supabase auth integration           |
+| dashboard-service | `src/__tests__/daemon.test.js`           | Health ping daemon (table creation, insert, consume) |
+| dashboard-service | `src/__tests__/healthPing.test.js`       | `/service/health-ping` endpoint                      |
+| dashboard-service | `src/__tests__/search.test.js`           | Search endpoint                                      |
+| profile-service   | `src/__tests__/login.test.js`            | User login/check endpoint                            |
+| profile-service   | `src/__tests__/profile.test.js`          | Profile CRUD                                         |
+| project-service   | `src/__tests__/entries.test.js`          | Entry CRUD endpoints                                 |
+| project-service   | `src/__tests__/project.test.js`          | Project CRUD endpoints                               |
+| project-service   | `src/__tests__/field.test.js`            | Custom field management                              |
+| project-service   | `src/__tests__/archives.test.js`         | Archive/unarchive endpoints                          |
+| project-service   | `src/__tests__/priority.test.js`         | Priority update endpoint                             |
+| project-service   | `src/__tests__/activityLog.test.js`      | Activity log endpoints                               |
+| project-service   | `src/__tests__/getDate.test.js`          | Date formatting utility                              |
+| project-service   | `src/__tests__/natural_language.test.js` | NL parsing                                           |
+| project-service   | `src/__tests__/openapi.test.js`          | OpenAPI spec validation                              |
+| project-service   | `src/__tests__/sse.integration.test.js`  | SSE connection and event broadcasting                |
+| project-service   | `src/__tests__/sseRegistry.test.js`      | SSE client registry                                  |
 
 ### Summary
 
-| Category | Files | Tests |
-|---|---|---|
-| Frontend unit tests | 31 | 397 |
-| Frontend integration tests | 5 | 47 |
-| Backend tests | 17 | — |
-| **Total** | **53** | **444+** |
+| Category                   | Files  | Tests    |
+| -------------------------- | ------ | -------- |
+| Frontend unit tests        | 31     | 397      |
+| Frontend integration tests | 5      | 47       |
+| Backend tests              | 17     | —        |
+| **Total**                  | **53** | **444+** |
 
 ---
 
@@ -294,17 +296,17 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 
 ### Feedback Collection Methods
 
-| Channel | Description | Frequency |
-|---|---|---|
-| Sprint client meetings | Structured demo and discussion with the stakeholder | End of each sprint |
-| Stakeholder demos | Working software presented after major feature completion | Per feature |
-| Issue tracker | Bugs, enhancement requests, and UX improvements logged as issues | Ongoing |
-| Meeting minutes | All discussions, decisions, and action items recorded | Every meeting |
+| Channel                | Description                                                      | Frequency          |
+| ---------------------- | ---------------------------------------------------------------- | ------------------ |
+| Sprint client meetings | Structured demo and discussion with the stakeholder              | End of each sprint |
+| Stakeholder demos      | Working software presented after major feature completion        | Per feature        |
+| Issue tracker          | Bugs, enhancement requests, and UX improvements logged as issues | Ongoing            |
+| Meeting minutes        | All discussions, decisions, and action items recorded            | Every meeting      |
 
 ### How Feedback Is Triaged
 
 !!! note "Process overview"
-    Feedback follows a structured pipeline from receipt to verification.
+Feedback follows a structured pipeline from receipt to verification.
 
 ```
 Feedback received (meeting, demo, or issue)
@@ -352,7 +354,7 @@ After implementation, the team:
 4. If revision is needed, creates a new issue and the cycle repeats
 
 !!! note "Continuous improvement"
-    The feedback process itself is reviewed and refined at each sprint retrospective based on what worked and what didn't.
+The feedback process itself is reviewed and refined at each sprint retrospective based on what worked and what didn't.
 
 ---
 
@@ -369,9 +371,9 @@ After implementation, the team:
 
 #### 1. Sign-up: Password policy not stated upfront
 
-**Feedback:** The password policy requires special characters, but this is only discovered via an error *after* submission. It should be stated on the form before the user types.
+**Feedback:** The password policy requires special characters, but this is only discovered via an error _after_ submission. It should be stated on the form before the user types.
 
-**Finding:** The password policy is enforced server-side by Supabase Auth. The frontend sign-up form only displayed *"Password must be at least 6 characters"* — no mention of special characters.
+**Finding:** The password policy is enforced server-side by Supabase Auth. The frontend sign-up form only displayed _"Password must be at least 6 characters"_ — no mention of special characters.
 
 **Resolution:** Deferred — assigned to another team member to update the password hint on the sign-up form to include the special character requirement.
 
@@ -468,15 +470,15 @@ The page is shown only for new accounts (tracked via `sessionStorage` flag set d
 
 ### Summary of Tester Feedback Fixes
 
-| # | Issue | Status |
-|---|-------|--------|
-| 1 | Password policy not shown upfront | Deferred (assigned to another team member) |
-| 2 | Project → entry sync bug | **Fixed** — direct state update + visibility listener |
-| 3 | Native browser confirm/alert dialogs | **Fixed** — inline confirmation UI |
-| 4 | Perceived slowness | Not a code issue (Render free tier + NZ↔SA latency) |
-| 5 | Navigation back to dashboard | No issues found |
-| 6 | AI privacy disclaimer | **Fixed** — new DataDisclaimer page for new signups |
-| 7 | Trust/data-control concerns | **Addressed** via disclaimer page + open-source note |
+| #   | Issue                                | Status                                                |
+| --- | ------------------------------------ | ----------------------------------------------------- |
+| 1   | Password policy not shown upfront    | Deferred (assigned to another team member)            |
+| 2   | Project → entry sync bug             | **Fixed** — direct state update + visibility listener |
+| 3   | Native browser confirm/alert dialogs | **Fixed** — inline confirmation UI                    |
+| 4   | Perceived slowness                   | Not a code issue (Render free tier + NZ↔SA latency)   |
+| 5   | Navigation back to dashboard         | No issues found                                       |
+| 6   | AI privacy disclaimer                | **Fixed** — new DataDisclaimer page for new signups   |
+| 7   | Trust/data-control concerns          | **Addressed** via disclaimer page + open-source note  |
 
 ---
 
@@ -488,35 +490,35 @@ The quick-survey round was run as a structured, self-administered
 questionnaire rather than an ad-hoc "what do you think?" ping. Its design
 followed four explicit goals set at the start of Sprint 2:
 
-| Goal | What we wanted to learn |
-|------|-------------------------|
-| **Usability** | Where do first-time users get lost, and what vocabulary do they misinterpret? |
-| **Feature completeness** | Which capabilities are missing that users would consider table-stakes for a personal logbook? |
-| **Trust & privacy** | Does the AI integration deter users who care about data sovereignty, and what would change their mind? |
-| **Perceived performance** | Does the app feel fast enough to be usable on real networks, and where is the bottleneck? |
+| Goal                      | What we wanted to learn                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Usability**             | Where do first-time users get lost, and what vocabulary do they misinterpret?                          |
+| **Feature completeness**  | Which capabilities are missing that users would consider table-stakes for a personal logbook?          |
+| **Trust & privacy**       | Does the AI integration deter users who care about data sovereignty, and what would change their mind? |
+| **Perceived performance** | Does the app feel fast enough to be usable on real networks, and where is the bottleneck?              |
 
 **Instrument.** A Google Form (`forms.gle/FKPimVBgfm8UDG43A`) with a mix of
 Likert-scale questions ("How easy was it to add your first task? 1–5"), a
 binary + free-text pair for each feature area (Was it useful? What was
 confusing?), and one open-ended question inviting feature requests
-(*"Is there any cool or useful feature you would like us to add?"*). The
+(_"Is there any cool or useful feature you would like us to add?"_). The
 open-ended response is the one captured verbatim in the
 [Feature Requests](#quick-survey-feature-requests) table below.
 
 **Sampling & distribution.** The form link was shared with a convenience
 sample of classmates, friends and one external volunteer (the New Zealand
 tester profiled above) — people who could realistically be target users of
-a student-oriented logbook app but had *not* built it. The form was open
+a student-oriented logbook app but had _not_ built it. The form was open
 for one week. **13 responses came back** across roughly 20 invitees — a
 ~65% response rate for an unpaid, no-incentive survey.
 
 **Analysis.** Responses were exported to a spreadsheet (see Evidence below)
-and *thematically coded* by two team members independently. Free-text
+and _thematically coded_ by two team members independently. Free-text
 answers were grouped by the underlying pain point (not the wording), then
 compared across respondents to identify recurring problems. Anything raised
-by **two or more** respondents became a numbered *problem* in the list
+by **two or more** respondents became a numbered _problem_ in the list
 below; anything raised only once or purely phrased as a wish became a
-*feature request* in the follow-up table. This is what produced the seven
+_feature request_ in the follow-up table. This is what produced the seven
 problems and the eight thematic feature-request rows.
 
 ### Evidence
@@ -526,20 +528,20 @@ problems and the eight thematic feature-request rows.
 - **Screenshots of the response sheet** (scrollable extracts from the
   exported spreadsheet, showing the questions and free-text answers):
 
-    ![Sprint 2 feedback — spreadsheet responses (part 1)](../assets/user-feedback-sprint2/feedback-spreadsheet-1.jpeg)
+  ![Sprint 2 feedback — spreadsheet responses (part 1)](../assets/user-feedback-sprint2/feedback-spreadsheet-1.jpeg)
 
-    ![Sprint 2 feedback — spreadsheet responses (part 2)](../assets/user-feedback-sprint2/feedback-spreadsheet-2.jpeg)
+  ![Sprint 2 feedback — spreadsheet responses (part 2)](../assets/user-feedback-sprint2/feedback-spreadsheet-2.jpeg)
 
-    ![Sprint 2 feedback — spreadsheet responses (part 3)](../assets/user-feedback-sprint2/feedback-spreadsheet-3.jpeg)
+  ![Sprint 2 feedback — spreadsheet responses (part 3)](../assets/user-feedback-sprint2/feedback-spreadsheet-3.jpeg)
 
 ### 1. Projects, calendar, entries and activity log feel disconnected
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) — closed.
+Tracked as [codacaine/Digital-Logbook#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) — closed.
 
 **What testers said:** This was the most repeated complaint. People could
-technically create a project or task, but then could not tell *where it
-lived* afterwards — creating happens in one place, viewing somewhere else,
+technically create a project or task, but then could not tell _where it
+lived_ afterwards — creating happens in one place, viewing somewhere else,
 "what's due today" somewhere else again. The building blocks were right but
 they behaved like separate tools bolted together.
 
@@ -561,9 +563,9 @@ on one page left the other pages showing stale data until a manual reload.
 2. **Recently created / Recently viewed sections on the Dashboard** — every
    task creation path (manual add, Quick Add, voice, and multi-project
    matches) now records the new entry (`entryId` + `projectName` + `title`)
-   and surfaces the last three in a tappable *Recently created* strip that
+   and surfaces the last three in a tappable _Recently created_ strip that
    navigates straight to the owning project. Project visits are tracked the
-   same way in *Recently viewed*.
+   same way in _Recently viewed_.
    (commits `dfd6e2b`, `69e472d`, `352b5be`, `d000307`)
 3. **Every page subscribes to cache changes** — Kanban, Today, Calendar,
    Timeline, StatsView, StreakView, Project, AllEntries, DataPortability and
@@ -576,7 +578,7 @@ on one page left the other pages showing stale data until a manual reload.
 ### 2. No onboarding or in-app guidance for first-time users
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) — closed. The intro-video component was split out as a separate feature request ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
+Tracked as [codacaine/Digital-Logbook#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) — closed. The intro-video component was split out as a separate feature request ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
 
 **What testers said:** The dashboard confused people — nothing explained what
 to do next, what a "task" is versus a "project", or what individual buttons
@@ -592,21 +594,23 @@ infer it, which directly caused the "disconnected" feeling in problem 1.
    `ToneSetup → ThemeSetup → FrequencySetup → DataDisclaimer` before reaching
    the dashboard, so first paint is never a cold, unexplained screen.
 2. **Contextual tooltips across the UI** — action buttons and view controls
-   now explain themselves on hover (e.g. *"Open the stats dashboard for this
-   project"*, *"See a chronological timeline of all your tasks across
-   projects"*). (commits `f1768b0`, `0afb11c`)
+   now explain themselves on hover (e.g. _"Open the stats dashboard for this
+   project"_, _"See a chronological timeline of all your tasks across
+   projects"_). (commits `f1768b0`, `0afb11c`)
 3. **A welcome greeting** on the dashboard that orients the user to the next
    action.
 
 !!! note "Partial"
-    A full interactive walkthrough / intro *video* (an explicit tester
-    request) is not yet built and is on the roadmap. The tooltip + guided
-    setup path is the interim mitigation.
+The interactive walkthrough half of this request is now shipped: a guided
+tour with voice narration walks first-time users through every view (see
+[Features](../features.md#36-guided-tour-with-live-navigation--voice-narration)).
+The intro _video_ requested by testers is still on the roadmap
+([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
 
 ### 3. Unclear or unexplained terminology and fields
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) — closed.
+Tracked as [codacaine/Digital-Logbook#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) — closed.
 
 **What testers said:** People got stuck on specific words — what a "field"
 means when logging, the difference between an "entry" and a "project", and
@@ -624,27 +628,27 @@ in-context help to disambiguate labels.
    draws a clean line against "project". (commit `3dd66f4`)
 2. **"Field" renamed to "Columns"** in the new-task form so the custom
    per-project inputs read naturally, with placeholder hints like
-   *"Enter {column name}"*.
+   _"Enter {column name}"_.
 3. **Tooltips on the ambiguous view-mode controls and buttons** to clarify
    cards / checklist / board on the spot. (commit `f1768b0`)
 
 !!! tip "Follow-up (post-Sprint 2)"
-    The rename to *"task"* fixed the entry/project confusion but created a
-    new one — the word collided with the Kanban "task board", with
-    sprint-planning vocabulary used elsewhere in the course, and with the
-    way our own docs described team-internal work. **A second rename,
-    "task → item" across every user-facing string in the frontend, shipped
-    as [PR #137](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/137)
-    (commit `ff5b77e`, 19 files, 62 strings).** Internal identifiers,
-    CSS classes, cache keys and DB columns still say `entry` / `task`;
-    only the UI vocabulary was unified. This is documented as
-    [US16](../User_Stories/sprint-one.md#us16-see-the-individual-logbook-record-called-by-the-same-word-everywhere)
-    and captured in [Open Questions & Decisions](../Project_Management/decisions.md#settled).
+The rename to _"task"_ fixed the entry/project confusion but created a
+new one — the word collided with the Kanban "task board", with
+sprint-planning vocabulary used elsewhere in the course, and with the
+way our own docs described team-internal work. **A second rename,
+"task → item" across every user-facing string in the frontend, shipped
+as [PR #137](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/137)
+(commit `ff5b77e`, 19 files, 62 strings).** Internal identifiers,
+CSS classes, cache keys and DB columns still say `entry` / `task`;
+only the UI vocabulary was unified. This is documented as
+[US16](../User_Stories/sprint-one.md#us16-see-the-individual-logbook-record-called-by-the-same-word-everywhere)
+and captured in [Open Questions & Decisions](../Project_Management/decisions.md#settled).
 
 ### 4. Creating a task is not repeatable or memorable
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121) — closed.
+Tracked as [codacaine/Digital-Logbook#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121) — closed.
 
 **What testers said:** One tester created their first task successfully but
 could not remember how, and struggled to repeat it. They suggested a pop-up
@@ -657,24 +661,24 @@ after a single use — tied to the terminology confusion in problem 3.
 
 1. **One consistent creation surface** — Quick Add, voice and the manual
    "New Task" modal all funnel through the same form and all report success
-   the same way, pointing to *Recently created*.
+   the same way, pointing to _Recently created_.
 2. **Guardrail instead of a dead end** — when no project exists yet, the
-   *New Task* button is hidden and a hint explains that a project must be
+   _New Task_ button is hidden and a hint explains that a project must be
    created first, so the first attempt never fails silently. (commit `f1768b0`)
 3. **Confirmation message names the destination** ("Added N tasks — see
-   *Recently created*") so the second time, the user recognises the path.
+   _Recently created_") so the second time, the user recognises the path.
    (commit `d000307`)
 
 !!! note "Partial"
-    The dedicated "what does a task do / how do I set a timeline" explainer
-    pop-up is not yet implemented — logged for the next sprint. The
-    consistency and guardrail work above reduce (but do not fully remove) the
-    repeatability problem.
+The dedicated "what does a task do / how do I set a timeline" explainer
+pop-up is not yet implemented — logged for the next sprint. The
+consistency and guardrail work above reduce (but do not fully remove) the
+repeatability problem.
 
 ### 5. New project did not immediately appear when creating a task
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122) — closed.
+Tracked as [codacaine/Digital-Logbook#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122) — closed.
 
 **What testers said:** A tester created a project, then tried to log a task
 against it, but the task view didn't see the project until the page was
@@ -683,7 +687,7 @@ reloaded.
 **Root cause:** This was a **state-refresh race**. Each page's `loadData`
 had several concurrent callers (mount effect, `cacheSubscribe` listeners,
 SSE entry events, and `visibilitychange`). With no guard against overlapping
-invocations, an earlier call could finish *after* a newer one and overwrite
+invocations, an earlier call could finish _after_ a newer one and overwrite
 fresh state with a stale, often emptier, snapshot — which is exactly why a
 manual reload "fixed" it (a reload fires one clean load with nothing racing
 it).
@@ -695,7 +699,7 @@ it).
    task picker without a reload. (commits `121dbae`, prior `Dashboard` fix)
 2. **Sequence-ref race guard** — `loadData` now stamps each invocation with
    an incrementing `useRef` counter and bails out after every `await` if a
-   newer call has started, so only the *latest* load is ever allowed to
+   newer call has started, so only the _latest_ load is ever allowed to
    commit state. Applied to the Dashboard (`f8cdb96`) and then rolled out to
    **every** data-loading page — Kanban, Today, Calendar, Timeline,
    StatsView, StreakView, Project, AllEntries, DataPortability,
@@ -704,7 +708,7 @@ it).
 ### 6. Deleting uses a raw browser pop-up instead of a proper in-app dialog
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) — closed.
+Tracked as [codacaine/Digital-Logbook#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) — closed.
 
 **What testers said:** A QA-background tester noted that deleting a task
 triggers a native JavaScript `alert`/`confirm` rather than a styled
@@ -716,7 +720,7 @@ field-save failures).
 
 **How it was solved:**
 
-1. **Inline confirmation for deletes** — clicking *Delete* now reveals a
+1. **Inline confirmation for deletes** — clicking _Delete_ now reveals a
    "Delete? / Yes, delete / Cancel" prompt directly in the row menu, matching
    the pattern already used on the Projects page.
 2. **Inline error display for save failures** — the dashboard `window.alert`
@@ -726,7 +730,7 @@ field-save failures).
 ### 7. Data privacy and AI-integration trust concerns
 
 !!! info "Gitea issue"
-    Tracked as [codacaine/Digital-Logbook#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) — closed.
+Tracked as [codacaine/Digital-Logbook#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) — closed.
 
 **What testers said:** One tester said they wouldn't switch from their
 self-hosted tools because they dislike the app's AI integration and don't
@@ -750,57 +754,57 @@ data is processed, or whether it can be disabled.
 
 ### Summary of Quick-Survey Fixes
 
-| # | Problem | Status |
-|---|---------|--------|
-| 1 | Projects/calendar/tasks/activity log feel disconnected | **Addressed** — Recently created/viewed + cache subscriptions + cross-page click-through |
-| 2 | No onboarding or in-app guidance | **Partially addressed** — guided setup + tooltips; intro video on roadmap |
-| 3 | Unclear terminology and fields | **Fixed** — Entries→Tasks, field→Columns, tooltips |
-| 4 | Task creation not repeatable/memorable | **Partially addressed** — consistent surface + guardrail; explainer pop-up on roadmap |
-| 5 | New project not appearing when creating a task | **Fixed** — live cache subscription + seq-ref race guard on all pages |
-| 6 | Native browser delete/alert dialogs | **Fixed** — inline confirmation + inline errors |
-| 7 | Data privacy / AI trust concerns | **Addressed** — DataDisclaimer + always-available DataDisclaimer2 |
+| #   | Problem                                                | Status                                                                                                                                                                                  |
+| --- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Projects/calendar/tasks/activity log feel disconnected | **Addressed** — Recently created/viewed + cache subscriptions + cross-page click-through                                                                                                |
+| 2   | No onboarding or in-app guidance                       | **Addressed** — guided setup + tooltips + interactive guided tour with voice narration; intro video on roadmap ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)) |
+| 3   | Unclear terminology and fields                         | **Fixed** — Entries→Tasks, field→Columns, tooltips                                                                                                                                      |
+| 4   | Task creation not repeatable/memorable                 | **Partially addressed** — consistent surface + guardrail; explainer pop-up on roadmap                                                                                                   |
+| 5   | New project not appearing when creating a task         | **Fixed** — live cache subscription + seq-ref race guard on all pages                                                                                                                   |
+| 6   | Native browser delete/alert dialogs                    | **Fixed** — inline confirmation + inline errors                                                                                                                                         |
+| 7   | Data privacy / AI trust concerns                       | **Addressed** — DataDisclaimer + always-available DataDisclaimer2                                                                                                                       |
 
 ### Quick-Survey Feature Requests
 
-The survey also asked *"Is there any cool or useful feature you would like us
-to add?"* (10 responses). These are suggestions rather than problems, so they
+The survey also asked _"Is there any cool or useful feature you would like us
+to add?"_ (10 responses). These are suggestions rather than problems, so they
 were intentionally left out of the problem list above, but they are captured
 here for roadmap planning and grouped by theme with the current status.
 
-| Theme | Requested by | Status |
-|-------|--------------|--------|
-| **Countdown / time-to-due** | "a timer that tells you how many hours till your task is due" | **Partially done** — tasks already show overdue/due-soon text (`getOverdueText`); a live hours-remaining countdown is on the roadmap |
-| **Richer, personalised notes** | "more interactive notes like support for memes, diagrams so it feels more personalised" | **Partially done** — the new-task form accepts text / link / image notes; embedded diagrams/meme widgets are on the roadmap |
-| **Per-project colours** | "different colours so that every project can have its own colour" | **Done** — projects carry a `project_color` and it is surfaced across the UI |
-| **Website theme / colour customisation** | "maybe customising colours of website" | **Done** — multiple selectable themes (incl. dark variants) in Settings |
-| **Visual art / inviting landing** | "adding some visual art on the website to attract users"; a motivational quote on the home page ("you go rockstar") so entering feels inviting | **Partially done** — an AI-generated greeting/quote already renders on the Dashboard; more illustrative art is on the roadmap |
-| **Onboarding tutorial video** | "a video or tutorial thing at the beginning … like Study Bunny links a YouTube video on how to use the app" | **Not started** — tracked with problem 2 (onboarding) on the roadmap |
-| **Due reminders / alarm** | "an alarm that will notify us when some entries are due" | **Not started** — candidate future feature (needs scheduling/notifications) |
-| **Social / co-reminder** | "mention others in my entry so they can also be reminded, sort of a combined activity with a friend who has the same app" | **Not started** — social/sharing feature, future consideration |
-| **No request** | "can't think of any, I think the app has more cool features already" / "can't think of any" | — |
+| Theme                                    | Requested by                                                                                                                                   | Status                                                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Countdown / time-to-due**              | "a timer that tells you how many hours till your task is due"                                                                                  | **Partially done** — tasks already show overdue/due-soon text (`getOverdueText`); a live hours-remaining countdown is on the roadmap |
+| **Richer, personalised notes**           | "more interactive notes like support for memes, diagrams so it feels more personalised"                                                        | **Partially done** — the new-task form accepts text / link / image notes; embedded diagrams/meme widgets are on the roadmap          |
+| **Per-project colours**                  | "different colours so that every project can have its own colour"                                                                              | **Done** — projects carry a `project_color` and it is surfaced across the UI                                                         |
+| **Website theme / colour customisation** | "maybe customising colours of website"                                                                                                         | **Done** — multiple selectable themes (incl. dark variants) in Settings                                                              |
+| **Visual art / inviting landing**        | "adding some visual art on the website to attract users"; a motivational quote on the home page ("you go rockstar") so entering feels inviting | **Partially done** — an AI-generated greeting/quote already renders on the Dashboard; more illustrative art is on the roadmap        |
+| **Onboarding tutorial video**            | "a video or tutorial thing at the beginning … like Study Bunny links a YouTube video on how to use the app"                                    | **Not started** — tracked with problem 2 (onboarding) on the roadmap                                                                 |
+| **Due reminders / alarm**                | "an alarm that will notify us when some entries are due"                                                                                       | **Not started** — candidate future feature (needs scheduling/notifications)                                                          |
+| **Social / co-reminder**                 | "mention others in my entry so they can also be reminded, sort of a combined activity with a friend who has the same app"                      | **Not started** — social/sharing feature, future consideration                                                                       |
+| **No request**                           | "can't think of any, I think the app has more cool features already" / "can't think of any"                                                    | —                                                                                                                                    |
 
 !!! note "Prioritisation"
-    Already-shipped requests (project colours, website themes, home-page
-    greeting, image notes) are marked **Done**. Items marked **Partially
-    done** have a foundation in place and need incremental work. **Not
-    started** items (tutorial video, due alarms, social reminders) are logged
-    as candidates for future sprints and ranked by effort and alignment with
-    the app's local-first, privacy-conscious scope.
+Already-shipped requests (project colours, website themes, home-page
+greeting, image notes) are marked **Done**. Items marked **Partially
+done** have a foundation in place and need incremental work. **Not
+started** items (tutorial video, due alarms, social reminders) are logged
+as candidates for future sprints and ranked by effort and alignment with
+the app's local-first, privacy-conscious scope.
 
 ### Metrics Summary
 
-| Metric | Value |
-|---|---|
-| Survey invitees | ~20 (convenience sample: classmates + friends + 1 external volunteer) |
-| Responses received | 13 (~65% response rate) |
-| Testing sessions conducted | 2 (external NZ tester + in-class quick survey) |
-| Distinct problems identified | 7 (each raised by ≥2 respondents) |
-| Problems resolved before Sprint 2 close | 5 |
-| Problems partially addressed with residual roadmap item | 2 (onboarding intro video, task-creation explainer) |
-| Feature requests logged | 10 responses → 6 unique themes + 2 "no request" |
-| Feature requests shipped in Sprint 2 | 3 (per-project colours, website theme customisation, image/link/text notes) |
-| Feature requests split into follow-up Gitea issues | 5 ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)–[#130](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/130)) |
-| Regressions discovered post-deploy and fixed | 1 (notes payload leaking into summary — [#125](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/125), fixed in PR #117) |
+| Metric                                                  | Value                                                                                                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Survey invitees                                         | ~20 (convenience sample: classmates + friends + 1 external volunteer)                                                                             |
+| Responses received                                      | 13 (~65% response rate)                                                                                                                           |
+| Testing sessions conducted                              | 2 (external NZ tester + in-class quick survey)                                                                                                    |
+| Distinct problems identified                            | 7 (each raised by ≥2 respondents)                                                                                                                 |
+| Problems resolved before Sprint 2 close                 | 5 (6 post-close — onboarding completed by the guided tour, PRs #158 + #161–165)                                                                   |
+| Problems partially addressed with residual roadmap item | 1 (task-creation explainer; the onboarding video request lives on as feature issue #126)                                                          |
+| Feature requests logged                                 | 10 responses → 6 unique themes + 2 "no request"                                                                                                   |
+| Feature requests shipped in Sprint 2                    | 3 (per-project colours, website theme customisation, image/link/text notes)                                                                       |
+| Feature requests split into follow-up Gitea issues      | 5 ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)–[#130](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/130)) |
+| Regressions discovered post-deploy and fixed            | 1 (notes payload leaking into summary — [#125](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/125), fixed in PR #117)                 |
 
 ### Issue Traceability
 
@@ -808,39 +812,39 @@ Every problem and every follow-up feature request was migrated into the
 Gitea tracker with the `user-feedback` label so the audit trail from
 survey → issue → commit → PR → deployed build is one click away.
 
-| Feedback item | Gitea issue | Resolution |
-|---|---|---|
-| Survey problem 1 (disconnected views) | [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) | closed |
-| Survey problem 2 (onboarding) | [#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) | closed (partial) |
-| Survey problem 3 (terminology) | [#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) | closed |
-| Survey problem 4 (task repeatability) | [#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121) | closed (partial) |
-| Survey problem 5 (new project visibility) | [#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122) | closed |
-| Survey problem 6 (native browser dialogs) | [#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) | closed |
-| Survey problem 7 (data-privacy trust) | [#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) | closed |
-| Post-deploy regression (summary leak) | [#125](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/125) | closed via PR #117 |
-| Feature request — onboarding tutorial video | [#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126) | open (Sprint 3) |
-| Feature request — due-date alarm | [#127](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/127) | open (deferred) |
-| Feature request — social / co-reminder | [#128](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/128) | open (deferred) |
-| Feature request — hours-to-due countdown | [#129](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/129) | open (partial fix shipped) |
-| Feature request — interactive notes (memes, diagrams) | [#130](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/130) | open (partial fix shipped) |
+| Feedback item                                         | Gitea issue                                                            | Resolution                                                                                             |
+| ----------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Survey problem 1 (disconnected views)                 | [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118) | closed                                                                                                 |
+| Survey problem 2 (onboarding)                         | [#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) | closed (partial — interactive walkthrough gap completed later by the guided tour, PRs #158 + #161–165) |
+| Survey problem 3 (terminology)                        | [#120](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/120) | closed                                                                                                 |
+| Survey problem 4 (task repeatability)                 | [#121](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/121) | closed (partial)                                                                                       |
+| Survey problem 5 (new project visibility)             | [#122](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/122) | closed                                                                                                 |
+| Survey problem 6 (native browser dialogs)             | [#123](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/123) | closed                                                                                                 |
+| Survey problem 7 (data-privacy trust)                 | [#124](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/124) | closed                                                                                                 |
+| Post-deploy regression (summary leak)                 | [#125](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/125) | closed via PR #117                                                                                     |
+| Feature request — onboarding tutorial video           | [#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126) | open (Sprint 3)                                                                                        |
+| Feature request — due-date alarm                      | [#127](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/127) | open (deferred)                                                                                        |
+| Feature request — social / co-reminder                | [#128](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/128) | open (deferred)                                                                                        |
+| Feature request — hours-to-due countdown              | [#129](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/129) | open (partial fix shipped)                                                                             |
+| Feature request — interactive notes (memes, diagrams) | [#130](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/130) | open (partial fix shipped)                                                                             |
 
 ### Integration & Verification
 
-The rubric's Advanced criterion is not just *did we collect feedback and
-fix things* but *can we prove the fix landed and shipped*. Three concrete
+The rubric's Advanced criterion is not just _did we collect feedback and
+fix things_ but _can we prove the fix landed and shipped_. Three concrete
 artefacts close that loop for every problem in this section:
 
 1. **Merged PRs into `main`.** Each fix is on the deployed branch, not
    sitting on a feature branch. Sample trail:
-   - **PR #93** *Final submission: docs, themes, archive cascade, AI prompt,
-     deploy fixes* — merged commit `d882e0f`
-   - **PR #94** *Add project settings button on ProjectDetailPage* — merged
+   - **PR #93** _Final submission: docs, themes, archive cascade, AI prompt,
+     deploy fixes_ — merged commit `d882e0f`
+   - **PR #94** _Add project settings button on ProjectDetailPage_ — merged
      commit `bb9bea9`
-   - **PR #113** *Replace Entry/Entries with Task/Tasks in UI* — closed
-   - **PR #116** *fix(dashboard): board & checklist grid views +
-     recently-viewed liveness filter* — closed
-   - **PR #117** *fix(entries): prevent notes payload leaking into summary
-     column* — merged commit `79fd249`
+   - **PR #113** _Replace Entry/Entries with Task/Tasks in UI_ — closed
+   - **PR #116** _fix(dashboard): board & checklist grid views +
+     recently-viewed liveness filter_ — closed
+   - **PR #117** _fix(entries): prevent notes payload leaking into summary
+     column_ — merged commit `79fd249`
 2. **Closed Gitea issues with commit references** (see
    [Issue Traceability](#issue-traceability) above). Each closed issue's
    body cites the specific commit hash or PR number that shipped the fix.
@@ -850,12 +854,11 @@ artefacts close that loop for every problem in this section:
    behaviour on the same URL used during feedback collection.
 
 !!! info "Why no targeted re-survey"
-    The Google Form was configured to collect responses **anonymously** (no
-    email capture), so it is not possible to go back to the specific
-    respondents who raised each problem and ask them to confirm the fix.
-    Integration is therefore evidenced by the three artefacts above (merged
-    PRs, closed Gitea issues with commit references, and the live
-    production build) rather than a follow-up Likert score. A fresh
-    survey round open to new participants is planned for the start of
-    Sprint 3 as a broader regression check.
-
+The Google Form was configured to collect responses **anonymously** (no
+email capture), so it is not possible to go back to the specific
+respondents who raised each problem and ask them to confirm the fix.
+Integration is therefore evidenced by the three artefacts above (merged
+PRs, closed Gitea issues with commit references, and the live
+production build) rather than a follow-up Likert score. A fresh
+survey round open to new participants is planned for the start of
+Sprint 3 as a broader regression check.
