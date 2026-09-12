@@ -125,6 +125,20 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // The guided tour (lib/tour.ts) asks the shell to open/close the drawer so
+  // its steps can anchor to drawer items. Dashboard renders its own inline
+  // nav (not the shared NavBar), so it needs its own listeners.
+  useEffect(() => {
+    const open = () => setDrawerOpen(true);
+    const close = () => setDrawerOpen(false);
+    window.addEventListener('dl-tour-open-drawer', open);
+    window.addEventListener('dl-tour-close-drawer', close);
+    return () => {
+      window.removeEventListener('dl-tour-open-drawer', open);
+      window.removeEventListener('dl-tour-close-drawer', close);
+    };
+  }, []);
   const [activeView, setActiveView] = useState<'all' | 'recent' | 'drafts' | 'archives' | string>(
     defaultView
   );
@@ -931,6 +945,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className="nav-left-group">
             <button
               className="nav-hamburger"
+              data-tour="menu"
               onClick={() => setDrawerOpen(!drawerOpen)}
               aria-label="Toggle menu"
             >
@@ -975,8 +990,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
 
           <div className="nav-right-group">
-            <NotificationsBell email={email} />
-            <div className="nav-user">
+            <button
+              type="button"
+              className="nav-tour-btn"
+              data-tour="nav-guide"
+              onClick={() => startAppTour()}
+              aria-label="Start the guided tour"
+              title="Take the tour"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span className="nav-tour-label">Guide</span>
+            </button>
+            <div data-tour="nav-bell">
+              <NotificationsBell email={email} />
+            </div>
+            <div className="nav-user" data-tour="nav-profile">
               <ProfileMenu
                 displayName={preferredName}
                 email={user?.email || ''}
@@ -1017,6 +1058,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <p className="drawer-section-title">Views</p>
           <button
             className={`drawer-item ${activeView === 'all' ? 'active' : ''}`}
+            data-tour="drawer-home"
             onClick={() => {
               navigate('/dashboard/all');
               setDrawerOpen(false);
@@ -1079,6 +1121,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-calendar"
             onClick={() => {
               navigate('/calendar');
               setDrawerOpen(false);
@@ -1101,6 +1144,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-kanban"
             onClick={() => {
               navigate('/kanban');
               setDrawerOpen(false);
@@ -1123,6 +1167,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-today"
             onClick={() => {
               navigate('/today');
               setDrawerOpen(false);
@@ -1143,6 +1188,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-timeline"
             onClick={() => {
               navigate('/timeline');
               setDrawerOpen(false);
@@ -1165,6 +1211,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-import-export"
             onClick={() => {
               navigate('/data-portability');
               setDrawerOpen(false);
@@ -1207,6 +1254,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-stats"
             onClick={() => {
               navigate('/stats');
               setDrawerOpen(false);
@@ -1251,7 +1299,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         </div>
 
         <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title">Projects</p>
+          <p className="drawer-section-title" data-tour="drawer-projects">
+            Projects
+          </p>
           <div className="drawer-project-list">
             {projects
               .filter((p) => !p.archived)
@@ -1331,6 +1381,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         <div className="drawer-footer">
           <button
             className="btn-primary drawer-new-btn"
+            data-tour="drawer-new-project"
             onClick={() => {
               setNewProjectOpen(true);
               setDrawerOpen(false);
