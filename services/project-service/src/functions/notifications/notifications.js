@@ -2,6 +2,8 @@ import pool from '../../db.js';
 
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 const NOTIFICATION_LIMIT = 30;
+const HISTORY_PAGE_SIZE = 50;
+const HISTORY_MAX_LIMIT = 200;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -76,6 +78,61 @@ export class Notifications {
       };
     } catch (err) {
       console.error('[getNotifications] FAILED:', err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  /**
+   * Full notification history for the dedicated /notifications page —
+   * every row still stored for the user (read and unread), newest first,
+   * paginated. Read rows are pruned after 30 days by the cron job in
+   * migration 011, so "entire history" means everything the table holds.
+   *
+   * @param {string} email  Owner email
+   * @param {number} limit  Page size (clamped 1..200, default 50)
+   * @param {number} offset Rows to skip (default 0)
+   * @returns {{success: boolean, data?: {notifications: Array, total: number, limit: number, offset: number}, message?: string}}
+   */
+  async getHistory(email, limit = HISTORY_PAGE_SIZE, offset = 0) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+      if (!email) return { success: false, message: 'email is required' };
+
+      const parsedLimit = Number.parseInt(limit, 10);
+      const parsedOffset = Number.parseInt(offset, 10);
+      const safeLimit = Math.min(
+        Math.max(Number.isNaN(parsedLimit) ? HISTORY_PAGE_SIZE : parsedLimit, 1),
+        HISTORY_MAX_LIMIT
+      );
+      const safeOffset = Math.max(Number.isNaN(parsedOffset) ? 0 : parsedOffset, 0);
+
+      const { rows } = await pool.query(
+        `SELECT id, entry_id, project_name, entry_title, type, due_at, read, created_at
+           FROM public.notifications
+          WHERE user_email = $1
+          ORDER BY created_at DESC
+          LIMIT $2 OFFSET $3`,
+        [email, safeLimit, safeOffset]
+      );
+
+      const { rows: totalRows } = await pool.query(
+        `SELECT COUNT(*)::int AS count
+           FROM public.notifications
+          WHERE user_email = $1`,
+        [email]
+      );
+
+      return {
+        success: true,
+        data: {
+          notifications: rows,
+          total: totalRows[0]?.count ?? 0,
+          limit: safeLimit,
+          offset: safeOffset,
+        },
+      };
+    } catch (err) {
+      console.error('[getHistory] FAILED:', err.message);
       return { success: false, message: err.message };
     }
   }

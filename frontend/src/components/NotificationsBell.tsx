@@ -188,6 +188,19 @@ export function NotificationsBell({ email }: { email: string }) {
               </button>
             ))}
           </div>
+
+          <div className="notif-panel-footer">
+            <button
+              type="button"
+              className="notif-view-all"
+              onClick={() => {
+                setOpen(false);
+                navigate('/notifications');
+              }}
+            >
+              View all notifications
+            </button>
+          </div>
         </div>
       )}
     </div>

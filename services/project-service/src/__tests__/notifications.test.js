@@ -65,6 +65,58 @@ describe('getNotifications', () => {
   });
 });
 
+// ─── getHistory ────────────────────────────────────────────────────────
+describe('getHistory', () => {
+  it('returns paginated rows plus total', async () => {
+    const rows = [
+      { id: 'n1', read: true },
+      { id: 'n2', read: false },
+    ];
+    pool.query.mockResolvedValueOnce({ rows }).mockResolvedValueOnce({ rows: [{ count: 7 }] });
+
+    const result = await notifications.getHistory('a@b.com', 50, 0);
+
+    expect(result.success).toBe(true);
+    expect(result.data.notifications).toHaveLength(2);
+    expect(result.data.total).toBe(7);
+    expect(result.data.limit).toBe(50);
+    expect(result.data.offset).toBe(0);
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('LIMIT $2 OFFSET $3'), [
+      'a@b.com',
+      50,
+      0,
+    ]);
+  });
+
+  it('clamps limit to the 1..200 range', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ count: 0 }] });
+
+    const over = await notifications.getHistory('a@b.com', 99999, 0);
+    expect(over.data.limit).toBe(200);
+
+    pool.query.mockReset();
+    pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ count: 0 }] });
+    const under = await notifications.getHistory('a@b.com', 0, 0);
+    expect(under.data.limit).toBe(1);
+  });
+
+  it('defaults a non-numeric offset to 0 and limit to 50', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ count: 0 }] });
+
+    const result = await notifications.getHistory('a@b.com', 'abc', 'xyz');
+
+    expect(result.data.limit).toBe(50);
+    expect(result.data.offset).toBe(0);
+  });
+
+  it('requires an email', async () => {
+    const result = await notifications.getHistory('');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('email is required');
+  });
+});
+
 // ─── markRead ──────────────────────────────────────────────────────────
 describe('markRead', () => {
   it('marks a notification as read', async () => {
