@@ -1051,6 +1051,15 @@ export function EntryBox({
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="entry-box__task-target-unit">min</span>
+              <button
+                type="button"
+                className="entry-box__task-btn entry-box__task-btn--start"
+                onClick={(e) => { e.stopPropagation(); handleStatusChange('in_motion'); }}
+                disabled={saving}
+                title="Start timer"
+              >
+                ▶ Start
+              </button>
             </div>
           )}
           {archived && <span className="entry-box__archived-tag">Archived</span>}

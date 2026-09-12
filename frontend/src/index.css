@@ -3998,6 +3998,16 @@ img {
   filter: brightness(1.1);
 }
 
+/* Start button — green/success tone */
+.entry-box__task-btn--start {
+  background: var(--success, #16a34a);
+  color: #fff;
+  border-color: var(--success, #16a34a);
+}
+.entry-box__task-btn--start:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
 /* Countdown/Paused label */
 .entry-box__task-label {
   font-family: var(--font-body, 'Lora', serif);
