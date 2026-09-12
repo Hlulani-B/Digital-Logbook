@@ -208,6 +208,31 @@ export async function updateAvatar(email, avatarUrl) {
 }
 
 /**
+ * Persist the "Email notifications" preference server-side so the
+ * due-date email sender can honour it. localStorage remains the UI
+ * source of truth; this is a fire-and-forget sync.
+ */
+export async function setEmailNotifications(email, enabled) {
+  if (!navigator.onLine) {
+    console.log('[setEmailNotifications] Offline, skipping server sync');
+    return { success: true, skipped: true };
+  }
+
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'emailNotifications',
+        values: { email, enabled: Boolean(enabled) },
+      }),
+    });
+  } catch (err) {
+    console.error('[setEmailNotifications] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
  * Delete profile.
  * Clears all caches, then syncs to server.
  */
