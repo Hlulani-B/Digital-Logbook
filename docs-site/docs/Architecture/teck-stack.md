@@ -176,7 +176,7 @@
 - Gitea Actions uses the same YAML workflow syntax as GitHub Actions — no new syntax to learn
 - Triggers on every push to `main` and `hlulani` branches
 - Runs tests with coverage reporting across all services
-- Generates coverage badges automatically
+- Coverage badges generated via `scripts/generate-badges.js` (manual or CI-triggered)
 
 ### Render
 
@@ -225,8 +225,8 @@
 
 **Why**:
 
-- `coverage-badges-cli` reads Jest's `coverage-summary.json` and generates SVG badges
-- Badges are auto-committed after each CI run with `[skip ci]` to prevent infinite loops
+- `scripts/generate-badges.js` reads Jest's `coverage-summary.json` and generates SVG badges
+- Badges are committed manually after generation
 - Visible in the README — motivates the team to maintain coverage above thresholds
 
 ---
