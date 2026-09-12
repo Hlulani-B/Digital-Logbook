@@ -5,7 +5,13 @@ import { AvatarPicker } from '@/components/AvatarPicker';
 import { getTone, setTone, TONE_OPTIONS, type Tone } from '@/functions/tone';
 import { getNudgeFrequency, setNudgeFrequency, type NudgeFrequency } from '@/pages/FrequencySetup';
 import { getAiMessagesEnabled, setAiMessagesEnabled } from '@/functions/aiMessages';
-import { getProfile, updateName, updateUsername, addEmail } from '../functions/profile/profile.js';
+import {
+  getProfile,
+  updateName,
+  updateUsername,
+  addEmail,
+  setEmailNotifications,
+} from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
 
@@ -330,11 +336,14 @@ export function SettingsPanel({
       const wasOffline = nameResult?.queued || usernameResult?.queued || !navigator.onLine;
       setSavedOffline(wasOffline);
       setProfileSuccess(true);
-      setTimeout(() => {
-        setProfileSuccess(false);
-        setSavedOffline(false);
-        onClose();
-      }, wasOffline ? 1500 : 800);
+      setTimeout(
+        () => {
+          setProfileSuccess(false);
+          setSavedOffline(false);
+          onClose();
+        },
+        wasOffline ? 1500 : 800
+      );
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : 'Could not save changes');
     } finally {
@@ -432,13 +441,19 @@ export function SettingsPanel({
                       background: savedOffline ? 'rgba(59,130,246,0.1)' : 'rgba(34,197,94,0.1)',
                       border: `1px solid ${savedOffline ? 'rgba(59,130,246,0.2)' : 'rgba(34,197,94,0.2)'}`,
                       color: isDark
-                        ? savedOffline ? '#93c5fd' : '#86efac'
-                        : savedOffline ? '#1d4ed8' : '#15803d',
+                        ? savedOffline
+                          ? '#93c5fd'
+                          : '#86efac'
+                        : savedOffline
+                          ? '#1d4ed8'
+                          : '#15803d',
                       fontSize: '0.8125rem',
                       marginBottom: '0.75rem',
                     }}
                   >
-                    {savedOffline ? 'Saved offline — will sync when back online' : 'Profile updated!'}
+                    {savedOffline
+                      ? 'Saved offline — will sync when back online'
+                      : 'Profile updated!'}
                   </div>
                 )}
 
@@ -783,12 +798,15 @@ export function SettingsPanel({
                     <input
                       type="checkbox"
                       checked={prefs.notifications}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
                         setPrefs((p) => ({
                           ...p,
-                          notifications: e.target.checked,
-                        }))
-                      }
+                          notifications: enabled,
+                        }));
+                        // Sync to the server so due-date emails honour the toggle
+                        setEmailNotifications(email, enabled);
+                      }}
                     />
                     <span className="toggle-track" />
                   </label>
