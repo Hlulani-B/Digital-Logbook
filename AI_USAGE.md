@@ -42,6 +42,8 @@ The following frontend features were implemented with AI acting as a code-genera
   - Database backup/restore scripts (`npm run db:backup`, `npm run db:restore`) and versioned schema migrations (`npm run db:migrate`, `npm run db:bootstrap`)
   - OpenAPI 3.0 specification (`docs/openapi.yaml`) covering all four microservices, served as browsable Swagger UI at `/api-docs`
   - Mobile-responsive layouts for Calendar (week-strip on phones ≤480px), Kanban, Today, and Timeline views with dedicated phone breakpoints
+  - Due-date notification system: hourly pg_cron scan (`generate_due_notifications()`), per-entry due-soon (24h) and overdue email alerts via Brevo API, and an in-app bell feed with unread badge in the dashboard header
+  - Live password-requirements checklist on sign-up (length, uppercase, lowercase, number, explicit special-character set) with disabled submit until all rules pass
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)

@@ -101,6 +101,31 @@ export class Avatar {
 }
 
 /**
+ * Persists the user's email-notification preference. Mirrors the
+ * SettingsPanel "Email notifications" toggle so the due-date email
+ * sender (project-service) can honour it server-side.
+ */
+export class EmailNotifications {
+  async setEmailNotifications(email, enabled) {
+    try {
+      if (!pool) {
+        return { success: false, message: 'Database not connected' };
+      }
+
+      await pool.query(`UPDATE users SET email_notifications = $1 WHERE email = $2`, [
+        Boolean(enabled),
+        email,
+      ]);
+
+      return { success: true, message: 'Notification preference updated' };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: error.message };
+    }
+  }
+}
+
+/**
  * Aggregates read/delete operations for a user profile.
  */
 export class Profile {
