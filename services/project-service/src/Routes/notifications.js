@@ -14,7 +14,7 @@ try {
  * Notifications service endpoint (JWT-protected user functions).
  *
  * Input:
- *   function: 'get' | 'markRead' | 'markAllRead'
+ *   function: 'get' | 'history' | 'markRead' | 'markAllRead'
  *   values: { ... }
  */
 router.post('/notifications', async (req, res) => {
@@ -35,6 +35,12 @@ router.post('/notifications', async (req, res) => {
     switch (func) {
       case 'get': {
         const result = await notifications.getNotifications(userEmail);
+        return res.json(result);
+      }
+
+      case 'history': {
+        const { limit, offset } = values;
+        const result = await notifications.getHistory(userEmail, limit, offset);
         return res.json(result);
       }
 
