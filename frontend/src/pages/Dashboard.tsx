@@ -50,6 +50,7 @@ import {
   trackCreatedEntry,
   type RecentlyCreatedEntry,
 } from '@/lib/recentlyCreated';
+import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
 
 /** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -114,6 +115,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
+  // One-time guided-tour offer for new users (see lib/tour.ts)
+  const [showTourOffer, setShowTourOffer] = useState<boolean>(() => shouldOfferTour());
+
+  useEffect(() => {
+    if (showTourOffer) markTourOffered();
+  }, [showTourOffer]);
   const navigate = useNavigate();
 
   // Drawer state
@@ -1359,6 +1366,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* One-time guided-tour offer for new users */}
+        {showTourOffer && (
+          <div className="tour-offer" role="status">
+            <p className="tour-offer-text">
+              <strong>New here?</strong> Take the two-minute tour to learn your way around.
+            </p>
+            <div className="tour-offer-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setShowTourOffer(false);
+                  startAppTour();
+                }}
+              >
+                Start tour
+              </button>
+              <button
+                type="button"
+                className="tour-offer-dismiss"
+                onClick={() => setShowTourOffer(false)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* AI Greeting Toast */}
         {showGreetingToast && aiGreeting && (
           <div className="ai-toast animate-in">
@@ -1672,24 +1707,26 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </div>
 
             {/* Quick Entry Bar - Natural Language */}
-            <QuickEntryBar
-              onEntryCreated={(info) => {
-                loadData();
-                // Populate "Recently created" with every entry the backend
-                // actually created (single-match OR multi-match).
-                for (const item of info?.created ?? []) {
-                  trackCreatedEntry(item);
-                }
-                // Only navigate when there's exactly one clear target —
-                // for multi-match we intentionally stop here and let the
-                // "Recently created" section drive navigation.
-                if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
-                  navigate(`/project/${encodeURIComponent(info.projectName)}`);
-                }
-              }}
-              onVoiceOpen={() => setVoiceOpen(true)}
-              placeholder={aiPlaceholder}
-            />
+            <div data-tour="quick-entry">
+              <QuickEntryBar
+                onEntryCreated={(info) => {
+                  loadData();
+                  // Populate "Recently created" with every entry the backend
+                  // actually created (single-match OR multi-match).
+                  for (const item of info?.created ?? []) {
+                    trackCreatedEntry(item);
+                  }
+                  // Only navigate when there's exactly one clear target —
+                  // for multi-match we intentionally stop here and let the
+                  // "Recently created" section drive navigation.
+                  if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+                    navigate(`/project/${encodeURIComponent(info.projectName)}`);
+                  }
+                }}
+                onVoiceOpen={() => setVoiceOpen(true)}
+                placeholder={aiPlaceholder}
+              />
+            </div>
 
             {/* Recently Viewed Section */}
             {visibleRecentlyViewed.length > 0 && (
