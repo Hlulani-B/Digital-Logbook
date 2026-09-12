@@ -659,6 +659,32 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ---
 
+## Onboarding & Guidance
+
+### 36. Guided Tour with Live Navigation & Voice Narration
+
+**What it does:** An interactive walkthrough that shows new users around the real app. The tour opens the navigation drawer, visits every view (Home, Today, Kanban, Timeline, Calendar, My Stats, Import & Export), walks through creating a project, and points out the notification bell, profile menu, and quick-entry bar — with the spotlight following real UI elements. It really navigates: routes change and the drawer opens and closes as the tour describes them. A friendly voice narrates each stop aloud using the browser's built-in speech synthesis, and hands-free auto-advance moves the tour on when the narration finishes (or after a paced reading delay when muted), shown with a draining progress bar. A speaker toggle in the popover mutes or unmutes narration and the preference persists, hovering the popover pauses the countdown, and clicking Back hands control back to the user.
+
+**Why it was implemented:** Sprint 2 user feedback (survey problem 2, [issue #119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119)) found first-time users had no onboarding or in-app guidance. The setup pages and tooltips were only a partial mitigation; the tour closes the remaining gap with a guided, narrated walkthrough of the real UI. The intro _video_ request from testers remains tracked separately in [issue #126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126).
+
+**How it works:**
+
+- Built on [driver.js](https://driverjs.com/) (lightweight, zero-dependency) with a themed glassmorphism popover
+- Steps anchor to real elements via `data-tour` hooks in each view; navigation steps call the router and toggle the drawer so users see genuine transitions
+- Narration uses the Web Speech API (`speechSynthesis`) — the best available English voice is picked at runtime, nothing leaves the browser, and no API keys are needed
+- Auto-advance is paced by the utterance's `onend` event rather than a duration estimate, so narration is never cut off; a generous hard cap guards against a stuck speech engine
+- Step copy is de-duplicated so the voice never repeats the step title inside the description
+- The tour is offered automatically on first dashboard visit, replayable any time from the dashboard banner or the navbar, and completion plus the voice preference persist in `localStorage`
+
+**Key files:**
+
+- `frontend/src/lib/tour.ts` — Tour engine: step definitions, live navigation, speech-synthesis narration, and auto-advance pacing
+- `frontend/src/pages/Dashboard.tsx` — First-visit offer and "Take the tour" entry point
+- `frontend/src/components/NavBar.tsx` — Replay entry point
+- `frontend/src/index.css` — Tour popover, progress-bar, and voice-toggle styles
+
+---
+
 ## Summary
 
-The Digital Logbook implements 35 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, and developer experience (OpenAPI 3 spec, CI/CD pipeline). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 36 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), and onboarding (guided tour with voice narration). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.

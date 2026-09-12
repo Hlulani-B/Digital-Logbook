@@ -96,6 +96,7 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Backup, Restore & Migrations:** One-command `pg_dump`/`pg_restore` backup and restore, plus versioned schema migrations that upgrade an existing database without dropping and recreating it.
 - **OpenAPI 3 & Swagger UI:** Full REST API documented with an OpenAPI 3.0 specification covering all four microservices. Browsable interactive docs page at `/api-docs` on the project service with "Try it out" support.
 - **Mobile responsive:** Calendar auto-switches to week-strip layout on phones (≤480px). Kanban, Today, and Timeline views have dedicated phone breakpoints with reduced padding and touch-friendly sizing.
+- **Guided tour with voice narration:** First-time users are offered an interactive walkthrough that really navigates the app — it opens the drawer, visits every view, and spotlights the notification bell, profile menu, and quick-entry bar. A friendly voice narrates each stop via the browser's speech synthesis with hands-free auto-advance paced to the narration finishing, plus a persisted mute toggle. Replayable from the dashboard or navbar.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
