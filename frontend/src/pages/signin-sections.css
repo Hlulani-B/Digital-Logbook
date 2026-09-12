@@ -1,0 +1,233 @@
+/**
+ * Sign-in landing sections - About / About Us / Features below the split auth
+ * screen, plus the page footer. Themed via the app CSS custom properties
+ * (index.css :root + [data-theme=...] overrides); ss- prefix, SignIn page only.
+ */
+.ss-sec {
+  padding: 5rem 0 3rem;
+  scroll-margin-top: 1.5rem;
+}
+.ss-sec + .ss-sec {
+  border-top: 1px solid var(--border);
+}
+#ss-about-us {
+  background: var(--bg-subtle);
+}
+.ss-wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.ss-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+.ss-sec h2 {
+  font-size: clamp(28px, 3.6vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  margin: 0 0 0.875rem;
+  color: var(--text);
+}
+.ss-lead {
+  color: var(--text-secondary);
+  font-size: 16px;
+  max-width: 60ch;
+  margin: 0;
+}
+.ss-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ss-reveal.ss-in {
+  opacity: 1;
+  transform: none;
+}
+.ss-d1 {
+  transition-delay: 0.08s;
+}
+.ss-d2 {
+  transition-delay: 0.16s;
+}
+.ss-d3 {
+  transition-delay: 0.24s;
+}
+.ss-d4 {
+  transition-delay: 0.32s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+.ss-grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 42px;
+}
+.ss-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 26px 24px;
+  transition:
+    transform 0.3s,
+    box-shadow 0.3s,
+    border-color 0.3s;
+}
+.ss-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-card-hover);
+}
+.ss-ic {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  background: var(--text);
+  color: var(--bg);
+}
+.ss-ic svg {
+  width: 20px;
+  height: 20px;
+}
+.ss-card h3 {
+  font-size: 16.5px;
+  margin: 0 0 6px;
+  color: var(--text);
+}
+.ss-card p {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+.ss-team {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px 18px;
+  margin-top: 42px;
+}
+.ss-member {
+  text-align: center;
+}
+.ss-av {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 20px;
+  background: var(--text);
+  color: var(--bg);
+}
+.ss-member h3 {
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+}
+.ss-fgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 42px;
+}
+.ss-fcard {
+  position: relative;
+}
+.ss-fcard > svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.ss-fcard h3 {
+  font-size: 14.5px;
+}
+.ss-fcard p {
+  font-size: 12.5px;
+}
+.ss-nb {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--bg);
+  background: var(--text);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.ss-footer {
+  border-top: 1px solid var(--border);
+  padding: 34px 0 44px;
+  margin-top: 80px;
+}
+.ss-foot {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.ss-foot small {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.ss-foot-links {
+  margin-left: auto;
+  display: flex;
+  gap: 22px;
+}
+.ss-foot-links a {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.25s;
+}
+.ss-foot-links a:hover {
+  color: var(--text);
+}
+@media (max-width: 960px) {
+  .ss-grid3,
+  .ss-team {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ss-fgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .ss-grid3,
+  .ss-team,
+  .ss-fgrid {
+    grid-template-columns: 1fr;
+  }
+  .ss-sec {
+    padding: 3.5rem 0 2rem;
+  }
+}
