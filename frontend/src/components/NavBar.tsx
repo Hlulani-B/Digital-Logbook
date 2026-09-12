@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
+import { NotificationsBell } from '@/components/NotificationsBell';
 import { FiArchive } from 'react-icons/fi';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { colorForName } from '@/lib/projectColorMap';
@@ -14,7 +15,13 @@ interface NavBarProps {
   onNewProject?: () => void;
 }
 
-export function NavBar({ projects: projectsProp = [], entries: entriesProp = [], activeView = 'all', onArchiveProject, onNewProject }: NavBarProps) {
+export function NavBar({
+  projects: projectsProp = [],
+  entries: entriesProp = [],
+  activeView = 'all',
+  onArchiveProject,
+  onNewProject,
+}: NavBarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,10 +29,10 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Load projects and entries from IndexedDB directly (local-first)
-  const [projects, setProjects] = useState<Array<Record<string, unknown>>>(() => 
+  const [projects, setProjects] = useState<Array<Record<string, unknown>>>(() =>
     Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : []
   );
-  const [entries, setEntries] = useState<Array<Record<string, unknown>>>(() => 
+  const [entries, setEntries] = useState<Array<Record<string, unknown>>>(() =>
     Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : []
   );
 
@@ -62,11 +69,16 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
   }, [user?.email]);
 
   // Use props if provided, otherwise use IndexedDB data
-  const safeProjects = (Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : projects) as Array<Record<string, unknown>>;
-  const safeEntries = (Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : entries) as Array<Record<string, unknown>>;
+  const safeProjects = (
+    Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : projects
+  ) as Array<Record<string, unknown>>;
+  const safeEntries = (
+    Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : entries
+  ) as Array<Record<string, unknown>>;
 
   // Profile info from IndexedDB
-  const fallbackName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
+  const fallbackName =
+    user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
   const [profileData, setProfileData] = useState<{ preferredName: string; avatarUrl: string }>({
     preferredName: fallbackName,
     avatarUrl: user?.user_metadata?.avatar_url || '',
@@ -80,7 +92,8 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
         const cached = await cacheGet(CACHE_STORES.PROFILE, user.email!);
         if (cached?.data) {
           const profile = cached.data;
-          const preferredName = profile.username || profile.name || profile.display_name || user.email;
+          const preferredName =
+            profile.username || profile.name || profile.display_name || user.email;
           const avatarUrl = profile.avatar || user?.user_metadata?.avatar_url || '';
           setProfileData({ preferredName, avatarUrl });
         }
@@ -162,6 +175,7 @@ export function NavBar({ projects: projectsProp = [], entries: entriesProp = [],
           </div>
 
           <div className="nav-right-group">
+            <NotificationsBell email={user?.email || ''} />
             <div className="nav-user">
               <ProfileMenu
                 displayName={profileData.preferredName}

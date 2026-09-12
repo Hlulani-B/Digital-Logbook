@@ -32,15 +32,20 @@ export function SignIn() {
   // Live password requirements for sign-up — shown before submit so users
   // know what is expected instead of discovering it from an error popup.
   const passwordRequirements = [
-    { label: 'At least 6 characters', met: password.length >= 6 },
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { label: 'One lowercase letter (a-z)', met: /[a-z]/.test(password) },
+    { label: 'One number (0-9)', met: /[0-9]/.test(password) },
     {
-      label: 'Passwords match',
-      met: confirmPassword.length > 0 && password === confirmPassword,
-      pending: confirmPassword.length === 0,
+      label: 'One special character (!@#$%^&*()_+-=[]{}|;:,.<>?/~)',
+      met: /[!@#$%^&*()_+\-=[\]{}|;:,.<>?/~]/.test(password),
     },
   ];
+  // The match check lives under the confirm-password field, not in the rule
+  // list — it compares two fields, so it belongs with the second one.
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const signupRequirementsMet =
-    mode === 'signup' && password.length >= 6 && password === confirmPassword;
+    mode === 'signup' && passwordRequirements.every((r) => r.met) && passwordsMatch;
 
   // Restore-prompt state (for soft-deleted accounts signing back in)
   const [restoreEmail, setRestoreEmail] = useState<string | null>(
@@ -158,9 +163,16 @@ export function SignIn() {
       return;
     }
 
-    if (mode === 'signup' && password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    if (mode === 'signup') {
+      const unmet = passwordRequirements.find((r) => !r.met);
+      if (unmet) {
+        setError(`Password requirement not met: ${unmet.label}`);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
     }
 
     setEmailLoading(true);
@@ -411,7 +423,6 @@ export function SignIn() {
                     id="password"
                     type="password"
                     required
-                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="field-input"
@@ -441,13 +452,9 @@ export function SignIn() {
                               ? isDark
                                 ? '#4ade80'
                                 : '#16a34a'
-                              : 'pending' in req && req.pending
-                                ? isDark
-                                  ? 'rgba(255,255,255,0.4)'
-                                  : '#9ca3af'
-                                : isDark
-                                  ? '#f87171'
-                                  : '#dc2626',
+                              : isDark
+                                ? '#f87171'
+                                : '#dc2626',
                             transition: 'color 0.2s',
                           }}
                         >
@@ -489,13 +496,52 @@ export function SignIn() {
                       id="confirmPassword"
                       type="password"
                       required
-                      minLength={6}
+                      minLength={8}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="field-input"
                       placeholder="••••••••"
                       autoComplete="new-password"
                     />
+                    {confirmPassword.length > 0 && (
+                      <p
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.375rem',
+                          margin: '0.5rem 0 0',
+                          fontSize: '0.75rem',
+                          color: passwordsMatch
+                            ? isDark
+                              ? '#4ade80'
+                              : '#16a34a'
+                            : isDark
+                              ? '#f87171'
+                              : '#dc2626',
+                          transition: 'color 0.2s',
+                        }}
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                        >
+                          {passwordsMatch ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          )}
+                        </svg>
+                        {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
+                      </p>
+                    )}
                   </div>
                 )}
 

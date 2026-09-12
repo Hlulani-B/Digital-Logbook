@@ -2,12 +2,12 @@
 
 ## Student Details
 
-| Field              | Value                                     |
-| ------------------ | ----------------------------------------- |
-| **Name**           | Nasiphi Ntontela                          |
-| **Student Number** | 2673619                                   |
-| **Project**        | Codacaine — Digital Logbook               |
-| **Date**           | 13 August 2026 (updated 3 September 2026) |
+| Field              | Value                                                                |
+| ------------------ | -------------------------------------------------------------------- |
+| **Name**           | Nasiphi Ntontela                                                     |
+| **Student Number** | 2673619                                                              |
+| **Project**        | Codacaine — Digital Logbook                                          |
+| **Date**           | 13 August 2026 (updated 3 September 2026, updated 12 September 2026) |
 
 ---
 
@@ -109,6 +109,9 @@ The AI generated the following code based on my instructions:
 | `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |
 | `supabase/setup.sql`                                        | SQL for delete_user/restore_user/purge_deleted_users RPC functions                   | AI generated                          |
 | `supabase/migrations/004_account_deletion_grace_period.sql` | Migration for 30-day deletion grace period                                           | AI generated                          |
+| `supabase/migrations/011_create_notifications.sql`          | Notifications table, email preference column, due-date generator RPC + hourly cron   | AI generated from my requirements     |
+| `src/components/NotificationsBell.tsx`                      | In-app notification bell with unread badge and dropdown feed                         | AI generated from my requirements     |
+| `src/functions/project/notifications.js`                    | Client wrappers for the notification feed endpoints                                  | AI generated                          |
 | `.env.example`                                              | Environment variable template                                                        | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)

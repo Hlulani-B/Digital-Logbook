@@ -16,6 +16,7 @@ import archiveRoutes from './Routes/archive.js';
 import activityRoutes from './Routes/activity.js';
 import aiRoutes from './Routes/ai.js';
 import notesRoutes from './Routes/notes.js';
+import notificationRoutes, { sendPendingHandler } from './Routes/notifications.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -75,6 +76,10 @@ try {
 app.get('/', (req, res) => {
   res.json({ service: 'project-service', status: 'healthy' });
 });
+// Public notification-email trigger — called by the hourly pg_cron/pg_net poke
+// (migration 011), which carries no user JWT. Idempotent: already-emailed
+// rows are no-ops. Mounted BEFORE requireAuth for that reason.
+app.post('/service/notifications/sendPending', sendPendingHandler);
 // All /service routes require a valid JWT.
 // The verified user's email is attached to req.userEmail by requireAuth.
 app.use('/service', requireAuth, projectRoutes);
@@ -85,6 +90,7 @@ app.use('/service', requireAuth, archiveRoutes);
 app.use('/service', requireAuth, activityRoutes);
 app.use('/service', requireAuth, aiRoutes);
 app.use('/service', requireAuth, notesRoutes);
+app.use('/service', requireAuth, notificationRoutes);
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
