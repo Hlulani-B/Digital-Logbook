@@ -36,14 +36,16 @@ export function SignIn() {
     { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
     { label: 'One lowercase letter (a-z)', met: /[a-z]/.test(password) },
     { label: 'One number (0-9)', met: /[0-9]/.test(password) },
-    { label: 'One special character (!@#$...)', met: /[^A-Za-z0-9]/.test(password) },
     {
-      label: 'Passwords match',
-      met: confirmPassword.length > 0 && password === confirmPassword,
-      pending: confirmPassword.length === 0,
+      label: 'One special character (!@#$%^&*()_+-=[]{}|;:,.<>?/~)',
+      met: /[!@#$%^&*()_+\-=[\]{}|;:,.<>?/~]/.test(password),
     },
   ];
-  const signupRequirementsMet = mode === 'signup' && passwordRequirements.every((r) => r.met);
+  // The match check lives under the confirm-password field, not in the rule
+  // list — it compares two fields, so it belongs with the second one.
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const signupRequirementsMet =
+    mode === 'signup' && passwordRequirements.every((r) => r.met) && passwordsMatch;
 
   // Restore-prompt state (for soft-deleted accounts signing back in)
   const [restoreEmail, setRestoreEmail] = useState<string | null>(
@@ -165,6 +167,10 @@ export function SignIn() {
       const unmet = passwordRequirements.find((r) => !r.met);
       if (unmet) {
         setError(`Password requirement not met: ${unmet.label}`);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
         return;
       }
     }
@@ -446,13 +452,9 @@ export function SignIn() {
                               ? isDark
                                 ? '#4ade80'
                                 : '#16a34a'
-                              : 'pending' in req && req.pending
-                                ? isDark
-                                  ? 'rgba(255,255,255,0.4)'
-                                  : '#9ca3af'
-                                : isDark
-                                  ? '#f87171'
-                                  : '#dc2626',
+                              : isDark
+                                ? '#f87171'
+                                : '#dc2626',
                             transition: 'color 0.2s',
                           }}
                         >
@@ -501,6 +503,45 @@ export function SignIn() {
                       placeholder="••••••••"
                       autoComplete="new-password"
                     />
+                    {confirmPassword.length > 0 && (
+                      <p
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.375rem',
+                          margin: '0.5rem 0 0',
+                          fontSize: '0.75rem',
+                          color: passwordsMatch
+                            ? isDark
+                              ? '#4ade80'
+                              : '#16a34a'
+                            : isDark
+                              ? '#f87171'
+                              : '#dc2626',
+                          transition: 'color 0.2s',
+                        }}
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                        >
+                          {passwordsMatch ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          )}
+                        </svg>
+                        {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
+                      </p>
+                    )}
                   </div>
                 )}
 
