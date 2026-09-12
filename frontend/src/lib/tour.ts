@@ -52,20 +52,6 @@ function markTourCompleted(): void {
 const openDrawer = () => window.dispatchEvent(new CustomEvent('dl-tour-open-drawer'));
 const closeDrawer = () => window.dispatchEvent(new CustomEvent('dl-tour-close-drawer'));
 
-/**
- * Dashed image placeholder rendered inside a step's description. Swap the
- * inner HTML of .tour-img-slot for an <img> (or set a step's description to
- * include one) when real screenshots are ready.
- */
-function imgSlot(hint: string): string {
-  return [
-    '<div class="tour-img-slot">',
-    '<span class="tour-img-slot-badge">Image placeholder</span>',
-    `<span class="tour-img-slot-hint">${hint}</span>`,
-    '</div>',
-  ].join('');
-}
-
 /** A step anchored inside the navigation drawer. */
 function drawerStep(selector: string, title: string, description: string): DriveStep {
   return {
@@ -80,21 +66,20 @@ function drawerStep(selector: string, title: string, description: string): Drive
 function buildSteps(): DriveStep[] {
   const steps: DriveStep[] = [
     {
-      // Centered intro step — no element.
+      // Welcome stop, anchored to the hamburger so the very first step already
+      // shows the style used throughout: the arrow points at whatever is being
+      // described and the spotlight puts it in focus.
+      element: '[data-tour="menu"]',
       popover: {
         title: 'Welcome to your Digital Logbook',
         description:
-          'A two-minute tour of the essentials — where everything lives and what each part does. ' +
-          'Move at your own pace; you can close this anytime and replay it from the Guide button in the top bar.' +
-          imgSlot('A wide screenshot of the dashboard (light theme)'),
+          'A two-minute tour of the essentials. Every stop highlights the part of the app it describes, ' +
+          'starting with this menu — it is already open. Move at your own pace; you can close this anytime ' +
+          'and replay it from the Guide button in the top bar.',
+        side: 'bottom',
+        align: 'start',
       },
     },
-    drawerStep(
-      '[data-tour="menu"]',
-      'Your way around',
-      'Everything in the app lives behind this menu — your views, projects, and data tools. ' +
-        'It is already open, so let us look at each stop.'
-    ),
     drawerStep(
       '[data-tour="drawer-home"]',
       'Home',
@@ -187,12 +172,14 @@ function buildSteps(): DriveStep[] {
   }
 
   steps.push({
+    element: '[data-tour="nav-guide"]',
     popover: {
       title: 'You are all set',
       description:
-        'That is the whole app. If you ever want a refresher, press the Guide button in the top bar. ' +
-        'Now go log something.' +
-        imgSlot('Optional: a highlighted entry card'),
+        'That is the whole app. If you ever want a refresher, press this Guide button — ' +
+        'the tour will point out each feature again. Now go log something.',
+      side: 'bottom',
+      align: 'end',
     },
   });
 
