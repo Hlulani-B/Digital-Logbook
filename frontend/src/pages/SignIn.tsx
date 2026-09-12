@@ -5,6 +5,7 @@ import { checkUser } from '../functions/profile/login.js';
 import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '@/lib/supabase';
 import { validateEmailForAuth, suggestEmailCorrection } from '@/lib/validation';
+import { useTheme } from '@/hooks/useTheme';
 
 type Provider = 'google' | 'github';
 
@@ -26,6 +27,20 @@ export function SignIn() {
   const [success, setSuccess] = useState<string | null>(null);
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
+  const { isDark } = useTheme();
+
+  // Live password requirements for sign-up — shown before submit so users
+  // know what is expected instead of discovering it from an error popup.
+  const passwordRequirements = [
+    { label: 'At least 6 characters', met: password.length >= 6 },
+    {
+      label: 'Passwords match',
+      met: confirmPassword.length > 0 && password === confirmPassword,
+      pending: confirmPassword.length === 0,
+    },
+  ];
+  const signupRequirementsMet =
+    mode === 'signup' && password.length >= 6 && password === confirmPassword;
 
   // Restore-prompt state (for soft-deleted accounts signing back in)
   const [restoreEmail, setRestoreEmail] = useState<string | null>(
@@ -403,8 +418,65 @@ export function SignIn() {
                     placeholder="••••••••"
                     autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                   />
-                  {mode === 'signup' && (
-                    <p className="field-hint">Password must be at least 6 characters.</p>
+                  {mode === 'signup' && password.length > 0 && (
+                    <ul
+                      style={{
+                        listStyle: 'none',
+                        margin: '0.5rem 0 0',
+                        padding: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      {passwordRequirements.map((req) => (
+                        <li
+                          key={req.label}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            fontSize: '0.75rem',
+                            color: req.met
+                              ? isDark
+                                ? '#4ade80'
+                                : '#16a34a'
+                              : 'pending' in req && req.pending
+                                ? isDark
+                                  ? 'rgba(255,255,255,0.4)'
+                                  : '#9ca3af'
+                                : isDark
+                                  ? '#f87171'
+                                  : '#dc2626',
+                            transition: 'color 0.2s',
+                          }}
+                        >
+                          <svg
+                            width="12"
+                            height="12"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
+                            {req.met ? (
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M5 13l4 4L19 7"
+                              />
+                            ) : (
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            )}
+                          </svg>
+                          {req.label}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
 
@@ -427,7 +499,11 @@ export function SignIn() {
                   </div>
                 )}
 
-                <button type="submit" disabled={emailLoading} className="btn-primary auth-submit">
+                <button
+                  type="submit"
+                  disabled={emailLoading || (mode === 'signup' && !signupRequirementsMet)}
+                  className="btn-primary auth-submit"
+                >
                   {emailLoading
                     ? mode === 'signin'
                       ? 'Signing in...'
