@@ -6,20 +6,31 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 /**
  * Fetch user profile.
- * Writes to IndexedDB (triggers subscription), returns result for compatibility.
+ * Local-first: returns cached data immediately (instant UI), refreshes from server in background.
  */
 export async function getProfile(email) {
-  // Offline: serve from cache immediately
-  if (!navigator.onLine) {
-    const cached = await cacheGet(CACHE_STORES.PROFILE, email);
-    if (cached) {
-      console.log('[getProfile] Offline — serving from cache');
-      return cached;
+  const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+
+  // 1. Return cached data first (instant) if available
+  if (cached?.data || cached?.profile || cached?.success) {
+    if (navigator.onLine) {
+      // Refresh in background — don't block the caller
+      _refreshProfileFromServer(email).catch(() => {});
     }
+    return { ...cached, _fromCache: true };
+  }
+
+  // 2. No cache — must go to server
+  if (!navigator.onLine) {
     console.log('[getProfile] Offline and no cache');
     return { success: false, offline: true };
   }
 
+  return _fetchProfileFromServer(email);
+}
+
+/** Internal: fetch profile from server and write to cache */
+async function _fetchProfileFromServer(email) {
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -40,6 +51,11 @@ export async function getProfile(email) {
     }
     return { success: false };
   }
+}
+
+/** Internal: background refresh of profile from server */
+async function _refreshProfileFromServer(email) {
+  await _fetchProfileFromServer(email);
 }
 
 // ── POST/PUT functions — optimistic IndexedDB first ──────────

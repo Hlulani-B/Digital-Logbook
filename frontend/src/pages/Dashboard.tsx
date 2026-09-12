@@ -12,7 +12,6 @@ import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
@@ -608,29 +607,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
-  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  // Load avatar and username from IndexedDB cache (populated by syncAllData on login)
   useEffect(() => {
     if (!email) return;
-    let cancelled = false;
-    (async () => {
+    const loadProfile = async () => {
       try {
-        const result = await getProfile(email);
-        const profileData = result?.data || result;
+        const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+        const profileData = cached?.data || cached?.profile || cached;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
         const username = (profileData as Record<string, unknown>)?.username as string;
-        if (!cancelled) {
-          if (avatar) {
-            setProfileAvatar(avatar);
-          }
-          if (username) {
-            setProfileUsername(username);
-          }
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
+        if (avatar) setProfileAvatar(avatar);
+        if (username) setProfileUsername(username);
+      } catch (err) {
+        console.error('[Dashboard] Failed to load profile from cache:', err);
+      }
     };
+    loadProfile();
+    // Re-read when syncAllData or mutations write the profile to IndexedDB
+    const unsub = cacheSubscribe(CACHE_STORES.PROFILE, email, () => loadProfile());
+    return () => unsub();
   }, [email]);
 
   const handleLogout = async () => {
