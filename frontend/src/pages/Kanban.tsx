@@ -133,7 +133,9 @@ function KanbanColumn({
             entry={entry}
             onDragStart={() => onDragStart(entry)}
             onClick={() => onEntryClick(entry)}
-            projectColor={colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined}
+            projectColor={
+              colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined
+            }
           />
         ))}
       </div>
@@ -236,7 +238,10 @@ export function KanbanPage() {
   );
 
   const groupedEntries = useMemo(() => groupEntriesByStatus(filteredEntries), [filteredEntries]);
-  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
+  const colorMap = useMemo(
+    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
+    [projects]
+  );
 
   const handleDragStart = (entry: CalendarEntry) => {
     setDragging(entry);
@@ -293,7 +298,7 @@ export function KanbanPage() {
         activeView="all"
       />
       <main className="dash-main">
-        <div className="kanban-page">
+        <div className="kanban-page" data-tour="page-kanban">
           <Header
             title="Kanban Board"
             entries={entries as unknown as Array<Record<string, unknown>>}
@@ -353,40 +358,40 @@ export function KanbanPage() {
             </div>
           )}
 
-      {loading ? (
-        <div className="kanban-loading">
-          <span className="kanban-spinner" />
-          Loading board…
-        </div>
-      ) : filteredEntries.length === 0 ? (
-        <div className="kanban-empty">
-          <p>No items match the current filter.</p>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              setProjectFilter('');
-              setSearchQuery('');
-            }}
-          >
-            Clear filters
-          </button>
-        </div>
-      ) : (
-        <div className="kanban-board">
-          {STATUS_ORDER.map((status) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              entries={groupedEntries[status]}
-              dragging={dragging}
-              onDragStart={handleDragStart}
-              onDrop={handleDrop}
-              onEntryClick={handleEntryClick}
-              colorMap={colorMap}
-            />
-          ))}
-        </div>
-      )}
+          {loading ? (
+            <div className="kanban-loading">
+              <span className="kanban-spinner" />
+              Loading board…
+            </div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="kanban-empty">
+              <p>No items match the current filter.</p>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setProjectFilter('');
+                  setSearchQuery('');
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="kanban-board">
+              {STATUS_ORDER.map((status) => (
+                <KanbanColumn
+                  key={status}
+                  status={status}
+                  entries={groupedEntries[status]}
+                  dragging={dragging}
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                  onEntryClick={handleEntryClick}
+                  colorMap={colorMap}
+                />
+              ))}
+            </div>
+          )}
 
           {updatingId && (
             <div className="kanban-toast" aria-live="polite">
