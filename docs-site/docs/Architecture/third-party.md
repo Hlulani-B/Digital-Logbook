@@ -128,15 +128,18 @@ The VoiceFeature component is a full-screen modal that auto-starts recording on 
 `BrowserRouter` wraps the entire app in `frontend/src/App.tsx`. The route tree has two categories:
 
 **Public routes** (wrapped in `PublicRoute` — redirects to `/dashboard` if already logged in):
+
 - `/` and `/signin` → `SignIn.tsx`
 - `/reset-password` → `ResetPassword.tsx`
 - `/auth/update-password` → `UpdatePassword.tsx`
 
 **Auth callback routes** (no wrapper — handle OAuth redirects):
+
 - `/auth/callback` → `AuthCallback.tsx` (exchanges code for session)
 - `/auth/restore` → `AuthRestore.tsx` (restores soft-deleted account)
 
 **Protected routes** (wrapped in `ProtectedRoute` — redirects to `/signin` if not logged in):
+
 - `/dashboard` → `Dashboard.tsx`
 - `/dashboard/all` and `/entries` → `AllEntriesPage.tsx`
 - `/dashboard/archives` → `ArchivesPage.tsx`
@@ -409,6 +412,7 @@ The parser also handles relative phrases like "2 days from now", "in 3 weeks", a
 **How it is used:**
 
 Every service imports `dotenv` at the top of its entry point:
+
 - `services/project-service/src/index.js` — `import './config.js'` which calls `import 'dotenv/config'`
 - `services/dashboard-service/src/index.js` — same pattern
 - `services/profile-service/src/index.js` — same pattern
@@ -429,26 +433,30 @@ The `.env` files (never committed) contain: `DATABASE_URL`, `SUPABASE_URL`, `SUP
 Every service creates an Express app in `src/index.js` and mounts routes:
 
 **project-service** (port 5003) — the largest service, mounts 7 route modules:
+
 ```javascript
-app.use('/service', requireAuth, projectRoutes);   // CRUD for projects
-app.use('/service', requireAuth, entryRoutes);      // CRUD for entries + natural language
-app.use('/service', requireAuth, priorityRoutes);   // priority updates
-app.use('/service', requireAuth, fieldRoutes);      // custom field definitions
-app.use('/service', requireAuth, archiveRoutes);    // archive/unarchive
-app.use('/service', requireAuth, activityRoutes);   // activity log
-app.use('/service', requireAuth, aiRoutes);         // AI summary generation
+app.use('/service', requireAuth, projectRoutes); // CRUD for projects
+app.use('/service', requireAuth, entryRoutes); // CRUD for entries + natural language
+app.use('/service', requireAuth, priorityRoutes); // priority updates
+app.use('/service', requireAuth, fieldRoutes); // custom field definitions
+app.use('/service', requireAuth, archiveRoutes); // archive/unarchive
+app.use('/service', requireAuth, activityRoutes); // activity log
+app.use('/service', requireAuth, aiRoutes); // AI summary generation
 ```
+
 All `/service` routes require JWT authentication via `requireAuth` middleware. The `/api-docs` route serves Swagger UI. The `/` route returns a health check JSON.
 
 **dashboard-service** (port 5002) — mounts search routes and starts the keep-alive daemon:
+
 ```javascript
 app.use('/service', requireAuth, searchRoutes);
 ```
 
 **profile-service** (port 5004) — mounts login and profile routes:
+
 ```javascript
-app.use('/service', loginRoutes);    // checkUser, createProfile
-app.use('/service', profileRoutes);  // getProfile, updateUsername, updateAvatar
+app.use('/service', loginRoutes); // checkUser, createProfile
+app.use('/service', profileRoutes); // getProfile, updateUsername, updateAvatar
 ```
 
 **auth-service** (port 5001) — the simplest service, no database connection, just health check and error handler.
@@ -486,10 +494,9 @@ The same middleware pattern is duplicated in `dashboard-service/src/middleware/a
 Imported in `services/project-service/src/index.js` as `import * as yaml from 'js-yaml'` (namespace import for ESM compatibility with the CJS module). At startup, it reads and parses the OpenAPI spec:
 
 ```javascript
-const openApiSpec = yaml.load(
-  readFileSync(join(__dirname, '..', 'docs', 'openapi.yaml'), 'utf8'),
-  { schema: yaml.DEFAULT_SCHEMA }
-);
+const openApiSpec = yaml.load(readFileSync(join(__dirname, '..', 'docs', 'openapi.yaml'), 'utf8'), {
+  schema: yaml.DEFAULT_SCHEMA,
+});
 ```
 
 The parsed spec object is then passed to `swaggerUi.setup(openApiSpec)` which renders the interactive API documentation at `/api-docs`. The `DEFAULT_SCHEMA` option enables YAML tags like `!!seq` and `!!map` that the OpenAPI spec uses.
@@ -559,6 +566,7 @@ pool.query('SELECT 1').then(() => console.log('PostgreSQL pool connected success
 ```
 
 The pool is used in every function that executes SQL:
+
 - **project-service** — `entries.js` (INSERT/UPDATE/DELETE entries), `project.js` (CRUD projects), `field.js` (CRUD fields), `archives.js` (archive/unarchive with transactions), `activity.js` (INSERT activity_log), `search.js` (full-text search), `AI.js` (cooldown tracking)
 - **dashboard-service** — `search.js` (searchAll, searchProject, searchProjects), `daemon.js` (INSERT/DELETE health_ping)
 - **profile-service** — `login.js` (checkUser, provisionUser), `profile.js` (getProfile, updateUsername, updateAvatar, deleteAccount)
@@ -578,10 +586,14 @@ All queries use parameterized statements (`$1`, `$2`) to prevent SQL injection. 
 Imported in `services/project-service/src/index.js` as `swaggerUi`. Mounted at `/api-docs`:
 
 ```javascript
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
-  customSiteTitle: 'Codacaine API Docs',
-  swaggerOptions: { persistAuthorization: true },
-}));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    customSiteTitle: 'Codacaine API Docs',
+    swaggerOptions: { persistAuthorization: true },
+  })
+);
 ```
 
 The `persistAuthorization: true` option keeps the JWT token in the UI between page reloads, so developers do not have to re-paste their token every time they refresh. The `openApiSpec` object is parsed from `docs/openapi.yaml` by `js-yaml` at startup.
@@ -592,12 +604,12 @@ The `persistAuthorization: true` option keeps the JWT token in the UI between pa
 
 These packages appear in multiple services with the same versions:
 
-| Package | Version | Services | Purpose |
-| --- | --- | --- | --- |
-| `cors` | `^2.8.6` | All 4 | Cross-origin request handling with per-origin allowlist |
-| `dotenv` | `^17.4.2` | All 4 | Environment variable loading from `.env` files |
-| `express` | `^5.2.1` | All 4 | HTTP framework for REST APIs |
-| `pg` | `^8.16.3` | project, dashboard, profile | PostgreSQL connection pool and query execution |
+| Package   | Version   | Services                    | Purpose                                                 |
+| --------- | --------- | --------------------------- | ------------------------------------------------------- |
+| `cors`    | `^2.8.6`  | All 4                       | Cross-origin request handling with per-origin allowlist |
+| `dotenv`  | `^17.4.2` | All 4                       | Environment variable loading from `.env` files          |
+| `express` | `^5.2.1`  | All 4                       | HTTP framework for REST APIs                            |
+| `pg`      | `^8.16.3` | project, dashboard, profile | PostgreSQL connection pool and query execution          |
 
 ---
 
@@ -612,6 +624,7 @@ These packages appear in multiple services with the same versions:
 **How it is used:**
 
 Each service has a `babel.config.js` (or inline Jest config in `package.json`) that specifies:
+
 ```javascript
 transform: { '^.+\\.js$': 'babel-jest' }
 ```
@@ -624,11 +637,11 @@ transform: { '^.+\\.js$': 'babel-jest' }
 
 **What:** Generates SVG coverage badge images from Jest's `coverage-summary.json`.
 
-**Why chosen:** Reads the JSON coverage output and produces a colored badge (green/yellow/red) that is auto-committed to the repository after each CI run. Visible in the README, motivating the team to maintain coverage above thresholds. The `[skip ci]` commit message prevents infinite CI loops.
+**Why chosen:** Reads the JSON coverage output and produces a colored badge (green/yellow/red). Visible in the README, motivating the team to maintain coverage above thresholds.
 
 **How it is used:**
 
-Invoked in the CI workflow after `jest --coverage` completes. The tool reads `coverage/coverage-summary.json` (produced by Jest's `json-summary` reporter) and generates SVG badge files. These badges are committed to the repository with `[skip ci]` to avoid triggering another CI run. The badges display statement, branch, function, and line coverage percentages.
+Invoked via `node scripts/generate-badges.js` from the repo root after running `jest --coverage` in each service. The script reads `coverage/coverage-summary.json` (produced by Jest's `json-summary` reporter) and generates SVG badge files in `badges/<service>/`. The badges display statement, branch, function, and line coverage percentages.
 
 ---
 
@@ -678,9 +691,7 @@ import request from 'supertest';
 import app from '../index.js';
 
 it('allows requests from the frontend origin', async () => {
-  const res = await request(app)
-    .get('/')
-    .set('Origin', 'http://localhost:5173');
+  const res = await request(app).get('/').set('Origin', 'http://localhost:5173');
   expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
 });
 ```
@@ -712,6 +723,7 @@ Supertest mounts the Express app in-memory (no `listen()` call), sends HTTP requ
 **How it is used:**
 
 Configured in `docs-site/mkdocs.yml`:
+
 ```yaml
 theme:
   name: material

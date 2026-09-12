@@ -16,14 +16,15 @@ This page documents three pillars of our quality assurance strategy:
 
 ### Testing Tools and Frameworks
 
-| Layer               | Tool                          | Purpose                                                   |
-| ------------------- | ----------------------------- | --------------------------------------------------------- |
-| Test runner         | **Vitest**                    | Unit and integration tests for frontend and backend       |
-| Component rendering | **@testing-library/react**    | Render React components, simulate user interactions       |
-| DOM assertions      | **@testing-library/jest-dom** | Semantic assertions (`toBeDisabled`, `toHaveTextContent`) |
-| IndexedDB polyfill  | **fake-indexeddb**            | Integration tests that exercise the real cache layer      |
-| Backend HTTP tests  | **Vitest + supertest**        | Endpoint tests for each microservice                      |
-| CI pipeline         | **Gitea Actions**             | Automated test runs on every push and PR                  |
+| Layer                | Tool                          | Purpose                                                   |
+| -------------------- | ----------------------------- | --------------------------------------------------------- |
+| Frontend test runner | **Vitest**                    | Unit and integration tests for frontend                   |
+| Backend test runner  | **Jest**                      | Unit and integration tests for backend services           |
+| Component rendering  | **@testing-library/react**    | Render React components, simulate user interactions       |
+| DOM assertions       | **@testing-library/jest-dom** | Semantic assertions (`toBeDisabled`, `toHaveTextContent`) |
+| IndexedDB polyfill   | **fake-indexeddb**            | Integration tests that exercise the real cache layer      |
+| Backend HTTP tests   | **Jest + supertest**          | Endpoint tests for each microservice                      |
+| CI pipeline          | **Gitea Actions**             | Automated test runs on every push and PR                  |
 
 ### What Types of Tests Are Run
 
@@ -132,24 +133,34 @@ npx vitest run src/components/__tests__/NavBar.test.tsx
 
 #### In CI (Gitea Actions)
 
-The CI pipeline at `.gitea/workflows/test.yml` runs on every push and pull request to `main`. It has two separate jobs:
+Multiple CI pipelines run on every push and pull request to `main`:
 
-| Job                            | What it runs                            |
-| ------------------------------ | --------------------------------------- |
-| **Frontend Unit Tests**        | All tests except `src/__integration__/` |
-| **Frontend Integration Tests** | Only `src/__integration__/`             |
+| Workflow                                                                                                         | What it runs                                                    |
+| ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`.gitea/workflows/ci.yml`](../../../../.gitea/workflows/ci.yml)                                                 | Lint, build, and tests for frontend and all four services       |
+| [`.gitea/workflows/frontend-unit-tests.yml`](../../../../.gitea/workflows/frontend-unit-tests.yml)               | Frontend unit tests (excludes `src/__integration__/`)           |
+| [`.gitea/workflows/frontend-integration-tests.yml`](../../../../.gitea/workflows/frontend-integration-tests.yml) | Frontend integration tests (`src/__integration__/` only)        |
+| [`.gitea/workflows/backend-unit-tests.yml`](../../../../.gitea/workflows/backend-unit-tests.yml)                 | Backend unit tests (excludes integration) for all four services |
+| [`.gitea/workflows/backend-integration-tests.yml`](../../../../.gitea/workflows/backend-integration-tests.yml)   | Backend integration tests for all four services                 |
 
 ```yaml
+# Frontend unit tests
 jobs:
   frontend-unit-tests:
     steps:
       - run: npx vitest run --exclude "src/__integration__/**"
-  frontend-integration-tests:
+
+# Backend unit tests (matrix over all four services)
+jobs:
+  backend-unit-tests:
+    strategy:
+      matrix:
+        service: [auth-service, dashboard-service, profile-service, project-service]
     steps:
-      - run: npx vitest run src/__integration__/
+      - run: npx jest --testPathIgnorePatterns="integration" --forceExit --detectOpenHandles
 ```
 
-Both jobs appear separately in the Gitea Actions UI. If any test fails, the pipeline fails and the push is flagged.
+Each workflow appears separately in the Gitea Actions UI. If any test fails, the pipeline fails and the push is flagged.
 
 ### Mocking Approach
 
@@ -259,27 +270,35 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 | `__integration__/auth-cache.integration.test.js`       | Sign-out clears cache, SSE disconnect, delete account flow, user isolation                   | 4       |
 | `__integration__/use-cached-data.integration.test.tsx` | Hook reads cache immediately, background fetch, reactive updates, convenience hooks          | 8       |
 
-### Backend Tests (17 files)
+### Backend Tests (25 files)
 
-| Service           | Test file                                | What it covers                                       |
-| ----------------- | ---------------------------------------- | ---------------------------------------------------- |
-| auth-service      | `src/__tests__/index.test.js`            | Health endpoint, Supabase auth integration           |
-| dashboard-service | `src/__tests__/daemon.test.js`           | Health ping daemon (table creation, insert, consume) |
-| dashboard-service | `src/__tests__/healthPing.test.js`       | `/service/health-ping` endpoint                      |
-| dashboard-service | `src/__tests__/search.test.js`           | Search endpoint                                      |
-| profile-service   | `src/__tests__/login.test.js`            | User login/check endpoint                            |
-| profile-service   | `src/__tests__/profile.test.js`          | Profile CRUD                                         |
-| project-service   | `src/__tests__/entries.test.js`          | Entry CRUD endpoints                                 |
-| project-service   | `src/__tests__/project.test.js`          | Project CRUD endpoints                               |
-| project-service   | `src/__tests__/field.test.js`            | Custom field management                              |
-| project-service   | `src/__tests__/archives.test.js`         | Archive/unarchive endpoints                          |
-| project-service   | `src/__tests__/priority.test.js`         | Priority update endpoint                             |
-| project-service   | `src/__tests__/activityLog.test.js`      | Activity log endpoints                               |
-| project-service   | `src/__tests__/getDate.test.js`          | Date formatting utility                              |
-| project-service   | `src/__tests__/natural_language.test.js` | NL parsing                                           |
-| project-service   | `src/__tests__/openapi.test.js`          | OpenAPI spec validation                              |
-| project-service   | `src/__tests__/sse.integration.test.js`  | SSE connection and event broadcasting                |
-| project-service   | `src/__tests__/sseRegistry.test.js`      | SSE client registry                                  |
+| Service           | Test file                                            | What it covers                                       |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| auth-service      | `src/__tests__/index.test.js`                        | Health endpoint, Supabase auth integration           |
+| auth-service      | `src/__tests__/cors.integration.test.js`             | CORS middleware integration                          |
+| dashboard-service | `src/__tests__/daemon.test.js`                       | Health ping daemon (table creation, insert, consume) |
+| dashboard-service | `src/__tests__/healthPing.test.js`                   | `/service/health-ping` endpoint                      |
+| dashboard-service | `src/__tests__/search.test.js`                       | Search endpoint                                      |
+| dashboard-service | `src/__tests__/search.integration.test.js`           | Search integration with database                     |
+| profile-service   | `src/__tests__/login.test.js`                        | User login/check endpoint                            |
+| profile-service   | `src/__tests__/profile.test.js`                      | Profile CRUD                                         |
+| profile-service   | `src/__tests__/user-lifecycle.integration.test.js`   | User lifecycle integration                           |
+| project-service   | `src/__tests__/entries.test.js`                      | Entry CRUD endpoints                                 |
+| project-service   | `src/__tests__/project.test.js`                      | Project CRUD endpoints                               |
+| project-service   | `src/__tests__/field.test.js`                        | Custom field management                              |
+| project-service   | `src/__tests__/archives.test.js`                     | Archive/unarchive endpoints                          |
+| project-service   | `src/__tests__/priority.test.js`                     | Priority update endpoint                             |
+| project-service   | `src/__tests__/activityLog.test.js`                  | Activity log endpoints                               |
+| project-service   | `src/__tests__/getDate.test.js`                      | Date formatting utility                              |
+| project-service   | `src/__tests__/natural_language.test.js`             | NL parsing                                           |
+| project-service   | `src/__tests__/openapi.test.js`                      | OpenAPI spec validation                              |
+| project-service   | `src/__tests__/sse.integration.test.js`              | SSE connection and event broadcasting                |
+| project-service   | `src/__tests__/sseRegistry.test.js`                  | SSE client registry                                  |
+| project-service   | `src/__tests__/compressor.test.js`                   | Entry compression utility                            |
+| project-service   | `src/__tests__/entries-activity.integration.test.js` | Entry activity integration                           |
+| project-service   | `src/__tests__/notes_crud.test.js`                   | Notes CRUD endpoints                                 |
+| project-service   | `src/__tests__/notifications.test.js`                | Notification endpoints                               |
+| project-service   | `src/__tests__/store.test.js`                        | Store utility functions                              |
 
 ### Summary
 
@@ -287,8 +306,8 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 | -------------------------- | ------ | -------- |
 | Frontend unit tests        | 31     | 397      |
 | Frontend integration tests | 5      | 47       |
-| Backend tests              | 17     | —        |
-| **Total**                  | **53** | **444+** |
+| Backend tests              | 25     | —        |
+| **Total**                  | **61** | **444+** |
 
 ---
 
