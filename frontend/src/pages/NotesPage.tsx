@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getNotes, addNote, viewNote, updateNote, deleteNote } from '@/functions/project/notes.js';
+import { getAllEntries } from '@/functions/project/entries.js';
 import { getEntryTitle } from '@/lib/calendar';
 import { trackViewedEntry } from '@/lib/recentlyViewed';
 import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 
-type NoteType = 'text' | 'link' | 'image';
+type NoteType = 'text' | 'link' | 'image' | 'reference';
 
 interface Note {
   id: string;
@@ -39,6 +41,17 @@ interface EntryData {
   due_date?: string | null;
 }
 
+/** Check if a link note value is actually a JSON-encoded entry reference */
+function isReferenceNote(value: string): boolean {
+  if (!value || typeof value !== 'string' || value[0] !== '{') return false;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && 'id' in parsed && 'project_name' in parsed;
+  } catch {
+    return false;
+  }
+}
+
 function formatNoteDate(dateStr: string): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -60,6 +73,7 @@ const TYPE_CONFIG: Record<NoteType, { label: string; icon: string; color: string
   text: { label: 'Text', icon: 'T', color: '#6b7280' },
   link: { label: 'Link', icon: '\u{1F517}', color: '#3b82f6' },
   image: { label: 'Image', icon: '\u{1F5BC}', color: '#8b5cf6' },
+  reference: { label: 'Reference', icon: '\u{1F517}', color: '#f59e0b' },
 };
 
 interface NotesPageProps {
@@ -81,6 +95,12 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   const [newNote, setNewNote] = useState<NoteDraft>({ entry_type: 'text', value: '' });
   const [adding, setAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reference picker
+  const navigate = useNavigate();
+  const [refPickerOpen, setRefPickerOpen] = useState(false);
+  const [refEntries, setRefEntries] = useState<any[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
 
   // Edit state
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -241,6 +261,48 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     setEditValue(note.value);
   };
 
+  const openRefPicker = async () => {
+    if (!userEmail) return;
+    setRefLoading(true);
+    setRefPickerOpen(true);
+    try {
+      const result = await getAllEntries(userEmail);
+      if (result?.data) {
+        setRefEntries(result.data.filter((e: any) => e.id !== entryId));
+      }
+    } catch {}
+    setRefLoading(false);
+  };
+
+  const selectEntryRef = async (refEntry: any) => {
+    const display = refEntry.summary || refEntry.project_name || 'Referenced entry';
+    const refData = JSON.stringify({ id: refEntry.id, project_name: refEntry.project_name, display: String(display) });
+    // Set the newNote to reference type with the selected entry data
+    setNewNote({ entry_type: 'reference', value: refData });
+    setRefPickerOpen(false);
+    // Auto-submit the note
+    if (!entryId || !userEmail || adding) return;
+    setAdding(true);
+    setError(null);
+    try {
+      const result = await addNote(userEmail, entryId, 'link', refData);
+      if (result?.success) {
+        const refreshed = await getNotes(entryId);
+        if (refreshed?.success && Array.isArray(refreshed.data)) {
+          setNotes(refreshed.data);
+        }
+        setShowAddForm(false);
+        setNewNote({ entry_type: 'text', value: '' });
+      } else {
+        setError(result?.message || 'Failed to add reference');
+      }
+    } catch (err) {
+      setError('Failed to add reference');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingNoteId || !editValue.trim() || saving) return;
     setSaving(true);
@@ -283,6 +345,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   const entryTitle = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1);
 
   return (
+    <>
     <div className="notes-panel-overlay" onClick={onClose}>
       <div className="notes-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -321,7 +384,14 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                     key={type}
                     type="button"
                     className={`notes-panel__type-pill ${newNote.entry_type === type ? 'notes-panel__type-pill--active' : ''}`}
-                    onClick={() => setNewNote({ ...newNote, entry_type: type, value: '' })}
+                    onClick={() => {
+                      if (type === 'reference') {
+                        setNewNote({ ...newNote, entry_type: type, value: '' });
+                        openRefPicker();
+                      } else {
+                        setNewNote({ ...newNote, entry_type: type, value: '' });
+                      }
+                    }}
                     disabled={adding}
                   >
                     <span className="notes-panel__type-pill-icon">{TYPE_CONFIG[type].icon}</span>
@@ -343,6 +413,22 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                   disabled={adding}
                   autoFocus
                 />
+              ) : newNote.entry_type === 'reference' ? (
+                <div className="notes-panel__file-drop" style={{ justifyContent: 'center', gap: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    {refPickerOpen ? 'Select an entry...' : 'Click Reference pill to pick an entry'}
+                  </span>
+                  {!refPickerOpen && (
+                    <button
+                      type="button"
+                      className="notes-panel__submit-btn"
+                      style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
+                      onClick={openRefPicker}
+                    >
+                      Browse entries
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="notes-panel__file-drop">
                   <input
@@ -412,7 +498,8 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
 
           <div className="notes-panel__grid">
             {notes.map((note) => {
-              const config = TYPE_CONFIG[note.entry_type] || TYPE_CONFIG.text;
+              const isRef = note.entry_type === 'link' && isReferenceNote(note.value);
+              const config = isRef ? TYPE_CONFIG.reference : (TYPE_CONFIG[note.entry_type] || TYPE_CONFIG.text);
               if (note.entry_type === 'image') {
                 console.log('[NotesPage] RENDER image note:', note.id, 'value starts with:', note.value?.substring(0, 60), 'hasViewedFile=', !!viewedFiles[note.id]?.file_data, 'isLoading=', loadingFiles[note.id]);
               }
@@ -464,14 +551,36 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                     ) : note.entry_type === 'text' ? (
                       <p className="notes-panel__note-text">{note.value}</p>
                     ) : note.entry_type === 'link' ? (
-                      <a
-                        className="notes-panel__note-link"
-                        href={note.value}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {note.value}
-                      </a>
+                      isReferenceNote(note.value) ? (
+                        <div className="notes-panel__note-reference">
+                          {(() => {
+                            const ref = JSON.parse(note.value);
+                            return (
+                              <button
+                                type="button"
+                                className="entry-box__ref-link"
+                                onClick={() => {
+                                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+                                }}
+                              >
+                                🔗 {ref.display || 'Referenced entry'}
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                                  ({ref.project_name})
+                                </span>
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <a
+                          className="notes-panel__note-link"
+                          href={note.value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {note.value}
+                        </a>
+                      )
                     ) : note.entry_type === 'image' ? (
                       <div className="notes-panel__note-image">
                         {note._optimistic || note.value === '(uploading...)' ? (
@@ -524,6 +633,34 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                           <span className="notes-panel__note-fallback">Image unavailable</span>
                         )}
                       </div>
+                    ) : note.entry_type === 'reference' ? (
+                      <div className="notes-panel__note-reference">
+                        {note._optimistic || note.value === '(uploading...)' ? (
+                          <span className="notes-panel__note-text" style={{ fontStyle: 'italic' }}>
+                            Adding reference...
+                          </span>
+                        ) : (() => {
+                          try {
+                            const ref = JSON.parse(note.value);
+                            return (
+                              <button
+                                type="button"
+                                className="entry-box__ref-link"
+                                onClick={() => {
+                                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+                                }}
+                              >
+                                🔗 {ref.display || 'Referenced entry'}
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                                  ({ref.project_name})
+                                </span>
+                              </button>
+                            );
+                          } catch {
+                            return <span className="notes-panel__note-text">{note.value}</span>;
+                          }
+                        })()}
+                      </div>
                     ) : null}
                   </div>
 
@@ -553,6 +690,39 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
         </div>
       </div>
     </div>
+
+    {/* Reference Picker Modal */}
+    {refPickerOpen && (
+      <div className="modal-overlay" onClick={() => setRefPickerOpen(false)} style={{ zIndex: 1100 }}>
+        <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="ref-picker-header">
+            <h3>Select an Entry to Reference</h3>
+            <button type="button" className="ref-picker-close" onClick={() => setRefPickerOpen(false)}>×</button>
+          </div>
+          {refLoading ? (
+            <div className="ref-picker-loading">Loading entries...</div>
+          ) : (
+            <div className="ref-picker-list">
+              {refEntries.map((e: any) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  className="ref-picker-item"
+                  onClick={() => selectEntryRef(e)}
+                >
+                  <span className="ref-picker-item-project">{e.project_name}</span>
+                  <span className="ref-picker-item-summary">
+                    {e.summary || 'No summary'}
+                  </span>
+                </button>
+              ))}
+              {refEntries.length === 0 && <div className="ref-picker-empty">No other entries found</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
