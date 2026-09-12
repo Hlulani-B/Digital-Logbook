@@ -8101,3 +8101,42 @@ img {
   border: 1px solid var(--accent);
   text-shadow: none;
 }
+
+/* Auto-advance countdown bar and voice toggle on the tour popover */
+.dl-tour-popover .tour-auto {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 0 0 0.75rem 0.75rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.dl-tour-popover .tour-auto-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+}
+
+.dl-tour-popover .tour-voice-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 0.4rem;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-shadow: none;
+}
+
+.dl-tour-popover .tour-voice-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
