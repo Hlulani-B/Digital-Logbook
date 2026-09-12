@@ -35,20 +35,20 @@ assignment; this page is a snapshot exported from it at the end of Sprint 1.
 
 ### Authentication & Onboarding
 
-| ID  | Task                                  | Owner           | Status | User Story                                            | Evidence                                                   |
-| --- | ------------------------------------- | --------------- | ------ | ----------------------------------------------------- | ---------------------------------------------------------- |
+| ID  | Task                                  | Owner           | Status | User Story                                                          | Evidence                                                   |
+| --- | ------------------------------------- | --------------- | ------ | ------------------------------------------------------------------- | ---------------------------------------------------------- |
 | T1  | Email/password sign-in and sign-up    | Nasiphi (Missy) | Done   | [US1](../User_Stories/sprint-one.md#us1-sign-in-to-the-system)      | `SignIn.tsx`, `AuthContext.tsx`, Supabase Auth integration |
 | T2  | Google / GitHub OAuth sign-in         | Nasiphi (Missy) | Done   | [US1](../User_Stories/sprint-one.md#us1-sign-in-to-the-system)      | OAuth icon buttons in `SignIn.tsx`, `AuthCallback.tsx`     |
 | T3  | Password reset flow                   | Nasiphi (Missy) | Done   | [US1](../User_Stories/sprint-one.md#us1-sign-in-to-the-system)      | `ResetPassword.tsx`, `UpdatePassword.tsx`                  |
 | T4  | Create profile page                   | Hlulani         | Done   | [US2](../User_Stories/sprint-one.md#us2-view-dashboard-after-login) | `CreateProfile.tsx`, profile-service `profile.js`          |
-| T5  | Avatar selection page                 | Hlulani         | Done   | Onboarding                                            | `Avatar.tsx`, `AvatarPicker.tsx`                           |
-| T6  | Tone, theme, and frequency onboarding | Hlulani         | Done   | Onboarding                                            | `ToneSetup.tsx`, `ThemeSetup.tsx`, `FrequencySetup.tsx`    |
+| T5  | Avatar selection page                 | Hlulani         | Done   | Onboarding                                                          | `Avatar.tsx`, `AvatarPicker.tsx`                           |
+| T6  | Tone, theme, and frequency onboarding | Hlulani         | Done   | Onboarding                                                          | `ToneSetup.tsx`, `ThemeSetup.tsx`, `FrequencySetup.tsx`    |
 | T7  | Protected routes and session handling | Hlulani         | Done   | [US1](../User_Stories/sprint-one.md#us1-sign-in-to-the-system)      | `ProtectedRoute.tsx`, `AuthContext.tsx`                    |
 
 ### Dashboard & Navigation
 
-| ID  | Task                                               | Owner   | Status | User Story                                            | Evidence                                               |
-| --- | -------------------------------------------------- | ------- | ------ | ----------------------------------------------------- | ------------------------------------------------------ |
+| ID  | Task                                               | Owner   | Status | User Story                                                          | Evidence                                               |
+| --- | -------------------------------------------------- | ------- | ------ | ------------------------------------------------------------------- | ------------------------------------------------------ |
 | T8  | Dashboard layout and project list                  | Hlulani | Done   | [US2](../User_Stories/sprint-one.md#us2-view-dashboard-after-login) | `Dashboard.tsx`, `dashboard.js`                        |
 | T9  | App drawer / navigation menu                       | Hlulani | Done   | [US2](../User_Stories/sprint-one.md#us2-view-dashboard-after-login) | Drawer component in `Dashboard.tsx`                    |
 | T10 | Settings panel (profile, preferences, danger zone) | Hlulani | Done   | [US8](../User_Stories/sprint-one.md#us8-log-out-securely)           | `SettingsPanel.tsx`                                    |
@@ -57,8 +57,8 @@ assignment; this page is a snapshot exported from it at the end of Sprint 1.
 
 ### Projects & Entries
 
-| ID  | Task                                           | Owner      | Status | User Story                                                    | Evidence                                                             |
-| --- | ---------------------------------------------- | ---------- | ------ | ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| ID  | Task                                           | Owner      | Status | User Story                                                                  | Evidence                                                             |
+| --- | ---------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | T13 | Create project form and API                    | Siphesihle | Done   | [US3](../User_Stories/sprint-one.md#us3-create-a-project)                   | `NewProject.tsx`, `project-service/src/functions/project.js`         |
 | T14 | Define custom entry format (fields/types)      | Siphesihle | Done   | [US4](../User_Stories/sprint-one.md#us4-define-the-project-entry-format)    | `ProjectSettingsPanel.tsx`, `field.js`                               |
 | T15 | Quick-entry form for capturing logbook entries | Hlulani    | Done   | [US5](../User_Stories/sprint-one.md#us5-capture-a-logbook-entry-quickly)    | `AddEntry.tsx`, `NewEntry.tsx`, `entries.js`                         |
@@ -71,23 +71,23 @@ assignment; this page is a snapshot exported from it at the end of Sprint 1.
 
 ### Backend Services & Infrastructure
 
-| ID  | Task                                                             | Owner                | Status | User Story | Evidence                                                              |
-| --- | ---------------------------------------------------------------- | -------------------- | ------ | ---------- | --------------------------------------------------------------------- |
-| T19 | Set up Express microservices (auth, project, dashboard, profile) | Siphesihle / Hlulani | Done   | N/A        | `services/*`, health routes, `render.yaml`                            |
-| T20 | Database schema and migrations                                   | Team                 | Done   | N/A        | Supabase migrations, `database.md`                                    |
-| T21 | CORS configuration and error handling                            | Hlulani              | Done   | N/A        | CORS middleware in all services, global error handlers                |
-| T22 | CI/CD pipeline (Gitea Actions + Render)                          | Hlulani / Nasiphi    | Done   | N/A        | `.gitea/workflows/ci.yml`, `.gitea/workflows/test.yml`, `render.yaml` |
-| T23 | Test coverage and badges                                         | Hlulani              | Done   | N/A        | Jest tests in 3 services, `badges/` directory                         |
-| T24 | Documentation site (MkDocs)                                      | Team                 | Done   | N/A        | `docs-site/`, deployed docs                                           |
+| ID  | Task                                                             | Owner                | Status | User Story | Evidence                                                                                                                              |
+| --- | ---------------------------------------------------------------- | -------------------- | ------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| T19 | Set up Express microservices (auth, project, dashboard, profile) | Siphesihle / Hlulani | Done   | N/A        | `services/*`, health routes, `render.yaml`                                                                                            |
+| T20 | Database schema and migrations                                   | Team                 | Done   | N/A        | Supabase migrations, `database.md`                                                                                                    |
+| T21 | CORS configuration and error handling                            | Hlulani              | Done   | N/A        | CORS middleware in all services, global error handlers                                                                                |
+| T22 | CI/CD pipeline (Gitea Actions + Render)                          | Hlulani / Nasiphi    | Done   | N/A        | `.gitea/workflows/ci.yml`, `.gitea/workflows/backend-unit-tests.yml`, `.gitea/workflows/backend-integration-tests.yml`, `render.yaml` |
+| T23 | Test coverage and badges                                         | Hlulani              | Done   | N/A        | Jest tests in 4 services, `badges/` directory                                                                                         |
+| T24 | Documentation site (MkDocs)                                      | Team                 | Done   | N/A        | `docs-site/`, deployed docs                                                                                                           |
 
 ### Additional Features & Polish
 
-| ID  | Task                                           | Owner             | Status | User Story                                                 | Evidence                                                   |
-| --- | ---------------------------------------------- | ----------------- | ------ | ---------------------------------------------------------- | ---------------------------------------------------------- |
-| T25 | Activity log backend                           | Zamo              | Done   | N/A                                                        | `project-service/src/functions/activityLog.js`, tests      |
+| ID  | Task                                           | Owner             | Status | User Story                                                               | Evidence                                                   |
+| --- | ---------------------------------------------- | ----------------- | ------ | ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| T25 | Activity log backend                           | Zamo              | Done   | N/A                                                                      | `project-service/src/functions/activityLog.js`, tests      |
 | T26 | Natural language entry parsing with AI         | Hlulani           | Done   | [US5](../User_Stories/sprint-one.md#us5-capture-a-logbook-entry-quickly) | `ai.js`, multi-provider chain                              |
-| T27 | Theming system (fonts, colours, corner styles) | Hlulani           | Done   | N/A                                                        | Theme context, `ThemeSetup.tsx`, CSS variables             |
-| T28 | Soft-delete / account recovery                 | Nasiphi / Hlulani | Done   | N/A                                                        | `delete_user()` / `restore_user()` RPCs, `AuthRestore.tsx` |
+| T27 | Theming system (fonts, colours, corner styles) | Hlulani           | Done   | N/A                                                                      | Theme context, `ThemeSetup.tsx`, CSS variables             |
+| T28 | Soft-delete / account recovery                 | Nasiphi / Hlulani | Done   | N/A                                                                      | `delete_user()` / `restore_user()` RPCs, `AuthRestore.tsx` |
 
 ---
 
