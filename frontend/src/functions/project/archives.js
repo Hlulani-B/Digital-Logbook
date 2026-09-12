@@ -2,6 +2,62 @@ import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
+// ── Offline optimistic cache helpers ───────────────────────────
+// When a mutation is queued while offline we still want the UI to
+// reflect it immediately: the item leaves the active feed and shows
+// up under Archives (and vice-versa). We achieve that by patching
+// the same IndexedDB stores the views subscribe to (ALL_ENTRIES,
+// ENTRIES, PROJECTS, ARCHIVES) so cacheSubscribe fires a re-render.
+// The server reconciles the change once the offline queue replays.
+
+/** Flip the `archived` flag on a single entry inside the given store/key. */
+async function setEntryArchivedFlag(store, key, entryId, archived) {
+  const cached = await cacheGet(store, key);
+  if (!cached || !Array.isArray(cached.data)) return null;
+  let touched = null;
+  const data = cached.data.map((e) => {
+    if (String(e.id) === String(entryId)) {
+      touched = { ...e, archived };
+      return touched;
+    }
+    return e;
+  });
+  await cacheSet(store, key, { ...cached, data });
+  return touched;
+}
+
+/** Add (or remove) an entry row from the getArchives `${email}:all` list. */
+async function patchArchivesAllList(user_email, entry, shouldInclude) {
+  const key = `${user_email}:all`;
+  const cached = await cacheGet(CACHE_STORES.ARCHIVES, key);
+  const list = Array.isArray(cached?.data) ? cached.data : [];
+  const without = list.filter((e) => String(e.id) !== String(entry.id));
+  const next = shouldInclude ? [{ ...entry, archived: true }, ...without] : without;
+  await cacheSet(CACHE_STORES.ARCHIVES, key, { success: true, data: next });
+}
+
+/** Flip the `archived` flag on a project inside the PROJECTS store. */
+async function setProjectArchivedFlag(user_email, projectName, archived) {
+  const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+  if (!cached) return;
+  const raw = cached.data || cached.projects;
+  if (!Array.isArray(raw)) return;
+  const data = raw.map((p) =>
+    p.project_name === projectName ? { ...p, archived } : p
+  );
+  await cacheSet(CACHE_STORES.PROJECTS, user_email, { ...cached, data });
+}
+
+/** Mirror the backend project→entries archive cascade in the ALL_ENTRIES store. */
+async function cacheSetEntriesArchivedForProject(user_email, projectName, archived) {
+  const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+  if (!cached || !Array.isArray(cached.data)) return;
+  const data = cached.data.map((e) =>
+    e.project_name === projectName ? { ...e, archived } : e
+  );
+  await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { ...cached, data });
+}
+
 // ── GET functions ──────────────────────────────────────────────
 
 /**
@@ -187,8 +243,16 @@ export async function getUnarchivedProjects(user_email) {
 export async function archiveProject(user_email, project_name) {
   // Check online status
   if (!navigator.onLine) {
-    // Offline: queue for later sync
-    console.log('[archiveProject] Offline, queuing action');
+    // Offline: reflect the change locally right away, then queue for sync.
+    console.log('[archiveProject] Offline — optimistic update + queuing action');
+    try {
+      await setProjectArchivedFlag(user_email, project_name, true);
+      // The backend cascades project archive to its entries, so mirror that
+      // here to keep the entries feed consistent with the archived project.
+      await cacheSetEntriesArchivedForProject(user_email, project_name, true);
+    } catch (err) {
+      console.error('[archiveProject] Offline optimistic update failed:', err);
+    }
     await addToQueue('archiveProject', 'archives', {
       user_email,
       project_name,
@@ -237,7 +301,13 @@ export async function archiveProject(user_email, project_name) {
 export async function unarchiveProject(user_email, project_name) {
   // Check online status
   if (!navigator.onLine) {
-    console.log('[unarchiveProject] Offline, queuing action');
+    console.log('[unarchiveProject] Offline — optimistic update + queuing action');
+    try {
+      await setProjectArchivedFlag(user_email, project_name, false);
+      await cacheSetEntriesArchivedForProject(user_email, project_name, false);
+    } catch (err) {
+      console.error('[unarchiveProject] Offline optimistic update failed:', err);
+    }
     await addToQueue('unarchiveProject', 'archives', {
       user_email,
       project_name,
@@ -281,7 +351,25 @@ export async function unarchiveProject(user_email, project_name) {
 export async function archiveEntry(user_email, project_name, entry_id) {
   // Check online status
   if (!navigator.onLine) {
-    console.log('[archiveEntry] Offline, queuing action');
+    console.log('[archiveEntry] Offline — optimistic update + queuing action');
+    try {
+      // Remove from the active feed and surface it under Archives right away.
+      const touched = await setEntryArchivedFlag(
+        CACHE_STORES.ALL_ENTRIES,
+        user_email,
+        entry_id,
+        true
+      );
+      await setEntryArchivedFlag(
+        CACHE_STORES.ENTRIES,
+        `${user_email}:${project_name}`,
+        entry_id,
+        true
+      );
+      if (touched) await patchArchivesAllList(user_email, touched, true);
+    } catch (err) {
+      console.error('[archiveEntry] Offline optimistic update failed:', err);
+    }
     await addToQueue('archiveEntry', 'archives', {
       user_email,
       project_name,
@@ -322,7 +410,25 @@ export async function archiveEntry(user_email, project_name, entry_id) {
 export async function unarchiveEntry(user_email, project_name, entry_id) {
   // Check online status
   if (!navigator.onLine) {
-    console.log('[unarchiveEntry] Offline, queuing action');
+    console.log('[unarchiveEntry] Offline — optimistic update + queuing action');
+    try {
+      // Bring it back into the active feed and drop it from Archives.
+      const restored = await setEntryArchivedFlag(
+        CACHE_STORES.ALL_ENTRIES,
+        user_email,
+        entry_id,
+        false
+      );
+      await setEntryArchivedFlag(
+        CACHE_STORES.ENTRIES,
+        `${user_email}:${project_name}`,
+        entry_id,
+        false
+      );
+      if (restored) await patchArchivesAllList(user_email, restored, false);
+    } catch (err) {
+      console.error('[unarchiveEntry] Offline optimistic update failed:', err);
+    }
     await addToQueue('unarchiveEntry', 'archives', {
       user_email,
       project_name,

@@ -564,8 +564,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
-    // Use all entries (unarchived)
-    let filtered = [...entries];
+    // Use all entries (unarchived) — ALL_ENTRIES also holds archived rows, so
+    // drop them here; the Archives view sources its list from getArchives.
+    let filtered = entries.filter((e) => !e.archived);
 
     if (activeView === 'recent') {
       const weekAgo = new Date();

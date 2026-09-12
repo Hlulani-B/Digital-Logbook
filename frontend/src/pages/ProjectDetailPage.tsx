@@ -314,6 +314,10 @@ export function ProjectDetailPage() {
     const other: Entry[] = [];
 
     for (const entry of source) {
+      // Archived entries belong to the Archives view, not the active feed —
+      // this also makes an offline archive disappear immediately, since the
+      // optimistic write flips `archived` on this project's ENTRIES cache.
+      if (entry.archived) continue;
       if (entry.due_date) {
         const due = new Date(entry.due_date as string);
         if (!isNaN(due.getTime()) && due >= now && due <= threeDaysFromNow) {
