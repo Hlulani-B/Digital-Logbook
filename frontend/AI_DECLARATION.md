@@ -13,12 +13,12 @@
 
 ## AI Tool Used
 
-| Field                | Value                                                                         |
-| -------------------- | ----------------------------------------------------------------------------- |
-| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                           |
-| **Underlying Model** | Not disclosed by the tool                                                     |
-| **Access Method**    | VS Code extension (Qoder IDE)                                                 |
-| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026 (extended multi-turn sessions) |
+| Field                | Value                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                                                           |
+| **Underlying Model** | Not disclosed by the tool                                                                                     |
+| **Access Method**    | VS Code extension (Qoder IDE)                                                                                 |
+| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026, continued 11–12 September 2026 (extended multi-turn sessions) |
 
 ---
 
@@ -64,55 +64,58 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested one-command backup/restore and versioned schema migrations with bootstrap support
 - I provided all Supabase credentials, Turnstile site keys, and Gitea repository URLs
 - I decided the branch strategy (Authentication branch) and deployment approach
+- I requested an interactive guided tour that walks new users through the app, with a friendly AI voice narrating each step and hands-free auto-advance between steps
+- I reported that the tour narration repeated step titles aloud and that the voice was cut off before finishing reading, and requested both be fixed
 
 ### 2. Code Generation (AI-Assisted)
 
 The AI generated the following code based on my instructions:
 
-| File                                                        | Description                                                                          | AI Contribution                       |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------- |
-| `src/pages/SignIn.tsx`                                      | Sign-in page with Google/GitHub OAuth, email/password, and original video background | AI generated from my requirements     |
-| `src/pages/Dashboard.tsx`                                   | Dashboard with stats, greeting, quick actions                                        | AI generated from my requirements     |
-| `src/pages/AuthCallback.tsx`                                | OAuth redirect handler                                                               | AI generated                          |
-| `src/pages/ResetPassword.tsx`                               | Password reset request page                                                          | AI generated                          |
-| `src/pages/UpdatePassword.tsx`                              | New password form with strength meter                                                | AI generated                          |
-| `src/pages/AuthRestore.tsx`                                 | Email-link account restoration handler                                               | AI generated                          |
-| `src/components/ProfileMenu.tsx`                            | Avatar dropdown menu                                                                 | AI generated from my requirements     |
-| `src/components/SettingsPanel.tsx`                          | Slide-out settings panel (3 tabs)                                                    | AI generated from my requirements     |
-| `src/components/ProtectedRoute.tsx`                         | Route guard for authenticated pages                                                  | AI generated                          |
-| `src/components/ParticleField.tsx`                          | Interactive particle field login background concept                                  | AI generated from my direction        |
-| `src/components/AuroraRibbons.tsx`                          | Flowing aurora ribbons login background concept                                      | AI generated from my direction        |
-| `src/context/AuthContext.tsx`                               | Auth state management + Supabase integration                                         | AI generated                          |
-| `src/lib/supabase.ts`                                       | Supabase client initialisation with `getSupabase()` helper                           | AI generated                          |
-| `src/lib/api.ts`                                            | Backend API helper with auth token                                                   | AI generated                          |
-| `src/lib/validation.ts`                                     | Email format, disposable-domain, and typo-correction helpers                         | AI generated from my requirements     |
-| `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity (currently disabled)                        | AI generated from my requirements     |
-| `src/pages/Calendar.tsx`                                    | Month/week calendar with drag-to-reschedule                                          | AI generated from my requirements     |
-| `src/pages/Calendar.css`                                    | Calendar component styles                                                            | AI generated from my design direction |
-| `src/lib/calendar.ts`                                       | Date utilities and entry grouping for the calendar                                   | AI generated from my requirements     |
-| `src/pages/Kanban.tsx`                                      | Kanban board with drag-to-change-status                                              | AI generated from my requirements     |
-| `src/pages/Kanban.css`                                      | Kanban board styles                                                                  | AI generated from my design direction |
-| `src/lib/kanban.ts`                                         | Status grouping, filtering, and status-update helpers                                | AI generated from my requirements     |
-| `src/pages/Today.tsx`                                       | Today view with overdue/due-today/in-progress ordering                               | AI generated from my requirements     |
-| `src/pages/Today.css`                                       | Today view styles                                                                    | AI generated from my design direction |
-| `src/lib/today.ts`                                          | Date partitioning helpers for the Today view                                         | AI generated from my requirements     |
-| `src/pages/Timeline.tsx`                                    | Timeline view with bars and dependency arrows                                        | AI generated from my requirements     |
-| `src/pages/Timeline.css`                                    | Timeline styles                                                                      | AI generated from my design direction |
-| `src/lib/timeline.ts`                                       | Date resolution, row layout, and arrow geometry helpers                              | AI generated from my requirements     |
-| `src/pages/DataPortability.tsx`                             | Import & Export page with JSON, CSV, and Markdown support                            | AI generated from my requirements     |
-| `src/pages/DataPortability.css`                             | Import & Export page styles                                                          | AI generated from my design direction |
-| `src/lib/export.ts`                                         | Export serialisation helpers (JSON, CSV, Markdown)                                   | AI generated from my requirements     |
-| `src/lib/import.ts`                                         | Import parsing and validation helpers                                                | AI generated from my requirements     |
-| `src/lib/__tests__/migrations.test.ts`                      | Tests for migration files and runner structure                                       | AI generated from my requirements     |
-| `src/App.tsx`                                               | Router configuration with all routes                                                 | AI generated                          |
-| `src/index.css`                                             | Complete premium UI stylesheet                                                       | AI generated from my design direction |
-| `index.html`                                                | HTML entry with favicon and meta tags                                                | AI generated                          |
-| `supabase/setup.sql`                                        | SQL for delete_user/restore_user/purge_deleted_users RPC functions                   | AI generated                          |
-| `supabase/migrations/004_account_deletion_grace_period.sql` | Migration for 30-day deletion grace period                                           | AI generated                          |
-| `supabase/migrations/011_create_notifications.sql`          | Notifications table, email preference column, due-date generator RPC + hourly cron   | AI generated from my requirements     |
-| `src/components/NotificationsBell.tsx`                      | In-app notification bell with unread badge and dropdown feed                         | AI generated from my requirements     |
-| `src/functions/project/notifications.js`                    | Client wrappers for the notification feed endpoints                                  | AI generated                          |
-| `.env.example`                                              | Environment variable template                                                        | AI generated                          |
+| File                                                        | Description                                                                                                      | AI Contribution                       |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `src/pages/SignIn.tsx`                                      | Sign-in page with Google/GitHub OAuth, email/password, and original video background                             | AI generated from my requirements     |
+| `src/pages/Dashboard.tsx`                                   | Dashboard with stats, greeting, quick actions                                                                    | AI generated from my requirements     |
+| `src/pages/AuthCallback.tsx`                                | OAuth redirect handler                                                                                           | AI generated                          |
+| `src/pages/ResetPassword.tsx`                               | Password reset request page                                                                                      | AI generated                          |
+| `src/pages/UpdatePassword.tsx`                              | New password form with strength meter                                                                            | AI generated                          |
+| `src/pages/AuthRestore.tsx`                                 | Email-link account restoration handler                                                                           | AI generated                          |
+| `src/components/ProfileMenu.tsx`                            | Avatar dropdown menu                                                                                             | AI generated from my requirements     |
+| `src/components/SettingsPanel.tsx`                          | Slide-out settings panel (3 tabs)                                                                                | AI generated from my requirements     |
+| `src/components/ProtectedRoute.tsx`                         | Route guard for authenticated pages                                                                              | AI generated                          |
+| `src/components/ParticleField.tsx`                          | Interactive particle field login background concept                                                              | AI generated from my direction        |
+| `src/components/AuroraRibbons.tsx`                          | Flowing aurora ribbons login background concept                                                                  | AI generated from my direction        |
+| `src/context/AuthContext.tsx`                               | Auth state management + Supabase integration                                                                     | AI generated                          |
+| `src/lib/supabase.ts`                                       | Supabase client initialisation with `getSupabase()` helper                                                       | AI generated                          |
+| `src/lib/api.ts`                                            | Backend API helper with auth token                                                                               | AI generated                          |
+| `src/lib/validation.ts`                                     | Email format, disposable-domain, and typo-correction helpers                                                     | AI generated from my requirements     |
+| `src/hooks/useInactivityLogout.ts`                          | Automatic sign-out after user inactivity (currently disabled)                                                    | AI generated from my requirements     |
+| `src/pages/Calendar.tsx`                                    | Month/week calendar with drag-to-reschedule                                                                      | AI generated from my requirements     |
+| `src/pages/Calendar.css`                                    | Calendar component styles                                                                                        | AI generated from my design direction |
+| `src/lib/calendar.ts`                                       | Date utilities and entry grouping for the calendar                                                               | AI generated from my requirements     |
+| `src/pages/Kanban.tsx`                                      | Kanban board with drag-to-change-status                                                                          | AI generated from my requirements     |
+| `src/pages/Kanban.css`                                      | Kanban board styles                                                                                              | AI generated from my design direction |
+| `src/lib/kanban.ts`                                         | Status grouping, filtering, and status-update helpers                                                            | AI generated from my requirements     |
+| `src/pages/Today.tsx`                                       | Today view with overdue/due-today/in-progress ordering                                                           | AI generated from my requirements     |
+| `src/pages/Today.css`                                       | Today view styles                                                                                                | AI generated from my design direction |
+| `src/lib/today.ts`                                          | Date partitioning helpers for the Today view                                                                     | AI generated from my requirements     |
+| `src/pages/Timeline.tsx`                                    | Timeline view with bars and dependency arrows                                                                    | AI generated from my requirements     |
+| `src/pages/Timeline.css`                                    | Timeline styles                                                                                                  | AI generated from my design direction |
+| `src/lib/timeline.ts`                                       | Date resolution, row layout, and arrow geometry helpers                                                          | AI generated from my requirements     |
+| `src/pages/DataPortability.tsx`                             | Import & Export page with JSON, CSV, and Markdown support                                                        | AI generated from my requirements     |
+| `src/pages/DataPortability.css`                             | Import & Export page styles                                                                                      | AI generated from my design direction |
+| `src/lib/export.ts`                                         | Export serialisation helpers (JSON, CSV, Markdown)                                                               | AI generated from my requirements     |
+| `src/lib/import.ts`                                         | Import parsing and validation helpers                                                                            | AI generated from my requirements     |
+| `src/lib/__tests__/migrations.test.ts`                      | Tests for migration files and runner structure                                                                   | AI generated from my requirements     |
+| `src/App.tsx`                                               | Router configuration with all routes                                                                             | AI generated                          |
+| `src/index.css`                                             | Complete premium UI stylesheet                                                                                   | AI generated from my design direction |
+| `index.html`                                                | HTML entry with favicon and meta tags                                                                            | AI generated                          |
+| `supabase/setup.sql`                                        | SQL for delete_user/restore_user/purge_deleted_users RPC functions                                               | AI generated                          |
+| `supabase/migrations/004_account_deletion_grace_period.sql` | Migration for 30-day deletion grace period                                                                       | AI generated                          |
+| `supabase/migrations/011_create_notifications.sql`          | Notifications table, email preference column, due-date generator RPC + hourly cron                               | AI generated from my requirements     |
+| `src/components/NotificationsBell.tsx`                      | In-app notification bell with unread badge and dropdown feed                                                     | AI generated from my requirements     |
+| `src/functions/project/notifications.js`                    | Client wrappers for the notification feed endpoints                                                              | AI generated                          |
+| `src/lib/tour.ts`                                           | Guided tour engine: driver.js step definitions, live navigation, speech-synthesis narration, auto-advance pacing | AI generated from my requirements     |
+| `.env.example`                                              | Environment variable template                                                                                    | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
 
@@ -127,26 +130,28 @@ I made all configuration decisions and directed the AI to execute the following:
 
 ### 4. Debugging and Fixes (Collaborative)
 
-| Issue                                                           | Who Identified                         | Who Fixed                                                                                       |
-| --------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| "Welcome back" showing for new users                            | Me (student)                           | AI (changed from useEffect to useMemo for synchronous check)                                    |
-| Supabase permissions (couldn't edit redirect URLs)              | Me (student)                           | AI (advised asking project admin or creating own Supabase project)                              |
-| Google Cloud Console redirect URIs                              | Me (student, asked)                    | AI (provided correct values)                                                                    |
-| GitHub provider addition                                        | Me (student, requested)                | AI (added signInWithGitHub to AuthContext and SignIn page)                                      |
-| Email/password auth addition                                    | Me (student, requested)                | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)                             |
-| Reset password inaccessible from UI                             | Me (student, identified)               | AI (added "Trouble signing in?" link and settings panel option)                                 |
-| Profile details displayed as raw JSON/code                      | Me (student)                           | AI (redesigned into a clean profile summary card)                                               |
-| User ID visible in Account tab                                  | Me (student)                           | AI (removed the User ID row)                                                                    |
-| Account deletion had no grace period                            | Me (student, requested)                | AI (implemented 30-day grace period with schedule/restore/purge)                                |
-| Ambiguous `user_email` in `delete_user()` RPC                   | Me (student, observed 400 error)       | AI (renamed variable to `v_email`, qualified column references)                                 |
-| Soft-deleted users could not sign back in cleanly               | Me (student, requested)                | AI (added auto-restore on sign-in in SignIn.tsx)                                                |
-| Soft-deleted users remained signed in after scheduling deletion | Me (student, identified)               | AI (changed `deleteAccount` to sign out, moved restore to email-link flow)                      |
-| Invalid and disposable email addresses accepted on sign-up      | Me (student, requested)                | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)                        |
-| Typos in common email domains (e.g., gmail.comm)                | Me (student, requested)                | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)                        |
-| Sessions remained signed in indefinitely on shared devices      | Me (student, requested, then reverted) | AI (added `useInactivityLogout`, then disabled it per my request; manual sign-out now required) |
-| No visual calendar view for entry due dates                     | Me (student, requested)                | AI (added `/calendar` page with month/week views and drag-to-reschedule)                        |
-| Rescheduling entries required editing each entry individually   | Me (student, requested)                | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)                           |
-| Calendar grid overflowed phone screens causing a visible line   | Me (student, identified on phone)      | AI (added `useIsMobile()` hook, week-strip layout at ≤480px, phone breakpoints for all views)   |
+| Issue                                                            | Who Identified                         | Who Fixed                                                                                       |
+| ---------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| "Welcome back" showing for new users                             | Me (student)                           | AI (changed from useEffect to useMemo for synchronous check)                                    |
+| Supabase permissions (couldn't edit redirect URLs)               | Me (student)                           | AI (advised asking project admin or creating own Supabase project)                              |
+| Google Cloud Console redirect URIs                               | Me (student, asked)                    | AI (provided correct values)                                                                    |
+| GitHub provider addition                                         | Me (student, requested)                | AI (added signInWithGitHub to AuthContext and SignIn page)                                      |
+| Email/password auth addition                                     | Me (student, requested)                | AI (added signInWithEmail and signUpWithEmail forms to SignIn page)                             |
+| Reset password inaccessible from UI                              | Me (student, identified)               | AI (added "Trouble signing in?" link and settings panel option)                                 |
+| Profile details displayed as raw JSON/code                       | Me (student)                           | AI (redesigned into a clean profile summary card)                                               |
+| User ID visible in Account tab                                   | Me (student)                           | AI (removed the User ID row)                                                                    |
+| Account deletion had no grace period                             | Me (student, requested)                | AI (implemented 30-day grace period with schedule/restore/purge)                                |
+| Ambiguous `user_email` in `delete_user()` RPC                    | Me (student, observed 400 error)       | AI (renamed variable to `v_email`, qualified column references)                                 |
+| Soft-deleted users could not sign back in cleanly                | Me (student, requested)                | AI (added auto-restore on sign-in in SignIn.tsx)                                                |
+| Soft-deleted users remained signed in after scheduling deletion  | Me (student, identified)               | AI (changed `deleteAccount` to sign out, moved restore to email-link flow)                      |
+| Invalid and disposable email addresses accepted on sign-up       | Me (student, requested)                | AI (added `validation.ts` helpers and integrated them into `SignIn.tsx`)                        |
+| Typos in common email domains (e.g., gmail.comm)                 | Me (student, requested)                | AI (added `suggestEmailCorrection` and a clickable hint in `SignIn.tsx`)                        |
+| Sessions remained signed in indefinitely on shared devices       | Me (student, requested, then reverted) | AI (added `useInactivityLogout`, then disabled it per my request; manual sign-out now required) |
+| No visual calendar view for entry due dates                      | Me (student, requested)                | AI (added `/calendar` page with month/week views and drag-to-reschedule)                        |
+| Rescheduling entries required editing each entry individually    | Me (student, requested)                | AI (implemented drag-and-drop to update `due_date` via `updateEntry`)                           |
+| Calendar grid overflowed phone screens causing a visible line    | Me (student, identified on phone)      | AI (added `useIsMobile()` hook, week-strip layout at ≤480px, phone breakpoints for all views)   |
+| Guided tour voice was cut off before finishing reading           | Me (student, identified)               | AI (paced auto-advance off the utterance end event instead of a word-count timer)               |
+| Tour narration repeated each step title ("This is My Stats — …") | Me (student, identified)               | AI (rewrote step descriptions so the title is not restated)                                     |
 
 ---
 
@@ -185,4 +190,4 @@ The AI was used as a **code generation and technical guidance tool** under my di
 ---
 
 **Signed:** Nasiphi Ntontela  
-**Date:** 3 September 2026
+**Date:** 12 September 2026

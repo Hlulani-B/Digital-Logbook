@@ -6,12 +6,12 @@ This repository uses AI-assisted development for the frontend authentication mod
 
 ## Quick Reference
 
-| Item                        | Location                                                                |
-| --------------------------- | ----------------------------------------------------------------------- |
-| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)              |
-| **Student**                 | Nasiphi Ntontela (2673619)                                              |
-| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                 |
-| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration |
+| Item                        | Location                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                             |
+| **Student**                 | Nasiphi Ntontela (2673619)                                                                             |
+| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                |
+| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration |
 
 ---
 
@@ -44,6 +44,7 @@ The following frontend features were implemented with AI acting as a code-genera
   - Mobile-responsive layouts for Calendar (week-strip on phones ≤480px), Kanban, Today, and Timeline views with dedicated phone breakpoints
   - Due-date notification system: hourly pg_cron scan (`generate_due_notifications()`), per-entry due-soon (24h) and overdue email alerts via Brevo API, and an in-app bell feed with unread badge in the dashboard header
   - Live password-requirements checklist on sign-up (length, uppercase, lowercase, number, explicit special-character set) with disabled submit until all rules pass
+  - Guided tour (driver.js) with element-anchored steps and live navigation between views, friendly voice narration via the Web Speech API with a persisted mute toggle, and auto-advance paced to the narration finishing so speech is never cut off
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)
