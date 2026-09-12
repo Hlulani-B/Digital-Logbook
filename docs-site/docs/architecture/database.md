@@ -121,7 +121,7 @@ name-derived colour.
 | started_at   | TIMESTAMPTZ           | nullable, set when user starts a work session |
 | ended_at     | TIMESTAMPTZ           | nullable, set when user stops the session     |
 | duration     | INTERVAL              | generated, `ended_at - started_at`            |
-| summary      | TEXT                  | nullable, AI-generated one-sentence summary         |
+| summary      | TEXT                  | nullable, AI-generated one-sentence summary   |
 | deleted      | BOOLEAN               | default false — soft-delete flag              |
 | created_at   | TIMESTAMPTZ           | default CURRENT_TIMESTAMP                     |
 
@@ -208,11 +208,11 @@ Append-only table — rows are inserted on every create/update/delete action and
 
 ## health_ping
 
-| Column    | Type         | Notes                                         |
-| --------- | ------------ | --------------------------------------------- |
-| id        | BIGINT       | PK, auto-generated identity                   |
-| message   | TEXT         | NOT NULL, default `'hello hlulani'`           |
-| pinged_at | TIMESTAMPTZ  | NOT NULL, default now()                       |
+| Column    | Type        | Notes                               |
+| --------- | ----------- | ----------------------------------- |
+| id        | BIGINT      | PK, auto-generated identity         |
+| message   | TEXT        | NOT NULL, default `'hello hlulani'` |
+| pinged_at | TIMESTAMPTZ | NOT NULL, default now()             |
 
 Internal keep-alive table. Supabase free-tier projects are paused after prolonged inactivity. The dashboard-service daemon periodically inserts and deletes a row in this table to prevent the database from sleeping. Row Level Security is enabled but no user-facing policies exist — only the service-role key (used by the backend daemon) can access it.
 
@@ -385,12 +385,12 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 
 ### Migration Files
 
-| File                             | Purpose                                                                     |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `000_baseline_full_schema.sql`   | Idempotent baseline — creates all tables, types, indexes from scratch       |
-| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)` |
-| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts           |
-| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                          |
+| File                                              | Purpose                                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                |
+| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                 |
+| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                     |
+| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                    |
 | `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job |
 | `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                              |
 | `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                 |
@@ -398,6 +398,7 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 | `008_add_project_color.sql`                        | `project_color VARCHAR(7)` column on projects for custom colour picker      |
 | `008_create_field_stats_rpc.sql`                   | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project) |
 | `009_create_notes_table.sql`                       | `notes` table for per-entry personalisation (text, image, pdf, link)        |
+| `010_purge_unconfirmed_signups.sql`                | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days |
 
 ### CLI Commands
 
@@ -440,7 +441,7 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },  // Required for Supabase
+  ssl: { rejectUnauthorized: false }, // Required for Supabase
 });
 ```
 
@@ -451,25 +452,25 @@ const pool = new Pool({
 
 ### Environment Variables
 
-| Variable | Used by | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | project-service, dashboard-service | PostgreSQL connection string |
-| `SUPABASE_URL` | All 4 services, frontend | Supabase project URL (for Auth client) |
-| `SUPABASE_KEY` | All 4 services | Supabase anon/public key (for client-side auth) |
-| `SUPABASE_SERVICE_ROLE_KEY` | project-service | Supabase service-role key (bypasses RLS for server operations) |
-| `VITE_SUPABASE_URL` | frontend | Build-time Supabase URL (exposed to the browser) |
-| `VITE_SUPABASE_ANON_KEY` | frontend | Build-time Supabase anon key (safe to expose — RLS protects data) |
+| Variable                    | Used by                            | Purpose                                                           |
+| --------------------------- | ---------------------------------- | ----------------------------------------------------------------- |
+| `DATABASE_URL`              | project-service, dashboard-service | PostgreSQL connection string                                      |
+| `SUPABASE_URL`              | All 4 services, frontend           | Supabase project URL (for Auth client)                            |
+| `SUPABASE_KEY`              | All 4 services                     | Supabase anon/public key (for client-side auth)                   |
+| `SUPABASE_SERVICE_ROLE_KEY` | project-service                    | Supabase service-role key (bypasses RLS for server operations)    |
+| `VITE_SUPABASE_URL`         | frontend                           | Build-time Supabase URL (exposed to the browser)                  |
+| `VITE_SUPABASE_ANON_KEY`    | frontend                           | Build-time Supabase anon key (safe to expose — RLS protects data) |
 
 All secrets are configured through the Render dashboard (not in the repository) and injected as environment variables at runtime. Locally, they are loaded from `.env` files via `dotenv`.
 
 ### Which Services Connect
 
-| Service | Connects to PostgreSQL? | How |
-| --- | --- | --- |
-| **project-service** | Yes | Direct `pg.Pool` via `DATABASE_URL` — owns projects, entries, fields, archives, activity_log |
-| **dashboard-service** | Yes | Direct `pg.Pool` via `DATABASE_URL` — read-only aggregation for stats and search |
-| **auth-service** | No | Uses Supabase Auth SDK (`SUPABASE_URL` + `SUPABASE_KEY`) — never touches PostgreSQL directly |
-| **profile-service** | No | Uses Supabase Auth SDK — reads/writes `public.users` through Supabase client, not raw SQL |
+| Service               | Connects to PostgreSQL? | How                                                                                          |
+| --------------------- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| **project-service**   | Yes                     | Direct `pg.Pool` via `DATABASE_URL` — owns projects, entries, fields, archives, activity_log |
+| **dashboard-service** | Yes                     | Direct `pg.Pool` via `DATABASE_URL` — read-only aggregation for stats and search             |
+| **auth-service**      | No                      | Uses Supabase Auth SDK (`SUPABASE_URL` + `SUPABASE_KEY`) — never touches PostgreSQL directly |
+| **profile-service**   | No                      | Uses Supabase Auth SDK — reads/writes `public.users` through Supabase client, not raw SQL    |
 
 ### Backups and Restore
 
@@ -498,8 +499,8 @@ Supabase enforces Row Level Security on all tables. The backend services use the
 
 ### Scheduled Jobs
 
-| Job | Schedule | Purpose |
-| --- | --- | --- |
+| Job                   | Schedule                         | Purpose                                                                |
+| --------------------- | -------------------------------- | ---------------------------------------------------------------------- |
 | `purge-deleted-users` | `0 0 * * *` (midnight UTC daily) | Permanently removes soft-deleted accounts past the 30-day grace period |
 
 Requires the `pg_cron` Supabase extension. The job calls `purge_deleted_users()`, which hard-deletes from all tables and removes the `auth.users` row.
