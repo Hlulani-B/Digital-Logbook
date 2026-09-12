@@ -551,9 +551,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return filtered;
   }, [entries, activeView]);
 
-  // In-progress entries (started but not ended). Drives the live dashboard timer.
+  // In-progress entries (started or paused, but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
-    () => entries.filter((e) => e.started_at && !e.ended_at),
+    () => entries.filter((e) => (e.started_at || e.is_paused) && !e.ended_at),
     [entries]
   );
   // Tick every second only while a task is running.
@@ -561,9 +561,24 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const primaryTimer = useMemo(() => {
     if (inProgressEntries.length === 0) return null;
     const first = inProgressEntries[0];
+    const isCountdown = !!first.target_duration_ms;
+    const isPaused = !!first.is_paused;
+    let display: string;
+    if (isCountdown && isPaused && first.paused_remaining_ms != null) {
+      display = formatTimer(Math.max(0, Number(first.paused_remaining_ms)));
+    } else if (isCountdown && first.started_at) {
+      const start = new Date(first.started_at as string).getTime();
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, Number(first.target_duration_ms) - elapsed);
+      display = formatTimer(remaining);
+    } else {
+      display = formatTimer(entryDurationMs(first, liveNow));
+    }
     return {
       projectName: (first.project_name as string) || 'Unknown',
-      elapsed: formatTimer(entryDurationMs(first, liveNow)),
+      elapsed: display,
+      isCountdown,
+      isPaused,
       extraCount: inProgressEntries.length - 1,
     };
   }, [inProgressEntries, liveNow]);
@@ -1423,11 +1438,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         </div>
 
-        {/* Live running-timer banner ΓÇö shows when a task is in progress */}
+        {/* Live running-timer banner — shows when a task is in progress */}
         {primaryTimer && activeView !== 'activity' && activeView !== 'archives' && (
-          <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
-            <span className="dash-timer-dot" />
-            <span className="dash-timer-label">Timer running</span>
+          <div className={`dash-timer-banner animate-in${primaryTimer.isPaused ? ' dash-timer-banner--paused' : ''}`} role="status" aria-live="polite">
+            <span className={`dash-timer-dot${primaryTimer.isPaused ? ' dash-timer-dot--paused' : ''}`} />
+            <span className="dash-timer-label">
+              {primaryTimer.isPaused ? 'Timer paused' : primaryTimer.isCountdown ? 'Countdown' : 'Timer running'}
+            </span>
             <span className="dash-timer-project">{primaryTimer.projectName}</span>
             <span className="dash-timer-elapsed">{primaryTimer.elapsed}</span>
             {primaryTimer.extraCount > 0 && (

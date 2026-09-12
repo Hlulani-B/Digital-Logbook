@@ -52,7 +52,10 @@ export class Entries {
     ended_at,
     duration,
     summary,
-    notes
+    notes,
+    target_duration_ms,
+    paused_remaining_ms,
+    is_paused
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -72,6 +75,9 @@ export class Entries {
       if (started_at !== undefined && started_at !== null) insertData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) insertData.ended_at = ended_at;
       if (summary !== undefined && summary !== null) insertData.summary = summary;
+      if (target_duration_ms !== undefined && target_duration_ms !== null) insertData.target_duration_ms = target_duration_ms;
+      if (paused_remaining_ms !== undefined && paused_remaining_ms !== null) insertData.paused_remaining_ms = paused_remaining_ms;
+      if (is_paused !== undefined && is_paused !== null) insertData.is_paused = is_paused;
 
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
 
@@ -125,7 +131,10 @@ export class Entries {
     started_at,
     ended_at,
     duration,
-    summary
+    summary,
+    target_duration_ms,
+    paused_remaining_ms,
+    is_paused
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -148,6 +157,9 @@ export class Entries {
       if (started_at !== undefined && started_at !== null) updateData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) updateData.ended_at = ended_at;
       if (summary !== undefined && summary !== null) updateData.summary = summary;
+      if (target_duration_ms !== undefined) updateData.target_duration_ms = target_duration_ms;
+      if (paused_remaining_ms !== undefined) updateData.paused_remaining_ms = paused_remaining_ms;
+      if (is_paused !== undefined) updateData.is_paused = is_paused;
 
       if (Object.keys(updateData).length === 0) {
         return { success: true, message: 'No changes to update' };
@@ -204,6 +216,89 @@ export class Entries {
       return { success: true, message: 'Entry updated successfully', data: rows };
     } catch (error) {
       console.error('[updateEntry] FAILED:', error.message);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Pause a running countdown timer. Freezes the remaining time and clears started_at
+   * so the count-up stops. The remaining ms are stored in paused_remaining_ms.
+   */
+  async pauseEntry(user_email, project_name, entry_id) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+
+      // Fetch current entry to compute remaining time
+      const { rows: current } = await pool.query(
+        `SELECT started_at, target_duration_ms, is_paused, ended_at
+         FROM entries WHERE id = $1 AND user_email = $2 AND project_name = $3 AND deleted = false`,
+        [entry_id, user_email, project_name]
+      );
+      if (!current.length) {
+        return { success: false, message: 'Entry not found' };
+      }
+      const entry = current[0];
+      if (entry.ended_at || entry.is_paused) {
+        return { success: false, message: 'Entry is not actively running' };
+      }
+
+      const now = Date.now();
+      const startMs = entry.started_at ? new Date(entry.started_at).getTime() : now;
+      const elapsed = now - startMs;
+      const target = entry.target_duration_ms || 0;
+      const remaining = Math.max(0, target - elapsed);
+
+      const { rows } = await pool.query(
+        `UPDATE entries SET is_paused = true, paused_remaining_ms = $4, started_at = NULL
+         WHERE id = $1 AND user_email = $2 AND project_name = $3 AND deleted = false
+         RETURNING *`,
+        [entry_id, user_email, project_name, remaining]
+      );
+
+      return { success: true, message: 'Entry paused', data: rows };
+    } catch (error) {
+      console.error('[pauseEntry] FAILED:', error.message);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Resume a paused countdown timer. Restores started_at so the count-down continues
+   * from the paused remaining time.
+   */
+  async resumeEntry(user_email, project_name, entry_id) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+
+      const { rows: current } = await pool.query(
+        `SELECT is_paused, paused_remaining_ms, target_duration_ms, ended_at
+         FROM entries WHERE id = $1 AND user_email = $2 AND project_name = $3 AND deleted = false`,
+        [entry_id, user_email, project_name]
+      );
+      if (!current.length) {
+        return { success: false, message: 'Entry not found' };
+      }
+      const entry = current[0];
+      if (!entry.is_paused) {
+        return { success: false, message: 'Entry is not paused' };
+      }
+
+      const remaining = entry.paused_remaining_ms || 0;
+      const target = entry.target_duration_ms || 0;
+      // Set started_at so that (now - started_at) = (target - remaining)
+      const fakeElapsed = target - remaining;
+      const newStartedAt = new Date(Date.now() - fakeElapsed).toISOString();
+
+      const { rows } = await pool.query(
+        `UPDATE entries SET is_paused = false, paused_remaining_ms = NULL, started_at = $4
+         WHERE id = $1 AND user_email = $2 AND project_name = $3 AND deleted = false
+         RETURNING *`,
+        [entry_id, user_email, project_name, newStartedAt]
+      );
+
+      return { success: true, message: 'Entry resumed', data: rows };
+    } catch (error) {
+      console.error('[resumeEntry] FAILED:', error.message);
       return { success: false, message: error.message };
     }
   }

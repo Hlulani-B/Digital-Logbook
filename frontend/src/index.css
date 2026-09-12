@@ -3978,6 +3978,95 @@ img {
   line-height: 1.3;
 }
 
+/* Pause button — amber/warning tone */
+.entry-box__task-btn--pause {
+  background: var(--warning, #d97706);
+  color: #fff;
+  border-color: var(--warning, #d97706);
+}
+.entry-box__task-btn--pause:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* Resume button — green/success tone */
+.entry-box__task-btn--resume {
+  background: var(--success, #16a34a);
+  color: #fff;
+  border-color: var(--success, #16a34a);
+}
+.entry-box__task-btn--resume:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* Countdown/Paused label */
+.entry-box__task-label {
+  font-family: var(--font-body, 'Lora', serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--warning, #d97706);
+  opacity: 0.85;
+}
+.entry-box__task-label--paused {
+  color: var(--text-muted, #737373);
+}
+
+/* Countdown elapsed — distinct from count-up */
+.entry-box__task-elapsed--countdown {
+  color: var(--warning, #d97706);
+  background: var(--warning-glow, rgba(217, 119, 6, 0.08));
+  border-color: var(--warning, #d97706);
+}
+
+/* Target duration input — shown on entries not yet started */
+.entry-box__task-target {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.entry-box__task-target-label {
+  font-family: var(--font-body, 'Lora', serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #737373);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.entry-box__task-target-input {
+  width: 3.5rem;
+  font-family: 'Plus Jakarta Sans', var(--font-body, 'Lora', serif);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border, #d4d4d4);
+  border-radius: var(--radius-xs, 4px);
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  text-align: center;
+  line-height: 1.3;
+  transition: border-color 0.15s ease;
+}
+.entry-box__task-target-input:focus {
+  outline: none;
+  border-color: var(--accent, #8d6e63);
+  box-shadow: 0 0 0 2px rgba(141, 110, 99, 0.15);
+}
+.entry-box__task-target-unit {
+  font-family: var(--font-body, 'Lora', serif);
+  font-size: 0.75rem;
+  color: var(--text-muted, #737373);
+}
+
+/* Dashboard timer banner — paused variant */
+.dash-timer-banner--paused {
+  opacity: 0.75;
+}
+.dash-timer-dot--paused {
+  animation: none !important;
+  opacity: 0.5;
+}
+
 .entry-box__edit-actions {
   display: flex;
   justify-content: flex-end;

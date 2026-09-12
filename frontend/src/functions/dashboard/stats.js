@@ -70,6 +70,29 @@ export function formatTimer(ms) {
  * (e.g. a ticking value) for consistent, live-updating in-progress durations.
  */
 export function entryDurationMs(entry, now = Date.now()) {
+  // ── Countdown entries (target_duration_ms set) ─────────────────────
+  if (entry.target_duration_ms) {
+    const target = Number(entry.target_duration_ms);
+    // Paused: remaining is frozen
+    if (entry.is_paused && entry.paused_remaining_ms != null) {
+      return Math.max(0, target - Number(entry.paused_remaining_ms));
+    }
+    // Completed: compute from target minus remaining (or full target if no remaining)
+    if (entry.ended_at) {
+      const remaining = entry.paused_remaining_ms != null ? Number(entry.paused_remaining_ms) : 0;
+      return Math.max(0, target - remaining);
+    }
+    // Running: live elapsed, capped at target
+    if (entry.started_at) {
+      const start = new Date(entry.started_at).getTime();
+      if (!isNaN(start)) {
+        return Math.min(target, Math.max(0, now - start));
+      }
+    }
+    return 0;
+  }
+
+  // ── Legacy entries (no target_duration_ms) ─────────────────────────
   // Completed: ended_at − started_at (the actual work time)
   if (entry.ended_at && entry.started_at) {
     const end = new Date(entry.ended_at).getTime();
@@ -107,7 +130,8 @@ export function calculateTotalTimeTracked(entries, now = Date.now()) {
   let inProgressCount = 0;
 
   entries.forEach((entry) => {
-    if (entry.started_at && !entry.ended_at) {
+    const isActive = (entry.started_at || entry.is_paused) && !entry.ended_at;
+    if (isActive) {
       totalMs += entryDurationMs(entry, now);
       inProgressCount++;
     } else if (entry.ended_at) {
@@ -137,7 +161,7 @@ export function calculateProjectStats(entries, now = Date.now()) {
     const stat = map.get(name);
     stat.entryCount++;
 
-    if (entry.started_at && !entry.ended_at) {
+    if ((entry.started_at || entry.is_paused) && !entry.ended_at) {
       stat.totalMs += entryDurationMs(entry, now);
       stat.inProgressCount++;
     } else if (entry.ended_at) {
@@ -273,7 +297,7 @@ export function mergeFieldDefs(declared, derived) {
 function rawFieldValue(entry, field, now) {
   if (!entry) return undefined;
   if (field === 'duration') {
-    return entry.started_at || entry.ended_at ? entryDurationMs(entry, now) : undefined;
+    return entry.started_at || entry.ended_at || entry.is_paused ? entryDurationMs(entry, now) : undefined;
   }
   const obj = entry.entries;
   if (obj && typeof obj === 'object' && !Array.isArray(obj) && obj[field] !== undefined) {

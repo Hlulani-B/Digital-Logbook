@@ -50,6 +50,9 @@ router.post('/entry', async (req, res) => {
           duration,
           summary,
           notes,
+          target_duration_ms,
+          paused_remaining_ms,
+          is_paused,
         } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.addEntry(
@@ -63,7 +66,10 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary,
-          notes
+          notes,
+          target_duration_ms,
+          paused_remaining_ms,
+          is_paused
         );
         if (result.success) {
           const entrySummary =
@@ -90,6 +96,9 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary: providedSummary,
+          target_duration_ms,
+          paused_remaining_ms,
+          is_paused,
         } = values;
         if (!project_name || !entry_id)
           return res.status(400).json({ error: 'Missing required parameters' });
@@ -106,7 +115,10 @@ router.post('/entry', async (req, res) => {
           started_at,
           ended_at,
           duration,
-          undefined // summary — regenerated in background below
+          undefined, // summary — regenerated in background below
+          target_duration_ms,
+          paused_remaining_ms,
+          is_paused
         );
 
         // Regenerate summary in background if entry content changed
@@ -127,6 +139,26 @@ router.post('/entry', async (req, res) => {
             project_name,
             entry_id,
           });
+        }
+        return res.json(result);
+      }
+      case 'pause': {
+        const { project_name, entry_id } = values;
+        if (!project_name || !entry_id)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await entries.pauseEntry(user_email, project_name, entry_id);
+        if (result.success) {
+          await logActivity(user_email, 'ENTRY_PAUSED', 'entry', project_name, { project_name, entry_id });
+        }
+        return res.json(result);
+      }
+      case 'resume': {
+        const { project_name, entry_id } = values;
+        if (!project_name || !entry_id)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await entries.resumeEntry(user_email, project_name, entry_id);
+        if (result.success) {
+          await logActivity(user_email, 'ENTRY_RESUMED', 'entry', project_name, { project_name, entry_id });
         }
         return res.json(result);
       }

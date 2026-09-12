@@ -295,7 +295,10 @@ export async function updateEntry(
   started_at,
   ended_at,
   duration,
-  summary
+  summary,
+  target_duration_ms,
+  paused_remaining_ms,
+  is_paused
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -317,6 +320,9 @@ export async function updateEntry(
           ended_at: ended_at !== undefined ? ended_at : e.ended_at,
           duration: duration !== undefined ? duration : e.duration,
           summary: summary !== undefined ? summary : e.summary,
+          target_duration_ms: target_duration_ms !== undefined ? target_duration_ms : e.target_duration_ms,
+          paused_remaining_ms: paused_remaining_ms !== undefined ? paused_remaining_ms : e.paused_remaining_ms,
+          is_paused: is_paused !== undefined ? is_paused : e.is_paused,
         };
       }
       return e;
@@ -355,6 +361,9 @@ export async function updateEntry(
       ended_at,
       duration,
       summary,
+      target_duration_ms,
+      paused_remaining_ms,
+      is_paused,
     });
     return { success: true, queued: true };
   }
@@ -377,6 +386,9 @@ export async function updateEntry(
           started_at,
           ended_at,
           summary,
+          target_duration_ms,
+          paused_remaining_ms,
+          is_paused,
         }),
       }),
     });
@@ -423,6 +435,9 @@ export async function updateEntry(
         ended_at,
         duration,
         summary,
+        target_duration_ms,
+        paused_remaining_ms,
+        is_paused,
       });
     }
 
@@ -442,7 +457,135 @@ export async function updateEntry(
       ended_at,
       duration,
       summary,
+      target_duration_ms,
+      paused_remaining_ms,
+      is_paused,
     });
+    return { success: true, queued: true };
+  }
+}
+
+/**
+ * Pause a running countdown timer. Freezes remaining time in the DB.
+ */
+export async function pauseEntry(user_email, project_name, entry_id) {
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // Optimistic: mark as paused in cache
+  const cachedBefore = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  const cachedAllBefore = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+
+  function patchPause(arr) {
+    if (!Array.isArray(arr)) return arr;
+    return arr.map((e) => {
+      if (e.id === entry_id || e.id?.toString() === entry_id?.toString()) {
+        const now = Date.now();
+        const startMs = e.started_at ? new Date(e.started_at).getTime() : now;
+        const elapsed = now - startMs;
+        const target = e.target_duration_ms || 0;
+        const remaining = Math.max(0, target - elapsed);
+        return { ...e, is_paused: true, paused_remaining_ms: remaining, started_at: null };
+      }
+      return e;
+    });
+  }
+
+  if (cachedBefore) {
+    const d = cachedBefore.data || cachedBefore;
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchPause(d) });
+  }
+  if (cachedAllBefore) {
+    const d = cachedAllBefore.data || cachedAllBefore;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchPause(d) });
+  }
+
+  if (!navigator.onLine) {
+    await addToQueue('pauseEntry', 'entries', { user_email, project_name, entry_id });
+    return { success: true, queued: true };
+  }
+
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({ function: 'pause', values: { user_email, project_name, entry_id } }),
+    });
+    if (result?.success && result.data) {
+      const updated = Array.isArray(result.data) ? result.data[0] : result.data;
+      const currentCached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+      if (currentCached) {
+        const d = currentCached.data || currentCached;
+        const newData = Array.isArray(d)
+          ? d.map((e) => (e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updated : e))
+          : d;
+        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
+      }
+    }
+    return result;
+  } catch (err) {
+    console.error('[pauseEntry] Failed:', err);
+    await addToQueue('pauseEntry', 'entries', { user_email, project_name, entry_id });
+    return { success: true, queued: true };
+  }
+}
+
+/**
+ * Resume a paused countdown timer. Restores started_at from paused remaining.
+ */
+export async function resumeEntry(user_email, project_name, entry_id) {
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // Optimistic: mark as running in cache
+  const cachedBefore = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  const cachedAllBefore = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+
+  function patchResume(arr) {
+    if (!Array.isArray(arr)) return arr;
+    return arr.map((e) => {
+      if (e.id === entry_id || e.id?.toString() === entry_id?.toString()) {
+        const remaining = e.paused_remaining_ms || 0;
+        const target = e.target_duration_ms || 0;
+        const fakeElapsed = target - remaining;
+        const newStartedAt = new Date(Date.now() - fakeElapsed).toISOString();
+        return { ...e, is_paused: false, paused_remaining_ms: null, started_at: newStartedAt };
+      }
+      return e;
+    });
+  }
+
+  if (cachedBefore) {
+    const d = cachedBefore.data || cachedBefore;
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchResume(d) });
+  }
+  if (cachedAllBefore) {
+    const d = cachedAllBefore.data || cachedAllBefore;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchResume(d) });
+  }
+
+  if (!navigator.onLine) {
+    await addToQueue('resumeEntry', 'entries', { user_email, project_name, entry_id });
+    return { success: true, queued: true };
+  }
+
+  try {
+    const result = await request(`${PROJECT_URL}/service/entry`, {
+      method: 'POST',
+      body: JSON.stringify({ function: 'resume', values: { user_email, project_name, entry_id } }),
+    });
+    if (result?.success && result.data) {
+      const updated = Array.isArray(result.data) ? result.data[0] : result.data;
+      const currentCached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+      if (currentCached) {
+        const d = currentCached.data || currentCached;
+        const newData = Array.isArray(d)
+          ? d.map((e) => (e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updated : e))
+          : d;
+        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
+      }
+    }
+    return result;
+  } catch (err) {
+    console.error('[resumeEntry] Failed:', err);
+    await addToQueue('resumeEntry', 'entries', { user_email, project_name, entry_id });
     return { success: true, queued: true };
   }
 }

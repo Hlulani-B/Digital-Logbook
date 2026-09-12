@@ -317,7 +317,7 @@ export function StatsView() {
   );
 
   // Tick every second only while a task is running so in-progress totals stay live.
-  const hasInProgress = scopedEntries.some((e) => e.started_at && !e.ended_at);
+  const hasInProgress = scopedEntries.some((e) => (e.started_at || e.is_paused) && !e.ended_at);
   const now = useNow(1000, hasInProgress);
 
   // Collect the owner's field definitions for the scoped project so the
