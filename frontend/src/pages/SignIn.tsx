@@ -158,8 +158,10 @@ export function SignIn() {
     }
 
     // A known typo was detected and the user has not accepted the fix yet.
+    // The blue suggestion pill under the field already shows the proposed
+    // correction — keep the banner generic so it doesn't repeat it.
     if (emailSuggestion) {
-      setError(`Please confirm your email address. Did you mean ${emailSuggestion}?`);
+      setError('Please check your email address.');
       return;
     }
 
