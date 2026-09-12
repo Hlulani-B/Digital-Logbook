@@ -51,7 +51,11 @@ export async function getAllEntries(user_email) {
         values: { user_email },
       }),
     });
-    console.log('[getAllEntries] server returned:', result?.success, Array.isArray(result?.data) ? `len=${result.data.length}` : 'no-data');
+    console.log(
+      '[getAllEntries] server returned:',
+      result?.success,
+      Array.isArray(result?.data) ? `len=${result.data.length}` : 'no-data'
+    );
 
     if (result?.success) {
       const data = Array.isArray(result.data) ? result.data : [];
@@ -60,7 +64,11 @@ export async function getAllEntries(user_email) {
         const existing = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
         const existingData = existing?.data || [];
         if (Array.isArray(existingData) && existingData.length > 0) {
-          console.warn('[getAllEntries] Server returned 0 entries but cache has', existingData.length, '— keeping cache');
+          console.warn(
+            '[getAllEntries] Server returned 0 entries but cache has',
+            existingData.length,
+            '— keeping cache'
+          );
           return result; // return without writing to cache
         }
       }
@@ -206,8 +214,20 @@ export async function addEntry(
 
   // 3. Sync to server in background (don't block the UI)
   _syncAddEntryToServer({
-    user_email, project_name, entry_object, due_date, priority, status,
-    started_at, ended_at, duration, summary, notes, cacheKey, cached, cachedAll,
+    user_email,
+    project_name,
+    entry_object,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration,
+    summary,
+    notes,
+    cacheKey,
+    cached,
+    cachedAll,
   });
 
   // Return immediately — optimistic entry is already in IndexedDB
@@ -220,8 +240,20 @@ export async function addEntry(
  * or queues for retry on failure.
  */
 async function _syncAddEntryToServer({
-  user_email, project_name, entry_object, due_date, priority, status,
-  started_at, ended_at, duration, summary, notes, cacheKey, cached, cachedAll,
+  user_email,
+  project_name,
+  entry_object,
+  due_date,
+  priority,
+  status,
+  started_at,
+  ended_at,
+  duration,
+  summary,
+  notes,
+  cacheKey,
+  cached,
+  cachedAll,
 }) {
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
@@ -274,8 +306,16 @@ async function _syncAddEntryToServer({
     // On failure, queue for retry (optimistic entry stays in cache)
     console.error('[addEntry] Server sync failed, queuing for retry:', err);
     await addToQueue('addEntry', 'entries', {
-      user_email, project_name, entry_object, due_date, priority, status,
-      started_at, ended_at, duration, notes,
+      user_email,
+      project_name,
+      entry_object,
+      due_date,
+      priority,
+      status,
+      started_at,
+      ended_at,
+      duration,
+      notes,
     });
   }
 }
@@ -295,7 +335,10 @@ export async function updateEntry(
   started_at,
   ended_at,
   duration,
-  summary
+  summary,
+  target_duration_ms,
+  paused_ms,
+  paused_at
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -317,6 +360,10 @@ export async function updateEntry(
           ended_at: ended_at !== undefined ? ended_at : e.ended_at,
           duration: duration !== undefined ? duration : e.duration,
           summary: summary !== undefined ? summary : e.summary,
+          target_duration_ms:
+            target_duration_ms !== undefined ? target_duration_ms : e.target_duration_ms,
+          paused_ms: paused_ms !== undefined ? paused_ms : e.paused_ms,
+          paused_at: paused_at !== undefined ? paused_at : e.paused_at,
         };
       }
       return e;
@@ -355,6 +402,9 @@ export async function updateEntry(
       ended_at,
       duration,
       summary,
+      target_duration_ms,
+      paused_ms,
+      paused_at,
     });
     return { success: true, queued: true };
   }
@@ -377,6 +427,11 @@ export async function updateEntry(
           started_at,
           ended_at,
           summary,
+          target_duration_ms,
+          paused_ms,
+          // paused_at may be explicitly null (Resume / End Task clear the pause)
+          // so it must be sent even though withoutUndefined strips undefined keys.
+          paused_at,
         }),
       }),
     });
@@ -423,6 +478,9 @@ export async function updateEntry(
         ended_at,
         duration,
         summary,
+        target_duration_ms,
+        paused_ms,
+        paused_at,
       });
     }
 
@@ -442,6 +500,9 @@ export async function updateEntry(
       ended_at,
       duration,
       summary,
+      target_duration_ms,
+      paused_ms,
+      paused_at,
     });
     return { success: true, queued: true };
   }

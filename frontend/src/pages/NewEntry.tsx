@@ -7,6 +7,7 @@ import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
 import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
+import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/dashboard/stats.js';
 import { classifyEntryPayload, cleanSummaryText, type EntryPayload } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
@@ -106,6 +107,9 @@ interface EntryRow {
   started_at?: string | null;
   ended_at?: string | null;
   duration?: string | null;
+  target_duration_ms?: number | string | null;
+  paused_ms?: number | string | null;
+  paused_at?: string | null;
   status?: EntryStatus;
   summary?: string | null;
 }
@@ -138,6 +142,9 @@ export function EntryBox({
     archived,
     started_at,
     ended_at,
+    target_duration_ms,
+    paused_ms,
+    paused_at,
     status = 'up_next',
     summary,
   } = entry;
@@ -171,42 +178,51 @@ export function EntryBox({
         const result = await getFields(user_email, project_name);
         if (!cancelled && result?.data) {
           const defs: Record<string, string> = {};
-          for (const f of result.data) { defs[f.field_name] = f.data_type || 'text'; }
+          for (const f of result.data) {
+            defs[f.field_name] = f.data_type || 'text';
+          }
           setFieldDefs(defs);
         }
       } catch {}
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user_email, project_name]);
 
   const parseCustomOptions = (dataType: string): string[] | null => {
     if (!dataType.startsWith('custom:')) return null;
     const optionsStr = dataType.slice(7);
     if (!optionsStr) return [];
-    return optionsStr.split(',').map((o) => o.trim()).filter(Boolean);
+    return optionsStr
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
   };
 
-  // Live elapsed time for in-progress tasks
-  const [elapsed, setElapsed] = useState<string>('');
+  // Live timer text for in-progress tasks.
+  // With a target_duration_ms this is a DEADLINE COUNTDOWN (remaining time);
+  // without one it counts UP elapsed work time. Paused entries freeze at the
+  // moment they were paused (anchor = paused_at) and show a Paused badge.
+  const isPaused = Boolean(started_at && !ended_at && paused_at);
+  const [timerText, setTimerText] = useState<string>('');
   useEffect(() => {
     if (!started_at || ended_at) {
-      setElapsed('');
+      setTimerText('');
       return;
     }
-    const start = new Date(started_at).getTime();
+    const liveEntry = { started_at, ended_at, paused_at, paused_ms, target_duration_ms };
     const tick = () => {
-      const diff = Date.now() - start;
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setElapsed(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      const now = Date.now();
+      const remaining = entryRemainingMs(liveEntry, now);
+      setTimerText(
+        remaining != null ? formatTimer(remaining) : formatTimer(entryDurationMs(liveEntry, now))
       );
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [started_at, ended_at]);
+  }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms]);
 
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -427,6 +443,13 @@ export function EntryBox({
     setError(null);
     try {
       const now = new Date().toISOString();
+      // If ending while paused, fold the open pause into paused_ms and clear
+      // paused_at so entryDurationMs nets out all paused time.
+      const openPauseMs =
+        paused_at && started_at
+          ? Math.max(0, new Date(now).getTime() - new Date(paused_at).getTime())
+          : 0;
+      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
       const result = await updateEntry(
         user_email,
         project_name,
@@ -436,7 +459,12 @@ export function EntryBox({
         undefined,
         'done_and_dusted',
         undefined,
-        now
+        now,
+        undefined,
+        undefined,
+        undefined,
+        newPausedMs,
+        null // clear any open pause
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to end item');
@@ -447,9 +475,126 @@ export function EntryBox({
         return;
       }
       // Always reload from database to show actual state
-      onUpdated?.({ ...entry, ended_at: now, status: 'done_and_dusted' });
+      onUpdated?.({
+        ...entry,
+        ended_at: now,
+        status: 'done_and_dusted',
+        paused_ms: newPausedMs,
+        paused_at: null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to end item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePauseTask = async () => {
+    if (!user_email || saving || isPaused) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        now // paused_at opens the pause
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to pause');
+        return;
+      }
+      onUpdated?.({ ...entry, paused_at: now });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to pause');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResumeTask = async () => {
+    if (!user_email || saving || !isPaused) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date();
+      // Fold the open pause into the accumulated paused_ms and clear paused_at.
+      const openPauseMs = paused_at
+        ? Math.max(0, now.getTime() - new Date(paused_at).getTime())
+        : 0;
+      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        newPausedMs,
+        null // paused_at cleared → timer runs again
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to resume');
+        return;
+      }
+      onUpdated?.({ ...entry, paused_ms: newPausedMs, paused_at: null });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resume');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Adds a deadline target to a running task that has none (count-up → countdown)
+  const [targetMinutes, setTargetMinutes] = useState<string>('');
+  const handleSetTarget = async () => {
+    const minutes = Number(targetMinutes);
+    if (!user_email || saving || !Number.isFinite(minutes) || minutes <= 0) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const targetMs = Math.round(minutes * 60000);
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        targetMs,
+        paused_ms === undefined || paused_ms === null ? undefined : Number(paused_ms),
+        paused_at === undefined ? undefined : paused_at
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to set target');
+        return;
+      }
+      onUpdated?.({ ...entry, target_duration_ms: targetMs });
+      setTargetMinutes('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set target');
     } finally {
       setSaving(false);
     }
@@ -498,10 +643,14 @@ export function EntryBox({
         return isNaN(val) ? null : val;
       })
       .filter((v): v is number => v !== null);
-    if (values.length === 0) { setCalcField(null); return; }
-    const result = type === 'sum'
-      ? values.reduce((a, b) => a + b, 0)
-      : values.reduce((a, b) => a + b, 0) / values.length;
+    if (values.length === 0) {
+      setCalcField(null);
+      return;
+    }
+    const result =
+      type === 'sum'
+        ? values.reduce((a, b) => a + b, 0)
+        : values.reduce((a, b) => a + b, 0) / values.length;
     const newEntries = { ...parsedEntries, [`_calc_${calcField}`]: { type, value: result } };
     updateEntry(user_email, project_name, id, newEntries).then(() => {
       onUpdated?.({ ...entry, entries: newEntries });
@@ -564,30 +713,32 @@ export function EntryBox({
             Object.entries(draftFields).map(([key, value]) => {
               const customOpts = parseCustomOptions(fieldDefs[key] || '');
               return (
-              <div className="entry-box__field--editing" key={key}>
-                <label className="entry-box__field-key">{formatFieldKey(key)}</label>
-                {customOpts ? (
-                  <select
-                    className="entry-box__field-input"
-                    value={value}
-                    onChange={(e) => handleFieldChange(key, e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="">Select...</option>
-                    {customOpts.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className="entry-box__field-input"
-                    type="text"
-                    value={value}
-                    onChange={(e) => handleFieldChange(key, e.target.value)}
-                    disabled={saving}
-                  />
-                )}
-              </div>
+                <div className="entry-box__field--editing" key={key}>
+                  <label className="entry-box__field-key">{formatFieldKey(key)}</label>
+                  {customOpts ? (
+                    <select
+                      className="entry-box__field-input"
+                      value={value}
+                      onChange={(e) => handleFieldChange(key, e.target.value)}
+                      disabled={saving}
+                    >
+                      <option value="">Select...</option>
+                      {customOpts.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      className="entry-box__field-input"
+                      type="text"
+                      value={value}
+                      onChange={(e) => handleFieldChange(key, e.target.value)}
+                      disabled={saving}
+                    />
+                  )}
+                </div>
               );
             })
           )}
@@ -639,333 +790,416 @@ export function EntryBox({
 
   return (
     <>
-    <div
-      className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
-      style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
-    >
-      <div className="entry-box__top-row">
-        <div className="entry-box__menu-wrap" ref={menuRef}>
-          <button
-            type="button"
-            className="entry-box__menu-btn"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Entry options"
-            aria-expanded={menuOpen}
-          >
-            ⋯
-          </button>
-          {menuOpen && (
-            <div className="entry-box__menu">
-              <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-                Edit
-              </button>
-              <button
-                type="button"
-                className="entry-box__menu-item"
-                onClick={() => {
-                  setMenuOpen(false);
-                  openNotes(entry);
-                }}
-              >
-                View Notes
-              </button>
-              <button
-                type="button"
-                className="entry-box__menu-item"
-                onClick={() => {
-                  setMenuOpen(false);
-                  openNotes(entry);
-                }}
-              >
-                Add Note
-              </button>
-              <button
-                type="button"
-                className="entry-box__menu-item entry-box__menu-item--danger"
-                onClick={handleToggleArchive}
-                disabled={archiving}
-              >
-                {archiving
-                  ? archived
-                    ? 'Unarchiving...'
-                    : 'Archiving...'
-                  : archived
-                    ? 'Unarchive'
-                    : 'Archive'}
-              </button>
-              {confirmDelete ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.4rem',
-                    padding: '0.5rem 0.9rem',
+      <div
+        className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
+        style={
+          projectColor
+            ? ({
+                '--tint': `${projectColor}18`,
+                borderLeft: `3px solid ${projectColor}`,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        <div className="entry-box__top-row">
+          <div className="entry-box__menu-wrap" ref={menuRef}>
+            <button
+              type="button"
+              className="entry-box__menu-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Entry options"
+              aria-expanded={menuOpen}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <div className="entry-box__menu">
+                <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="entry-box__menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openNotes(entry);
                   }}
                 >
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-dim, #6b7280)' }}>
-                    Delete this entry?
-                  </span>
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      style={{
-                        background: '#dc2626',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '0.35rem',
-                        padding: '0.3rem 0.7rem',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {deleting ? 'Deleting...' : 'Yes, delete'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete(false)}
-                      className="btn-secondary"
-                      style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
+                  View Notes
+                </button>
+                <button
+                  type="button"
+                  className="entry-box__menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openNotes(entry);
+                  }}
+                >
+                  Add Note
+                </button>
                 <button
                   type="button"
                   className="entry-box__menu-item entry-box__menu-item--danger"
-                  onClick={() => setConfirmDelete(true)}
-                  disabled={deleting}
+                  onClick={handleToggleArchive}
+                  disabled={archiving}
                 >
-                  Delete
+                  {archiving
+                    ? archived
+                      ? 'Unarchiving...'
+                      : 'Archiving...'
+                    : archived
+                      ? 'Unarchive'
+                      : 'Archive'}
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="entry-box__header">
-        <div className="entry-box__tags">
-          {onPriorityChanged ? (
-            <select
-              className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
-              value={
-                priority && PRIORITY_TO_VALUE[priority] !== undefined
-                  ? PRIORITY_TO_VALUE[priority]
-                  : '3'
-              }
-              onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <option value="0">Urgent & important</option>
-              <option value="1">Urgent, not important</option>
-              <option value="2">Not urgent</option>
-              <option value="3">No priority</option>
-            </select>
-          ) : (
-            priority && <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
-          )}
-          <select
-            className={`entry-box__tag entry-box__status-select ${STATUS_CLASS[status]}`}
-            value={status}
-            onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
-            onClick={(e) => e.stopPropagation()}
-            disabled={saving || archived}
-          >
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          {isOverdue(due_date ?? null, status) && (
-            <span className="entry-box__tag entry-box__tag--overdue">
-              {getOverdueText(due_date ?? null, status)}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          className="entry-box__project entry-box__project--link"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/project/${encodeURIComponent(project_name)}`);
-          }}
-          title={`Go to ${project_name} page`}
-        >
-          {project_name}
-        </button>
-      </div>
-
-      {safeSummary && (
-        <p className="entry-box__summary">{safeSummary}</p>
-      )}
-
-      {/* Project reference area */}
-      <div className="entry-box__project-ref-area">
-        {!!parsedEntries._project_ref && (
-          <div className="entry-box__ref-row">
-            <span className="entry-box__ref-label">Project ref:</span>
-            <button
-              type="button"
-              className="entry-box__ref-link"
-              onClick={(e) => {
-                e.stopPropagation();
-                const ref = parsedEntries._project_ref as any;
-                navigate(`/project/${encodeURIComponent(ref.project_name)}`);
-              }}
-            >
-              📁 {(parsedEntries._project_ref as any).project_name}
-            </button>
-            <button
-              type="button"
-              className="entry-box__ref-remove"
-              onClick={(e) => { e.stopPropagation(); removeProjectRef(); }}
-              title="Remove reference"
-            >×</button>
+                {confirmDelete ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.4rem',
+                      padding: '0.5rem 0.9rem',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-dim, #6b7280)' }}>
+                      Delete this entry?
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        style={{
+                          background: '#dc2626',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '0.35rem',
+                          padding: '0.3rem 0.7rem',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {deleting ? 'Deleting...' : 'Yes, delete'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(false)}
+                        className="btn-secondary"
+                        style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="entry-box__menu-item entry-box__menu-item--danger"
+                    onClick={() => setConfirmDelete(true)}
+                    disabled={deleting}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        )}
-        <button
-          type="button"
-          className="entry-box__ref-btn"
-          onClick={(e) => { e.stopPropagation(); openProjectRefPicker(); }}
-        >
-          + Project Reference
-        </button>
-      </div>
-
-      {entryFields.length > 0 && (
-        <table className="entry-box__table">
-          <tbody>
-            {entryFields.map(([key, value]) => {
-              const isNumeric = fieldDefs[key] === 'number';
-              const calcKey = `_calc_${key}`;
-              const calcResult = parsedEntries[calcKey] as { type: string; value: number } | undefined;
-              return (
-                <React.Fragment key={key}>
-                  <tr className="entry-box__row">
-                    <td className="entry-box__field-key">{formatFieldKey(key)}</td>
-                    <td className="entry-box__field-value">
-                      {formatFieldValue(value)}
-                      {isNumeric && (
-                        <button
-                          type="button"
-                          className="entry-box__calc-btn"
-                          onClick={(e) => { e.stopPropagation(); openCalcPicker(key); }}
-                          title="Calculate sum or average"
-                        >
-                          Calculate
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {calcResult && (
-                    <tr className="entry-box__row entry-box__row--calc">
-                      <td className="entry-box__field-key entry-box__field-key--calc">
-                        {calcResult.type === 'sum' ? 'Σ' : 'μ'} {formatFieldKey(key)}
-                      </td>
-                      <td className="entry-box__field-value entry-box__field-value--calc">
-                        {Number(calcResult.value).toFixed(2)}
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-
-      <div className="entry-box__meta">
-        <div className="entry-box__meta-left">
-          {dueLabel && (
-            <span className="entry-box__meta-item">
-              <span className="entry-box__meta-label">Due</span>
-              <span className="entry-box__meta-value">{dueLabel}</span>
-            </span>
-          )}
         </div>
-        <div className="entry-box__meta-right">
-          {started_at && !ended_at && (
-            <div className="entry-box__task-active">
-              {elapsed && <span className="entry-box__task-elapsed">{elapsed}</span>}
+        <div className="entry-box__header">
+          <div className="entry-box__tags">
+            {onPriorityChanged ? (
+              <select
+                className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
+                value={
+                  priority && PRIORITY_TO_VALUE[priority] !== undefined
+                    ? PRIORITY_TO_VALUE[priority]
+                    : '3'
+                }
+                onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="0">Urgent & important</option>
+                <option value="1">Urgent, not important</option>
+                <option value="2">Not urgent</option>
+                <option value="3">No priority</option>
+              </select>
+            ) : (
+              priority && <span className={`entry-box__tag ${priorityClass}`}>{priority}</span>
+            )}
+            <select
+              className={`entry-box__tag entry-box__status-select ${STATUS_CLASS[status]}`}
+              value={status}
+              onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
+              onClick={(e) => e.stopPropagation()}
+              disabled={saving || archived}
+            >
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {isOverdue(due_date ?? null, status) && (
+              <span className="entry-box__tag entry-box__tag--overdue">
+                {getOverdueText(due_date ?? null, status)}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="entry-box__project entry-box__project--link"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/project/${encodeURIComponent(project_name)}`);
+            }}
+            title={`Go to ${project_name} page`}
+          >
+            {project_name}
+          </button>
+        </div>
+
+        {safeSummary && <p className="entry-box__summary">{safeSummary}</p>}
+
+        {/* Project reference area */}
+        <div className="entry-box__project-ref-area">
+          {!!parsedEntries._project_ref && (
+            <div className="entry-box__ref-row">
+              <span className="entry-box__ref-label">Project ref:</span>
               <button
                 type="button"
-                className="entry-box__task-btn entry-box__task-btn--end"
-                onClick={handleEndTask}
-                disabled={saving}
+                className="entry-box__ref-link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const ref = parsedEntries._project_ref as any;
+                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+                }}
               >
-                ■ End Task
+                📁 {(parsedEntries._project_ref as any).project_name}
+              </button>
+              <button
+                type="button"
+                className="entry-box__ref-remove"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeProjectRef();
+                }}
+                title="Remove reference"
+              >
+                ×
               </button>
             </div>
           )}
-          {archived && <span className="entry-box__archived-tag">Archived</span>}
+          <button
+            type="button"
+            className="entry-box__ref-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openProjectRefPicker();
+            }}
+          >
+            + Project Reference
+          </button>
         </div>
-      </div>
 
-      {/* View Notes button - secondary action on its own line */}
-      <button
-        type="button"
-        className="entry-box__view-notes-btn"
-        onClick={() => openNotes(entry)}
-      >
-        <FiEdit className="entry-box__view-notes-icon" />
-        View Notes
-      </button>
+        {entryFields.length > 0 && (
+          <table className="entry-box__table">
+            <tbody>
+              {entryFields.map(([key, value]) => {
+                const isNumeric = fieldDefs[key] === 'number';
+                const calcKey = `_calc_${key}`;
+                const calcResult = parsedEntries[calcKey] as
+                  { type: string; value: number } | undefined;
+                return (
+                  <React.Fragment key={key}>
+                    <tr className="entry-box__row">
+                      <td className="entry-box__field-key">{formatFieldKey(key)}</td>
+                      <td className="entry-box__field-value">
+                        {formatFieldValue(value)}
+                        {isNumeric && (
+                          <button
+                            type="button"
+                            className="entry-box__calc-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCalcPicker(key);
+                            }}
+                            title="Calculate sum or average"
+                          >
+                            Calculate
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {calcResult && (
+                      <tr className="entry-box__row entry-box__row--calc">
+                        <td className="entry-box__field-key entry-box__field-key--calc">
+                          {calcResult.type === 'sum' ? 'Σ' : 'μ'} {formatFieldKey(key)}
+                        </td>
+                        <td className="entry-box__field-value entry-box__field-value--calc">
+                          {Number(calcResult.value).toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
 
-      {error && <div className="entry-box__error">{error}</div>}
-    </div>
-
-    {/* Project Reference Picker Modal */}
-    {refPickerOpen && (
-      <div className="modal-overlay" onClick={() => setRefPickerOpen(null)}>
-        <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="ref-picker-header">
-            <h3>Select a Project</h3>
-            <button type="button" className="ref-picker-close" onClick={() => setRefPickerOpen(null)}>×</button>
+        <div className="entry-box__meta">
+          <div className="entry-box__meta-left">
+            {dueLabel && (
+              <span className="entry-box__meta-item">
+                <span className="entry-box__meta-label">Due</span>
+                <span className="entry-box__meta-value">{dueLabel}</span>
+              </span>
+            )}
           </div>
-          {refLoading ? (
-            <div className="ref-picker-loading">Loading...</div>
-          ) : (
-            <div className="ref-picker-list">
-              {refProjects.map((p: any) => (
+          <div className="entry-box__meta-right">
+            {started_at && !ended_at && (
+              <div className="entry-box__task-active">
+                {isPaused && <span className="entry-box__task-paused">Paused</span>}
+                {timerText && (
+                  <span className="entry-box__task-elapsed">
+                    {target_duration_ms != null ? `${timerText} left` : timerText}
+                  </span>
+                )}
+                {isPaused ? (
+                  <button
+                    type="button"
+                    className="entry-box__task-btn entry-box__task-btn--resume"
+                    onClick={handleResumeTask}
+                    disabled={saving}
+                  >
+                    ▶ Resume
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="entry-box__task-btn entry-box__task-btn--pause"
+                    onClick={handlePauseTask}
+                    disabled={saving}
+                  >
+                    ❚❚ Pause
+                  </button>
+                )}
                 <button
-                  key={p.project_name}
                   type="button"
-                  className="ref-picker-item"
-                  onClick={() => selectProjectRef(p)}
+                  className="entry-box__task-btn entry-box__task-btn--end"
+                  onClick={handleEndTask}
+                  disabled={saving}
                 >
-                  <span className="ref-picker-item-project">{p.project_name}</span>
+                  ■ End Task
                 </button>
-              ))}
-              {refProjects.length === 0 && <div className="ref-picker-empty">No projects found</div>}
-            </div>
-          )}
+                {target_duration_ms == null && (
+                  <span className="entry-box__target-set">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="min"
+                      aria-label="Target minutes"
+                      value={targetMinutes}
+                      onChange={(e) => setTargetMinutes(e.target.value)}
+                      className="entry-box__target-input"
+                    />
+                    <button
+                      type="button"
+                      className="entry-box__task-btn entry-box__task-btn--target"
+                      onClick={handleSetTarget}
+                      disabled={saving || !targetMinutes}
+                    >
+                      Set Target
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+            {archived && <span className="entry-box__archived-tag">Archived</span>}
+          </div>
         </div>
-      </div>
-    )}
 
-    {/* Calculation Picker Modal */}
-    {calcField && (
-      <div className="modal-overlay" onClick={() => setCalcField(null)}>
-        <div className="ref-picker-modal ref-picker-modal--small" onClick={(e) => e.stopPropagation()}>
-          <div className="ref-picker-header">
-            <h3>Calculate {formatFieldKey(calcField)}</h3>
-            <button type="button" className="ref-picker-close" onClick={() => setCalcField(null)}>×</button>
-          </div>
-          <div className="calc-picker-actions">
-            <button type="button" className="calc-picker-btn" onClick={() => doCalculation('sum')}>
-              Sum
-            </button>
-            <button type="button" className="calc-picker-btn" onClick={() => doCalculation('average')}>
-              Average
-            </button>
+        {/* View Notes button - secondary action on its own line */}
+        <button
+          type="button"
+          className="entry-box__view-notes-btn"
+          onClick={() => openNotes(entry)}
+        >
+          <FiEdit className="entry-box__view-notes-icon" />
+          View Notes
+        </button>
+
+        {error && <div className="entry-box__error">{error}</div>}
+      </div>
+
+      {/* Project Reference Picker Modal */}
+      {refPickerOpen && (
+        <div className="modal-overlay" onClick={() => setRefPickerOpen(null)}>
+          <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ref-picker-header">
+              <h3>Select a Project</h3>
+              <button
+                type="button"
+                className="ref-picker-close"
+                onClick={() => setRefPickerOpen(null)}
+              >
+                ×
+              </button>
+            </div>
+            {refLoading ? (
+              <div className="ref-picker-loading">Loading...</div>
+            ) : (
+              <div className="ref-picker-list">
+                {refProjects.map((p: any) => (
+                  <button
+                    key={p.project_name}
+                    type="button"
+                    className="ref-picker-item"
+                    onClick={() => selectProjectRef(p)}
+                  >
+                    <span className="ref-picker-item-project">{p.project_name}</span>
+                  </button>
+                ))}
+                {refProjects.length === 0 && (
+                  <div className="ref-picker-empty">No projects found</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    )}
+      )}
+
+      {/* Calculation Picker Modal */}
+      {calcField && (
+        <div className="modal-overlay" onClick={() => setCalcField(null)}>
+          <div
+            className="ref-picker-modal ref-picker-modal--small"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="ref-picker-header">
+              <h3>Calculate {formatFieldKey(calcField)}</h3>
+              <button type="button" className="ref-picker-close" onClick={() => setCalcField(null)}>
+                ×
+              </button>
+            </div>
+            <div className="calc-picker-actions">
+              <button
+                type="button"
+                className="calc-picker-btn"
+                onClick={() => doCalculation('sum')}
+              >
+                Sum
+              </button>
+              <button
+                type="button"
+                className="calc-picker-btn"
+                onClick={() => doCalculation('average')}
+              >
+                Average
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
