@@ -33,6 +33,7 @@ import DataPortability from '@/pages/DataPortability';
 import { DataDisclaimer } from '@/pages/DataDisclaimer';
 import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
 import { NotesPage } from '@/pages/NotesPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -93,9 +94,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
  */
 function NotesOverlay() {
   const { notesEntry, closeNotes } = useNotes();
-  
+
   if (!notesEntry) return null;
-  
+
   return <NotesPage entryData={notesEntry} onClose={closeNotes} />;
 }
 
@@ -105,217 +106,225 @@ export function App() {
       <ThemeInitializer>
         <AuthProvider>
           <NotesProvider>
-          <DataSyncInitializer>
-          <OfflineBanner />
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <PublicRoute>
-                  <SignIn />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/signin"
-              element={
-                <PublicRoute>
-                  <SignIn />
-                </PublicRoute>
-              }
-            />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/auth/restore" element={<AuthRestore />} />
-            <Route
-              path="/reset-password"
-              element={
-                <PublicRoute>
-                  <ResetPassword />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/auth/update-password"
-              element={
-                <PublicRoute>
-                  <UpdatePassword />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/all"
-                element={
-                  <ProtectedRoute>
-                    <AllEntriesPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/entries"
-                element={
-                  <ProtectedRoute>
-                    <AllEntriesPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/archives"
-                element={
-                  <ProtectedRoute>
-                    <ArchivesPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/activity"
-                element={
-                  <ProtectedRoute>
-                    <ActivityPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/create-profile"
-                element={
-                  <ProtectedRoute>
-                    <CreateProfile />
-                  </ProtectedRoute>
-                }
-              />
-            <Route
-              path="/avatar"
-              element={
-                <ProtectedRoute>
-                  <AvatarPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tone-setup"
-              element={
-                <ProtectedRoute>
-                  <ToneSetup />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/theme-setup"
-              element={
-                <ProtectedRoute>
-                  <ThemeSetup />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/frequency-setup"
-              element={
-                <ProtectedRoute>
-                  <FrequencySetup />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/projects"
-              element={
-                <ProtectedRoute>
-                  <ProjectsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/project/:projectName"
-              element={
-                <ProtectedRoute>
-                  <ProjectDetailPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/stats"
-              element={
-                <ProtectedRoute>
-                  <StatsView />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/streaks"
-              element={
-                <ProtectedRoute>
-                  <StreakView />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/template" element={<Navigate to="/dashboard" replace />} />
-            <Route
-              path="/calendar"
-              element={
-                <ProtectedRoute>
-                  <CalendarPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/kanban"
-              element={
-                <ProtectedRoute>
-                  <KanbanPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/today"
-              element={
-                <ProtectedRoute>
-                  <TodayPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/timeline"
-              element={
-                <ProtectedRoute>
-                  <TimelinePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/data-disclaimer"
-              element={
-                <ProtectedRoute>
-                  <DataDisclaimer />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/data-disclaimer-info"
-              element={
-                <ProtectedRoute>
-                  <DataDisclaimer2 />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/data-portability"
-              element={
-                <ProtectedRoute>
-                  <DataPortability />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/signin" replace />} />
-          </Routes>
-          <OfflineSyncToasts />
-          <NotesOverlay />
-          </DataSyncInitializer>
+            <DataSyncInitializer>
+              <OfflineBanner />
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <PublicRoute>
+                      <SignIn />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/signin"
+                  element={
+                    <PublicRoute>
+                      <SignIn />
+                    </PublicRoute>
+                  }
+                />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/auth/restore" element={<AuthRestore />} />
+                <Route
+                  path="/reset-password"
+                  element={
+                    <PublicRoute>
+                      <ResetPassword />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/auth/update-password"
+                  element={
+                    <PublicRoute>
+                      <UpdatePassword />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/all"
+                  element={
+                    <ProtectedRoute>
+                      <AllEntriesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/entries"
+                  element={
+                    <ProtectedRoute>
+                      <AllEntriesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/archives"
+                  element={
+                    <ProtectedRoute>
+                      <ArchivesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/activity"
+                  element={
+                    <ProtectedRoute>
+                      <ActivityPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/create-profile"
+                  element={
+                    <ProtectedRoute>
+                      <CreateProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/avatar"
+                  element={
+                    <ProtectedRoute>
+                      <AvatarPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tone-setup"
+                  element={
+                    <ProtectedRoute>
+                      <ToneSetup />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/theme-setup"
+                  element={
+                    <ProtectedRoute>
+                      <ThemeSetup />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/frequency-setup"
+                  element={
+                    <ProtectedRoute>
+                      <FrequencySetup />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/projects"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/project/:projectName"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stats"
+                  element={
+                    <ProtectedRoute>
+                      <StatsView />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/streaks"
+                  element={
+                    <ProtectedRoute>
+                      <StreakView />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/template" element={<Navigate to="/dashboard" replace />} />
+                <Route
+                  path="/calendar"
+                  element={
+                    <ProtectedRoute>
+                      <CalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/kanban"
+                  element={
+                    <ProtectedRoute>
+                      <KanbanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/today"
+                  element={
+                    <ProtectedRoute>
+                      <TodayPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/timeline"
+                  element={
+                    <ProtectedRoute>
+                      <TimelinePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/notifications"
+                  element={
+                    <ProtectedRoute>
+                      <NotificationsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/data-disclaimer"
+                  element={
+                    <ProtectedRoute>
+                      <DataDisclaimer />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/data-disclaimer-info"
+                  element={
+                    <ProtectedRoute>
+                      <DataDisclaimer2 />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/data-portability"
+                  element={
+                    <ProtectedRoute>
+                      <DataPortability />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/signin" replace />} />
+              </Routes>
+              <OfflineSyncToasts />
+              <NotesOverlay />
+            </DataSyncInitializer>
           </NotesProvider>
         </AuthProvider>
       </ThemeInitializer>

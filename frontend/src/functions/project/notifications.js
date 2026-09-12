@@ -20,6 +20,25 @@ export async function getNotifications(email) {
 }
 
 /**
+ * Full notification history for the /notifications page — read and
+ * unread rows, newest first, paginated. `total` supports a
+ * "showing X of Y" / load-more UI.
+ */
+export async function getNotificationHistory(email, limit = 50, offset = 0) {
+  try {
+    const result = await request(`${PROJECT_URL}/service/notifications`, {
+      method: 'POST',
+      body: JSON.stringify({ function: 'history', values: { email, limit, offset } }),
+      timeoutMs: 30_000,
+    });
+    return result;
+  } catch (err) {
+    console.error('[getNotificationHistory] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
  * Mark a single notification as read.
  */
 export async function markNotificationRead(email, id) {
