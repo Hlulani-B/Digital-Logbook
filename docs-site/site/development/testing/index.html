@@ -1,0 +1,1806 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the COMS3011A Digital Logbook project" name="description"/>
+<link href="../code-quality/" rel="prev"/>
+<link href="../ai-attribution/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>Testing &amp; User Feedback - Digital Logbook Docs</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Lora:300,300i,400,400i,700,700i%7CFira+Code:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Lora";--md-code-font:"Fira Code"}</style>
+<link href="../../stylesheets/extra.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="rose" data-md-color-primary="pink" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#testing-user-feedback">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Digital Logbook Docs" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Digital Logbook Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Digital Logbook Docs
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Testing &amp; User Feedback
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="rose" data-md-color-media="" data-md-color-primary="pink" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="rose" data-md-color-media="" data-md-color-primary="pink" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    codacaine/Digital-Logbook
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Digital Logbook Docs" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Digital Logbook Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Digital Logbook Docs
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    codacaine/Digital-Logbook
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../getting-started/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../features/">
+<span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/overview/">
+<span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/database/">
+<span class="md-ellipsis">
+    
+  
+    Database Schema
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/cicd-deployment/">
+<span class="md-ellipsis">
+    
+  
+    CI/CD &amp; Deployment
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/api-contracts/">
+<span class="md-ellipsis">
+    
+  
+    API Contracts
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/system-design/">
+<span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/teck-stack/">
+<span class="md-ellipsis">
+    
+  
+    Tech Stack
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/ui-design/">
+<span class="md-ellipsis">
+    
+  
+    UI Design
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/voice-feature/">
+<span class="md-ellipsis">
+    
+  
+    Voice Recording
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/caching/">
+<span class="md-ellipsis">
+    
+  
+    IndexedDB Caching
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/sse/">
+<span class="md-ellipsis">
+    
+  
+    SSE Real-Time Updates
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/daemon/">
+<span class="md-ellipsis">
+    
+  
+    Keep-Alive Daemons
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/entry-summaries/">
+<span class="md-ellipsis">
+    
+  
+    Entry Summaries
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/uml-diagrams/">
+<span class="md-ellipsis">
+    
+  
+    UML Architecture Diagrams
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../architecture/third-party/">
+<span class="md-ellipsis">
+    
+  
+    Third-Party Dependencies
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../roadmap/">
+<span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../log/">
+<span class="md-ellipsis">
+    
+  
+    Development Log
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../methodology/">
+<span class="md-ellipsis">
+    
+  
+    Methodology &amp; Git Workflow
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../meetings/">
+<span class="md-ellipsis">
+    
+  
+    Meeting Log
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../user-stories/">
+<span class="md-ellipsis">
+    
+  
+    Sprint 1 User Stories
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../sprint-2-user-stories/">
+<span class="md-ellipsis">
+    
+  
+    Sprint 2 User Stories
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../work-tracker/">
+<span class="md-ellipsis">
+    
+  
+    Work Tracker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../stakeholder-interaction/">
+<span class="md-ellipsis">
+    
+  
+    Stakeholder Interaction
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../decisions/">
+<span class="md-ellipsis">
+    
+  
+    Open Questions &amp; Decisions
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../issues/">
+<span class="md-ellipsis">
+    
+  
+    Issues &amp; Troubleshooting
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../code-quality/">
+<span class="md-ellipsis">
+    
+  
+    Code Quality Tools
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Testing &amp; User Feedback
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Testing &amp; User Feedback
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#quality-assurance-overview">
+<span class="md-ellipsis">
+      
+        Quality Assurance Overview
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#automated-testing-procedure">
+<span class="md-ellipsis">
+      
+        Automated Testing Procedure
+      
+    </span>
+</a>
+<nav aria-label="Automated Testing Procedure" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#testing-tools-and-frameworks">
+<span class="md-ellipsis">
+      
+        Testing Tools and Frameworks
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-types-of-tests-are-run">
+<span class="md-ellipsis">
+      
+        What Types of Tests Are Run
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#test-file-organisation">
+<span class="md-ellipsis">
+      
+        Test File Organisation
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#test-structure-pattern">
+<span class="md-ellipsis">
+      
+        Test Structure Pattern
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#how-tests-are-executed">
+<span class="md-ellipsis">
+      
+        How Tests Are Executed
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#mocking-approach">
+<span class="md-ellipsis">
+      
+        Mocking Approach
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#coverage-expectations">
+<span class="md-ellipsis">
+      
+        Coverage Expectations
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-happens-when-a-test-fails">
+<span class="md-ellipsis">
+      
+        What Happens When a Test Fails
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#testing-policy">
+<span class="md-ellipsis">
+      
+        Testing Policy
+      
+    </span>
+</a>
+<nav aria-label="Testing Policy" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#rules-for-test-coverage">
+<span class="md-ellipsis">
+      
+        Rules for Test Coverage
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#responsibilities">
+<span class="md-ellipsis">
+      
+        Responsibilities
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#review-cadence">
+<span class="md-ellipsis">
+      
+        Review Cadence
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-is-not-tested-and-why">
+<span class="md-ellipsis">
+      
+        What Is NOT Tested (and Why)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#full-test-inventory">
+<span class="md-ellipsis">
+      
+        Full Test Inventory
+      
+    </span>
+</a>
+<nav aria-label="Full Test Inventory" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#frontend-unit-tests-31-files-397-tests">
+<span class="md-ellipsis">
+      
+        Frontend Unit Tests (31 files, 397 tests)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#frontend-integration-tests-5-files-47-tests">
+<span class="md-ellipsis">
+      
+        Frontend Integration Tests (5 files, 47 tests)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#backend-tests-17-files">
+<span class="md-ellipsis">
+      
+        Backend Tests (17 files)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#summary">
+<span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#user-feedback-process">
+<span class="md-ellipsis">
+      
+        User Feedback Process
+      
+    </span>
+</a>
+<nav aria-label="User Feedback Process" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#feedback-collection-methods">
+<span class="md-ellipsis">
+      
+        Feedback Collection Methods
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#how-feedback-is-triaged">
+<span class="md-ellipsis">
+      
+        How Feedback Is Triaged
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#formal-documentation-of-feedback">
+<span class="md-ellipsis">
+      
+        Formal Documentation of Feedback
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#acceptance-criteria-for-feedback-derived-stories">
+<span class="md-ellipsis">
+      
+        Acceptance Criteria for Feedback-Derived Stories
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#closing-the-feedback-loop">
+<span class="md-ellipsis">
+      
+        Closing the Feedback Loop
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../ai-attribution/">
+<span class="md-ellipsis">
+    
+  
+    AI Attribution
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#quality-assurance-overview">
+<span class="md-ellipsis">
+      
+        Quality Assurance Overview
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#automated-testing-procedure">
+<span class="md-ellipsis">
+      
+        Automated Testing Procedure
+      
+    </span>
+</a>
+<nav aria-label="Automated Testing Procedure" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#testing-tools-and-frameworks">
+<span class="md-ellipsis">
+      
+        Testing Tools and Frameworks
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-types-of-tests-are-run">
+<span class="md-ellipsis">
+      
+        What Types of Tests Are Run
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#test-file-organisation">
+<span class="md-ellipsis">
+      
+        Test File Organisation
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#test-structure-pattern">
+<span class="md-ellipsis">
+      
+        Test Structure Pattern
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#how-tests-are-executed">
+<span class="md-ellipsis">
+      
+        How Tests Are Executed
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#mocking-approach">
+<span class="md-ellipsis">
+      
+        Mocking Approach
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#coverage-expectations">
+<span class="md-ellipsis">
+      
+        Coverage Expectations
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-happens-when-a-test-fails">
+<span class="md-ellipsis">
+      
+        What Happens When a Test Fails
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#testing-policy">
+<span class="md-ellipsis">
+      
+        Testing Policy
+      
+    </span>
+</a>
+<nav aria-label="Testing Policy" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#rules-for-test-coverage">
+<span class="md-ellipsis">
+      
+        Rules for Test Coverage
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#responsibilities">
+<span class="md-ellipsis">
+      
+        Responsibilities
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#review-cadence">
+<span class="md-ellipsis">
+      
+        Review Cadence
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-is-not-tested-and-why">
+<span class="md-ellipsis">
+      
+        What Is NOT Tested (and Why)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#full-test-inventory">
+<span class="md-ellipsis">
+      
+        Full Test Inventory
+      
+    </span>
+</a>
+<nav aria-label="Full Test Inventory" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#frontend-unit-tests-31-files-397-tests">
+<span class="md-ellipsis">
+      
+        Frontend Unit Tests (31 files, 397 tests)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#frontend-integration-tests-5-files-47-tests">
+<span class="md-ellipsis">
+      
+        Frontend Integration Tests (5 files, 47 tests)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#backend-tests-17-files">
+<span class="md-ellipsis">
+      
+        Backend Tests (17 files)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#summary">
+<span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#user-feedback-process">
+<span class="md-ellipsis">
+      
+        User Feedback Process
+      
+    </span>
+</a>
+<nav aria-label="User Feedback Process" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#feedback-collection-methods">
+<span class="md-ellipsis">
+      
+        Feedback Collection Methods
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#how-feedback-is-triaged">
+<span class="md-ellipsis">
+      
+        How Feedback Is Triaged
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#formal-documentation-of-feedback">
+<span class="md-ellipsis">
+      
+        Formal Documentation of Feedback
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#acceptance-criteria-for-feedback-derived-stories">
+<span class="md-ellipsis">
+      
+        Acceptance Criteria for Feedback-Derived Stories
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#closing-the-feedback-loop">
+<span class="md-ellipsis">
+      
+        Closing the Feedback Loop
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="testing-user-feedback">Testing &amp; User Feedback<a class="headerlink" href="#testing-user-feedback" title="Permanent link">¶</a></h1>
+<p><strong>Test lead:</strong> Hlulani Baloyi — responsible for writing, reviewing, and maintaining the test suite across all frontend and backend services.</p>
+<h2 id="quality-assurance-overview">Quality Assurance Overview<a class="headerlink" href="#quality-assurance-overview" title="Permanent link">¶</a></h2>
+<p>This page documents three pillars of our quality assurance strategy:</p>
+<ol>
+<li><strong>Automated Testing Procedure</strong> — how tests are structured, run, and enforced</li>
+<li><strong>Testing Policy</strong> — the rules the team follows for test coverage</li>
+<li><strong>User Feedback Process</strong> — how stakeholder input is collected, triaged, and actioned</li>
+</ol>
+<hr/>
+<h2 id="automated-testing-procedure">Automated Testing Procedure<a class="headerlink" href="#automated-testing-procedure" title="Permanent link">¶</a></h2>
+<h3 id="testing-tools-and-frameworks">Testing Tools and Frameworks<a class="headerlink" href="#testing-tools-and-frameworks" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test runner</td>
+<td><strong>Vitest</strong></td>
+<td>Unit and integration tests for frontend and backend</td>
+</tr>
+<tr>
+<td>Component rendering</td>
+<td><strong>@testing-library/react</strong></td>
+<td>Render React components, simulate user interactions</td>
+</tr>
+<tr>
+<td>DOM assertions</td>
+<td><strong>@testing-library/jest-dom</strong></td>
+<td>Semantic assertions (<code>toBeDisabled</code>, <code>toHaveTextContent</code>)</td>
+</tr>
+<tr>
+<td>IndexedDB polyfill</td>
+<td><strong>fake-indexeddb</strong></td>
+<td>Integration tests that exercise the real cache layer</td>
+</tr>
+<tr>
+<td>Backend HTTP tests</td>
+<td><strong>Vitest + supertest</strong></td>
+<td>Endpoint tests for each microservice</td>
+</tr>
+<tr>
+<td>CI pipeline</td>
+<td><strong>Gitea Actions</strong></td>
+<td>Automated test runs on every push and PR</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-types-of-tests-are-run">What Types of Tests Are Run<a class="headerlink" href="#what-types-of-tests-are-run" title="Permanent link">¶</a></h3>
+<h4 id="unit-tests">Unit Tests<a class="headerlink" href="#unit-tests" title="Permanent link">¶</a></h4>
+<p>Unit tests verify individual functions and components in isolation. All external dependencies (Supabase, fetch, IndexedDB) are mocked.</p>
+<p><strong>Examples:</strong>
+- Pure functions: <code>formatDuration</code>, <code>isOverdue</code>, <code>calculateStreaks</code>, <code>searchAll</code>
+- API helpers: <code>request()</code> with auth headers and error handling
+- Auth context: sign-in, sign-up, OAuth, password reset, account deletion
+- Component logic: form submission, conditional rendering, event handlers</p>
+<h4 id="integration-tests">Integration Tests<a class="headerlink" href="#integration-tests" title="Permanent link">¶</a></h4>
+<p>Integration tests verify that multiple modules work together correctly. These use real IndexedDB (via <code>fake-indexeddb</code>) and test the full data flow.</p>
+<p><strong>Examples:</strong>
+- <strong>Cache layer</strong> — <code>cacheSet</code> → <code>cacheGet</code> → <code>cacheSubscribe</code> event flow, isolation between users, <code>clearUserCache</code>
+- <strong>Entry CRUD</strong> — optimistic write → server sync → cache update, rollback on failure
+- <strong>Sync service</strong> — <code>syncAllData</code> populates all IndexedDB stores from server responses
+- <strong>Auth + Cache</strong> — sign-out clears IndexedDB, SSE disconnect on logout
+- <strong>useCachedData hook</strong> — reads from cache immediately, subscribes to changes, triggers background fetch</p>
+<h4 id="end-to-end-manual">End-to-End (Manual)<a class="headerlink" href="#end-to-end-manual" title="Permanent link">¶</a></h4>
+<p>End-to-end testing is done manually during development and sprint demos. Full browser E2E automation (e.g. Cypress) is planned but not yet implemented.</p>
+<h3 id="test-file-organisation">Test File Organisation<a class="headerlink" href="#test-file-organisation" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>frontend/src/
+├── components/__tests__/        # Shared component tests
+│   ├── AppShell.test.tsx
+│   ├── Header.test.tsx
+│   ├── NavBar.test.tsx
+│   ├── ProfileMenu.test.tsx
+│   ├── ProtectedRoute.test.tsx
+│   ├── QuickEntryBar.test.tsx
+│   └── Stats.test.tsx
+├── pages/__tests__/             # Page-level tests
+│   ├── AllEntries.test.tsx
+│   └── SignIn.test.tsx
+├── Templates/__tests__/         # Template component tests
+│   ├── EntriesByDueDateBoard.test.tsx
+│   ├── EntryChecklist.test.tsx
+│   └── ProjectTable.test.tsx
+├── __integration__/             # Integration tests (separate from unit)
+│   ├── auth-cache.integration.test.js
+│   ├── cache.integration.test.js
+│   ├── entries-crud.integration.test.js
+│   ├── sync-service.integration.test.js
+│   └── use-cached-data.integration.test.tsx
+├── context/__tests__/           # Auth context tests
+├── functions/__tests__/         # Pure function tests
+├── functions/dashboard/__tests__/
+├── hooks/__tests__/             # Hook tests
+└── lib/__tests__/               # Library/utility tests
+</code></pre></div>
+<p><strong>Naming convention:</strong> <code>{SourceName}.test.{ext}</code> — test files match the source file they cover. Integration tests use <code>.integration.test.{ext}</code> to distinguish them from unit tests.</p>
+<h3 id="test-structure-pattern">Test Structure Pattern<a class="headerlink" href="#test-structure-pattern" title="Permanent link">¶</a></h3>
+<p>Every test follows <strong>Arrange → Act → Assert</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">describe</span><span class="p">,</span><span class="w"> </span><span class="nx">it</span><span class="p">,</span><span class="w"> </span><span class="nx">expect</span><span class="p">,</span><span class="w"> </span><span class="nx">vi</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">'vitest'</span><span class="p">;</span>
+
+<span class="nx">describe</span><span class="p">(</span><span class="s1">'functionName'</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">it</span><span class="p">(</span><span class="s1">'does the expected thing'</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Arrange — set up inputs and mocks</span>
+<span class="w">    </span><span class="c1">// Act — call the function</span>
+<span class="w">    </span><span class="c1">// Assert — verify the result</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Component tests use <code>render</code> + <code>screen</code> queries:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">it</span><span class="p">(</span><span class="s1">'renders the project name on each checklist card'</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">ChecklistEntryCard</span><span class="w"> </span><span class="na">entry</span><span class="o">=</span><span class="p">{</span><span class="nx">sampleEntry</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;);</span>
+<span class="w">  </span><span class="nx">expect</span><span class="p">(</span><span class="nx">screen</span><span class="p">.</span><span class="nx">getByText</span><span class="p">(</span><span class="s1">'TestProject'</span><span class="p">)).</span><span class="nx">toBeTruthy</span><span class="p">();</span>
+<span class="p">});</span>
+</code></pre></div>
+<h3 id="how-tests-are-executed">How Tests Are Executed<a class="headerlink" href="#how-tests-are-executed" title="Permanent link">¶</a></h3>
+<h4 id="locally">Locally<a class="headerlink" href="#locally" title="Permanent link">¶</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># From the frontend/ directory</span>
+npm<span class="w"> </span><span class="nb">test</span><span class="w">                    </span><span class="c1"># Run all tests once</span>
+npm<span class="w"> </span>run<span class="w"> </span>test:watch<span class="w">          </span><span class="c1"># Watch mode (re-runs on file change)</span>
+npm<span class="w"> </span>run<span class="w"> </span>test:coverage<span class="w">       </span><span class="c1"># Generate coverage report (v8)</span>
+
+<span class="c1"># Run only integration tests</span>
+npx<span class="w"> </span>vitest<span class="w"> </span>run<span class="w"> </span>src/__integration__/
+
+<span class="c1"># Run a specific test file</span>
+npx<span class="w"> </span>vitest<span class="w"> </span>run<span class="w"> </span>src/components/__tests__/NavBar.test.tsx
+</code></pre></div>
+<h4 id="in-ci-gitea-actions">In CI (Gitea Actions)<a class="headerlink" href="#in-ci-gitea-actions" title="Permanent link">¶</a></h4>
+<p>The CI pipeline at <code>.gitea/workflows/test.yml</code> runs on every push and pull request to <code>main</code>. It has two separate jobs:</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>What it runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Frontend Unit Tests</strong></td>
+<td>All tests except <code>src/__integration__/</code></td>
+</tr>
+<tr>
+<td><strong>Frontend Integration Tests</strong></td>
+<td>Only <code>src/__integration__/</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">frontend-unit-tests</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">npx vitest run --exclude "src/__integration__/**"</span>
+<span class="w">  </span><span class="nt">frontend-integration-tests</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">npx vitest run src/__integration__/</span>
+</code></pre></div>
+<p>Both jobs appear separately in the Gitea Actions UI. If any test fails, the pipeline fails and the push is flagged.</p>
+<h3 id="mocking-approach">Mocking Approach<a class="headerlink" href="#mocking-approach" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Mock strategy</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supabase client</td>
+<td><code>vi.mock('@/lib/supabase')</code></td>
+<td>Prevents real database/auth calls</td>
+</tr>
+<tr>
+<td><code>fetch</code> / <code>request()</code></td>
+<td><code>vi.fn()</code> or <code>vi.mock('@/lib/api')</code></td>
+<td>Isolates from network</td>
+</tr>
+<tr>
+<td>React Router</td>
+<td><code>&lt;MemoryRouter&gt;</code> wrapper</td>
+<td>Controls navigation in tests</td>
+</tr>
+<tr>
+<td>IndexedDB</td>
+<td><code>fake-indexeddb/auto</code></td>
+<td>Real IndexedDB API in jsdom for integration tests</td>
+</tr>
+<tr>
+<td><code>localStorage</code></td>
+<td><code>localStorage.clear()</code> in <code>beforeEach</code></td>
+<td>Prevents test pollution</td>
+</tr>
+<tr>
+<td>Child components</td>
+<td><code>vi.mock('../Component')</code></td>
+<td>Tests one component in isolation</td>
+</tr>
+<tr>
+<td>Auth context</td>
+<td><code>vi.mock('@/context/AuthContext')</code></td>
+<td>Provides mock user for component tests</td>
+</tr>
+</tbody>
+</table>
+<h3 id="coverage-expectations">Coverage Expectations<a class="headerlink" href="#coverage-expectations" title="Permanent link">¶</a></h3>
+<p>Coverage is measured with <code>@vitest/coverage-v8</code>. The target is <strong>meaningful coverage</strong> of business logic and critical user flows, not 100% line coverage:</p>
+<ul>
+<li><strong>Pure functions</strong> (stats, overdue, streaks, search, tone) — fully covered</li>
+<li><strong>Shared components</strong> (NavBar, Header, ProfileMenu, Stats, AppShell) — render + interaction tests</li>
+<li><strong>Critical flows</strong> (auth, CRUD, cache sync, optimistic updates) — integration tested</li>
+<li><strong>Pages</strong> — key pages (SignIn, AllEntries) tested for display modes and navigation</li>
+</ul>
+<h3 id="what-happens-when-a-test-fails">What Happens When a Test Fails<a class="headerlink" href="#what-happens-when-a-test-fails" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>CI blocks the push</strong> — a failing test prevents the commit from passing the pipeline</li>
+<li><strong>The author fixes the test or the code</strong> — depending on whether the test expectation or the implementation is wrong</li>
+<li><strong>No test is silently skipped</strong> — disabled tests must include a comment explaining why and a tracking issue</li>
+</ol>
+<hr/>
+<h2 id="testing-policy">Testing Policy<a class="headerlink" href="#testing-policy" title="Permanent link">¶</a></h2>
+<h3 id="rules-for-test-coverage">Rules for Test Coverage<a class="headerlink" href="#rules-for-test-coverage" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Every new pure function must have a corresponding test file</strong> in a <code>__tests__/</code> directory adjacent to the source.</li>
+<li><strong>Every new React component that contains logic</strong> (event handlers, conditional rendering, API calls) must have at least one render test and one interaction test.</li>
+<li><strong>Tests must not depend on external services.</strong> All HTTP calls are mocked; no test may reach a live backend URL.</li>
+<li><strong>Tests must be deterministic.</strong> No test may rely on <code>Date.now()</code> without accepting it as a parameter or mocking the clock. Time-dependent tests use fixed timestamps.</li>
+<li><strong>CI must pass before merge.</strong> The Gitea Actions pipeline runs all frontend tests (unit + integration) and backend tests; a failing test blocks the push.</li>
+<li><strong>Integration tests are required for data flow changes.</strong> Any change to the cache layer, sync service, or CRUD functions must be covered by an integration test.</li>
+</ol>
+<h3 id="responsibilities">Responsibilities<a class="headerlink" href="#responsibilities" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Test lead (Hlulani Baloyi)</strong></td>
+<td>Writes new tests for complex features, reviews test quality, maintains the test inventory, ensures CI stays green</td>
+</tr>
+<tr>
+<td><strong>Each developer</strong></td>
+<td>Writes tests for their own feature alongside the implementation</td>
+</tr>
+<tr>
+<td><strong>PR reviewer</strong></td>
+<td>Checks that new code has corresponding tests before approving</td>
+</tr>
+</tbody>
+</table>
+<h3 id="review-cadence">Review Cadence<a class="headerlink" href="#review-cadence" title="Permanent link">¶</a></h3>
+<ul>
+<li>Tests are reviewed as part of every PR — the reviewer verifies that new features have tests</li>
+<li>The full test inventory is updated at the end of each sprint</li>
+<li>Integration tests are added when a new data flow or cross-module interaction is introduced</li>
+</ul>
+<h3 id="what-is-not-tested-and-why">What Is NOT Tested (and Why)<a class="headerlink" href="#what-is-not-tested-and-why" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Visual/styling correctness</strong> — CSS is reviewed manually during development; pixel-perfect testing is brittle and low-value at this project's scale.</li>
+<li><strong>Third-party library internals</strong> — We mock Supabase, <code>react-router-dom</code>, and <code>fetch</code> rather than testing their implementations.</li>
+<li><strong>Voice recording (Web Speech API)</strong> — Requires browser APIs unavailable in jsdom; covered by manual testing only.</li>
+</ul>
+<hr/>
+<h2 id="full-test-inventory">Full Test Inventory<a class="headerlink" href="#full-test-inventory" title="Permanent link">¶</a></h2>
+<h3 id="frontend-unit-tests-31-files-397-tests">Frontend Unit Tests (31 files, 397 tests)<a class="headerlink" href="#frontend-unit-tests-31-files-397-tests" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Test file</th>
+<th>What it covers</th>
+<th># tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functions/dashboard/__tests__/stats.test.js</code></td>
+<td><code>formatDuration</code>, <code>formatInterval</code>, <code>calculateTotalTimeTracked</code>, <code>calculateProjectStats</code></td>
+<td>18</td>
+</tr>
+<tr>
+<td><code>functions/dashboard/__tests__/overdue.test.js</code></td>
+<td><code>isOverdue</code>, <code>getOverdueText</code></td>
+<td>12</td>
+</tr>
+<tr>
+<td><code>functions/dashboard/__tests__/streaks.test.js</code></td>
+<td><code>calculateStreaks</code>, <code>streakLabel</code></td>
+<td>9</td>
+</tr>
+<tr>
+<td><code>functions/dashboard/__tests__/search.test.js</code></td>
+<td><code>searchAll</code>, <code>searchProject</code>, <code>searchProjects</code></td>
+<td>7</td>
+</tr>
+<tr>
+<td><code>functions/__tests__/tone.test.ts</code></td>
+<td><code>getTone</code>, <code>setTone</code>, <code>getToneInstruction</code>, <code>TONE_OPTIONS</code></td>
+<td>11</td>
+</tr>
+<tr>
+<td><code>functions/__tests__/aiMessages.test.ts</code></td>
+<td>AI messages enabled/disabled toggle</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/api.test.ts</code></td>
+<td><code>request()</code> (auth headers, errors, JSON), <code>api.*.health()</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/cache.test.js</code></td>
+<td><code>cacheGet</code>, <code>cacheSet</code>, <code>cacheSubscribe</code>, <code>cacheDelete</code></td>
+<td>12</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/sse.test.js</code></td>
+<td>SSE connect, disconnect, event dispatch</td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/sse.integration.test.js</code></td>
+<td>SSE → cache invalidation end-to-end flow</td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/calendar.test.ts</code></td>
+<td>Calendar date calculations</td>
+<td>6</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/today.test.ts</code></td>
+<td>Today view filtering logic</td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/kanban.test.ts</code></td>
+<td>Kanban board grouping</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/timeline.test.ts</code></td>
+<td>Timeline sorting</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/validation.test.ts</code></td>
+<td>Input validation rules</td>
+<td>7</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/import-export.test.ts</code></td>
+<td>Data import/export</td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>lib/__tests__/migrations.test.ts</code></td>
+<td>IndexedDB schema migrations</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>context/__tests__/AuthContext.test.tsx</code></td>
+<td>Sign-in, sign-up, OAuth, password reset, delete/restore</td>
+<td>12</td>
+</tr>
+<tr>
+<td><code>hooks/__tests__/useInactivityLogout.test.tsx</code></td>
+<td>Inactivity logout timer</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>components/__tests__/ProtectedRoute.test.tsx</code></td>
+<td>Auth gating, loading state, redirect</td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>components/__tests__/QuickEntryBar.test.tsx</code></td>
+<td>Form submission, success/error, voice, Enter key</td>
+<td>11</td>
+</tr>
+<tr>
+<td><code>components/__tests__/ProfileMenu.test.tsx</code></td>
+<td>Dropdown, avatar, keyboard, outside click</td>
+<td>12</td>
+</tr>
+<tr>
+<td><code>components/__tests__/NavBar.test.tsx</code></td>
+<td>Navigation, drawer, projects, settings event</td>
+<td>19</td>
+</tr>
+<tr>
+<td><code>components/__tests__/Header.test.tsx</code></td>
+<td>Title, settings event listener, Stats integration</td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>components/__tests__/Stats.test.tsx</code></td>
+<td>Panel open/close, counts, activeProject</td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>components/__tests__/AppShell.test.tsx</code></td>
+<td>Layout, navigation, drawer</td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>pages/__tests__/AllEntries.test.tsx</code></td>
+<td>Display modes, sort, localStorage persistence</td>
+<td>13</td>
+</tr>
+<tr>
+<td><code>pages/__tests__/SignIn.test.tsx</code></td>
+<td>Form fields, OAuth, mode toggle</td>
+<td>14</td>
+</tr>
+<tr>
+<td><code>Templates/__tests__/EntryChecklist.test.tsx</code></td>
+<td>Card rendering, status, ChecklistView</td>
+<td>11</td>
+</tr>
+<tr>
+<td><code>Templates/__tests__/EntriesByDueDateBoard.test.tsx</code></td>
+<td>Columns, sorting, deleted entries</td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>Templates/__tests__/ProjectTable.test.tsx</code></td>
+<td>Summaries, statuses, priorities, dates</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<h3 id="frontend-integration-tests-5-files-47-tests">Frontend Integration Tests (5 files, 47 tests)<a class="headerlink" href="#frontend-integration-tests-5-files-47-tests" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Test file</th>
+<th>What it covers</th>
+<th># tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__integration__/cache.integration.test.js</code></td>
+<td>IndexedDB round-trips, subscriptions, timestamps, <code>clearUserCache</code> isolation</td>
+<td>14</td>
+</tr>
+<tr>
+<td><code>__integration__/entries-crud.integration.test.js</code></td>
+<td>Optimistic add/update/delete, rollback on server failure, dual cache updates</td>
+<td>11</td>
+</tr>
+<tr>
+<td><code>__integration__/sync-service.integration.test.js</code></td>
+<td><code>syncAllData</code> populates all stores, error resilience, <code>computeDueSoon</code>, <code>syncProjectEntries</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>__integration__/auth-cache.integration.test.js</code></td>
+<td>Sign-out clears cache, SSE disconnect, delete account flow, user isolation</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>__integration__/use-cached-data.integration.test.tsx</code></td>
+<td>Hook reads cache immediately, background fetch, reactive updates, convenience hooks</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<h3 id="backend-tests-17-files">Backend Tests (17 files)<a class="headerlink" href="#backend-tests-17-files" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Test file</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>auth-service</td>
+<td><code>src/__tests__/index.test.js</code></td>
+<td>Health endpoint, Supabase auth integration</td>
+</tr>
+<tr>
+<td>dashboard-service</td>
+<td><code>src/__tests__/daemon.test.js</code></td>
+<td>Health ping daemon (table creation, insert, consume)</td>
+</tr>
+<tr>
+<td>dashboard-service</td>
+<td><code>src/__tests__/healthPing.test.js</code></td>
+<td><code>/service/health-ping</code> endpoint</td>
+</tr>
+<tr>
+<td>dashboard-service</td>
+<td><code>src/__tests__/search.test.js</code></td>
+<td>Search endpoint</td>
+</tr>
+<tr>
+<td>profile-service</td>
+<td><code>src/__tests__/login.test.js</code></td>
+<td>User login/check endpoint</td>
+</tr>
+<tr>
+<td>profile-service</td>
+<td><code>src/__tests__/profile.test.js</code></td>
+<td>Profile CRUD</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/entries.test.js</code></td>
+<td>Entry CRUD endpoints</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/project.test.js</code></td>
+<td>Project CRUD endpoints</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/field.test.js</code></td>
+<td>Custom field management</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/archives.test.js</code></td>
+<td>Archive/unarchive endpoints</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/priority.test.js</code></td>
+<td>Priority update endpoint</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/activityLog.test.js</code></td>
+<td>Activity log endpoints</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/getDate.test.js</code></td>
+<td>Date formatting utility</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/natural_language.test.js</code></td>
+<td>NL parsing</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/openapi.test.js</code></td>
+<td>OpenAPI spec validation</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/sse.integration.test.js</code></td>
+<td>SSE connection and event broadcasting</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td><code>src/__tests__/sseRegistry.test.js</code></td>
+<td>SSE client registry</td>
+</tr>
+</tbody>
+</table>
+<h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Files</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontend unit tests</td>
+<td>31</td>
+<td>397</td>
+</tr>
+<tr>
+<td>Frontend integration tests</td>
+<td>5</td>
+<td>47</td>
+</tr>
+<tr>
+<td>Backend tests</td>
+<td>17</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>53</strong></td>
+<td><strong>444+</strong></td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="user-feedback-process">User Feedback Process<a class="headerlink" href="#user-feedback-process" title="Permanent link">¶</a></h2>
+<h3 id="feedback-collection-methods">Feedback Collection Methods<a class="headerlink" href="#feedback-collection-methods" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Description</th>
+<th>Frequency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sprint client meetings</td>
+<td>Structured demo and discussion with the stakeholder</td>
+<td>End of each sprint</td>
+</tr>
+<tr>
+<td>Stakeholder demos</td>
+<td>Working software presented after major feature completion</td>
+<td>Per feature</td>
+</tr>
+<tr>
+<td>Issue tracker</td>
+<td>Bugs, enhancement requests, and UX improvements logged as issues</td>
+<td>Ongoing</td>
+</tr>
+<tr>
+<td>Meeting minutes</td>
+<td>All discussions, decisions, and action items recorded</td>
+<td>Every meeting</td>
+</tr>
+</tbody>
+</table>
+<h3 id="how-feedback-is-triaged">How Feedback Is Triaged<a class="headerlink" href="#how-feedback-is-triaged" title="Permanent link">¶</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Process overview</p>
+<p>Feedback follows a structured pipeline from receipt to verification.</p>
+</div>
+<div class="highlight"><pre><span></span><code>Feedback received (meeting, demo, or issue)
+       │
+       ▼
+Logged as a Gitea issue (labelled: bug / enhancement / UX)
+       │
+       ▼
+Discussed in sprint planning
+       │
+       ▼
+Assigned to sprint backlog — or deferred with documented reason
+       │
+       ▼
+Implemented → tested → deployed
+       │
+       ▼
+Confirmed with stakeholder at next demo
+</code></pre></div>
+<h3 id="formal-documentation-of-feedback">Formal Documentation of Feedback<a class="headerlink" href="#formal-documentation-of-feedback" title="Permanent link">¶</a></h3>
+<p>All feedback is tracked in:</p>
+<ul>
+<li><strong>Meeting logs</strong> (<code>development/meetings.md</code>) — dated entries with attendees, discussion points, and action items</li>
+<li><strong>Stakeholder interaction log</strong> (<code>development/stakeholder-interaction.md</code>) — summary of all client touchpoints and outcomes</li>
+<li><strong>User stories</strong> (<code>development/user-stories.md</code>) — sprint-scoped stories derived from feedback</li>
+<li><strong>Decisions log</strong> (<code>development/decisions.md</code>) — architectural or product decisions made in response to feedback</li>
+</ul>
+<h3 id="acceptance-criteria-for-feedback-derived-stories">Acceptance Criteria for Feedback-Derived Stories<a class="headerlink" href="#acceptance-criteria-for-feedback-derived-stories" title="Permanent link">¶</a></h3>
+<p>Every user story that originates from stakeholder feedback must have:</p>
+<ol>
+<li><strong>Testable acceptance criteria</strong> — conditions that define "done"</li>
+<li><strong>A corresponding automated test</strong> — if the story involves logic, a test verifies the behaviour</li>
+<li><strong>Stakeholder sign-off</strong> — confirmed at the next sprint demo or meeting</li>
+</ol>
+<h3 id="closing-the-feedback-loop">Closing the Feedback Loop<a class="headerlink" href="#closing-the-feedback-loop" title="Permanent link">¶</a></h3>
+<p>After implementation, the team:</p>
+<ol>
+<li>Updates the original issue with a link to the commit or PR</li>
+<li>Demonstrates the change to the stakeholder</li>
+<li>Records the stakeholder's response (accepted / needs revision)</li>
+<li>If revision is needed, creates a new issue and the cycle repeats</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Continuous improvement</p>
+<p>The feedback process itself is reviewed and refined at each sprint retrospective based on what worked and what didn't.</p>
+</div>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+<script src="../../javascripts/mermaid.js"></script>
+</body>
+</html>
