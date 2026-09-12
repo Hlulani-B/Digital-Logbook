@@ -70,29 +70,10 @@ export function formatTimer(ms) {
  * (e.g. a ticking value) for consistent, live-updating in-progress durations.
  */
 export function entryDurationMs(entry, now = Date.now()) {
-  // ── Countdown entries (target_duration_ms set) ─────────────────────
-  if (entry.target_duration_ms) {
-    const target = Number(entry.target_duration_ms);
-    // Paused: remaining is frozen
-    if (entry.is_paused && entry.paused_remaining_ms != null) {
-      return Math.max(0, target - Number(entry.paused_remaining_ms));
-    }
-    // Completed: compute from target minus remaining (or full target if no remaining)
-    if (entry.ended_at) {
-      const remaining = entry.paused_remaining_ms != null ? Number(entry.paused_remaining_ms) : 0;
-      return Math.max(0, target - remaining);
-    }
-    // Running: live elapsed, capped at target
-    if (entry.started_at) {
-      const start = new Date(entry.started_at).getTime();
-      if (!isNaN(start)) {
-        return Math.min(target, Math.max(0, now - start));
-      }
-    }
-    return 0;
+  // Paused: elapsed = target - remaining (frozen)
+  if (entry.is_paused && entry.target_duration_ms && entry.paused_remaining_ms != null) {
+    return Math.max(0, Number(entry.target_duration_ms) - Number(entry.paused_remaining_ms));
   }
-
-  // ── Legacy entries (no target_duration_ms) ─────────────────────────
   // Completed: ended_at − started_at (the actual work time)
   if (entry.ended_at && entry.started_at) {
     const end = new Date(entry.ended_at).getTime();

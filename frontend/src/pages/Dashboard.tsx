@@ -561,23 +561,31 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const primaryTimer = useMemo(() => {
     if (inProgressEntries.length === 0) return null;
     const first = inProgressEntries[0];
-    const isCountdown = !!first.target_duration_ms;
     const isPaused = !!first.is_paused;
-    let display: string;
-    if (isCountdown && isPaused && first.paused_remaining_ms != null) {
-      display = formatTimer(Math.max(0, Number(first.paused_remaining_ms)));
-    } else if (isCountdown && first.started_at) {
-      const start = new Date(first.started_at as string).getTime();
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, Number(first.target_duration_ms) - elapsed);
-      display = formatTimer(remaining);
-    } else {
-      display = formatTimer(entryDurationMs(first, liveNow));
+    // Work session elapsed time (count-up from started_at)
+    const display = formatTimer(entryDurationMs(first, liveNow));
+    // Deadline countdown
+    let deadline: string | null = null;
+    if (first.due_date) {
+      const due = new Date(first.due_date as string).getTime();
+      if (!isNaN(due)) {
+        const diff = due - liveNow;
+        if (diff <= 0) deadline = 'Overdue';
+        else {
+          const totalMin = Math.floor(diff / 60000);
+          const d = Math.floor(totalMin / 1440);
+          const h = Math.floor((totalMin % 1440) / 60);
+          const m = totalMin % 60;
+          if (d > 0) deadline = `${d}d ${h}h left`;
+          else if (h > 0) deadline = `${h}h ${m}m left`;
+          else deadline = `${m}m left`;
+        }
+      }
     }
     return {
       projectName: (first.project_name as string) || 'Unknown',
       elapsed: display,
-      isCountdown,
+      deadline,
       isPaused,
       extraCount: inProgressEntries.length - 1,
     };
@@ -1443,10 +1451,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className={`dash-timer-banner animate-in${primaryTimer.isPaused ? ' dash-timer-banner--paused' : ''}`} role="status" aria-live="polite">
             <span className={`dash-timer-dot${primaryTimer.isPaused ? ' dash-timer-dot--paused' : ''}`} />
             <span className="dash-timer-label">
-              {primaryTimer.isPaused ? 'Timer paused' : primaryTimer.isCountdown ? 'Countdown' : 'Timer running'}
+              {primaryTimer.isPaused ? 'Paused' : 'Working'}
             </span>
             <span className="dash-timer-project">{primaryTimer.projectName}</span>
             <span className="dash-timer-elapsed">{primaryTimer.elapsed}</span>
+            {primaryTimer.deadline && (
+              <span className={`dash-timer-deadline${primaryTimer.deadline === 'Overdue' ? ' dash-timer-deadline--overdue' : ''}`}>
+                {primaryTimer.deadline}
+              </span>
+            )}
             {primaryTimer.extraCount > 0 && (
               <span className="dash-timer-extra">+{primaryTimer.extraCount} more</span>
             )}

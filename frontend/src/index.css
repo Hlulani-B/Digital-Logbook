@@ -3886,6 +3886,25 @@ img {
   font-size: 0.88rem;
   color: var(--text, #37352f);
 }
+
+/* Deadline countdown badge */
+.entry-box__deadline {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--success, #16a34a);
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  margin-top: 0.15rem;
+  display: inline-block;
+  align-self: flex-start;
+}
+.entry-box__deadline--overdue {
+  color: var(--danger, #a0522d);
+  background: rgba(160, 82, 45, 0.08);
+  border-color: rgba(160, 82, 45, 0.2);
+}
 .entry-box__archived-tag {
   font-size: 0.6rem;
   font-weight: 600;
@@ -4018,6 +4037,9 @@ img {
   color: var(--warning, #d97706);
   opacity: 0.85;
 }
+.entry-box__task-label--working {
+  color: var(--success, #16a34a);
+}
 .entry-box__task-label--paused {
   color: var(--text-muted, #737373);
 }
@@ -4075,6 +4097,24 @@ img {
 .dash-timer-dot--paused {
   animation: none !important;
   opacity: 0.5;
+}
+
+/* Dashboard timer deadline badge */
+.dash-timer-deadline {
+  font-family: var(--font-body, 'Lora', serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--success, #16a34a);
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  margin-left: 0.25rem;
+}
+.dash-timer-deadline--overdue {
+  color: var(--danger, #a0522d);
+  background: rgba(160, 82, 45, 0.1);
+  border-color: rgba(160, 82, 45, 0.25);
 }
 
 .entry-box__edit-actions {
@@ -4377,6 +4417,21 @@ img {
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
+}
+.dash-timer-deadline {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--success, #16a34a);
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  white-space: nowrap;
+}
+.dash-timer-deadline--overdue {
+  color: var(--danger, #a0522d);
+  background: rgba(160, 82, 45, 0.1);
+  border-color: rgba(160, 82, 45, 0.25);
 }
 
 /* ========== FEED STATS PANEL ========== */

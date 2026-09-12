@@ -53,6 +53,25 @@ function formatDate(value?: string | null): string | null {
   });
 }
 
+/**
+ * Format time remaining until a due date as a human-readable countdown.
+ * Returns "2d 4h left", "45m left", "Overdue", etc.
+ */
+function formatDeadlineCountdown(dueDate?: string | null, now: number = Date.now()): string | null {
+  if (!dueDate) return null;
+  const due = new Date(dueDate).getTime();
+  if (isNaN(due)) return null;
+  const diff = due - now;
+  if (diff <= 0) return 'Overdue';
+  const totalMinutes = Math.floor(diff / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  return `${minutes}m left`;
+}
+
 function toInputDate(value?: string | null): string {
   if (!value) return '';
   const date = new Date(value);
@@ -192,51 +211,32 @@ export function EntryBox({
     return optionsStr.split(',').map((o) => o.trim()).filter(Boolean);
   };
 
-  // Live timer display — countdown when target_duration_ms is set, count-up for legacy
+  // Live work-session timer — simple count-up from started_at
   const [elapsed, setElapsed] = useState<string>('');
-  const [timerExpired, setTimerExpired] = useState(false);
-  const [targetMinutes, setTargetMinutes] = useState<string>(
-    target_duration_ms ? String(Math.round(target_duration_ms / 60000)) : '30'
-  );
 
   useEffect(() => {
     const isRunning = (started_at || is_paused) && !ended_at;
     if (!isRunning) {
       setElapsed('');
-      setTimerExpired(false);
       return;
     }
 
     const tick = () => {
       if (is_paused && paused_remaining_ms != null) {
-        // Paused: show frozen remaining time
-        const remaining = Math.max(0, Number(paused_remaining_ms));
-        const h = Math.floor(remaining / 3600000);
-        const m = Math.floor((remaining % 3600000) / 60000);
-        const s = Math.floor((remaining % 60000) / 1000);
+        // Paused: show frozen elapsed time (target - remaining)
+        const target = target_duration_ms ? Number(target_duration_ms) : 0;
+        const frozenElapsed = target > 0 ? Math.max(0, target - Number(paused_remaining_ms)) : 0;
+        const h = Math.floor(frozenElapsed / 3600000);
+        const m = Math.floor((frozenElapsed % 3600000) / 60000);
+        const s = Math.floor((frozenElapsed % 60000) / 1000);
         setElapsed(
           `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
         );
-        setTimerExpired(remaining <= 0);
         return;
       }
 
-      if (target_duration_ms && started_at) {
-        // Countdown mode
-        const start = new Date(started_at).getTime();
-        const diff = Date.now() - start;
-        const remaining = Math.max(0, Number(target_duration_ms) - diff);
-        const h = Math.floor(remaining / 3600000);
-        const m = Math.floor((remaining % 3600000) / 60000);
-        const s = Math.floor((remaining % 60000) / 1000);
-        setElapsed(
-          `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-        );
-        if (remaining <= 0) {
-          setTimerExpired(true);
-        }
-      } else if (started_at) {
-        // Legacy count-up mode
+      if (started_at) {
+        // Count-up: show elapsed work time
         const start = new Date(started_at).getTime();
         const diff = Date.now() - start;
         const h = Math.floor(diff / 3600000);
@@ -253,12 +253,16 @@ export function EntryBox({
     return () => clearInterval(id);
   }, [started_at, ended_at, is_paused, paused_remaining_ms, target_duration_ms]);
 
-  // Auto-stop when countdown expires
+  // Deadline countdown — ticks every 30s (doesn't need per-second precision)
+  const [deadlineLabel, setDeadlineLabel] = useState<string | null>(null);
   useEffect(() => {
-    if (timerExpired && !ended_at && target_duration_ms) {
-      handleEndTask();
-    }
-  }, [timerExpired]);
+    const tick = () => {
+      setDeadlineLabel(formatDeadlineCountdown(due_date));
+    };
+    tick();
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, [due_date]);
 
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -443,13 +447,9 @@ export function EntryBox({
       // If moving to done_and_dusted, auto-set ended_at
       const newEndedAt =
         newStatus === 'done_and_dusted' && !ended_at ? new Date().toISOString() : ended_at;
-      // If moving to in_motion and not started yet, auto-set started_at and target_duration_ms
+      // If moving to in_motion and not started yet, auto-set started_at
       const newStartedAt =
         newStatus === 'in_motion' && !started_at && !is_paused ? new Date().toISOString() : started_at;
-      const newTargetMs =
-        newStatus === 'in_motion' && !target_duration_ms
-          ? Number(targetMinutes) * 60000 || null
-          : target_duration_ms;
       const result = await updateEntry(
         user_email,
         project_name,
@@ -461,10 +461,7 @@ export function EntryBox({
         newStartedAt,
         newEndedAt,
         undefined, // duration
-        undefined, // summary
-        newTargetMs,
-        undefined, // paused_remaining_ms
-        undefined  // is_paused
+        undefined  // summary
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to update status');
@@ -474,7 +471,7 @@ export function EntryBox({
         setError(result.error);
         return;
       }
-      onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt, target_duration_ms: newTargetMs });
+      onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
@@ -987,20 +984,22 @@ export function EntryBox({
             <span className="entry-box__meta-item">
               <span className="entry-box__meta-label">Due</span>
               <span className="entry-box__meta-value">{dueLabel}</span>
+              {deadlineLabel && (
+                <span className={`entry-box__deadline${deadlineLabel === 'Overdue' ? ' entry-box__deadline--overdue' : ''}`}>
+                  {deadlineLabel}
+                </span>
+              )}
             </span>
           )}
         </div>
         <div className="entry-box__meta-right">
           {(started_at || is_paused) && !ended_at && (
             <div className="entry-box__task-active">
-              {target_duration_ms && !is_paused && (
-                <span className="entry-box__task-label">Countdown</span>
-              )}
-              {is_paused && (
-                <span className="entry-box__task-label entry-box__task-label--paused">Paused</span>
-              )}
+              <span className="entry-box__task-label entry-box__task-label--working">
+                {is_paused ? 'Paused' : 'Working'}
+              </span>
               {elapsed && (
-                <span className={`entry-box__task-elapsed${target_duration_ms ? ' entry-box__task-elapsed--countdown' : ''}`}>
+                <span className="entry-box__task-elapsed">
                   {elapsed}
                 </span>
               )}
@@ -1022,7 +1021,7 @@ export function EntryBox({
                   disabled={saving}
                   title="Pause timer"
                 >
-                  ⏸ Pause
+                   Pause
                 </button>
               )}
               <button
@@ -1036,31 +1035,17 @@ export function EntryBox({
               </button>
             </div>
           )}
-          {/* Target duration input — shown when task is not yet started */}
+          {/* Start button — shown when task is not yet started */}
           {!started_at && !is_paused && !ended_at && status !== 'done_and_dusted' && (
-            <div className="entry-box__task-target">
-              <label className="entry-box__task-target-label" htmlFor={`target-${id}`}>Timer</label>
-              <input
-                id={`target-${id}`}
-                type="number"
-                min={1}
-                max={600}
-                className="entry-box__task-target-input"
-                value={targetMinutes}
-                onChange={(e) => setTargetMinutes(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <span className="entry-box__task-target-unit">min</span>
-              <button
-                type="button"
-                className="entry-box__task-btn entry-box__task-btn--start"
-                onClick={(e) => { e.stopPropagation(); handleStatusChange('in_motion'); }}
-                disabled={saving}
-                title="Start timer"
-              >
-                ▶ Start
-              </button>
-            </div>
+            <button
+              type="button"
+              className="entry-box__task-btn entry-box__task-btn--start"
+              onClick={(e) => { e.stopPropagation(); handleStatusChange('in_motion'); }}
+              disabled={saving}
+              title="Start working on this task"
+            >
+              ▶ Start
+            </button>
           )}
           {archived && <span className="entry-box__archived-tag">Archived</span>}
         </div>
