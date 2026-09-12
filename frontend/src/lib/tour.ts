@@ -9,13 +9,14 @@
  * before measuring. The tour asks the shell to open the navigation drawer for
  * drawer steps and closes it again for the top-bar steps.
  *
- * The tour also runs itself: each stop auto-advances after roughly the time it
- * takes to speak out loud (countdown bar under the popover — hovering pauses
- * it, pressing Back hands control back to the user for good), and a friendly
- * voice reads each stop via the browser's speech synthesis, toggled by the
- * speaker button on the popover. Completion is remembered in localStorage so
- * the one-time offer banner on the dashboard does not nag; the tour can
- * always be replayed from the "Guide" button.
+ * The tour also runs itself: a countdown bar under the popover paces each
+ * stop (hovering pauses it, pressing Back hands control back to the user for
+ * good), and with the voice on, the tour moves on only after the voice has
+ * finished the stop — never mid-sentence. The voice reads each stop via the
+ * browser's speech synthesis, toggled by the speaker button on the popover.
+ * Completion is remembered in localStorage so the one-time offer banner on
+ * the dashboard does not nag; the tour can always be replayed from the
+ * "Guide" button.
  */
 import { driver } from 'driver.js';
 import type { DriveStep, Driver } from 'driver.js';
@@ -114,7 +115,14 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   };
 }
 
-function speak(text: string): void {
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+
+function speak(text: string, onEnd?: () => void): void {
+  if (activeUtterance) {
+    // Detach first so a cancel-triggered 'end' cannot fire a stale onEnd.
+    activeUtterance.onend = null;
+    activeUtterance.onerror = null;
+  }
   if (!voiceEnabled || !text || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
@@ -122,10 +130,20 @@ function speak(text: string): void {
   if (voice) utterance.voice = voice;
   utterance.rate = 0.95;
   utterance.pitch = 1.05;
+  activeUtterance = utterance;
+  if (onEnd) {
+    utterance.onend = onEnd;
+    utterance.onerror = onEnd;
+  }
   window.speechSynthesis.speak(utterance);
 }
 
 function stopSpeaking(): void {
+  if (activeUtterance) {
+    activeUtterance.onend = null;
+    activeUtterance.onerror = null;
+    activeUtterance = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
@@ -161,13 +179,23 @@ function speechText(title: string, description: string): string {
   return `${decode(title)}. ${plain}`;
 }
 
-const AUTO_MIN_MS = 6500;
-const AUTO_MAX_MS = 18000;
+const AUTO_MIN_MS = 8000;
+const AUTO_MAX_MS = 24000;
 
-/** Rough speech duration at ~150 words/min, plus a beat to take in the spotlight. */
+/**
+ * Generous speech-time guess (~120 words/min at the tour's 0.95 rate, plus
+ * pauses). It only paces the countdown bar — the stop itself ends when the
+ * utterance reports it is finished.
+ */
 function estimateSpeechMs(text: string): number {
   const words = text.split(/\s+/).filter(Boolean).length;
-  return Math.min(AUTO_MAX_MS, Math.max(AUTO_MIN_MS, (words / 2.5) * 1000 + 1500));
+  return Math.min(AUTO_MAX_MS, Math.max(AUTO_MIN_MS, (words / 2.0) * 1000 + 2500));
+}
+
+/** Reading pace for the muted tour — quicker than listening. */
+function estimateReadMs(text: string): number {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.min(14000, Math.max(5000, (words / 3.5) * 1000 + 1500));
 }
 
 /**
@@ -265,8 +293,8 @@ function buildSteps(): DriveStep[] {
       element: '[data-tour="page-today"]',
       title: 'Today',
       description:
-        'This is Today — a focused list of what is due today and what deserves attention first. ' +
-        'A good place to start each session.',
+        'A focused list of what is due today and what deserves attention first — ' +
+        'a good place to start each session.',
       side: 'top',
       align: 'start',
     }),
@@ -275,8 +303,7 @@ function buildSteps(): DriveStep[] {
       element: '[data-tour="page-kanban"]',
       title: 'Kanban',
       description:
-        'This is Kanban — drag entries between Up next, In motion, and Done &amp; dusted to track ' +
-        'progress at a glance.',
+        'Drag entries between Up next, In motion, and Done &amp; dusted to track progress at a glance.',
       side: 'top',
       align: 'start',
     }),
@@ -284,8 +311,7 @@ function buildSteps(): DriveStep[] {
       path: '/timeline',
       element: '[data-tour="page-timeline"]',
       title: 'Timeline',
-      description:
-        'This is Timeline — your entries laid out over time, including dependencies between them.',
+      description: 'Your entries laid out over time, including dependencies between them.',
       side: 'top',
       align: 'start',
     }),
@@ -293,8 +319,7 @@ function buildSteps(): DriveStep[] {
       path: '/calendar',
       element: '[data-tour="page-calendar"]',
       title: 'Calendar',
-      description:
-        'This is Calendar — a month view of all your due dates. Click a day to see what is on it.',
+      description: 'A month view of all your due dates. Click a day to see what is on it.',
       side: 'top',
       align: 'start',
     }),
@@ -302,7 +327,7 @@ function buildSteps(): DriveStep[] {
       path: '/stats',
       element: '[data-tour="page-stats"]',
       title: 'My Stats',
-      description: 'This is My Stats — progress charts, streaks, and how you spend your time.',
+      description: 'Progress charts, streaks, and how you spend your time.',
       side: 'top',
       align: 'start',
     }),
@@ -404,6 +429,10 @@ export function startAppTour(): void {
   let stepDelay = AUTO_MIN_MS;
   let tick: number | undefined;
   let driverRef: Driver | undefined;
+  // Identifies the current stop: a late event from a previous stop (like the
+  // 'end' a cancelled utterance reports) must not release the countdown.
+  let stepToken = 0;
+  let speechFinished = true;
 
   const clearTick = () => {
     if (tick !== undefined) {
@@ -420,6 +449,11 @@ export function startAppTour(): void {
   // Countdown shown as a bar draining under the popover. Pauses while the
   // pointer is over the popover or the tab is hidden, and never fires on the
   // final stop — that one waits for the user to press Finish.
+  //
+  // Voice on: the stop ends when the utterance ends (after a short dwell so
+  // the spotlight registers) — never mid-word. The estimate only paces the
+  // bar, with a hard cap past it so a stalled engine cannot hang the tour.
+  // Voice off: the estimate itself is the stop's length.
   const scheduleAutoAdvance = () => {
     clearTick();
     if (!autoAdvance || currentIndex >= steps.length - 1) {
@@ -432,21 +466,42 @@ export function startAppTour(): void {
       if (hoverPaused || document.hidden) return;
       elapsed += 100;
       setBarPercent(Math.max(0, 100 - (elapsed / stepDelay) * 100));
-      if (elapsed >= stepDelay) {
+      const hardCap = elapsed >= stepDelay + 10000;
+      const readyToLeave = speechFinished && (!voiceEnabled || elapsed >= 1500);
+      if (hardCap || readyToLeave) {
         clearTick();
         driverRef?.moveNext();
       }
     }, 100);
   };
 
+  const applyVoiceToggle = (on: boolean) => {
+    voiceEnabled = on;
+    setVoicePref(on);
+    if (on) {
+      const token = stepToken;
+      speechFinished = !('speechSynthesis' in window);
+      speak(currentSpeech, () => {
+        if (token === stepToken) speechFinished = true;
+      });
+    } else {
+      speechFinished = true;
+      stopSpeaking();
+    }
+  };
+
   activeGuide = {
     onStepShown: (index, title, description, drv) => {
       driverRef = drv;
       currentIndex = index;
+      const token = ++stepToken;
       currentSpeech = speechText(title, description);
-      // Longer stops linger longer, so the voice never gets cut off.
-      stepDelay = estimateSpeechMs(currentSpeech);
-      speak(currentSpeech);
+      stepDelay = voiceEnabled ? estimateSpeechMs(currentSpeech) : estimateReadMs(currentSpeech);
+      // Muted (or unsupported): the countdown alone paces the stop.
+      speechFinished = !voiceEnabled || !('speechSynthesis' in window);
+      speak(currentSpeech, () => {
+        if (token === stepToken) speechFinished = true;
+      });
       scheduleAutoAdvance();
     },
     stopAutoAdvance: () => {
@@ -511,14 +566,11 @@ export function startAppTour(): void {
           voiceBtn.innerHTML = voiceEnabled ? VOICE_ON_SVG : VOICE_OFF_SVG;
           voiceBtn.addEventListener('click', (event) => {
             event.stopPropagation();
-            voiceEnabled = !voiceEnabled;
-            setVoicePref(voiceEnabled);
+            applyVoiceToggle(!voiceEnabled);
             voiceBtn.title = voiceEnabled ? 'Mute voice guide' : 'Unmute voice guide';
             voiceBtn.setAttribute('aria-label', voiceBtn.title);
             voiceBtn.setAttribute('aria-pressed', String(voiceEnabled));
             voiceBtn.innerHTML = voiceEnabled ? VOICE_ON_SVG : VOICE_OFF_SVG;
-            if (voiceEnabled) speak(currentSpeech);
-            else stopSpeaking();
           });
           popover.footer.appendChild(voiceBtn);
         }
