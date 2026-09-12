@@ -3,22 +3,33 @@ import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
 /**
  * Fetch activities for a user.
- * Cache-first: reads from IndexedDB, falls back to server.
+ * Local-first: returns cached data immediately, refreshes from server in background.
  */
 export async function getActivities(user_email, limit = 50) {
   const cacheKey = `${user_email}:activities`;
 
-  // Offline: serve from cache immediately
-  if (!navigator.onLine) {
-    const cached = await cacheGet(CACHE_STORES.ACTIVITY, cacheKey);
-    if (cached) {
-      console.log('[getActivities] Offline — serving from cache');
-      return cached;
+  // 1. Return cached data first (instant)
+  const cached = await cacheGet(CACHE_STORES.ACTIVITY, cacheKey);
+  if (cached?.success && Array.isArray(cached.data)) {
+    // Refresh from server in background (don't block the caller)
+    if (navigator.onLine) {
+      _refreshActivitiesFromServer(user_email, limit, cacheKey);
     }
+    return { ...cached, _fromCache: true };
+  }
+
+  // 2. No cache — must wait for server
+  if (!navigator.onLine) {
     console.log('[getActivities] Offline and no cache');
     return { success: false, offline: true, data: [] };
   }
 
+  console.log('[getActivities] No cache, fetching from server...');
+  return _fetchActivitiesFromServer(user_email, limit, cacheKey);
+}
+
+/** Internal: fetch activities from server and write to cache */
+async function _fetchActivitiesFromServer(user_email, limit, cacheKey) {
   try {
     const result = await request(`${PROJECT_URL}/service/activity`, {
       method: 'POST',
@@ -34,12 +45,11 @@ export async function getActivities(user_email, limit = 50) {
     return result;
   } catch (err) {
     console.error('[getActivities] Failed:', err);
-    // Fallback to cache on server failure
-    const cached = await cacheGet(CACHE_STORES.ACTIVITY, cacheKey);
-    if (cached) {
-      console.log('[getActivities] Server failed — serving from cache');
-      return cached;
-    }
     return { success: false, data: [] };
   }
+}
+
+/** Internal: background refresh of activities from server */
+function _refreshActivitiesFromServer(user_email, limit, cacheKey) {
+  _fetchActivitiesFromServer(user_email, limit, cacheKey).catch(() => {});
 }
