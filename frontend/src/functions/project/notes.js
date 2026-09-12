@@ -38,8 +38,20 @@ async function _fetchNotesFromServer(entry_id, cacheKey) {
       }),
     });
     console.log('[_fetchNotesFromServer] Server returned:', result?.success, Array.isArray(result?.data) ? `dataLen=${result.data.length}` : 'no-data');
-    if (result?.success) {
-      await cacheSet(CACHE_STORES.NOTES, cacheKey, result);
+    if (result?.success && Array.isArray(result.data)) {
+      // Preserve any in-flight optimistic notes so a background refresh can't
+      // wipe a note the user just added before its POST has landed. Once the
+      // real row arrives (or the optimistic is replaced in addNote) it is gone.
+      const existing = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+      const existingData = Array.isArray(existing?.data) ? existing.data : [];
+      const serverIds = new Set(result.data.map((n) => String(n.id)));
+      const optimistic = existingData.filter(
+        (n) => n._optimistic && !serverIds.has(String(n.id))
+      );
+      await cacheSet(CACHE_STORES.NOTES, cacheKey, {
+        ...result,
+        data: [...result.data, ...optimistic],
+      });
     }
     return result;
   } catch (err) {
@@ -121,7 +133,8 @@ export async function addNote(email, entry_id, entry_type, value) {
   const cacheKey = `notes:${entry_id}`;
   console.log('[addNote] START, entry_type=', entry_type, 'entry_id=', entry_id, 'value type=', typeof value, 'value length=', typeof value === 'string' ? value.length : 'N/A');
 
-  // 1. Optimistic: add to cache
+  // 1. Optimistic: add to cache (always, so the note shows instantly even on
+  // the very first note when the list cache is still empty).
   const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
   const optimisticNote = {
     id: `optimistic-note-${Date.now()}`,
@@ -134,14 +147,12 @@ export async function addNote(email, entry_id, entry_type, value) {
     _optimistic: true,
   };
 
-  if (cached) {
-    const currentData = cached.data || cached;
-    const notes = Array.isArray(currentData) ? currentData : [];
-    await cacheSet(CACHE_STORES.NOTES, cacheKey, {
-      success: true,
-      data: [...notes, optimisticNote],
-    });
-  }
+  const currentData = cached ? cached.data || cached : [];
+  const notesArray = Array.isArray(currentData) ? currentData : [];
+  await cacheSet(CACHE_STORES.NOTES, cacheKey, {
+    success: true,
+    data: [...notesArray, optimisticNote],
+  });
 
   // 2. Check online
   if (!navigator.onLine) {
@@ -163,18 +174,18 @@ export async function addNote(email, entry_id, entry_type, value) {
 
     console.log('[addNote] server returned: success=', result?.success, 'hasData=', !!result?.data, 'dataId=', result?.data?.id, 'dataValue=', result?.data?.value?.substring(0, 80), 'message=', result?.message);
 
-    // 4. Replace optimistic note with real data
+    // 4. Replace the optimistic note with the authoritative row. Re-read the
+    // current cache (a background refresh may have changed it) and drop *this*
+    // optimistic id specifically so concurrent adds aren't clobbered.
     if (result?.success && result.data) {
-      if (cached) {
-        const currentData = cached.data || cached;
-        const notes = Array.isArray(currentData) ? currentData : [];
-        const updated = notes.map((n) =>
-          n._optimistic && n.entry_id === entry_id && n.entry_type === entry_type
-            ? result.data
-            : n
-        );
-        await cacheSet(CACHE_STORES.NOTES, cacheKey, { success: true, data: updated });
-      }
+      const fresh = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+      const freshData = Array.isArray(fresh?.data) ? fresh.data : notesArray;
+      const withoutOptimistic = freshData.filter((n) => n.id !== optimisticNote.id);
+      const hasReal = withoutOptimistic.some((n) => String(n.id) === String(result.data.id));
+      const updated = hasReal
+        ? withoutOptimistic
+        : [...withoutOptimistic, result.data];
+      await cacheSet(CACHE_STORES.NOTES, cacheKey, { success: true, data: updated });
     }
     return result;
   } catch (err) {

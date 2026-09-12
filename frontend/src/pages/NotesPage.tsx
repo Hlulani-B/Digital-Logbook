@@ -6,6 +6,7 @@ import { getAllEntries } from '@/functions/project/entries.js';
 import { getEntryTitle } from '@/lib/calendar';
 import { trackViewedEntry } from '@/lib/recentlyViewed';
 import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 type NoteType = 'text' | 'link' | 'image' | 'reference';
 
@@ -95,6 +96,9 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   const [newNote, setNewNote] = useState<NoteDraft>({ entry_type: 'text', value: '' });
   const [adding, setAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Image uploads need a live connection to Supabase Storage, so the image
+  // pill is disabled while offline and the user gets an explanatory hint.
+  const isOnline = useNetworkStatus();
 
   // Reference picker
   const navigate = useNavigate();
@@ -206,6 +210,10 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
 
   const handleAddNote = async () => {
     if (!entryId || !userEmail || adding) return;
+    if (newNote.entry_type === 'image' && !isOnline) {
+      setError('You are offline — image uploads need a connection.');
+      return;
+    }
 
     let valueToSend: string;
     if (newNote.entry_type === 'image') {
@@ -379,25 +387,35 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
           <div className="notes-panel__add-form">
             <div className="notes-panel__add-row">
               <div className="notes-panel__type-pills">
-                {(Object.keys(TYPE_CONFIG) as NoteType[]).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={`notes-panel__type-pill ${newNote.entry_type === type ? 'notes-panel__type-pill--active' : ''}`}
-                    onClick={() => {
-                      if (type === 'reference') {
-                        setNewNote({ ...newNote, entry_type: type, value: '' });
-                        openRefPicker();
-                      } else {
-                        setNewNote({ ...newNote, entry_type: type, value: '' });
-                      }
-                    }}
-                    disabled={adding}
-                  >
-                    <span className="notes-panel__type-pill-icon">{TYPE_CONFIG[type].icon}</span>
-                    {TYPE_CONFIG[type].label}
-                  </button>
-                ))}
+                {(Object.keys(TYPE_CONFIG) as NoteType[]).map((type) => {
+                  const offlineImage = type === 'image' && !isOnline;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`notes-panel__type-pill ${newNote.entry_type === type ? 'notes-panel__type-pill--active' : ''}`}
+                      onClick={() => {
+                        if (offlineImage) {
+                          setError('You are offline — image uploads need a connection.');
+                          return;
+                        }
+                        if (type === 'reference') {
+                          setNewNote({ ...newNote, entry_type: type, value: '' });
+                          openRefPicker();
+                        } else {
+                          setNewNote({ ...newNote, entry_type: type, value: '' });
+                        }
+                      }}
+                      disabled={adding}
+                      aria-disabled={offlineImage}
+                      title={offlineImage ? 'You are offline — image uploads need a connection' : undefined}
+                      style={offlineImage ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                    >
+                      <span className="notes-panel__type-pill-icon">{TYPE_CONFIG[type].icon}</span>
+                      {TYPE_CONFIG[type].label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

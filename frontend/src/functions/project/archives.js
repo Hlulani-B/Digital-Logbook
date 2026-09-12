@@ -58,6 +58,34 @@ async function cacheSetEntriesArchivedForProject(user_email, projectName, archiv
   await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { ...cached, data });
 }
 
+/**
+ * Apply the full set of cache side-effects for archiving/unarchiving a single
+ * entry so every subscribed view (Dashboard feed via ALL_ENTRIES, project page
+ * via ENTRIES, Archives via the `${email}:all` list) updates at once. Used by
+ * both the offline (optimistic) and online (post-success) paths.
+ */
+async function applyEntryArchive(user_email, project_name, entry_id, archived) {
+  const touched = await setEntryArchivedFlag(
+    CACHE_STORES.ALL_ENTRIES,
+    user_email,
+    entry_id,
+    archived
+  );
+  await setEntryArchivedFlag(
+    CACHE_STORES.ENTRIES,
+    `${user_email}:${project_name}`,
+    entry_id,
+    archived
+  );
+  if (touched) await patchArchivesAllList(user_email, touched, archived);
+}
+
+/** Same idea for a project + its cascaded entries. */
+async function applyProjectArchive(user_email, project_name, archived) {
+  await setProjectArchivedFlag(user_email, project_name, archived);
+  await cacheSetEntriesArchivedForProject(user_email, project_name, archived);
+}
+
 // ── GET functions ──────────────────────────────────────────────
 
 /**
@@ -246,10 +274,9 @@ export async function archiveProject(user_email, project_name) {
     // Offline: reflect the change locally right away, then queue for sync.
     console.log('[archiveProject] Offline — optimistic update + queuing action');
     try {
-      await setProjectArchivedFlag(user_email, project_name, true);
-      // The backend cascades project archive to its entries, so mirror that
-      // here to keep the entries feed consistent with the archived project.
-      await cacheSetEntriesArchivedForProject(user_email, project_name, true);
+      // setProjectArchivedFlag hides the project; the cascade hides its
+      // entries from the Dashboard feed, mirroring the backend transaction.
+      await applyProjectArchive(user_email, project_name, true);
     } catch (err) {
       console.error('[archiveProject] Offline optimistic update failed:', err);
     }
@@ -272,6 +299,10 @@ export async function archiveProject(user_email, project_name) {
 
     // On success, refresh caches
     if (result?.success) {
+      // Cascade the archived flag into ALL_ENTRIES so the Dashboard feed drops
+      // the project's entries right away (getEntries only touches the
+      // per-project store, which the Dashboard feed doesn't read).
+      await cacheSetEntriesArchivedForProject(user_email, project_name, true);
       // Re-fetch projects and archives to update caches
       const { getProjectsByEmail } = await import('./project.js');
       await getProjectsByEmail(user_email);
@@ -287,6 +318,7 @@ export async function archiveProject(user_email, project_name) {
   } catch (err) {
     // On failure, queue for retry
     console.error('[archiveProject] Failed, queuing for retry:', err);
+    await applyProjectArchive(user_email, project_name, true);
     await addToQueue('archiveProject', 'archives', {
       user_email,
       project_name,
@@ -303,8 +335,7 @@ export async function unarchiveProject(user_email, project_name) {
   if (!navigator.onLine) {
     console.log('[unarchiveProject] Offline — optimistic update + queuing action');
     try {
-      await setProjectArchivedFlag(user_email, project_name, false);
-      await cacheSetEntriesArchivedForProject(user_email, project_name, false);
+      await applyProjectArchive(user_email, project_name, false);
     } catch (err) {
       console.error('[unarchiveProject] Offline optimistic update failed:', err);
     }
@@ -325,6 +356,7 @@ export async function unarchiveProject(user_email, project_name) {
     });
 
     if (result?.success) {
+      await cacheSetEntriesArchivedForProject(user_email, project_name, false);
       const { getProjectsByEmail } = await import('./project.js');
       await getProjectsByEmail(user_email);
       await getArchivedProjects(user_email);
@@ -337,6 +369,7 @@ export async function unarchiveProject(user_email, project_name) {
     return result;
   } catch (err) {
     console.error('[unarchiveProject] Failed, queuing for retry:', err);
+    await applyProjectArchive(user_email, project_name, false);
     await addToQueue('unarchiveProject', 'archives', {
       user_email,
       project_name,
@@ -354,19 +387,7 @@ export async function archiveEntry(user_email, project_name, entry_id) {
     console.log('[archiveEntry] Offline — optimistic update + queuing action');
     try {
       // Remove from the active feed and surface it under Archives right away.
-      const touched = await setEntryArchivedFlag(
-        CACHE_STORES.ALL_ENTRIES,
-        user_email,
-        entry_id,
-        true
-      );
-      await setEntryArchivedFlag(
-        CACHE_STORES.ENTRIES,
-        `${user_email}:${project_name}`,
-        entry_id,
-        true
-      );
-      if (touched) await patchArchivesAllList(user_email, touched, true);
+      await applyEntryArchive(user_email, project_name, entry_id, true);
     } catch (err) {
       console.error('[archiveEntry] Offline optimistic update failed:', err);
     }
@@ -389,12 +410,17 @@ export async function archiveEntry(user_email, project_name, entry_id) {
 
     // Refresh entries cache on success
     if (result?.success) {
+      // Optimistically flip the cached flags so the Dashboard feed and the
+      // Archives view react immediately (their subscriptions read ALL_ENTRIES
+      // and the `${email}:all` archives list, which getEntries won't touch).
+      await applyEntryArchive(user_email, project_name, entry_id, true);
       const { getEntries } = await import('./entries.js');
       await getEntries(user_email, project_name);
     }
     return result;
   } catch (err) {
     console.error('[archiveEntry] Failed, queuing for retry:', err);
+    await applyEntryArchive(user_email, project_name, entry_id, true);
     await addToQueue('archiveEntry', 'archives', {
       user_email,
       project_name,
@@ -413,19 +439,7 @@ export async function unarchiveEntry(user_email, project_name, entry_id) {
     console.log('[unarchiveEntry] Offline — optimistic update + queuing action');
     try {
       // Bring it back into the active feed and drop it from Archives.
-      const restored = await setEntryArchivedFlag(
-        CACHE_STORES.ALL_ENTRIES,
-        user_email,
-        entry_id,
-        false
-      );
-      await setEntryArchivedFlag(
-        CACHE_STORES.ENTRIES,
-        `${user_email}:${project_name}`,
-        entry_id,
-        false
-      );
-      if (restored) await patchArchivesAllList(user_email, restored, false);
+      await applyEntryArchive(user_email, project_name, entry_id, false);
     } catch (err) {
       console.error('[unarchiveEntry] Offline optimistic update failed:', err);
     }
@@ -447,12 +461,14 @@ export async function unarchiveEntry(user_email, project_name, entry_id) {
     });
 
     if (result?.success) {
+      await applyEntryArchive(user_email, project_name, entry_id, false);
       const { getEntries } = await import('./entries.js');
       await getEntries(user_email, project_name);
     }
     return result;
   } catch (err) {
     console.error('[unarchiveEntry] Failed, queuing for retry:', err);
+    await applyEntryArchive(user_email, project_name, entry_id, false);
     await addToQueue('unarchiveEntry', 'archives', {
       user_email,
       project_name,
