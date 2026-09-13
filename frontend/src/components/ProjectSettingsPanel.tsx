@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { editProjectName, deleteProject, setProjectColor } from '@/functions/project/project.js';
-import { getFields, addField, editField } from '@/functions/project/fields.js';
+import { getFields, addField, editField, deleteField } from '@/functions/project/fields.js';
 import { archiveProject } from '@/functions/project/archives.js';
-import { FiEdit2, FiArchive, FiCheck } from 'react-icons/fi';
+import { FiEdit2, FiArchive, FiCheck, FiTrash2 } from 'react-icons/fi';
 
 interface ProjectSettingsPanelProps {
   open: boolean;
@@ -43,7 +43,9 @@ export function ProjectSettingsPanel({
   const [fields, setFields] = useState<FieldRecord[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'boolean' | 'custom'>('text');
+  const [newFieldType, setNewFieldType] = useState<
+    'text' | 'number' | 'date' | 'boolean' | 'custom'
+  >('text');
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [newFieldOptions, setNewFieldOptions] = useState<string[]>([]);
@@ -54,12 +56,28 @@ export function ProjectSettingsPanel({
   const [editFieldName, setEditFieldName] = useState('');
   const [editFieldType, setEditFieldType] = useState('');
   const [editFieldRequired, setEditFieldRequired] = useState(false);
+  const [deletingField, setDeletingField] = useState<string | null>(null);
 
   // Project colour
   const PROJECT_COLORS = [
-    '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#f59e0b', '#eab308',
-    '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
-    '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#6b7280',
+    '#ec4899',
+    '#f43f5e',
+    '#ef4444',
+    '#f97316',
+    '#f59e0b',
+    '#eab308',
+    '#84cc16',
+    '#22c55e',
+    '#10b981',
+    '#14b8a6',
+    '#06b6d4',
+    '#0ea5e9',
+    '#3b82f6',
+    '#6366f1',
+    '#8b5cf6',
+    '#a855f7',
+    '#d946ef',
+    '#6b7280',
   ];
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [savingColor, setSavingColor] = useState(false);
@@ -170,7 +188,8 @@ export function ProjectSettingsPanel({
     }
     setFieldError(null);
     try {
-      const dataType = newFieldType === 'custom' ? `custom:${newFieldOptions.join(',')}` : newFieldType;
+      const dataType =
+        newFieldType === 'custom' ? `custom:${newFieldOptions.join(',')}` : newFieldType;
       await addField(userEmail, projectName, name, dataType, newFieldRequired);
       setNewFieldName('');
       setNewFieldType('text');
@@ -213,6 +232,18 @@ export function ProjectSettingsPanel({
       setFields(Array.isArray(result?.data) ? result.data : []);
     } catch (err) {
       setFieldError(err instanceof Error ? err.message : 'Failed to update field');
+    }
+  };
+
+  const handleDeleteField = async (fieldName: string) => {
+    setFieldError(null);
+    try {
+      await deleteField(userEmail, projectName, fieldName);
+      setDeletingField(null);
+      const result = await getFields(userEmail, projectName);
+      setFields(Array.isArray(result?.data) ? result.data : []);
+    } catch (err) {
+      setFieldError(err instanceof Error ? err.message : 'Failed to remove field');
     }
   };
 
@@ -292,7 +323,9 @@ export function ProjectSettingsPanel({
             <p className="field-hint" style={{ marginBottom: '0.75rem' }}>
               Choose a colour to identify this project across the app.
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <div
+              style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}
+            >
               {/* None option */}
               <button
                 type="button"
@@ -301,8 +334,11 @@ export function ProjectSettingsPanel({
                   setSavingColor(true);
                   try {
                     await setProjectColor(userEmail, projectName, null);
-                  } catch { /* optimistic update already applied */ }
-                  finally { setSavingColor(false); }
+                  } catch {
+                    /* optimistic update already applied */
+                  } finally {
+                    setSavingColor(false);
+                  }
                 }}
                 disabled={savingColor}
                 aria-label="No colour"
@@ -312,20 +348,28 @@ export function ProjectSettingsPanel({
                   height: 32,
                   borderRadius: '50%',
                   background: 'var(--surface, #fff)',
-                  border: selectedColor === null ? '2px solid var(--accent, #111)' : '2px dashed var(--border, #ccc)',
+                  border:
+                    selectedColor === null
+                      ? '2px solid var(--accent, #111)'
+                      : '2px dashed var(--border, #ccc)',
                   cursor: savingColor ? 'wait' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: 'transform 0.15s ease',
                   transform: selectedColor === null ? 'scale(1.15)' : 'scale(1)',
-                  boxShadow: selectedColor === null
-                    ? '0 0 0 3px var(--bg, #fff), 0 0 0 5px var(--accent, #111)'
-                    : '0 1px 3px rgba(0,0,0,0.12)',
+                  boxShadow:
+                    selectedColor === null
+                      ? '0 0 0 3px var(--bg, #fff), 0 0 0 5px var(--accent, #111)'
+                      : '0 1px 3px rgba(0,0,0,0.12)',
                   position: 'relative',
                 }}
               >
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted, #999)' }}>✕</span>
+                <span
+                  style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted, #999)' }}
+                >
+                  ✕
+                </span>
               </button>
               {PROJECT_COLORS.map((c) => (
                 <button
@@ -336,8 +380,11 @@ export function ProjectSettingsPanel({
                     setSavingColor(true);
                     try {
                       await setProjectColor(userEmail, projectName, c);
-                    } catch { /* optimistic update already applied */ }
-                    finally { setSavingColor(false); }
+                    } catch {
+                      /* optimistic update already applied */
+                    } finally {
+                      setSavingColor(false);
+                    }
                   }}
                   disabled={savingColor}
                   aria-label={`Set colour ${c}`}
@@ -354,19 +401,20 @@ export function ProjectSettingsPanel({
                     justifyContent: 'center',
                     transition: 'transform 0.15s ease',
                     transform: selectedColor === c ? 'scale(1.15)' : 'scale(1)',
-                    boxShadow: selectedColor === c
-                      ? `0 0 0 3px var(--bg, #fff), 0 0 0 5px ${c}`
-                      : '0 1px 3px rgba(0,0,0,0.12)',
+                    boxShadow:
+                      selectedColor === c
+                        ? `0 0 0 3px var(--bg, #fff), 0 0 0 5px ${c}`
+                        : '0 1px 3px rgba(0,0,0,0.12)',
                   }}
                 >
-                  {selectedColor === c && (
-                    <FiCheck size={14} color="#fff" />
-                  )}
+                  {selectedColor === c && <FiCheck size={14} color="#fff" />}
                 </button>
               ))}
             </div>
             {savingColor && (
-              <p className="field-hint" style={{ margin: 0 }}>Saving colour...</p>
+              <p className="field-hint" style={{ margin: 0 }}>
+                Saving colour...
+              </p>
             )}
           </div>
 
@@ -488,7 +536,9 @@ export function ProjectSettingsPanel({
                           >
                             {f.field_name}
                           </span>
-                          <span className="field-badge">{f.data_type.startsWith('custom:') ? 'custom' : f.data_type}</span>
+                          <span className="field-badge">
+                            {f.data_type.startsWith('custom:') ? 'custom' : f.data_type}
+                          </span>
                           {f.is_required && (
                             <span className="field-badge field-badge--accent">req</span>
                           )}
@@ -500,6 +550,39 @@ export function ProjectSettingsPanel({
                           >
                             <FiEdit2 size={16} />
                           </button>
+                          {deletingField === f.field_name ? (
+                            <>
+                              <span
+                                className="field-hint"
+                                style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                              >
+                                Remove?
+                              </span>
+                              <button
+                                className="btn-danger"
+                                onClick={() => handleDeleteField(f.field_name)}
+                                style={{ padding: '0.35rem 0.55rem', fontSize: '0.8rem' }}
+                              >
+                                Yes
+                              </button>
+                              <button
+                                className="btn-secondary"
+                                onClick={() => setDeletingField(null)}
+                                style={{ padding: '0.35rem 0.55rem', fontSize: '0.8rem' }}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="btn-secondary"
+                              onClick={() => setDeletingField(f.field_name)}
+                              style={{ padding: '0.35rem 0.55rem', fontSize: '0.85rem' }}
+                              title="Remove column"
+                            >
+                              <FiTrash2 size={16} />
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -558,7 +641,10 @@ export function ProjectSettingsPanel({
                   <button
                     className="btn-primary"
                     onClick={handleAddField}
-                    disabled={!newFieldName.trim() || (newFieldType === 'custom' && newFieldOptions.length === 0)}
+                    disabled={
+                      !newFieldName.trim() ||
+                      (newFieldType === 'custom' && newFieldOptions.length === 0)
+                    }
                     style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
                   >
                     + Add
@@ -566,7 +652,14 @@ export function ProjectSettingsPanel({
                 </div>
                 {newFieldType === 'custom' && (
                   <div style={{ width: '100%', marginTop: '0.5rem' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '0.5rem',
+                        alignItems: 'center',
+                        marginBottom: '0.25rem',
+                      }}
+                    >
                       <input
                         type="text"
                         placeholder="Add option..."
