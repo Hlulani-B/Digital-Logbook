@@ -113,7 +113,7 @@ export function getEntryTitle(entry: CalendarEntry): string {
   const safe = cleanSummaryText(entry.summary);
   if (safe) return safe;
 
-  if (!entry.entries) return 'Untitled entry';
+  if (entry.entries == null) return `${entry.project_name} entry`;
 
   let payload: unknown = entry.entries;
   if (typeof payload === 'string') {
@@ -125,8 +125,8 @@ export function getEntryTitle(entry: CalendarEntry): string {
   }
 
   const title = getEntryPayloadTitle(payload);
-  return title === 'Not recorded' ? 'Untitled entry' : title;
-}}
+  return title === 'Not recorded' ? `${entry.project_name} entry` : title;
+}
 
 export function buildMonthGrid(date: Date, weekStartsOn: 0 | 1 = 0): Date[] {
   const monthStart = startOfMonth(date);

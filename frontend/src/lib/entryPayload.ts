@@ -63,9 +63,9 @@ export function getEntryPayloadTitle(value: unknown): string {
     }
   }
 
-  for (const fieldValue of Object.values(payload.value)) {
+  for (const [fieldName, fieldValue] of Object.entries(payload.value)) {
     const title = formatEntryValue(fieldValue);
-    if (title !== 'Not recorded') return title;
+    if (title !== 'Not recorded') return `${fieldName}: ${title}`;
   }
 
   return 'Not recorded';

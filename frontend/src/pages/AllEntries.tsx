@@ -130,17 +130,16 @@ export function AllEntriesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-  
+
   // Subscribe to cache changes — re-load when syncAllData writes new data
   useEffect(() => {
     if (!email) return;
     const unsubs = [
       cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
       cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
-      ];
-      return () => unsubs.forEach((unsub) => unsub());
-    }, [email, loadData]);
->>>>>>> origin/main
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [email, loadData]);
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
@@ -181,7 +180,10 @@ export function AllEntriesPage() {
     return filtered;
   }, [entries, searchQuery, sortBy]);
 
-  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
+  const colorMap = useMemo(
+    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
+    [projects]
+  );
 
   return (
     <div className="dash-layout">

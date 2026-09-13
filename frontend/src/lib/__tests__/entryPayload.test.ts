@@ -14,8 +14,8 @@ describe('entry payload presentation', () => {
     expect(getEntryPayloadTitle({ custom: 'Other', task: 'Finish report' })).toBe('Finish report');
   });
 
-  it('falls back to a meaningful object value', () => {
-    expect(getEntryPayloadTitle({ count: 0, enabled: false })).toBe('0');
+  it('falls back to a meaningful object value with field name', () => {
+    expect(getEntryPayloadTitle({ count: 0, enabled: false })).toBe('count: 0');
   });
 
   it('exposes object values as fields and opaque values as legacy content', () => {

@@ -215,7 +215,6 @@ export function CalendarDayModal({
       } finally {
         setSaving(false);
       }
-<<<<<<< HEAD
     },
     [
       selectedProject,
@@ -229,36 +228,6 @@ export function CalendarDayModal({
       onEntryAdded,
     ]
   );
-=======
-      const priorityLabel = priority === '3' ? null : PRIORITY_LABELS[priority];
-
-      await addEntry(
-        userEmail,
-        selectedProject,
-        entryObject,
-        dueDate ? new Date(dueDate).toISOString() : null,
-        priorityLabel,
-        status,
-        null,
-        null,
-        null
-      );
-
-      setSuccessMsg('Entry added!');
-      // Reset form
-      setFieldValues({});
-      setSelectedProject('');
-      setFields([]);
-      setShowAddForm(false);
-      onEntryAdded();
-      setTimeout(() => setSuccessMsg(null), 2500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add item');
-    } finally {
-      setSaving(false);
-    }
-  }, [selectedProject, userEmail, fields, fieldValues, dueDate, priority, status, saving, onEntryAdded]);
->>>>>>> origin/main
 
   const handleFieldChange = (fieldName: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [fieldName]: value }));
@@ -271,7 +240,9 @@ export function CalendarDayModal({
         <div className="cdm-header">
           <div>
             <h2 className="cdm-date">{formatDateHeading(date)}</h2>
-            <span className="cdm-count">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
+            <span className="cdm-count">
+              {entries.length} item{entries.length !== 1 ? 's' : ''}
+            </span>
           </div>
           <button type="button" className="cdm-close" onClick={onClose} aria-label="Close">
             &times;
@@ -303,9 +274,7 @@ export function CalendarDayModal({
                   const isCompleted = entryStatus === 'done_and_dusted';
                   const statusColor = STATUS_COLORS[entryStatus] || '#6366f1';
 
-                  const entryColor = colorMap
-                    ? (colorMap[entry.project_name] || null)
-                    : null;
+                  const entryColor = colorMap ? colorMap[entry.project_name] || null : null;
 
                   return (
                     <div
@@ -320,7 +289,9 @@ export function CalendarDayModal({
                       onClick={() => onEntryClick(entry)}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') onEntryClick(entry); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') onEntryClick(entry);
+                      }}
                       style={entryColor ? { borderLeft: `3px solid ${entryColor}` } : undefined}
                     >
                       <div

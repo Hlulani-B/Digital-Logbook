@@ -177,7 +177,7 @@ export function NotificationsBell({ email }: { email: string }) {
                 <span className="notif-item-text">
                   <span className="notif-item-title">
                     {n.type === 'overdue' ? 'Overdue: ' : 'Due soon: '}
-                    {n.entry_title || 'Untitled entry'}
+                    {n.entry_title || (n.project_name ? `${n.project_name} entry` : 'Entry')}
                   </span>
                   <span className="notif-item-meta">
                     {n.project_name ? `${n.project_name} · ` : ''}
