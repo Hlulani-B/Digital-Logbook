@@ -60,7 +60,8 @@ Make it insightful and encouraging. ${tone}`;
 
         const aiResult = await askAI(prompt);
         console.log('[Stats] AI result:', aiResult);
-        if (aiResult.success && aiResult.response) {
+        // Re-read the preference after the await in case it was flipped off mid-flight
+        if (getAiMessagesEnabled() && aiResult.success && aiResult.response) {
           // Parse AI response
           try {
             const parsed = JSON.parse(aiResult.response);
