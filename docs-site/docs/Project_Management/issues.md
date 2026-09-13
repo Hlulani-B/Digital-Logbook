@@ -577,3 +577,52 @@ After the guided tour voice feature shipped, two narration problems were reporte
 **Takeaway:** Pace text-to-speech off the speech engine's completion events, never a duration estimate; and when composing spoken text from multiple fields, make the fields non-overlapping so nothing is repeated aloud.
 
 **Pull requests:** [#164](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/164) (voice + auto-advance), [#165](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/165) (pacing + narration copy fix)
+
+---
+
+## Sign-In Page Visual Polish
+
+### Issue 41: Sign-In Page Renders as a Blank White Screen
+
+After the landing-sections work (PRs #177–#179) added a themed wrapper and navigation links, the sign-in page showed nothing — just the browser's default white body.
+
+**Root cause:** The JSX return statement in `SignIn.tsx` opened with `<div className="signin-page">` but closed with `</>` (a fragment close) instead of `</div>`. React treats mismatched tags as a compile error, Vite could not build the bundle, and the browser fell back to an empty page. The nav, auth form, and landing sections all failed to render.
+
+**Fix:** Changed the closing tag from `</>` to `</div>` so the wrapper correctly contains all children.
+
+**Takeaway:** When wrapping a page in a new outer `<div>`, always verify that the matching close tag is also updated. A fragment close `</>` is syntactically valid JSX but semantically wrong when paired with a `<div>`, and the error is silent until the build runs.
+
+**Gitea issue:** [#190](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/190)
+
+### Issue 42: All SignIn Tests Fail — IntersectionObserver Not Defined in jsdom
+
+After the `LandingSections` component (which uses `IntersectionObserver` for scroll-reveal animations) was added to the sign-in page, all 15 tests in `SignIn.test.tsx` began failing with `IntersectionObserver is not defined`.
+
+**Root cause:** jsdom does not implement `IntersectionObserver`. The component tried to create one at mount time and crashed before any assertions could run. This was a pre-existing gap in the test environment — the failures reproduced against committed code, not just the working tree.
+
+**Fix:** Added a no-op `IntersectionObserver` class stub to `frontend/src/test/setup.ts`, matching the existing `matchMedia` stub pattern:
+
+```typescript
+Object.defineProperty(window, 'IntersectionObserver', {
+  writable: true,
+  value: class { observe() {} unobserve() {} disconnect() {} },
+});
+```
+
+Tests now pass 15/15. The observer never fires in tests (content is asserted, not reveal animations), so a no-op class is sufficient.
+
+**Takeaway:** When a component uses a browser API that jsdom does not provide, add a global stub to the shared test setup file rather than per-test `beforeEach` blocks — it keeps individual tests clean and prevents the same stub from being duplicated across files.
+
+**Gitea issue:** [#192](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/192)
+
+### Issue 43: Stale Test Assertion After Password Hint Text Removal
+
+The test "shows password hint in sign-up mode" asserted `Password must be at least 6 characters.` — text that no longer exists in `SignIn.tsx`. It was removed in commit `886f73c` when the live password-requirements checklist replaced the static hint, but the test was never updated.
+
+**Root cause:** The live checklist introduced in that commit renders per-requirement items (e.g. "At least 8 characters") only after the user starts typing a password. The old static hint text was removed intentionally, but its test was overlooked.
+
+**Fix:** Renamed the test to "shows live password requirements in sign-up mode". It now types `a` into the Password field (to trigger the checklist) and asserts `At least 8 characters`.
+
+**Takeaway:** When replacing static text with dynamic content in a component, audit every test that asserted the old text — the test breakage is non-obvious if the suite is not run before committing.
+
+**Gitea issue:** [#193](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/193)
