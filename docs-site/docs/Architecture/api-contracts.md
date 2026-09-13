@@ -13,40 +13,6 @@ All backend services follow a consistent API pattern:
 
 **Production URL:** `https://auth-service-hl52.onrender.com`
 
-### Sign In
-
-```http
-POST /auth/signin
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!"
-}
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "session": {
-    "access_token": "eyJhbGciOiJIUzI1NiIs...",
-    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
-    "user": { "id": "...", "email": "user@example.com" }
-  }
-}
-```
-
-**Response (401):**
-
-```json
-{
-  "success": false,
-  "message": "Invalid email or password"
-}
-```
-
 ### Sign Up
 
 ```http
@@ -65,22 +31,6 @@ Content-Type: application/json
 {
   "success": true,
   "message": "Please check your email to confirm your account before signing in"
-}
-```
-
-### Sign Out
-
-```http
-POST /auth/signout
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "message": "Signed out successfully"
 }
 ```
 
@@ -678,15 +628,9 @@ A Swagger UI is served at `/api-docs` on the project-service, allowing interacti
 
 ### 1. Get a JWT Token
 
-First, sign in to get a valid JWT token:
+Sign in via the frontend at `https://digital-logbook-bxgv.onrender.com` and extract the JWT token from the browser's localStorage or network tab.
 
-```bash
-curl -X POST https://auth-service-hl52.onrender.com/auth/signin \
-  -H "Content-Type: application/json" \
-  -d '{"email": "your@email.com", "password": "yourpassword"}'
-```
-
-Copy the `access_token` from the response.
+Alternatively, use the Supabase dashboard to generate a test token.
 
 ### 2. Make Authenticated Requests
 
