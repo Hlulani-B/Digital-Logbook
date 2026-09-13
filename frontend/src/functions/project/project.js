@@ -6,11 +6,23 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 /**
  * Fetch all projects for a user.
- * Writes to IndexedDB (triggers subscription), returns result for compatibility.
+ * Cache-first: reads from IndexedDB, falls back to server.
  * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getProjectsByEmail(user_email) {
   console.log('[getProjectsByEmail] called for', user_email);
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+    if (cached) {
+      console.log('[getProjectsByEmail] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getProjectsByEmail] Offline and no cache');
+    return { success: false, offline: true, projects: [] };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/project`, {
       method: 'POST',
@@ -19,7 +31,13 @@ export async function getProjectsByEmail(user_email) {
         values: { user_email },
       }),
     });
-    console.log('[getProjectsByEmail] server returned:', result?.success, Array.isArray(result?.projects || result?.data) ? `len=${(result?.projects || result?.data).length}` : 'no-data');
+    console.log(
+      '[getProjectsByEmail] server returned:',
+      result?.success,
+      Array.isArray(result?.projects || result?.data)
+        ? `len=${(result?.projects || result?.data).length}`
+        : 'no-data'
+    );
 
     if (result?.success) {
       const projects = result.projects || result.data || [];
@@ -28,7 +46,11 @@ export async function getProjectsByEmail(user_email) {
         const existing = await cacheGet(CACHE_STORES.PROJECTS, user_email);
         const existingProjects = existing?.projects || existing?.data || [];
         if (Array.isArray(existingProjects) && existingProjects.length > 0) {
-          console.warn('[getProjectsByEmail] Server returned 0 projects but cache has', existingProjects.length, '— keeping cache');
+          console.warn(
+            '[getProjectsByEmail] Server returned 0 projects but cache has',
+            existingProjects.length,
+            '— keeping cache'
+          );
           return result; // return without writing to cache
         }
       }
@@ -40,6 +62,12 @@ export async function getProjectsByEmail(user_email) {
     return result;
   } catch (err) {
     console.error('[getProjectsByEmail] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+    if (cached) {
+      console.log('[getProjectsByEmail] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, projects: [] };
   }
 }
@@ -64,7 +92,7 @@ export async function addProject(user_email, project_name, description) {
 
   if (cached) {
     const currentData = cached.data || cached;
-    const projects = Array.isArray(currentData) ? currentData : (currentData?.projects || []);
+    const projects = Array.isArray(currentData) ? currentData : currentData?.projects || [];
     await cacheSet(CACHE_STORES.PROJECTS, user_email, {
       success: true,
       projects: [...projects, optimisticProject],
@@ -119,11 +147,9 @@ export async function editProjectName(user_email, new_project_name, old_project_
   // 1. Optimistic: rename in cache
   if (cached) {
     const currentData = cached.data || cached;
-    const projects = Array.isArray(currentData) ? currentData : (currentData?.projects || []);
+    const projects = Array.isArray(currentData) ? currentData : currentData?.projects || [];
     const renamed = projects.map((p) =>
-      p.project_name === old_project_name
-        ? { ...p, project_name: new_project_name }
-        : p
+      p.project_name === old_project_name ? { ...p, project_name: new_project_name } : p
     );
     await cacheSet(CACHE_STORES.PROJECTS, user_email, { success: true, projects: renamed });
   }
@@ -179,7 +205,7 @@ export async function deleteProject(user_email, project_name) {
   // 1. Optimistic: remove from cache
   if (cached) {
     const currentData = cached.data || cached;
-    const projects = Array.isArray(currentData) ? currentData : (currentData?.projects || []);
+    const projects = Array.isArray(currentData) ? currentData : currentData?.projects || [];
     const filtered = projects.filter((p) => p.project_name !== project_name);
     await cacheSet(CACHE_STORES.PROJECTS, user_email, { success: true, projects: filtered });
   }
@@ -235,7 +261,7 @@ export async function setProjectColor(user_email, project_name, color) {
   // 1. Optimistic: update colour in cache
   if (cached) {
     const currentData = cached.data || cached;
-    const projects = Array.isArray(currentData) ? currentData : (currentData?.projects || []);
+    const projects = Array.isArray(currentData) ? currentData : currentData?.projects || [];
     const updated = projects.map((p) =>
       p.project_name === project_name ? { ...p, project_color: color } : p
     );

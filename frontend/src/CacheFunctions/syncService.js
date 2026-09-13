@@ -37,8 +37,17 @@
 
 // ── Server-fetch GET functions ──────────────────────────────────
 import { getProjectsByEmail } from '@/functions/project/project.js';
-import { getAllEntries, sortUnarchivedEntries, sortArchivedEntries } from '@/functions/project/entries.js';
-import { getArchives, getUnarchived, getArchivedProjects, getUnarchivedProjects } from '@/functions/project/archives.js';
+import {
+  getAllEntries,
+  sortUnarchivedEntries,
+  sortArchivedEntries,
+} from '@/functions/project/entries.js';
+import {
+  getArchives,
+  getUnarchived,
+  getArchivedProjects,
+  getUnarchivedProjects,
+} from '@/functions/project/archives.js';
 import { getFields } from '@/functions/project/fields.js';
 import { getProfile } from '@/functions/profile/profile.js';
 import { getActivities } from '@/functions/activity.js';
@@ -53,7 +62,11 @@ import { getOverdueText } from '@/functions/dashboard/overdue.js';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache.js';
 
 // Sentinel error used to skip cache writes when server returns empty but cache has data
-class _SkipCache extends Error { constructor() { super('skip-cache'); } }
+class _SkipCache extends Error {
+  constructor() {
+    super('skip-cache');
+  }
+}
 
 // Track ongoing sync to prevent duplicate concurrent requests
 let syncInProgress = null;
@@ -74,7 +87,12 @@ const MIN_SYNC_INTERVAL = 10_000; // 10 seconds between full syncs
  */
 export async function syncAllData(email, { force = false, onProgress } = {}) {
   if (!email) return { success: false, message: 'No email provided' };
-  console.log('[syncService] syncAllData called, force=', force, 'syncInProgress=', !!syncInProgress);
+  console.log(
+    '[syncService] syncAllData called, force=',
+    force,
+    'syncInProgress=',
+    !!syncInProgress
+  );
 
   // Prevent duplicate concurrent syncs
   if (syncInProgress) {
@@ -190,14 +208,20 @@ async function _doSync(email, onProgress) {
   } catch (err) {
     console.log('[syncService] archives batch error:', err?.message);
   }
-  // 5. Fields (2 calls)
+  // 5. Fields — fields are stored per-project (table_name == project_name), so
+  //    warm one cache entry per project the user owns. getFields() caches each
+  //    response itself; a fresh offline load then still shows each project's columns.
+  const fieldProjectNames =
+    projectsResult.status === 'fulfilled'
+      ? (projectsResult.value?.projects || projectsResult.value?.data || [])
+          .map((p) => p.project_name)
+          .filter(Boolean)
+      : [];
   const fieldsResults = { status: 'fulfilled', value: [] };
   try {
-    const [f1, f2] = await Promise.all([
-      safeCall('fields1', () => getFields(email, 'entries')),
-      safeCall('fields2', () => getFields(email, 'projects')),
-    ]);
-    fieldsResults.value = [f1, f2];
+    fieldsResults.value = await Promise.all(
+      fieldProjectNames.map((name) => safeCall(`fields:${name}`, () => getFields(email, name)))
+    );
   } catch (err) {
     console.log('[syncService] fields batch error:', err?.message);
   }
@@ -205,12 +229,15 @@ async function _doSync(email, onProgress) {
   const activityResult = await safeCall('activity', () => getActivities(email));
 
   console.log('[syncService] All fetches done in', Date.now() - syncStart, 'ms');
-  console.log('[syncService] Results:', [
-    'projects=' + projectsResult.status,
-    'entries=' + allEntriesResult.status,
-    'profile=' + profileResult.status,
-    'activity=' + activityResult.status,
-  ].join(', '));
+  console.log(
+    '[syncService] Results:',
+    [
+      'projects=' + projectsResult.status,
+      'entries=' + allEntriesResult.status,
+      'profile=' + profileResult.status,
+      'activity=' + activityResult.status,
+    ].join(', ')
+  );
 
   // ── Process results ──────────────────────────────────────────
 
@@ -223,7 +250,11 @@ async function _doSync(email, onProgress) {
         const existing = await cacheGet(CACHE_STORES.PROJECTS, email);
         const existingProjects = existing?.projects || existing?.data || [];
         if (Array.isArray(existingProjects) && existingProjects.length > 0) {
-          console.warn('[syncService] Server returned 0 projects but cache has', existingProjects.length, '— keeping cache');
+          console.warn(
+            '[syncService] Server returned 0 projects but cache has',
+            existingProjects.length,
+            '— keeping cache'
+          );
           projects.length > 0 || summary.synced.push('projects:skipped-empty');
           // Skip the cache write — fall through to the catch
           throw new _SkipCache();
@@ -234,8 +265,9 @@ async function _doSync(email, onProgress) {
       onProgress?.({ store: 'projects', data: projects });
     }
   } catch (err) {
-    if (err instanceof _SkipCache) { /* intentional skip */ }
-    else console.error('[syncService] Failed to cache projects:', err);
+    if (err instanceof _SkipCache) {
+      /* intentional skip */
+    } else console.error('[syncService] Failed to cache projects:', err);
   }
 
   // 2. All entries + per-project split (no extra server calls!)
@@ -250,7 +282,11 @@ async function _doSync(email, onProgress) {
         const existing = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         const existingEntries = existing?.data || [];
         if (Array.isArray(existingEntries) && existingEntries.length > 0) {
-          console.warn('[syncService] Server returned 0 entries but cache has', existingEntries.length, '— keeping cache');
+          console.warn(
+            '[syncService] Server returned 0 entries but cache has',
+            existingEntries.length,
+            '— keeping cache'
+          );
           summary.synced.push('all-entries:skipped-empty');
           throw new _SkipCache();
         }
@@ -276,8 +312,9 @@ async function _doSync(email, onProgress) {
       summary.synced.push('per-project-entries');
     }
   } catch (err) {
-    if (err instanceof _SkipCache) { /* intentional skip */ }
-    else console.error('[syncService] Failed to cache entries:', err);
+    if (err instanceof _SkipCache) {
+      /* intentional skip */
+    } else console.error('[syncService] Failed to cache entries:', err);
   }
 
   // 3. Profile
@@ -306,11 +343,22 @@ async function _doSync(email, onProgress) {
         summary.synced.push('unarchived-entries');
       }
       if (archivedProjectsResult.status === 'fulfilled' && archivedProjectsResult.value?.success) {
-        await cacheSet(CACHE_STORES.ARCHIVES, `archived-projects:${email}`, archivedProjectsResult.value);
+        await cacheSet(
+          CACHE_STORES.ARCHIVES,
+          `archived-projects:${email}`,
+          archivedProjectsResult.value
+        );
         summary.synced.push('archived-projects');
       }
-      if (unarchivedProjectsResult.status === 'fulfilled' && unarchivedProjectsResult.value?.success) {
-        await cacheSet(CACHE_STORES.ARCHIVES, `unarchived-projects:${email}`, unarchivedProjectsResult.value);
+      if (
+        unarchivedProjectsResult.status === 'fulfilled' &&
+        unarchivedProjectsResult.value?.success
+      ) {
+        await cacheSet(
+          CACHE_STORES.ARCHIVES,
+          `unarchived-projects:${email}`,
+          unarchivedProjectsResult.value
+        );
         summary.synced.push('unarchived-projects');
       }
     }
@@ -318,16 +366,13 @@ async function _doSync(email, onProgress) {
     console.error('[syncService] Failed to cache archives:', err);
   }
 
-  // 5. Fields
+  // 5. Fields — getFields() already wrote each project's rows to the cache during
+  //    the fetch above; here we only record what synced.
   try {
-    if (fieldsResults.status === 'fulfilled') {
-      const fieldTables = ['entries', 'projects'];
-      for (let i = 0; i < fieldTables.length; i++) {
-        const fr = fieldsResults.value[i];
-        if (fr.status === 'fulfilled' && fr.value?.success) {
-          await cacheSet(CACHE_STORES.FIELDS, `${email}:${fieldTables[i]}`, fr.value);
-          summary.synced.push(`fields:${fieldTables[i]}`);
-        }
+    for (let i = 0; i < fieldProjectNames.length; i++) {
+      const fr = fieldsResults.value[i];
+      if (fr?.status === 'fulfilled' && fr.value?.success) {
+        summary.synced.push(`fields:${fieldProjectNames[i]}`);
       }
     }
   } catch (err) {

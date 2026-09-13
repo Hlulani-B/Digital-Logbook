@@ -13,7 +13,6 @@ import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
@@ -154,19 +153,29 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     localStorage.setItem('dashboard-sort-by', sortBy);
   }, [sortBy]);
 
-  // Display mode: cards, checklist, board, or projects - persist in localStorage
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'projects'>(
-    () => {
-      const saved = localStorage.getItem('dashboard-display-mode');
-      if (saved === 'cards' || saved === 'checklist' || saved === 'board' || saved === 'projects')
-        return saved;
-      return 'cards';
-    }
-  );
+  // Display mode for the entries feed (cards/checklist/board) - persisted in localStorage
+  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>(() => {
+    const saved = localStorage.getItem('dashboard-display-mode');
+    if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
+    return 'cards';
+  });
+
+  // Projects live in a slide-over drawer rather than replacing the entries feed.
+  const [projectsDrawerOpen, setProjectsDrawerOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('dashboard-display-mode', displayMode);
   }, [displayMode]);
+
+  // Allow closing the projects drawer with the Escape key.
+  useEffect(() => {
+    if (!projectsDrawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setProjectsDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [projectsDrawerOpen]);
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -501,7 +510,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Load archived entries when archives view is active
   useEffect(() => {
     if (activeView !== 'archives' || !email) return;
-    (async () => {
+    const loadArchives = async () => {
       try {
         const result = await getArchives(email, null);
         if (result?.success !== false) {
@@ -510,7 +519,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       } catch (err) {
         console.error('Failed to load archived entries:', err);
       }
-    })();
+    };
+    loadArchives();
+    // Re-read when archives cache changes (e.g., after archive/unarchive actions)
+    const unsub = cacheSubscribe(CACHE_STORES.ARCHIVES, `${email}:all`, () => loadArchives());
+    return () => unsub();
   }, [activeView, email]);
 
   // AI-generated greeting ΓÇö shown as a toast (respects AI messages preference)
@@ -582,8 +595,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
-    // Use all entries (unarchived)
-    let filtered = [...entries];
+    // Use all entries (unarchived) — ALL_ENTRIES also holds archived rows, so
+    // drop them here; the Archives view sources its list from getArchives.
+    let filtered = entries.filter((e) => !e.archived);
 
     if (activeView === 'recent') {
       const weekAgo = new Date();
@@ -660,29 +674,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
-  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  // Load avatar and username from IndexedDB cache (populated by syncAllData on login)
   useEffect(() => {
     if (!email) return;
-    let cancelled = false;
-    (async () => {
+    const loadProfile = async () => {
       try {
-        const result = await getProfile(email);
-        const profileData = result?.data || result;
+        const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+        const profileData = cached?.data || cached?.profile || cached;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
         const username = (profileData as Record<string, unknown>)?.username as string;
-        if (!cancelled) {
-          if (avatar) {
-            setProfileAvatar(avatar);
-          }
-          if (username) {
-            setProfileUsername(username);
-          }
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
+        if (avatar) setProfileAvatar(avatar);
+        if (username) setProfileUsername(username);
+      } catch (err) {
+        console.error('[Dashboard] Failed to load profile from cache:', err);
+      }
     };
+    loadProfile();
+    // Re-read when syncAllData or mutations write the profile to IndexedDB
+    const unsub = cacheSubscribe(CACHE_STORES.PROFILE, email, () => loadProfile());
+    return () => unsub();
   }, [email]);
 
   const handleLogout = async () => {
@@ -1691,29 +1701,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <div className="feed-controls-row">
               <div className="feed-view-toggle">
                 <button
-                  className={`feed-view-btn ${displayMode === 'projects' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('projects')}
+                  className={`feed-view-btn ${projectsDrawerOpen ? 'active' : ''}`}
+                  onClick={() => setProjectsDrawerOpen(true)}
                 >
                   Projects
                 </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('cards')}
-                >
-                  Cards
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('checklist')}
-                >
-                  Checklist
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('board')}
-                >
-                  Board
-                </button>
+              </div>
+              <div className="feed-view-group">
+                <span className="feed-view-label">View:</span>
+                <div className="feed-view-toggle">
+                  <button
+                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('checklist')}
+                  >
+                    Checklist
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('board')}
+                  >
+                    Board
+                  </button>
+                </div>
               </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>
@@ -1887,85 +1902,115 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Projects Grid View */}
-            {displayMode === 'projects' && !loading && (
-              <div className="projects-grid-view">
-                <h2 className="projects-grid-title">Your Projects</h2>
-                {projects.filter((p) => !p.archived).length === 0 ? (
-                  <div className="empty-state animate-in">
-                    <div className="empty-icon">
-                      <svg
-                        width="48"
-                        height="48"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                      </svg>
-                    </div>
-                    <h2 className="empty-title">No projects yet</h2>
-                    <p className="empty-desc">Create your first project to get started.</p>
+            {/* Projects slide-over drawer — opens over the dashboard so the
+                entries feed keeps its place instead of being replaced. */}
+            {projectsDrawerOpen && (
+              <div
+                className="projects-drawer-overlay"
+                role="presentation"
+                onClick={() => setProjectsDrawerOpen(false)}
+              >
+                <aside
+                  className="projects-drawer"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Your projects"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="projects-drawer-header">
+                    <h2 className="projects-grid-title">Your Projects</h2>
                     <button
-                      className="btn-primary"
-                      onClick={() => setNewProjectOpen(true)}
-                      style={{ marginTop: '1rem' }}
+                      type="button"
+                      className="projects-drawer-close"
+                      aria-label="Close projects"
+                      onClick={() => setProjectsDrawerOpen(false)}
                     >
-                      + New Project
+                      ✕
                     </button>
                   </div>
-                ) : (
-                  <div className="projects-grid">
-                    {projects
-                      .filter((p) => !p.archived)
-                      .map((project) => {
-                        const name = project.project_name as string;
-                        const count = entries.filter((e) => e.project_name === name).length;
-                        const inMotionCount = entries.filter(
-                          (e) => e.project_name === name && e.status === 'in_motion'
-                        ).length;
-                        const doneCount = entries.filter(
-                          (e) => e.project_name === name && e.status === 'done_and_dusted'
-                        ).length;
-                        return (
-                          <button
-                            key={name}
-                            className="project-card"
-                            onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                  <div className="projects-drawer-body">
+                    {projects.filter((p) => !p.archived).length === 0 ? (
+                      <div className="empty-state animate-in">
+                        <div className="empty-icon">
+                          <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           >
-                            <div className="project-card-header">
-                              <h3 className="project-card-name">{name}</h3>
-                              <span className="project-card-count">{count} entries</span>
-                            </div>
-                            <div className="project-card-stats">
-                              {inMotionCount > 0 && (
-                                <span className="project-card-stat project-card-stat--active">
-                                  {inMotionCount} in progress
-                                </span>
-                              )}
-                              {doneCount > 0 && (
-                                <span className="project-card-stat project-card-stat--done">
-                                  {doneCount} done
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </div>
+                        <h2 className="empty-title">No projects yet</h2>
+                        <p className="empty-desc">Create your first project to get started.</p>
+                        <button
+                          className="btn-primary"
+                          onClick={() => {
+                            setProjectsDrawerOpen(false);
+                            setNewProjectOpen(true);
+                          }}
+                          style={{ marginTop: '1rem' }}
+                        >
+                          + New Project
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="projects-grid">
+                        {projects
+                          .filter((p) => !p.archived)
+                          .map((project) => {
+                            const name = project.project_name as string;
+                            const count = entries.filter((e) => e.project_name === name).length;
+                            const inMotionCount = entries.filter(
+                              (e) => e.project_name === name && e.status === 'in_motion'
+                            ).length;
+                            const doneCount = entries.filter(
+                              (e) => e.project_name === name && e.status === 'done_and_dusted'
+                            ).length;
+                            return (
+                              <button
+                                key={name}
+                                className="project-card"
+                                onClick={() => {
+                                  setProjectsDrawerOpen(false);
+                                  navigate(`/project/${encodeURIComponent(name)}`);
+                                }}
+                              >
+                                <div className="project-card-header">
+                                  <h3 className="project-card-name">{name}</h3>
+                                  <span className="project-card-count">{count} entries</span>
+                                </div>
+                                <div className="project-card-stats">
+                                  {inMotionCount > 0 && (
+                                    <span className="project-card-stat project-card-stat--active">
+                                      {inMotionCount} in progress
+                                    </span>
+                                  )}
+                                  {doneCount > 0 && (
+                                    <span className="project-card-stat project-card-stat--done">
+                                      {doneCount} done
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    )}
                   </div>
-                )}
+                </aside>
               </div>
             )}
 
-            {/* Entries feed — shown when not in projects mode. Each display
-                mode gets its own wrapper: cards use the multi-column
-                .entries-feed grid, but board and checklist need full-width
-                containers or the card grid squeezes them into one narrow
-                track and they stack vertically. */}
-            {displayMode !== 'projects' && !loading && filteredEntries.length === 0 && (
+            {/* Entries feed. Each display mode gets its own wrapper: cards
+                use the multi-column .entries-feed grid, but board and
+                checklist need full-width containers or the card grid squeezes
+                them into one narrow track and they stack vertically. */}
+            {!loading && filteredEntries.length === 0 && (
               <div className="entries-feed">
                 <div className="empty-state animate-in">
                   <div className="empty-icon">

@@ -1,6 +1,6 @@
 /**
  * Action Dispatcher
- * 
+ *
  * Maps queued action strings to their corresponding function implementations.
  * Used by the queue processor to execute offline actions when connectivity returns.
  */
@@ -10,6 +10,7 @@ import * as project from '../functions/project/project';
 import * as archives from '../functions/project/archives';
 import * as priority from '../functions/project/priority';
 import * as profile from '../functions/profile/profile';
+import { addFieldSync, editFieldSync } from '../functions/project/fields';
 
 /**
  * Map of action names to their handler functions.
@@ -50,29 +51,22 @@ const actionMap = {
   deleteEntry: (payload) =>
     entries.deleteEntry(payload.user_email, payload.project_name, payload.entry),
 
-  deleteEntryById: (payload) =>
-    entries.deleteEntryById(payload.user_email, payload.entry_id),
+  deleteEntryById: (payload) => entries.deleteEntryById(payload.user_email, payload.entry_id),
 
   // Projects
   addProject: (payload) =>
     project.addProject(payload.user_email, payload.project_name, payload.description),
 
   editProjectName: (payload) =>
-    project.editProjectName(
-      payload.user_email,
-      payload.new_project_name,
-      payload.old_project_name
-    ),
+    project.editProjectName(payload.user_email, payload.new_project_name, payload.old_project_name),
 
-  deleteProject: (payload) =>
-    project.deleteProject(payload.user_email, payload.project_name),
+  deleteProject: (payload) => project.deleteProject(payload.user_email, payload.project_name),
 
   setProjectColor: (payload) =>
     project.setProjectColor(payload.user_email, payload.project_name, payload.color),
 
   // Archives
-  archiveProject: (payload) =>
-    archives.archiveProject(payload.user_email, payload.project_name),
+  archiveProject: (payload) => archives.archiveProject(payload.user_email, payload.project_name),
 
   unarchiveProject: (payload) =>
     archives.unarchiveProject(payload.user_email, payload.project_name),
@@ -92,15 +86,17 @@ const actionMap = {
       payload.entry_id
     ),
 
+  // Fields — replay uses the server-only variants so a retry never re-queues.
+  addField: (payload) => addFieldSync(payload),
+
+  editField: (payload) => editFieldSync(payload),
+
   // Profile
-  updateUsername: (payload) =>
-    profile.updateUsername(payload.email, payload.username),
+  updateUsername: (payload) => profile.updateUsername(payload.email, payload.username),
 
-  updateName: (payload) =>
-    profile.updateName(payload.email, payload.new_name),
+  updateName: (payload) => profile.updateName(payload.email, payload.new_name),
 
-  updateAvatar: (payload) =>
-    profile.updateAvatar(payload.email, payload.avatarUrl),
+  updateAvatar: (payload) => profile.updateAvatar(payload.email, payload.avatarUrl),
 };
 
 /**

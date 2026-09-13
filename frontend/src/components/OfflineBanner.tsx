@@ -12,6 +12,7 @@ export function OfflineBanner() {
   return (
     <div
       style={{
+        position: 'relative',
         width: '100%',
         zIndex: 9999,
         background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',

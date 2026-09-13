@@ -10,7 +10,14 @@
  * cycle reproduces the original row count exactly.
  */
 
-export type EntryPayload = Record<string, unknown> | string | number | boolean | unknown[] | null;
+import {
+  classifyEntryPayload,
+  formatEntryValue,
+  getEntryPayloadTitle,
+  type EntryPayload,
+} from './entryPayload';
+
+export type { EntryPayload } from './entryPayload';
 
 export interface ExportedProject {
   project_name: string;
@@ -277,9 +284,16 @@ function formatICSDate(dateStr: string | null, allDay: boolean): string {
  * Extracts the title from an entry's JSONB payload.
  */
 function getEntryTitle(entries: EntryPayload): string {
-  if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return 'Untitled';
-  const title = entries.title ?? entries.task ?? entries.name;
-  return typeof title === 'string' && title.trim() ? title.trim() : 'Untitled';
+  const payload = classifyEntryPayload(entries);
+  if (payload.kind === 'object') {
+    const directTitle = formatEntryValue(
+      payload.value.title ?? payload.value.task ?? payload.value.name
+    );
+    if (directTitle !== 'Not recorded') return directTitle;
+  }
+
+  const title = getEntryPayloadTitle(entries);
+  return title === 'Not recorded' ? 'Untitled' : title;
 }
 
 /**
@@ -287,11 +301,11 @@ function getEntryTitle(entries: EntryPayload): string {
  */
 function getEntryDescription(entries: EntryPayload): string {
   if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return '';
-  const parts: string[] = [];
-  if (entries.description) parts.push(String(entries.description));
-  if (entries.comment) parts.push(String(entries.comment));
-  if (entries.notes) parts.push(String(entries.notes));
-  return parts.join('\n\n');
+
+  return [entries.description, entries.comment, entries.notes]
+    .map(formatEntryValue)
+    .filter((value) => value !== 'Not recorded')
+    .join('\n\n');
 }
 
 /**

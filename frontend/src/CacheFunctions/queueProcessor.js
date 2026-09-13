@@ -1,6 +1,6 @@
 /**
  * Queue Processor
- * 
+ *
  * Processes the offline action queue when connectivity is restored.
  * Executes actions in FIFO order, with retry logic and progress callbacks.
  */
@@ -13,7 +13,7 @@ const MAX_ATTEMPTS = 3;
 /**
  * Process all pending actions in the offline queue.
  * Called when connectivity is restored.
- * 
+ *
  * @param {Function} onProgress - Callback for progress updates
  * @param {object} onProgress.progress - Progress object with type, action, message
  * @returns {Promise<object>} Summary of processing results
@@ -112,9 +112,7 @@ function formatActionMessage(entry) {
       ? `Renamed project to ${payload.new_project_name}`
       : 'Renamed project',
     deleteProject: projectName ? `Deleted project ${projectName}` : 'Deleted project',
-    setProjectColor: projectName
-      ? `Updated colour for ${projectName}`
-      : 'Updated project colour',
+    setProjectColor: projectName ? `Updated colour for ${projectName}` : 'Updated project colour',
 
     // Archives
     archiveProject: projectName ? `Archived ${projectName}` : 'Archived project',
@@ -123,9 +121,19 @@ function formatActionMessage(entry) {
     unarchiveEntry: projectName ? `Unarchived entry in ${projectName}` : 'Unarchived entry',
 
     // Priority
-    setPriority: projectName
-      ? `Set priority in ${projectName}`
-      : 'Set priority',
+    setPriority: projectName ? `Set priority in ${projectName}` : 'Set priority',
+
+    // Fields (columns)
+    addField: payload?.field_name
+      ? projectName
+        ? `Added column "${payload.field_name}" to ${projectName}`
+        : `Added column "${payload.field_name}"`
+      : 'Saved column',
+    editField: payload?.field_name
+      ? projectName
+        ? `Updated column "${payload.field_name}" in ${projectName}`
+        : `Updated column "${payload.field_name}"`
+      : 'Updated column',
 
     // Profile
     updateUsername: email ? `Updated username for ${email}` : 'Updated username',

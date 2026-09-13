@@ -13,7 +13,9 @@ export async function request<T>(
 ): Promise<T> {
   const start = Date.now();
   const shortUrl = url.replace(/https?:\/\/[^/]+/, '');
-  console.log(`[api] → ${options?.method || 'GET'} ${shortUrl} timeout=${options?.timeoutMs ?? 90}s`);
+  console.log(
+    `[api] → ${options?.method || 'GET'} ${shortUrl} timeout=${options?.timeoutMs ?? 90}s`
+  );
 
   const { getSupabase } = await import('./supabase');
   const {
@@ -30,6 +32,7 @@ export async function request<T>(
     const res = await fetch(url, {
       ...fetchOptions,
       signal: controller.signal,
+      cache: 'no-store', // Never use HTTP cache — all data reads go through SQLite
       headers: {
         'Content-Type': 'application/json',
         Authorization: token ? `Bearer ${token}` : '',
@@ -39,14 +42,21 @@ export async function request<T>(
 
     if (!res.ok) {
       const body = await res.text();
-      console.log(`[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`);
+      console.log(
+        `[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`
+      );
       throw new Error(`API error ${res.status}: ${body}`);
     }
 
-    console.log(`[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`);
+    console.log(
+      `[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`
+    );
     return res.json() as Promise<T>;
   } catch (err: unknown) {
-    console.log(`[api] ✗ ${options?.method || 'GET'} ${shortUrl} ERROR in ${Date.now() - start}ms:`, (err as Error)?.message);
+    console.log(
+      `[api] ✗ ${options?.method || 'GET'} ${shortUrl} ERROR in ${Date.now() - start}ms:`,
+      (err as Error)?.message
+    );
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
     }

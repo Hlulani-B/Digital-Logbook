@@ -6,6 +6,7 @@ import { getAllEntries } from '@/functions/project/entries.js';
 import { getEntryTitle } from '@/lib/calendar';
 import { trackViewedEntry } from '@/lib/recentlyViewed';
 import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 type NoteType = 'text' | 'link' | 'image' | 'reference';
 
@@ -95,6 +96,9 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   const [newNote, setNewNote] = useState<NoteDraft>({ entry_type: 'text', value: '' });
   const [adding, setAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Image uploads need a live connection to Supabase Storage, so the image
+  // pill is disabled while offline and the user gets an explanatory hint.
+  const isOnline = useNetworkStatus();
 
   // Reference picker
   const navigate = useNavigate();
@@ -117,7 +121,14 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     console.log('[NotesPage] loadNotes START, entryId=', entryId);
     try {
       const result = await getNotes(entryId);
-      console.log('[NotesPage] getNotes returned. success=', result?.success, 'fromCache=', result?._fromCache, 'dataLen=', Array.isArray(result?.data) ? result.data.length : 'N/A');
+      console.log(
+        '[NotesPage] getNotes returned. success=',
+        result?.success,
+        'fromCache=',
+        result?._fromCache,
+        'dataLen=',
+        Array.isArray(result?.data) ? result.data.length : 'N/A'
+      );
       if (result?.success && Array.isArray(result.data)) {
         setNotes(result.data);
       } else if (!result?.success) {
@@ -140,7 +151,11 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     // Track this entry as recently viewed
     if (entryData?.id && entryData?.project_name) {
       const title = getEntryTitle(entryData as Parameters<typeof getEntryTitle>[0]);
-      trackViewedEntry({ entryId: entryData.id, projectName: entryData.project_name, title: title || 'Entry' });
+      trackViewedEntry({
+        entryId: entryData.id,
+        projectName: entryData.project_name,
+        title: title || 'Entry',
+      });
     }
   }, [entryId]);
 
@@ -159,18 +174,38 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
       // Skip optimistic notes — they have fake IDs and haven't been uploaded yet
       if (note._optimistic || (note.id && note.id.toString().startsWith('optimistic-'))) continue;
       if (note.entry_type === 'image' && !viewedFiles[note.id] && !loadingFiles[note.id]) {
-        console.log('[NotesPage] viewNote START for note', note.id, 'value=', note.value?.substring(0, 80) + '...');
+        console.log(
+          '[NotesPage] viewNote START for note',
+          note.id,
+          'value=',
+          note.value?.substring(0, 80) + '...'
+        );
         setLoadingFiles((prev) => ({ ...prev, [note.id]: true }));
-        viewNote(note.id).then((result) => {
-          console.log('[NotesPage] viewNote result for', note.id, 'success=', result?.success, 'hasFileData=', !!result?.data?.file_data, 'contentType=', result?.data?.content_type, 'fileDataLen=', result?.data?.file_data?.length, 'fileError=', result?.data?.file_error);
-          if (result?.success && result.data) {
-            setViewedFiles((prev) => ({ ...prev, [note.id]: result.data }));
-          }
-          setLoadingFiles((prev) => ({ ...prev, [note.id]: false }));
-        }).catch((err) => {
-          console.error('[NotesPage] viewNote FAILED for', note.id, err);
-          setLoadingFiles((prev) => ({ ...prev, [note.id]: false }));
-        });
+        viewNote(note.id)
+          .then((result) => {
+            console.log(
+              '[NotesPage] viewNote result for',
+              note.id,
+              'success=',
+              result?.success,
+              'hasFileData=',
+              !!result?.data?.file_data,
+              'contentType=',
+              result?.data?.content_type,
+              'fileDataLen=',
+              result?.data?.file_data?.length,
+              'fileError=',
+              result?.data?.file_error
+            );
+            if (result?.success && result.data) {
+              setViewedFiles((prev) => ({ ...prev, [note.id]: result.data }));
+            }
+            setLoadingFiles((prev) => ({ ...prev, [note.id]: false }));
+          })
+          .catch((err) => {
+            console.error('[NotesPage] viewNote FAILED for', note.id, err);
+            setLoadingFiles((prev) => ({ ...prev, [note.id]: false }));
+          });
       }
     }
   }, [notes, viewedFiles, loadingFiles]);
@@ -200,17 +235,37 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     const blob = await new Promise<Blob>((resolve) =>
       canvas.toBlob((b) => resolve(b!), 'image/jpeg', quality)
     );
-    console.log('[NotesPage] compressImageClient:', file.size, '→', blob.size, 'bytes, dims=', width, 'x', height);
+    console.log(
+      '[NotesPage] compressImageClient:',
+      file.size,
+      '→',
+      blob.size,
+      'bytes, dims=',
+      width,
+      'x',
+      height
+    );
     return new File([blob], file.name, { type: 'image/jpeg' });
   };
 
   const handleAddNote = async () => {
     if (!entryId || !userEmail || adding) return;
+    if (newNote.entry_type === 'image' && !isOnline) {
+      setError('You are offline — image uploads need a connection.');
+      return;
+    }
 
     let valueToSend: string;
     if (newNote.entry_type === 'image') {
       if (!(newNote.value instanceof File)) return;
-      console.log('[NotesPage] handleAddNote IMAGE START, file=', newNote.value.name, 'size=', newNote.value.size, 'type=', newNote.value.type);
+      console.log(
+        '[NotesPage] handleAddNote IMAGE START, file=',
+        newNote.value.name,
+        'size=',
+        newNote.value.size,
+        'type=',
+        newNote.value.type
+      );
       // Compress image client-side before sending to avoid request entity too large
       const compressed = await compressImageClient(newNote.value as File);
       valueToSend = await new Promise<string>((resolve, reject) => {
@@ -218,7 +273,12 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
         reader.onload = () => {
           const result = reader.result as string;
           const base64 = result.includes(',') ? result.split(',')[1] : result;
-          console.log('[NotesPage] FileReader done, base64 length=', base64.length, 'first40=', base64.substring(0, 40));
+          console.log(
+            '[NotesPage] FileReader done, base64 length=',
+            base64.length,
+            'first40=',
+            base64.substring(0, 40)
+          );
           resolve(base64);
         };
         reader.onerror = (e) => {
@@ -235,9 +295,23 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     setAdding(true);
     setError(null);
     try {
-      console.log('[NotesPage] calling addNote, entry_type=', newNote.entry_type, 'valueToSend length=', valueToSend.length);
+      console.log(
+        '[NotesPage] calling addNote, entry_type=',
+        newNote.entry_type,
+        'valueToSend length=',
+        valueToSend.length
+      );
       const result = await addNote(userEmail, entryId, newNote.entry_type, valueToSend);
-      console.log('[NotesPage] addNote returned: success=', result?.success, 'message=', result?.message, 'dataId=', result?.data?.id, 'dataValue=', result?.data?.value?.substring(0, 80));
+      console.log(
+        '[NotesPage] addNote returned: success=',
+        result?.success,
+        'message=',
+        result?.message,
+        'dataId=',
+        result?.data?.id,
+        'dataValue=',
+        result?.data?.value?.substring(0, 80)
+      );
       if (result?.success) {
         const refreshed = await getNotes(entryId);
         if (refreshed?.success && Array.isArray(refreshed.data)) {
@@ -276,7 +350,11 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
 
   const selectEntryRef = async (refEntry: any) => {
     const display = refEntry.summary || refEntry.project_name || 'Referenced entry';
-    const refData = JSON.stringify({ id: refEntry.id, project_name: refEntry.project_name, display: String(display) });
+    const refData = JSON.stringify({
+      id: refEntry.id,
+      project_name: refEntry.project_name,
+      display: String(display),
+    });
     // Set the newNote to reference type with the selected entry data
     setNewNote({ entry_type: 'reference', value: refData });
     setRefPickerOpen(false);
@@ -311,7 +389,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
       const result = await updateNote(editingNoteId, editValue.trim());
       if (result?.success) {
         setNotes((prev) =>
-          prev.map((n) => n.id === editingNoteId ? { ...n, value: editValue.trim() } : n)
+          prev.map((n) => (n.id === editingNoteId ? { ...n, value: editValue.trim() } : n))
         );
         setEditingNoteId(null);
         setEditValue('');
@@ -331,7 +409,9 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     try {
       const result = await deleteNote(noteId, entryId);
       if (result?.success) {
-        setNotes((prev) => prev.filter((n) => n.id !== noteId && n.id?.toString() !== noteId?.toString()));
+        setNotes((prev) =>
+          prev.filter((n) => n.id !== noteId && n.id?.toString() !== noteId?.toString())
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete note');
@@ -346,382 +426,463 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
 
   return (
     <>
-    <div className="notes-panel-overlay" onClick={onClose}>
-      <div className="notes-panel" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="notes-panel__header">
-          <button
-            type="button"
-            className="notes-panel__close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            &times;
-          </button>
-          <div className="notes-panel__entry-info">
-            <h2 className="notes-panel__title">{entryTitle}</h2>
-            {entryData?.project_name && (
-              <span className="notes-panel__project">{entryData.project_name}</span>
-            )}
-          </div>
-          <button
-            type="button"
-            className="notes-panel__add-toggle"
-            onClick={() => setShowAddForm((v) => !v)}
-            title="Add note"
-          >
-            {showAddForm ? '\u2715' : '+ Add Note'}
-          </button>
-        </div>
-
-        {/* Add Note Form */}
-        {showAddForm && (
-          <div className="notes-panel__add-form">
-            <div className="notes-panel__add-row">
-              <div className="notes-panel__type-pills">
-                {(Object.keys(TYPE_CONFIG) as NoteType[]).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={`notes-panel__type-pill ${newNote.entry_type === type ? 'notes-panel__type-pill--active' : ''}`}
-                    onClick={() => {
-                      if (type === 'reference') {
-                        setNewNote({ ...newNote, entry_type: type, value: '' });
-                        openRefPicker();
-                      } else {
-                        setNewNote({ ...newNote, entry_type: type, value: '' });
-                      }
-                    }}
-                    disabled={adding}
-                  >
-                    <span className="notes-panel__type-pill-icon">{TYPE_CONFIG[type].icon}</span>
-                    {TYPE_CONFIG[type].label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="notes-panel__add-input-row">
-              {(newNote.entry_type === 'text' || newNote.entry_type === 'link') ? (
-                <input
-                  type={newNote.entry_type === 'link' ? 'url' : 'text'}
-                  className="notes-panel__add-input"
-                  placeholder={newNote.entry_type === 'link' ? 'Paste a link...' : 'Type a note...'}
-                  value={typeof newNote.value === 'string' ? newNote.value : ''}
-                  onChange={(e) => setNewNote({ ...newNote, value: e.target.value })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote(); }}
-                  disabled={adding}
-                  autoFocus
-                />
-              ) : newNote.entry_type === 'reference' ? (
-                <div className="notes-panel__file-drop" style={{ justifyContent: 'center', gap: '0.5rem' }}>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    {refPickerOpen ? 'Select an entry...' : 'Click Reference pill to pick an entry'}
-                  </span>
-                  {!refPickerOpen && (
-                    <button
-                      type="button"
-                      className="notes-panel__submit-btn"
-                      style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
-                      onClick={openRefPicker}
-                    >
-                      Browse entries
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="notes-panel__file-drop">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="notes-panel__add-file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setNewNote({ ...newNote, value: file });
-                    }}
-                    disabled={adding}
-                  />
-                  {newNote.value instanceof File ? (
-                    <span className="notes-panel__file-name">{newNote.value.name}</span>
-                  ) : (
-                    <span className="notes-panel__file-placeholder">
-                      Choose an image...
-                    </span>
-                  )}
-                </div>
+      <div className="notes-panel-overlay" onClick={onClose}>
+        <div className="notes-panel" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="notes-panel__header">
+            <button
+              type="button"
+              className="notes-panel__close"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <div className="notes-panel__entry-info">
+              <h2 className="notes-panel__title">{entryTitle}</h2>
+              {entryData?.project_name && (
+                <span className="notes-panel__project">{entryData.project_name}</span>
               )}
-
-              <button
-                type="button"
-                className="notes-panel__submit-btn"
-                onClick={handleAddNote}
-                disabled={adding}
-              >
-                {adding ? '...' : 'Add'}
-              </button>
             </div>
+            <button
+              type="button"
+              className="notes-panel__add-toggle"
+              onClick={() => setShowAddForm((v) => !v)}
+              title="Add note"
+            >
+              {showAddForm ? '\u2715' : '+ Add Note'}
+            </button>
           </div>
-        )}
 
-        {error && <div className="notes-panel__error">{error}</div>}
-
-        {/* Notes List */}
-        <div className="notes-panel__body">
-          {loading && (
-            <div className="notes-panel__loading">
-              <div className="notes-panel__spinner" />
-              <span>Loading notes...</span>
-            </div>
-          )}
-
-          {!loading && notes.length === 0 && !showAddForm && (
-            <div className="notes-panel__empty">
-              <div className="notes-panel__empty-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                </svg>
-              </div>
-              <p className="notes-panel__empty-text">No notes yet</p>
-              <button
-                type="button"
-                className="notes-panel__empty-add"
-                onClick={() => setShowAddForm(true)}
-              >
-                + Add your first note
-              </button>
-            </div>
-          )}
-
-          <div className="notes-panel__grid">
-            {notes.map((note) => {
-              const isRef = note.entry_type === 'link' && isReferenceNote(note.value);
-              const config = isRef ? TYPE_CONFIG.reference : (TYPE_CONFIG[note.entry_type] || TYPE_CONFIG.text);
-              if (note.entry_type === 'image') {
-                console.log('[NotesPage] RENDER image note:', note.id, 'value starts with:', note.value?.substring(0, 60), 'hasViewedFile=', !!viewedFiles[note.id]?.file_data, 'isLoading=', loadingFiles[note.id]);
-              }
-              return (
-                <div className={`notes-panel__note notes-panel__note--${note.entry_type}`} key={note.id}>
-                  {/* Note header */}
-                  <div className="notes-panel__note-top">
-                    <span
-                      className="notes-panel__note-badge"
-                      style={{ background: `${config.color}18`, color: config.color }}
-                    >
-                      <span className="notes-panel__note-badge-icon">{config.icon}</span>
-                      {config.label}
-                    </span>
-                    <span className="notes-panel__note-time">{formatNoteDate(note.created_at)}</span>
-                  </div>
-
-                  {/* Note body */}
-                  <div className="notes-panel__note-content">
-                    {editingNoteId === note.id ? (
-                      <div className="notes-panel__edit">
-                        <textarea
-                          className="notes-panel__edit-textarea"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          rows={3}
-                          disabled={saving}
-                          autoFocus
-                        />
-                        <div className="notes-panel__edit-actions">
-                          <button
-                            type="button"
-                            className="notes-panel__edit-cancel"
-                            onClick={() => setEditingNoteId(null)}
-                            disabled={saving}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            className="notes-panel__edit-save"
-                            onClick={handleSaveEdit}
-                            disabled={saving}
-                          >
-                            {saving ? 'Saving...' : 'Save'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : note.entry_type === 'text' ? (
-                      <p className="notes-panel__note-text">{note.value}</p>
-                    ) : note.entry_type === 'link' ? (
-                      isReferenceNote(note.value) ? (
-                        <div className="notes-panel__note-reference">
-                          {(() => {
-                            const ref = JSON.parse(note.value);
-                            return (
-                              <button
-                                type="button"
-                                className="entry-box__ref-link"
-                                onClick={() => {
-                                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
-                                }}
-                              >
-                                🔗 {ref.display || 'Referenced entry'}
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
-                                  ({ref.project_name})
-                                </span>
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <a
-                          className="notes-panel__note-link"
-                          href={note.value}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {note.value}
-                        </a>
-                      )
-                    ) : note.entry_type === 'image' ? (
-                      <div className="notes-panel__note-image">
-                        {note._optimistic || note.value === '(uploading...)' ? (
-                          <div className="notes-panel__note-uploading">
-                            <div className="notes-panel__spinner" />
-                            <span className="notes-panel__note-loading">Uploading image...</span>
-                          </div>
-                        ) : loadingFiles[note.id] && !viewedFiles[note.id]?.file_data ? (
-                          <span className="notes-panel__note-loading">Loading...</span>
-                        ) : viewedFiles[note.id]?.file_data ? (
-                          <>
-                            <img
-                              src={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
-                              alt="Note"
-                              className="notes-panel__note-img"
-                            />
-                            <a
-                              href={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
-                              download={`note-${note.id || 'image'}.${(viewedFiles[note.id].content_type || 'image/jpeg').split('/')[1]}`}
-                              className="notes-panel__note-download"
-                              title="Download image"
-                            >
-                              &#8681; Download
-                            </a>
-                          </>
-                        ) : note.value && note.value.startsWith('http') ? (
-                          <>
-                            <img
-                              src={note.value}
-                              alt="Note"
-                              className="notes-panel__note-img"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                const fallback = document.createElement('span');
-                                fallback.className = 'notes-panel__note-fallback';
-                                fallback.textContent = 'Image unavailable';
-                                (e.target as HTMLImageElement).parentNode?.appendChild(fallback);
-                              }}
-                            />
-                            <a
-                              href={note.value}
-                              download
-                              className="notes-panel__note-download"
-                              title="Download image"
-                            >
-                              &#8681; Download
-                            </a>
-                          </>
-                        ) : (
-                          <span className="notes-panel__note-fallback">Image unavailable</span>
-                        )}
-                      </div>
-                    ) : note.entry_type === 'reference' ? (
-                      <div className="notes-panel__note-reference">
-                        {note._optimistic || note.value === '(uploading...)' ? (
-                          <span className="notes-panel__note-text" style={{ fontStyle: 'italic' }}>
-                            Adding reference...
-                          </span>
-                        ) : (() => {
-                          try {
-                            const ref = JSON.parse(note.value);
-                            return (
-                              <button
-                                type="button"
-                                className="entry-box__ref-link"
-                                onClick={() => {
-                                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
-                                }}
-                              >
-                                🔗 {ref.display || 'Referenced entry'}
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
-                                  ({ref.project_name})
-                                </span>
-                              </button>
-                            );
-                          } catch {
-                            return <span className="notes-panel__note-text">{note.value}</span>;
+          {/* Add Note Form */}
+          {showAddForm && (
+            <div className="notes-panel__add-form">
+              <div className="notes-panel__add-row">
+                <div className="notes-panel__type-pills">
+                  {(Object.keys(TYPE_CONFIG) as NoteType[]).map((type) => {
+                    const offlineImage = type === 'image' && !isOnline;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        className={`notes-panel__type-pill ${newNote.entry_type === type ? 'notes-panel__type-pill--active' : ''}`}
+                        onClick={() => {
+                          if (offlineImage) {
+                            setError('You are offline — image uploads need a connection.');
+                            return;
                           }
-                        })()}
-                      </div>
-                    ) : null}
-                  </div>
+                          if (type === 'reference') {
+                            setNewNote({ ...newNote, entry_type: type, value: '' });
+                            openRefPicker();
+                          } else {
+                            setNewNote({ ...newNote, entry_type: type, value: '' });
+                          }
+                        }}
+                        disabled={adding}
+                        aria-disabled={offlineImage}
+                        title={
+                          offlineImage
+                            ? 'You are offline — image uploads need a connection'
+                            : undefined
+                        }
+                        style={offlineImage ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                      >
+                        <span className="notes-panel__type-pill-icon">
+                          {TYPE_CONFIG[type].icon}
+                        </span>
+                        {TYPE_CONFIG[type].label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                  {/* Note actions */}
-                  <div className="notes-panel__note-footer">
-                    {note.entry_type === 'text' && (
+              <div className="notes-panel__add-input-row">
+                {newNote.entry_type === 'text' || newNote.entry_type === 'link' ? (
+                  <input
+                    type={newNote.entry_type === 'link' ? 'url' : 'text'}
+                    className="notes-panel__add-input"
+                    placeholder={
+                      newNote.entry_type === 'link' ? 'Paste a link...' : 'Type a note...'
+                    }
+                    value={typeof newNote.value === 'string' ? newNote.value : ''}
+                    onChange={(e) => setNewNote({ ...newNote, value: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddNote();
+                    }}
+                    disabled={adding}
+                    autoFocus
+                  />
+                ) : newNote.entry_type === 'reference' ? (
+                  <div
+                    className="notes-panel__file-drop"
+                    style={{ justifyContent: 'center', gap: '0.5rem' }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      {refPickerOpen
+                        ? 'Select an entry...'
+                        : 'Click Reference pill to pick an entry'}
+                    </span>
+                    {!refPickerOpen && (
                       <button
                         type="button"
-                        className="notes-panel__note-action"
-                        onClick={() => handleStartEdit(note)}
+                        className="notes-panel__submit-btn"
+                        style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
+                        onClick={openRefPicker}
                       >
-                        Edit
+                        Browse entries
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="notes-panel__note-action notes-panel__note-action--danger"
-                      onClick={() => handleDelete(note.id)}
-                    >
-                      Delete
-                    </button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
+                ) : (
+                  <div className="notes-panel__file-drop">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="notes-panel__add-file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setNewNote({ ...newNote, value: file });
+                      }}
+                      disabled={adding}
+                    />
+                    {newNote.value instanceof File ? (
+                      <span className="notes-panel__file-name">{newNote.value.name}</span>
+                    ) : (
+                      <span className="notes-panel__file-placeholder">Choose an image...</span>
+                    )}
+                  </div>
+                )}
 
-    {/* Reference Picker Modal */}
-    {refPickerOpen && (
-      <div className="modal-overlay" onClick={() => setRefPickerOpen(false)} style={{ zIndex: 1100 }}>
-        <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="ref-picker-header">
-            <h3>Select an Entry to Reference</h3>
-            <button type="button" className="ref-picker-close" onClick={() => setRefPickerOpen(false)}>×</button>
-          </div>
-          {refLoading ? (
-            <div className="ref-picker-loading">Loading entries...</div>
-          ) : (
-            <div className="ref-picker-list">
-              {refEntries.map((e: any) => (
                 <button
-                  key={e.id}
                   type="button"
-                  className="ref-picker-item"
-                  onClick={() => selectEntryRef(e)}
+                  className="notes-panel__submit-btn"
+                  onClick={handleAddNote}
+                  disabled={adding}
                 >
-                  <span className="ref-picker-item-project">{e.project_name}</span>
-                  <span className="ref-picker-item-summary">
-                    {e.summary || 'No summary'}
-                  </span>
+                  {adding ? '...' : 'Add'}
                 </button>
-              ))}
-              {refEntries.length === 0 && <div className="ref-picker-empty">No other entries found</div>}
+              </div>
             </div>
           )}
+
+          {error && <div className="notes-panel__error">{error}</div>}
+
+          {/* Notes List */}
+          <div className="notes-panel__body">
+            {loading && (
+              <div className="notes-panel__loading">
+                <div className="notes-panel__spinner" />
+                <span>Loading notes...</span>
+              </div>
+            )}
+
+            {!loading && notes.length === 0 && !showAddForm && (
+              <div className="notes-panel__empty">
+                <div className="notes-panel__empty-icon">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
+                <p className="notes-panel__empty-text">No notes yet</p>
+                <button
+                  type="button"
+                  className="notes-panel__empty-add"
+                  onClick={() => setShowAddForm(true)}
+                >
+                  + Add your first note
+                </button>
+              </div>
+            )}
+
+            <div className="notes-panel__grid">
+              {notes.map((note) => {
+                const isRef = note.entry_type === 'link' && isReferenceNote(note.value);
+                const config = isRef
+                  ? TYPE_CONFIG.reference
+                  : TYPE_CONFIG[note.entry_type] || TYPE_CONFIG.text;
+                if (note.entry_type === 'image') {
+                  console.log(
+                    '[NotesPage] RENDER image note:',
+                    note.id,
+                    'value starts with:',
+                    note.value?.substring(0, 60),
+                    'hasViewedFile=',
+                    !!viewedFiles[note.id]?.file_data,
+                    'isLoading=',
+                    loadingFiles[note.id]
+                  );
+                }
+                return (
+                  <div
+                    className={`notes-panel__note notes-panel__note--${note.entry_type}`}
+                    key={note.id}
+                  >
+                    {/* Note header */}
+                    <div className="notes-panel__note-top">
+                      <span
+                        className="notes-panel__note-badge"
+                        style={{ background: `${config.color}18`, color: config.color }}
+                      >
+                        <span className="notes-panel__note-badge-icon">{config.icon}</span>
+                        {config.label}
+                      </span>
+                      <span className="notes-panel__note-time">
+                        {formatNoteDate(note.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Note body */}
+                    <div className="notes-panel__note-content">
+                      {editingNoteId === note.id ? (
+                        <div className="notes-panel__edit">
+                          <textarea
+                            className="notes-panel__edit-textarea"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            rows={3}
+                            disabled={saving}
+                            autoFocus
+                          />
+                          <div className="notes-panel__edit-actions">
+                            <button
+                              type="button"
+                              className="notes-panel__edit-cancel"
+                              onClick={() => setEditingNoteId(null)}
+                              disabled={saving}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="notes-panel__edit-save"
+                              onClick={handleSaveEdit}
+                              disabled={saving}
+                            >
+                              {saving ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : note.entry_type === 'text' ? (
+                        <p className="notes-panel__note-text">{note.value}</p>
+                      ) : note.entry_type === 'link' ? (
+                        isReferenceNote(note.value) ? (
+                          <div className="notes-panel__note-reference">
+                            {(() => {
+                              const ref = JSON.parse(note.value);
+                              return (
+                                <button
+                                  type="button"
+                                  className="entry-box__ref-link"
+                                  onClick={() => {
+                                    navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+                                  }}
+                                >
+                                  🔗 {ref.display || 'Referenced entry'}
+                                  <span
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      color: 'var(--text-secondary)',
+                                      marginLeft: '0.5rem',
+                                    }}
+                                  >
+                                    ({ref.project_name})
+                                  </span>
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <a
+                            className="notes-panel__note-link"
+                            href={note.value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {note.value}
+                          </a>
+                        )
+                      ) : note.entry_type === 'image' ? (
+                        <div className="notes-panel__note-image">
+                          {note._optimistic || note.value === '(uploading...)' ? (
+                            <div className="notes-panel__note-uploading">
+                              <div className="notes-panel__spinner" />
+                              <span className="notes-panel__note-loading">Uploading image...</span>
+                            </div>
+                          ) : loadingFiles[note.id] && !viewedFiles[note.id]?.file_data ? (
+                            <span className="notes-panel__note-loading">Loading...</span>
+                          ) : viewedFiles[note.id]?.file_data ? (
+                            <>
+                              <img
+                                src={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
+                                alt="Note"
+                                className="notes-panel__note-img"
+                              />
+                            </>
+                          ) : note.value && note.value.startsWith('http') ? (
+                            <>
+                              <img
+                                src={note.value}
+                                alt="Note"
+                                className="notes-panel__note-img"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  const fallback = document.createElement('span');
+                                  fallback.className = 'notes-panel__note-fallback';
+                                  fallback.textContent = 'Image unavailable';
+                                  (e.target as HTMLImageElement).parentNode?.appendChild(fallback);
+                                }}
+                              />
+                            </>
+                          ) : (
+                            <span className="notes-panel__note-fallback">Image unavailable</span>
+                          )}
+                        </div>
+                      ) : note.entry_type === 'reference' ? (
+                        <div className="notes-panel__note-reference">
+                          {note._optimistic || note.value === '(uploading...)' ? (
+                            <span
+                              className="notes-panel__note-text"
+                              style={{ fontStyle: 'italic' }}
+                            >
+                              Adding reference...
+                            </span>
+                          ) : (
+                            (() => {
+                              try {
+                                const ref = JSON.parse(note.value);
+                                return (
+                                  <button
+                                    type="button"
+                                    className="entry-box__ref-link"
+                                    onClick={() => {
+                                      navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+                                    }}
+                                  >
+                                    🔗 {ref.display || 'Referenced entry'}
+                                    <span
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        color: 'var(--text-secondary)',
+                                        marginLeft: '0.5rem',
+                                      }}
+                                    >
+                                      ({ref.project_name})
+                                    </span>
+                                  </button>
+                                );
+                              } catch {
+                                return <span className="notes-panel__note-text">{note.value}</span>;
+                              }
+                            })()
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Note actions */}
+                    <div className="notes-panel__note-footer">
+                      {note.entry_type === 'text' && (
+                        <button
+                          type="button"
+                          className="notes-panel__note-action"
+                          onClick={() => handleStartEdit(note)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {note.entry_type === 'image' && viewedFiles[note.id]?.file_data && (
+                        <a
+                          href={`data:${viewedFiles[note.id].content_type || 'image/jpeg'};base64,${viewedFiles[note.id].file_data}`}
+                          download={`note-${note.id || 'image'}.${(viewedFiles[note.id].content_type || 'image/jpeg').split('/')[1]}`}
+                          className="notes-panel__note-action"
+                          title="Download image"
+                        >
+                          Download
+                        </a>
+                      )}
+                      {note.entry_type === 'image' &&
+                        !viewedFiles[note.id]?.file_data &&
+                        note.value?.startsWith('http') && (
+                          <a
+                            href={note.value}
+                            download
+                            className="notes-panel__note-action"
+                            title="Download image"
+                          >
+                            Download
+                          </a>
+                        )}
+                      <button
+                        type="button"
+                        className="notes-panel__note-action notes-panel__note-action--danger"
+                        onClick={() => handleDelete(note.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
-    )}
+
+      {/* Reference Picker Modal */}
+      {refPickerOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setRefPickerOpen(false)}
+          style={{ zIndex: 1100 }}
+        >
+          <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ref-picker-header">
+              <h3>Select an Entry to Reference</h3>
+              <button
+                type="button"
+                className="ref-picker-close"
+                onClick={() => setRefPickerOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {refLoading ? (
+              <div className="ref-picker-loading">Loading entries...</div>
+            ) : (
+              <div className="ref-picker-list">
+                {refEntries.map((e: any) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    className="ref-picker-item"
+                    onClick={() => selectEntryRef(e)}
+                  >
+                    <span className="ref-picker-item-project">{e.project_name}</span>
+                    <span className="ref-picker-item-summary">{e.summary || 'No summary'}</span>
+                  </button>
+                ))}
+                {refEntries.length === 0 && (
+                  <div className="ref-picker-empty">No other entries found</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

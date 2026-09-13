@@ -136,10 +136,12 @@ describe('SignIn', () => {
     expect(passwordInput.autocomplete).toBe('current-password');
   });
 
-  it('shows password hint in sign-up mode', () => {
+  it('shows live password requirements in sign-up mode', () => {
     renderSignIn();
     fireEvent.click(screen.getByText("Don't have an account? Create one"));
-    expect(screen.getByText('Password must be at least 6 characters.')).toBeTruthy();
+    // The requirements checklist only appears once the user starts typing.
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a' } });
+    expect(screen.getByText('At least 8 characters')).toBeTruthy();
   });
 
   it('renders the "or continue with" divider', () => {
