@@ -107,4 +107,32 @@ describe('ProjectTaskTable', () => {
     const alphaLabels = screen.getAllByText('Alpha');
     expect(alphaLabels.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('keeps legacy payloads visible and object keys retained after field removal readable', () => {
+    const historicalRows = [
+      {
+        ...sampleRows[0],
+        id: 'legacy-string',
+        summary: 'Legacy string entry',
+        entries: 'Original plain-text entry',
+      },
+      {
+        ...sampleRows[1],
+        id: 'retained-key',
+        summary: 'Retained field entry',
+        entries: { retired_field: 'Historical value' },
+      },
+    ];
+
+    render(<ProjectTaskTable rows={historicalRows} onUpdate={mockOnUpdate} />);
+
+    expect(screen.getByText('Legacy content')).toBeTruthy();
+    const legacyValue = screen.getByText('Original plain-text entry');
+    expect(legacyValue.closest('.ptt-editable')).toBeNull();
+    expect(screen.getByText('retired_field')).toBeTruthy();
+    expect(screen.getByText('Historical value')).toBeTruthy();
+
+    fireEvent.click(legacyValue);
+    expect(mockOnUpdate).not.toHaveBeenCalled();
+  });
 });

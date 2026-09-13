@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { editProjectName, deleteProject } from '@/functions/project/project.js';
-import { getFields, addField, editField } from '@/functions/project/fields.js';
+import { getFields, addField, editField, deleteField } from '@/functions/project/fields.js';
 import { archiveProject } from '@/functions/project/archives.js';
-import { FiEdit2, FiArchive } from 'react-icons/fi';
+import { FiEdit2, FiArchive, FiTrash2 } from 'react-icons/fi';
 
 interface ProjectSettingsPanelProps {
   open: boolean;
@@ -44,6 +44,8 @@ export function ProjectSettingsPanel({
   const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'boolean'>('text');
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [fieldSaving, setFieldSaving] = useState(false);
+  const [confirmDeleteField, setConfirmDeleteField] = useState<string | null>(null);
 
   // Editing fields
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -56,6 +58,8 @@ export function ProjectSettingsPanel({
     if (open) {
       setEditName(projectName);
       setConfirmDelete(false);
+      setEditingField(null);
+      setConfirmDeleteField(null);
       setError(null);
       setFieldError(null);
     }
@@ -149,10 +153,21 @@ export function ProjectSettingsPanel({
 
   const handleAddField = async () => {
     const name = newFieldName.trim();
-    if (!name) return;
+    if (!name || fieldSaving) return;
+    setFieldSaving(true);
     setFieldError(null);
     try {
-      await addField(userEmail, projectName, name, newFieldType, newFieldRequired);
+      const addResult = await addField(
+        userEmail,
+        projectName,
+        name,
+        newFieldType,
+        newFieldRequired
+      );
+      if (!addResult?.success) {
+        setFieldError(addResult?.message || 'Failed to add field');
+        return;
+      }
       setNewFieldName('');
       setNewFieldType('text');
       setNewFieldRequired(false);
@@ -160,10 +175,13 @@ export function ProjectSettingsPanel({
       setFields(Array.isArray(result?.data) ? result.data : []);
     } catch (err) {
       setFieldError(err instanceof Error ? err.message : 'Failed to add field');
+    } finally {
+      setFieldSaving(false);
     }
   };
 
   const startEditField = (f: FieldRecord) => {
+    setConfirmDeleteField(null);
     setEditingField(f.field_name);
     setEditFieldName(f.field_name);
     setEditFieldType(f.data_type);
@@ -172,15 +190,49 @@ export function ProjectSettingsPanel({
 
   const handleSaveField = async () => {
     const name = editFieldName.trim();
-    if (!name) return;
+    if (!name || !editingField || fieldSaving) return;
+    setFieldSaving(true);
     setFieldError(null);
     try {
-      await editField(userEmail, projectName, name, editFieldType as any, editFieldRequired);
+      const editResult = await editField(
+        userEmail,
+        projectName,
+        editingField,
+        name,
+        editFieldType,
+        editFieldRequired
+      );
+      if (!editResult?.success) {
+        setFieldError(editResult?.message || 'Failed to update field');
+        return;
+      }
       setEditingField(null);
       const result = await getFields(userEmail, projectName);
       setFields(Array.isArray(result?.data) ? result.data : []);
     } catch (err) {
       setFieldError(err instanceof Error ? err.message : 'Failed to update field');
+    } finally {
+      setFieldSaving(false);
+    }
+  };
+
+  const handleDeleteField = async (fieldName: string) => {
+    if (fieldSaving) return;
+    setFieldSaving(true);
+    setFieldError(null);
+    try {
+      const deleteResult = await deleteField(userEmail, projectName, fieldName);
+      if (!deleteResult?.success) {
+        setFieldError(deleteResult?.message || 'Failed to remove field');
+        return;
+      }
+      setConfirmDeleteField(null);
+      const result = await getFields(userEmail, projectName);
+      setFields(Array.isArray(result?.data) ? result.data : []);
+    } catch (err) {
+      setFieldError(err instanceof Error ? err.message : 'Failed to remove field');
+    } finally {
+      setFieldSaving(false);
     }
   };
 
@@ -306,7 +358,30 @@ export function ProjectSettingsPanel({
                         padding: '0.625rem 0.75rem',
                       }}
                     >
-                      {editingField === f.field_name ? (
+                      {confirmDeleteField === f.field_name ? (
+                        <>
+                          <span className="field-hint" style={{ flex: 1, marginBottom: 0 }}>
+                            Remove “{f.field_name}” from future entries? Existing values stay in
+                            past entries.
+                          </span>
+                          <button
+                            className="btn-danger-solid"
+                            onClick={() => handleDeleteField(f.field_name)}
+                            disabled={fieldSaving}
+                            style={{ padding: '0.4rem 0.65rem', fontSize: '0.8rem' }}
+                          >
+                            {fieldSaving ? 'Removing...' : 'Remove'}
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => setConfirmDeleteField(null)}
+                            disabled={fieldSaving}
+                            style={{ padding: '0.4rem 0.65rem', fontSize: '0.8rem' }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : editingField === f.field_name ? (
                         <>
                           <input
                             type="text"
@@ -314,12 +389,14 @@ export function ProjectSettingsPanel({
                             onChange={(e) => setEditFieldName(e.target.value)}
                             className="field-input"
                             style={{ flex: 1 }}
+                            disabled={fieldSaving}
                           />
                           <select
                             value={editFieldType}
                             onChange={(e) => setEditFieldType(e.target.value)}
                             className="field-input"
                             style={{ width: 'auto' }}
+                            disabled={fieldSaving}
                           >
                             <option value="text">Text</option>
                             <option value="number">Number</option>
@@ -340,19 +417,22 @@ export function ProjectSettingsPanel({
                               type="checkbox"
                               checked={editFieldRequired}
                               onChange={(e) => setEditFieldRequired(e.target.checked)}
+                              disabled={fieldSaving}
                             />
                             Req
                           </label>
                           <button
                             className="btn-primary"
                             onClick={handleSaveField}
+                            disabled={fieldSaving}
                             style={{ padding: '0.4rem 0.65rem', fontSize: '0.8rem' }}
                           >
-                            Save
+                            {fieldSaving ? 'Saving...' : 'Save'}
                           </button>
                           <button
                             className="btn-secondary"
                             onClick={() => setEditingField(null)}
+                            disabled={fieldSaving}
                             style={{ padding: '0.4rem 0.65rem', fontSize: '0.8rem' }}
                           >
                             Cancel
@@ -377,10 +457,20 @@ export function ProjectSettingsPanel({
                           <button
                             className="btn-secondary"
                             onClick={() => startEditField(f)}
+                            disabled={fieldSaving}
                             style={{ padding: '0.35rem 0.55rem', fontSize: '0.85rem' }}
                             title="Edit field"
                           >
                             <FiEdit2 size={16} />
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => setConfirmDeleteField(f.field_name)}
+                            disabled={fieldSaving}
+                            style={{ padding: '0.35rem 0.55rem', fontSize: '0.85rem' }}
+                            title="Remove field"
+                          >
+                            <FiTrash2 size={16} />
                           </button>
                         </>
                       )}
@@ -407,12 +497,14 @@ export function ProjectSettingsPanel({
                     onChange={(e) => setNewFieldName(e.target.value)}
                     className="field-input"
                     style={{ flex: 1, minWidth: '120px' }}
+                    disabled={fieldSaving}
                   />
                   <select
                     value={newFieldType}
                     onChange={(e) => setNewFieldType(e.target.value as any)}
                     className="field-input"
                     style={{ width: 'auto' }}
+                    disabled={fieldSaving}
                   >
                     <option value="text">Text</option>
                     <option value="number">Number</option>
@@ -433,16 +525,17 @@ export function ProjectSettingsPanel({
                       type="checkbox"
                       checked={newFieldRequired}
                       onChange={(e) => setNewFieldRequired(e.target.checked)}
+                      disabled={fieldSaving}
                     />
                     Req
                   </label>
                   <button
                     className="btn-primary"
                     onClick={handleAddField}
-                    disabled={!newFieldName.trim()}
+                    disabled={fieldSaving || !newFieldName.trim()}
                     style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
                   >
-                    + Add
+                    {fieldSaving ? 'Adding...' : '+ Add'}
                   </button>
                 </div>
               </>

@@ -3,13 +3,15 @@
  * All functions operate on vanilla Date objects and avoid mutable inputs.
  */
 
+import { type EntryPayload, getEntryPayloadTitle } from '@/lib/entryPayload';
+
 export type CalendarView = 'month' | 'week';
 
 export interface CalendarEntry {
   id: string | number;
   user_email: string;
   project_name: string;
-  entries: Record<string, unknown> | string | null;
+  entries: EntryPayload;
   due_date: string | null;
   priority: string | null;
   status?: string | null;
@@ -104,33 +106,17 @@ export function getEntriesForDay(entries: CalendarEntry[], day: Date): CalendarE
 }
 
 export function getEntryTitle(entry: CalendarEntry): string {
-  if (!entry.entries) return 'Untitled entry';
-
-  let parsed: Record<string, unknown>;
-  if (typeof entry.entries === 'string') {
+  let payload: unknown = entry.entries;
+  if (typeof payload === 'string') {
     try {
-      parsed = JSON.parse(entry.entries);
+      payload = JSON.parse(payload);
     } catch {
-      return entry.entries || 'Untitled entry';
-    }
-  } else {
-    parsed = entry.entries;
-  }
-
-  const preferredKeys = ['task', 'description', 'activity', 'note', 'goal', 'title', 'subject'];
-  for (const key of preferredKeys) {
-    const value = parsed[key];
-    if (value !== undefined && value !== null && String(value).trim()) {
-      return String(value).trim();
+      // Plain-text legacy entries remain plain text.
     }
   }
 
-  const firstValue = Object.values(parsed).find(
-    (v) => v !== undefined && v !== null && String(v).trim()
-  );
-  if (firstValue !== undefined) return String(firstValue).trim();
-
-  return 'Untitled entry';
+  const title = getEntryPayloadTitle(payload);
+  return title === 'Not recorded' ? 'Untitled entry' : title;
 }
 
 export function buildMonthGrid(date: Date, weekStartsOn: 0 | 1 = 0): Date[] {

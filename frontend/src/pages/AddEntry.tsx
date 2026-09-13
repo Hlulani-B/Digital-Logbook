@@ -82,10 +82,9 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             is_required: !!f.is_required,
           }));
           setFields(defs);
-          // Initialize empty values for each field (booleans default to "false")
           const initial: Record<string, string> = {};
           for (const f of defs) {
-            initial[f.field_name] = f.data_type === 'boolean' ? 'false' : '';
+            initial[f.field_name] = '';
           }
           setFieldValues(initial);
         }

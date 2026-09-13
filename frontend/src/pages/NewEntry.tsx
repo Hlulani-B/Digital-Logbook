@@ -2,7 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
-import { classifyEntryPayload, type EntryPayload } from '@/lib/entryPayload';
+import {
+  classifyEntryPayload,
+  formatEntryValue,
+  getEntryPayloadFields,
+  type EntryPayload,
+} from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -59,28 +64,6 @@ function toInputDate(value?: string | null): string {
 
 function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (Array.isArray(value)) return value.join(', ');
-  if (typeof value === 'object') return JSON.stringify(value);
-  // If it's a string that looks like JSON, try to parse and format it
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (typeof parsed === 'object' && parsed !== null) {
-        // It's a JSON object, format each key-value pair
-        return Object.entries(parsed)
-          .map(([k, v]) => `${formatFieldKey(k)}: ${formatFieldValue(v)}`)
-          .join(', ');
-      }
-    } catch {
-      // Not valid JSON, return as-is
-    }
-  }
-  return String(value);
 }
 
 function stringifyForInput(value: unknown): string {
@@ -198,7 +181,7 @@ export function EntryBox({
     'started_at',
     'ended_at',
   ]);
-  const entryFields = Object.entries(parsedEntries || {}).filter(([key]) => !SKIP_FIELDS.has(key));
+  const entryFields = getEntryPayloadFields(entries).filter(({ name }) => !SKIP_FIELDS.has(name));
   const dueLabel = formatDate(due_date);
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
@@ -477,10 +460,10 @@ export function EntryBox({
         {error && <div className="entry-box__error">{error}</div>}
 
         <div className="entry-box__fields--editing">
-          {payloadState.kind === 'opaque' ? (
+          {payloadState.kind !== 'object' ? (
             <div className="entry-box__field--editing">
-              <label className="entry-box__field-key">Entry content</label>
-              <span>{formatFieldValue(payloadState.value)}</span>
+              <label className="entry-box__field-key">Legacy content</label>
+              <span>{formatEntryValue(payloadState.value)}</span>
             </div>
           ) : (
             Object.entries(draftFields).map(([key, value]) => (
@@ -632,10 +615,10 @@ export function EntryBox({
       {entryFields.length > 0 && (
         <table className="entry-box__table">
           <tbody>
-            {entryFields.map(([key, value]) => (
-              <tr className="entry-box__row" key={key}>
-                <td className="entry-box__field-key">{formatFieldKey(key)}</td>
-                <td className="entry-box__field-value">{formatFieldValue(value)}</td>
+            {entryFields.map(({ name, value }) => (
+              <tr className="entry-box__row" key={name}>
+                <td className="entry-box__field-key">{formatFieldKey(name)}</td>
+                <td className="entry-box__field-value">{value}</td>
               </tr>
             ))}
           </tbody>

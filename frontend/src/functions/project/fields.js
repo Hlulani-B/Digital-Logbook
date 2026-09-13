@@ -1,5 +1,6 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheSet, CACHE_STORES } from '@/lib/cache';
+import { getAllEntries, getEntries } from '@/functions/project/entries.js';
 
 /**
  * Fetch fields for a table.
@@ -53,16 +54,57 @@ export async function addField(user_email, table_name, field_name, data_type, is
 }
 
 /**
- * Edit a field.
- * Syncs to server, then refreshes cache.
+ * Edit or rename a field.
+ * Syncs to server, then refreshes affected caches.
  */
-export async function editField(user_email, table_name, field_name, data_type, is_required) {
+export async function editField(
+  user_email,
+  table_name,
+  old_field_name,
+  field_name,
+  data_type,
+  is_required
+) {
   try {
     const result = await request(`${PROJECT_URL}/service/field`, {
       method: 'POST',
       body: JSON.stringify({
         function: 'edit',
-        values: { user_email, table_name, field_name, data_type, is_required },
+        values: {
+          user_email,
+          table_name,
+          old_field_name,
+          field_name,
+          data_type,
+          is_required,
+        },
+      }),
+    });
+
+    if (result?.success) {
+      await getFields(user_email, table_name);
+      if (old_field_name !== field_name) {
+        await Promise.all([getEntries(user_email, table_name), getAllEntries(user_email)]);
+      }
+    }
+    return result;
+  } catch (err) {
+    console.error('[editField] Failed:', err);
+    return { success: false, message: err.message || 'Failed to edit field' };
+  }
+}
+
+/**
+ * Remove a field from future entry forms.
+ * Historical entry values remain unchanged.
+ */
+export async function deleteField(user_email, table_name, field_name) {
+  try {
+    const result = await request(`${PROJECT_URL}/service/field`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'delete',
+        values: { user_email, table_name, field_name },
       }),
     });
 
@@ -71,7 +113,7 @@ export async function editField(user_email, table_name, field_name, data_type, i
     }
     return result;
   } catch (err) {
-    console.error('[editField] Failed:', err);
-    return { success: false, message: err.message || 'Failed to edit field' };
+    console.error('[deleteField] Failed:', err);
+    return { success: false, message: err.message || 'Failed to remove field' };
   }
 }

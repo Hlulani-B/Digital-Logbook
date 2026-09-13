@@ -12,6 +12,7 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
+import { type EntryPayload } from '@/lib/entryPayload';
 
 type Entry = Record<string, unknown>;
 
@@ -68,13 +69,17 @@ export function AllEntriesPage() {
       try {
         const result = await checkUser(email);
         if (!cancelled && result.exists && result.deleted) {
-          try { await signOut(); } catch {}
+          try {
+            await signOut();
+          } catch {}
         }
       } catch (err) {
         console.error('AllEntries deleted-check failed:', err);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [email, signOut]);
 
   // Load data — read ONLY from IndexedDB. Mutations update it directly.
@@ -87,8 +92,10 @@ export function AllEntriesPage() {
       ]);
       const hasCache = cachedEntries?.data || cachedProjects?.data;
       if (hasCache) {
-        if (cachedEntries?.data) setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-        if (cachedProjects?.data) setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+        if (cachedEntries?.data)
+          setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
+        if (cachedProjects?.data)
+          setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
       } else {
         // First visit ever — trigger initial sync
         setLoading(true);
@@ -97,8 +104,10 @@ export function AllEntriesPage() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
-        if (freshEntries?.data) setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-        if (freshProjects?.data) setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+        if (freshEntries?.data)
+          setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
+        if (freshProjects?.data)
+          setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
       }
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
@@ -107,7 +116,9 @@ export function AllEntriesPage() {
     }
   }, [email]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
@@ -164,18 +175,21 @@ export function AllEntriesPage() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar
-        projects={projects}
-        entries={entries}
-        activeView="all"
-      />
+      <NavBar projects={projects} entries={entries} activeView="all" />
 
       <main className="dash-main">
         <Header title="My Entries" entries={entries} projects={projects} />
 
         {/* Search bar */}
         <div className="feed-search-bar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
@@ -191,15 +205,45 @@ export function AllEntriesPage() {
         {/* Display mode + Sort controls */}
         <div className="feed-controls-row">
           <div className="feed-view-toggle">
-            <button className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`} onClick={() => setDisplayMode('cards')}>Cards</button>
-            <button className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`} onClick={() => setDisplayMode('checklist')}>Checklist</button>
-            <button className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`} onClick={() => setDisplayMode('board')}>Board</button>
-            <button className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`} onClick={() => setDisplayMode('table')}>Table</button>
+            <button
+              className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('cards')}
+            >
+              Cards
+            </button>
+            <button
+              className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('checklist')}
+            >
+              Checklist
+            </button>
+            <button
+              className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('board')}
+            >
+              Board
+            </button>
+            <button
+              className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('table')}
+            >
+              Table
+            </button>
           </div>
           <div className="feed-sort-group">
             <span className="feed-sort-label">Sort:</span>
-            <button className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`} onClick={() => setSortBy('date')}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`}
+              onClick={() => setSortBy('date')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
@@ -207,8 +251,18 @@ export function AllEntriesPage() {
               </svg>
               Date
             </button>
-            <button className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`} onClick={() => setSortBy('priority')}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`}
+              onClick={() => setSortBy('priority')}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <line x1="18" y1="20" x2="18" y2="10" />
                 <line x1="12" y1="20" x2="12" y2="4" />
                 <line x1="6" y1="20" x2="6" y2="14" />
@@ -238,14 +292,25 @@ export function AllEntriesPage() {
           <div className="entries-feed">
             <div className="empty-state animate-in">
               <div className="empty-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </div>
               <h2 className="empty-title">{searchQuery ? 'No results found' : 'No entries yet'}</h2>
               <p className="empty-desc">
-                {searchQuery ? `No entries match "${searchQuery}". Try a different search term.` : 'No entries to show right now.'}
+                {searchQuery
+                  ? `No entries match "${searchQuery}". Try a different search term.`
+                  : 'No entries to show right now.'}
               </p>
             </div>
           </div>
@@ -260,7 +325,7 @@ export function AllEntriesPage() {
                 summary: (r.summary as string) || null,
                 due_date: (r.due_date as string) || null,
                 status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                entries: r.entries as Record<string, unknown> | string | null,
+                entries: r.entries as EntryPayload,
                 started_at: (r.started_at as string) || null,
               }))}
               onUpdated={() => loadData()}
@@ -278,7 +343,7 @@ export function AllEntriesPage() {
                 summary: (r.summary as string) || null,
                 due_date: (r.due_date as string) || null,
                 status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                entries: r.entries as Record<string, unknown> | string | null,
+                entries: r.entries as EntryPayload,
                 started_at: (r.started_at as string) || null,
               }))}
               onUpdated={() => loadData()}
@@ -313,7 +378,15 @@ export function AllEntriesPage() {
       </main>
 
       {/* Voice Feature */}
-      {voiceOpen && <VoiceFeature onClose={() => setVoiceOpen(false)} onEntryCreated={() => { loadData(); setVoiceOpen(false); }} />}
+      {voiceOpen && (
+        <VoiceFeature
+          onClose={() => setVoiceOpen(false)}
+          onEntryCreated={() => {
+            loadData();
+            setVoiceOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { updateEntry } from '@/functions/project/entries.js';
-import { classifyEntryPayload } from '@/lib/entryPayload';
+import { type EntryPayload, getEntryPayloadTitle } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -11,7 +11,7 @@ interface ChecklistEntry {
   summary?: string | null;
   due_date?: string | null;
   status?: EntryStatus;
-  entries?: Record<string, unknown> | string | null;
+  entries?: EntryPayload;
   started_at?: string | null;
 }
 
@@ -37,17 +37,8 @@ function formatDate(value: string | null | undefined): string {
 function getSummary(entry: ChecklistEntry): string {
   if (entry.summary) return entry.summary;
 
-  const payload = classifyEntryPayload(entry.entries);
-  if (payload.kind === 'object') {
-    const summaryKeys = ['summary', 'title', 'name', 'task', 'description'];
-    for (const key of summaryKeys) {
-      if (payload.value[key] && typeof payload.value[key] === 'string') {
-        return payload.value[key] as string;
-      }
-    }
-  }
-
-  return typeof payload.value === 'string' ? payload.value : 'Untitled entry';
+  const summary = getEntryPayloadTitle(entry.entries);
+  return summary === 'Not recorded' ? 'Untitled entry' : summary;
 }
 
 export default function ChecklistEntryCard({

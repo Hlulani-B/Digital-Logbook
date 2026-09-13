@@ -1,4 +1,5 @@
 import ChecklistEntryCard from '../EntryTemplates/EntryChecklist';
+import { type EntryPayload } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -9,7 +10,7 @@ interface BoardEntry {
   summary?: string | null;
   due_date?: string | null;
   status?: EntryStatus;
-  entries?: Record<string, unknown> | string | null;
+  entries?: EntryPayload;
   started_at?: string | null;
   deleted?: boolean;
 }
@@ -77,7 +78,11 @@ function groupByWeekday(entries: BoardEntry[]): Column[] {
   return sortedColumns;
 }
 
-export default function EntriesByDueDateBoard({ entries = [], onUpdated, onDelete }: EntriesByDueDateBoardProps) {
+export default function EntriesByDueDateBoard({
+  entries = [],
+  onUpdated,
+  onDelete,
+}: EntriesByDueDateBoardProps) {
   const columns = groupByWeekday(entries);
 
   if (!entries.length) {

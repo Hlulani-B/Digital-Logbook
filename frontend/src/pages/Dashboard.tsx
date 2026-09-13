@@ -19,6 +19,7 @@ import { syncAllData } from '@/CacheFunctions';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
+import { type EntryPayload } from '@/lib/entryPayload';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
@@ -1432,7 +1433,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       due_date: (r.due_date as string) || null,
                       status:
                         (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as Record<string, unknown> | string | null,
+                      entries: r.entries as EntryPayload,
                       started_at: (r.started_at as string) || null,
                     }))}
                     onUpdated={() => loadData()}
@@ -1448,7 +1449,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       due_date: (r.due_date as string) || null,
                       status:
                         (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as Record<string, unknown> | string | null,
+                      entries: r.entries as EntryPayload,
                       started_at: (r.started_at as string) || null,
                     }))}
                     onUpdated={() => loadData()}

@@ -286,6 +286,54 @@ describe('iCalendar export', () => {
     expect(ics).toContain('SUMMARY:Task B');
   });
 
+  it('keeps opaque historical payloads readable in event titles', () => {
+    const bundle = buildExportBundle(
+      'test@example.com',
+      [],
+      [
+        {
+          project_name: 'Test',
+          entries: 0,
+          due_date: '2026-09-10',
+          priority: null,
+          status: 'up_next',
+          started_at: null,
+          ended_at: null,
+          duration: null,
+          archived: false,
+        },
+        {
+          project_name: 'Test',
+          entries: false,
+          due_date: '2026-09-11',
+          priority: null,
+          status: 'up_next',
+          started_at: null,
+          ended_at: null,
+          duration: null,
+          archived: false,
+        },
+        {
+          project_name: 'Test',
+          entries: ['Legacy task'],
+          due_date: '2026-09-12',
+          priority: null,
+          status: 'up_next',
+          started_at: null,
+          ended_at: null,
+          duration: null,
+          archived: false,
+        },
+      ]
+    );
+
+    const ics = exportToICS(bundle);
+
+    expect(ics).toContain('SUMMARY:0');
+    expect(ics).toContain('SUMMARY:false');
+    expect(ics).toContain('SUMMARY:["Legacy task"]');
+  });
+
   it('uses all-day format for entries with only due_date', () => {
     const bundle = sampleBundle();
     const ics = exportToICS(bundle);

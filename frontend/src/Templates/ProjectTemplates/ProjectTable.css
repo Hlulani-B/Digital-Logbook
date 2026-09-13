@@ -28,7 +28,9 @@
   font-weight: 600;
   font-size: 0.8rem;
   font-family: inherit;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .ptt-view-btn + .ptt-view-btn {
@@ -166,7 +168,9 @@
   padding: 0.15rem 0.3rem;
   border-radius: 3px;
   border: 1px solid transparent;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
   display: inline-block;
   white-space: normal;
   word-wrap: break-word;
@@ -317,6 +321,11 @@
   min-width: 0;
 }
 
+.ptt-readonly-value {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 /* ── Mobile card layout (< 600px) ──────────────────────── */
 .ptt-mobile-list {
   display: flex;
@@ -447,7 +456,9 @@
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .ptt-bulk-bar__btn:hover {
