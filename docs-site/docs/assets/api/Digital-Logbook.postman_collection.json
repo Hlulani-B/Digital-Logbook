@@ -21,11 +21,6 @@
       "type": "string"
     },
     {
-      "key": "auth_service_url",
-      "value": "https://auth-service-hl52.onrender.com",
-      "type": "string"
-    },
-    {
       "key": "project_service_url",
       "value": "https://project-service-96ml.onrender.com",
       "type": "string"
@@ -47,86 +42,6 @@
     }
   ],
   "item": [
-    {
-      "name": "Auth Service",
-      "item": [
-        {
-          "name": "Sign Up",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
-            },
-            "url": {
-              "raw": "{{auth_service_url}}/auth/signup",
-              "host": ["{{auth_service_url}}"],
-              "path": ["auth", "signup"]
-            }
-          }
-        },
-        {
-          "name": "Reset Password",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_email}}\"\n}"
-            },
-            "url": {
-              "raw": "{{auth_service_url}}/auth/reset-password",
-              "host": ["{{auth_service_url}}"],
-              "path": ["auth", "reset-password"]
-            }
-          }
-        },
-        {
-          "name": "Delete Account",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{auth_service_url}}/auth/delete-account",
-              "host": ["{{auth_service_url}}"],
-              "path": ["auth", "delete-account"]
-            }
-          }
-        },
-        {
-          "name": "Check User",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_email}}\"\n}"
-            },
-            "url": {
-              "raw": "{{auth_service_url}}/auth/checkuser",
-              "host": ["{{auth_service_url}}"],
-              "path": ["auth", "checkuser"]
-            }
-          }
-        }
-      ]
-    },
     {
       "name": "Profile Service",
       "item": [
