@@ -123,6 +123,8 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
 
       setMessageType('success');
       const comment = data?.comment || (data?.data as Record<string, unknown>)?.comment;
+      // Re-read the preference after the await — the user may have turned AI
+      // messages off in Settings while this request was in flight.
       if (comment && getAiMessagesEnabled()) {
         setToast(comment as string);
       }
