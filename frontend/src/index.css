@@ -3545,6 +3545,108 @@ img {
   width: 100%;
 }
 
+/* ========== ARCHIVES VIEW ========== */
+/* Single-column page shell: section titles span the full width, and each
+   section's cards get their own grid. Keeps titles out of .entries-feed,
+   which would scatter them across 2-3 column tracks. */
+.archives-section {
+  display: block;
+  width: 100%;
+}
+
+.archives-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+  margin: 0 0 0.75rem;
+}
+
+.archives-entries-title {
+  margin-top: 2rem;
+}
+
+.archives-section-count {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.archives-empty-line {
+  font-size: 0.85rem;
+  opacity: 0.5;
+  margin: 0 0 1.5rem;
+}
+
+.archived-projects-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* 2 columns on tablets and smaller laptops */
+@media (min-width: 768px) {
+  .archived-projects-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 3 columns on larger laptops and desktops */
+@media (min-width: 1200px) {
+  .archived-projects-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.archived-project-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.85rem;
+}
+
+.archived-project-icon {
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.archived-project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.archived-project-name {
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--text);
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archived-project-status {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.archived-project-unarchive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
 /* ========== DASHBOARD SECTIONS ========== */
 .dashboard-sections {
   display: flex;

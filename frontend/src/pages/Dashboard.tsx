@@ -28,7 +28,7 @@ import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
-import { FiArchive, FiX } from 'react-icons/fi';
+import { FiArchive, FiRotateCcw, FiX } from 'react-icons/fi';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import {
   type CalendarEntry,
@@ -142,8 +142,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     defaultView
   );
 
-  // Sort state - persist in localStorage
-  const [sortBy, setSortBy] = useState<'priority' | 'date'>(() => {
+  // Sort state - persist in localStorage (control removed from the display;
+  // the persisted value is kept so it survives if the control returns)
+  const [sortBy] = useState<'priority' | 'date'>(() => {
     const saved = localStorage.getItem('dashboard-sort-by');
     if (saved === 'priority' || saved === 'date') return saved;
     return 'date';
@@ -1498,7 +1499,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       aria-expanded={projectMenuOpen}
                       style={{ position: 'static' }}
                     >
-                      Γï»
+                      ⋯
                     </button>
                     {projectMenuOpen && (
                       <div
@@ -1585,7 +1586,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <ActivityFeed />
           </>
         ) : activeView === 'archives' ? (
-          <div className="entries-feed">
+          <div className="archives-section">
             {archiveError && (
               <div className="auth-error" style={{ marginBottom: '1rem' }}>
                 {archiveError}
@@ -1593,79 +1594,40 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             )}
 
             {/* Archived Projects */}
-            <h2
-              style={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                marginBottom: '0.75rem',
-                opacity: 0.7,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
+            <h2 className="archives-section-title">
               <FiArchive size={16} /> Archived Projects
-              <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>
-                ({archivedProjects.length})
-              </span>
+              <span className="archives-section-count">({archivedProjects.length})</span>
             </h2>
             {archivedProjects.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', opacity: 0.5, marginBottom: '1.5rem' }}>
-                No archived projects
-              </p>
+              <p className="archives-empty-line">No archived projects</p>
             ) : (
-              archivedProjects.map((project, i) => {
-                const name = project.project_name as string;
-                return (
-                  <div
-                    key={`archived-${name}-${i}`}
-                    className="glass"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '1rem',
-                      padding: '1rem 1.25rem',
-                      borderRadius: '0.85rem',
-                      marginBottom: '0.75rem',
-                    }}
-                  >
-                    <FiArchive size={18} style={{ opacity: 0.6 }} />
-                    <span style={{ flex: 1, fontWeight: 600, fontSize: '0.98rem', opacity: 0.7 }}>
-                      {name}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-dim, #6b7280)' }}>
-                      Archived (read-only)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleUnarchiveProject(name)}
-                      className="btn-secondary"
-                      style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-                    >
-                      Γå⌐ Unarchive
-                    </button>
-                  </div>
-                );
-              })
+              <div className="archived-projects-grid">
+                {archivedProjects.map((project, i) => {
+                  const name = project.project_name as string;
+                  return (
+                    <div key={`archived-${name}-${i}`} className="glass archived-project-card">
+                      <FiArchive size={18} className="archived-project-icon" />
+                      <div className="archived-project-info">
+                        <span className="archived-project-name">{name}</span>
+                        <span className="archived-project-status">Archived · read-only</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnarchiveProject(name)}
+                        className="btn-secondary archived-project-unarchive"
+                      >
+                        <FiRotateCcw size={13} /> Unarchive
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
             {/* Archived Entries */}
-            <h2
-              style={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                marginTop: '1.5rem',
-                marginBottom: '0.75rem',
-                opacity: 0.7,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
+            <h2 className="archives-section-title archives-entries-title">
               <FiArchive size={16} /> Archived Entries
-              <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>
-                ({archivedEntries.length})
-              </span>
+              <span className="archives-section-count">({archivedEntries.length})</span>
             </h2>
             {archivedEntries.length === 0 ? (
               <div className="empty-state animate-in">
@@ -1673,26 +1635,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <FiArchive size={40} />
                 </div>
                 <h2 className="empty-title">No archived entries</h2>
-                <p className="empty-desc">Archive an entry from the Γï» menu to see it here.</p>
+                <p className="empty-desc">Archive an entry from the ⋯ menu to see it here.</p>
               </div>
             ) : (
-              archivedEntries.map((row, i) => (
-                <EntryBox
-                  key={`archived-entry-${row.id || i}`}
-                  entry={row as any}
-                  onUpdated={() => loadData()}
-                  onPriorityChanged={handleSetPriority}
-                  onArchiveToggled={(entryId, isArchived) => {
-                    if (!isArchived) {
-                      setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
-                    }
-                  }}
-                  projectColor={resolveProjectColor(
-                    (row.project_name as string) || '',
-                    dashColorMap
-                  )}
-                />
-              ))
+              <div className="entries-feed">
+                {archivedEntries.map((row, i) => (
+                  <EntryBox
+                    key={`archived-entry-${row.id || i}`}
+                    entry={row as any}
+                    onUpdated={() => loadData()}
+                    onPriorityChanged={handleSetPriority}
+                    onArchiveToggled={(entryId, isArchived) => {
+                      if (!isArchived) {
+                        setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
+                      }
+                    }}
+                    projectColor={resolveProjectColor(
+                      (row.project_name as string) || '',
+                      dashColorMap
+                    )}
+                  />
+                ))}
+              </div>
             )}
           </div>
         ) : (
@@ -1729,46 +1693,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     Board
                   </button>
                 </div>
-              </div>
-              <div className="feed-sort-group">
-                <span className="feed-sort-label">Sort:</span>
-                <button
-                  className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`}
-                  onClick={() => setSortBy('date')}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  Date
-                </button>
-                <button
-                  className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`}
-                  onClick={() => setSortBy('priority')}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="18" y1="20" x2="18" y2="10" />
-                    <line x1="12" y1="20" x2="12" y2="4" />
-                    <line x1="6" y1="20" x2="6" y2="14" />
-                  </svg>
-                  Priority
-                </button>
               </div>
             </div>
 
