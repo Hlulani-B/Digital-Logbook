@@ -562,6 +562,37 @@ export function EntryBox({
     }
   };
 
+  // Start a task that hasn't been started yet — sets started_at to now,
+  // moves status to in_motion, and makes the timer controls appear.
+  const handleStartTask = async () => {
+    if (!user_email || saving || started_at) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        'in_motion',
+        now,
+        undefined
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to start task');
+        return;
+      }
+      onUpdated?.({ ...entry, started_at: now, status: 'in_motion' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Adds a deadline target to a running task that has none (count-up → countdown)
   const [targetMinutes, setTargetMinutes] = useState<string>('');
   const handleSetTarget = async () => {
@@ -1056,6 +1087,16 @@ export function EntryBox({
             )}
           </div>
           <div className="entry-box__meta-right">
+            {!started_at && !ended_at && !archived && (
+              <button
+                type="button"
+                className="entry-box__task-btn entry-box__task-btn--start"
+                onClick={handleStartTask}
+                disabled={saving}
+              >
+                ▶ Start
+              </button>
+            )}
             {started_at && !ended_at && (
               <div className="entry-box__task-active">
                 {isPaused && <span className="entry-box__task-paused">Paused</span>}
