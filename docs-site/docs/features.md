@@ -715,7 +715,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **How it works:**
 
-- Migration `012_notification_enhancements.sql` adds `snoozed_until` (TIMESTAMPTZ) and `dismissed` (BOOLEAN) columns to `notifications`, plus `notification_lead_time` (INTERVAL, default 24 h) to `users`
+- Migration `013_notification_enhancements.sql` adds `snoozed_until` (TIMESTAMPTZ) and `dismissed` (BOOLEAN) columns to `notifications`, plus `notification_lead_time` (INTERVAL, default 24 h) to `users`
 - The `generate_due_notifications()` RPC is replaced with a version that reads each user's lead time and auto-unsnoozes expired snoozes (re-marking them unread)
 - Backend `snooze()` and `dismiss()` RPCs update the new columns; `getHistory()` accepts `{ unreadOnly, type }` filter params with dynamic WHERE clause construction
 - `NotificationsBell` shows snooze/dismiss action buttons on each item; snooze opens a popover with three duration options; browser `Notification.requestPermission()` is called on first mount
@@ -725,7 +725,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **Key files:**
 
-- `supabase/migrations/012_notification_enhancements.sql` — Schema changes, updated generator with per-user lead time
+- `supabase/migrations/013_notification_enhancements.sql` — Schema changes, updated generator with per-user lead time
 - `services/project-service/src/functions/notifications/notifications.js` — `snooze()`, `dismiss()`, filtered `getHistory()`, rich email template
 - `services/project-service/src/Routes/notifications.js` — New `snooze` and `dismiss` route cases
 - `services/profile-service/src/functions/profile.js` — `NotificationLeadTime` class (set/get)

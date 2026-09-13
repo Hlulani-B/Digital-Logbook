@@ -151,11 +151,19 @@ BEGIN
 END;
 $$;
 
-SELECT cron.unschedule('due-notification-cycle')
- WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'due-notification-cycle');
-
-SELECT cron.schedule(
-  'due-notification-cycle',
-  '7 * * * *',
-  'SELECT public.run_due_notification_cycle();'
-);
+-- Guard pg_cron calls: the extension may not be enabled. When absent, email
+-- sending relies on the opportunistic flush triggered by bell polls instead.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule('due-notification-cycle')
+     WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'due-notification-cycle');
+    PERFORM cron.schedule(
+      'due-notification-cycle',
+      '7 * * * *',
+      'SELECT public.run_due_notification_cycle();'
+    );
+  ELSE
+    RAISE NOTICE 'pg_cron not enabled; skipping hourly notification schedule (bell-triggered flush still works)';
+  END IF;
+END $$;
