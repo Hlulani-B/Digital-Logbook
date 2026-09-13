@@ -192,7 +192,7 @@ describe('calendar entry helpers', () => {
       expect(getEntryTitle(entry)).toBe('Buy milk');
     });
 
-    it('falls back to first non-empty value', () => {
+    it('falls back to first non-empty value with field name', () => {
       const entry = {
         id: 1,
         user_email: 'a@b.com',
@@ -201,7 +201,7 @@ describe('calendar entry helpers', () => {
         due_date: null,
         priority: null,
       };
-      expect(getEntryTitle(entry)).toBe('Some value');
+      expect(getEntryTitle(entry)).toBe('custom: Some value');
     });
 
     it('parses JSON string entries', () => {
@@ -239,7 +239,7 @@ describe('calendar entry helpers', () => {
         due_date: null,
         priority: null,
       };
-      expect(getEntryTitle(entry)).toBe('Untitled entry');
+      expect(getEntryTitle(entry)).toBe('P1 entry');
     });
   });
 });
