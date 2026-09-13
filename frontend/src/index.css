@@ -4345,9 +4345,21 @@ img {
 }
 /* View toggle relocated under the "Due soon" label — give it a little
    breathing room above the entries feed it controls. */
+.due-soon-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.due-soon-header-row .due-soon-section-label {
+  margin-top: 0;
+  margin-bottom: 0;
+}
 .due-soon-view-toggle {
-  margin-top: -0.25rem;
-  margin-bottom: 0.85rem;
+  margin: 0;
 }
 .feed-view-label {
   font-size: 0.75rem;
