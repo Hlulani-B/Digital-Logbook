@@ -40,10 +40,10 @@ describe('ChecklistEntryCard', () => {
     expect(screen.getByText('Fix login bug')).toBeTruthy();
   });
 
-  it('renders "Untitled entry" when no summary', () => {
+  it('renders project name fallback when no summary', () => {
     const noSummary = { ...sampleEntry, summary: null, entries: null };
     render(<ChecklistEntryCard entry={noSummary} />);
-    expect(screen.getByText('Untitled entry')).toBeTruthy();
+    expect(screen.getByText('TestProject entry')).toBeTruthy();
   });
 
   it('renders opaque historical payloads when no summary is available', () => {
