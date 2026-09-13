@@ -11,6 +11,7 @@ import {
   updateUsername,
   addEmail,
   setEmailNotifications,
+  setNotificationLeadTime,
 } from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
@@ -33,6 +34,7 @@ interface Preferences {
   autoSave: boolean;
   compactMode: boolean;
   notifications: boolean;
+  notificationLeadTime: string;
   weeklyReminder: boolean;
   nudgeFrequency: string;
   aiMessages: boolean;
@@ -200,6 +202,7 @@ export function SettingsPanel({
     autoSave: true,
     compactMode: false,
     notifications: true,
+    notificationLeadTime: '24 hours',
     weeklyReminder: false,
     nudgeFrequency: getNudgeFrequency(),
     aiMessages: getAiMessagesEnabled(),
@@ -810,6 +813,30 @@ export function SettingsPanel({
                     />
                     <span className="toggle-track" />
                   </label>
+                </div>
+
+                <div className="toggle-row">
+                  <div className="toggle-info">
+                    <p className="toggle-label">Notify me before</p>
+                    <p className="toggle-desc">How far in advance to get due-soon alerts.</p>
+                  </div>
+                  <select
+                    className="settings-select"
+                    value={prefs.notificationLeadTime}
+                    onChange={(e) => {
+                      const leadTime = e.target.value;
+                      setPrefs((p) => ({
+                        ...p,
+                        notificationLeadTime: leadTime,
+                      }));
+                      setNotificationLeadTime(email, leadTime);
+                    }}
+                  >
+                    <option value="1 hour">1 hour before</option>
+                    <option value="24 hours">24 hours before</option>
+                    <option value="48 hours">48 hours before</option>
+                    <option value="1 week">1 week before</option>
+                  </select>
                 </div>
 
                 <div className="toggle-row">

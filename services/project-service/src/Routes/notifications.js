@@ -14,7 +14,7 @@ try {
  * Notifications service endpoint (JWT-protected user functions).
  *
  * Input:
- *   function: 'get' | 'history' | 'markRead' | 'markAllRead'
+ *   function: 'get' | 'history' | 'markRead' | 'markAllRead' | 'snooze' | 'dismiss'
  *   values: { ... }
  */
 router.post('/notifications', async (req, res) => {
@@ -39,8 +39,11 @@ router.post('/notifications', async (req, res) => {
       }
 
       case 'history': {
-        const { limit, offset } = values;
-        const result = await notifications.getHistory(userEmail, limit, offset);
+        const { limit, offset, unreadOnly, type } = values;
+        const filters = {};
+        if (unreadOnly) filters.unreadOnly = true;
+        if (type) filters.type = type;
+        const result = await notifications.getHistory(userEmail, limit, offset, filters);
         return res.json(result);
       }
 
@@ -58,6 +61,30 @@ router.post('/notifications', async (req, res) => {
 
       case 'markAllRead': {
         const result = await notifications.markAllRead(userEmail);
+        return res.json(result);
+      }
+
+      case 'snooze': {
+        const { id, duration } = values;
+        if (!id || !duration) {
+          return res.status(400).json({ error: 'Missing required parameters: id, duration' });
+        }
+        const result = await notifications.snooze(userEmail, id, duration);
+        if (!result.success) {
+          return res.status(404).json(result);
+        }
+        return res.json(result);
+      }
+
+      case 'dismiss': {
+        const { id } = values;
+        if (!id) {
+          return res.status(400).json({ error: 'Missing required parameter: id' });
+        }
+        const result = await notifications.dismiss(userEmail, id);
+        if (!result.success) {
+          return res.status(404).json(result);
+        }
         return res.json(result);
       }
 

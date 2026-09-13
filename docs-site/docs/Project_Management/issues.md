@@ -630,3 +630,55 @@ The test "shows password hint in sign-up mode" asserted `Password must be at lea
 **Takeaway:** When replacing static text with dynamic content in a component, audit every test that asserted the old text — the test breakage is non-obvious if the suite is not run before committing.
 
 **Gitea issue:** [#193](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/193)
+
+---
+
+## Notification Enhancements
+
+### Issue 44: Notification Snooze & Dismiss Actions
+
+Users had no way to defer or hide a notification without completing the underlying entry. The bell dropdown showed items as read-only — once a due-soon alert appeared, it stayed until the entry was marked done or the 30-day prune window elapsed.
+
+**Root cause:** The notifications table had no column for snooze or soft-delete state. The backend `Notifications` class exposed only `get`, `getHistory`, `markRead`, and `markAllRead` — no way to suppress individual rows.
+
+**Fix:** Added `snoozed_until` (TIMESTAMPTZ) and `dismissed` (BOOLEAN) columns to `notifications` via migration 012. Backend gained `snooze(email, id, duration)` and `dismiss(email, id)` RPCs. The bell feed and history page queries filter out `dismissed = true` and snoozed rows where `snoozed_until > now()`. The cron generator auto-unsnoozes expired snoozes by clearing `snoozed_until` and re-marking as unread. Frontend action buttons (clock icon for snooze with 1 h / 4 h / tomorrow popover; ✕ icon for dismiss) were added to both `NotificationsBell` and `NotificationsPage`.
+
+**Takeaway:** When adding a new column that affects multiple queries, update both the read-time queries (bell feed, history) and the write-time generator (cron unsnooze) in the same migration to avoid a window where snoozed items leak back into the feed.
+
+**Gitea issue:** [#197](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/197)
+
+### Issue 45: Configurable Notification Lead Time
+
+The due-soon notification generator used a hardcoded 24-hour window — every user was notified exactly one day before a deadline. Users with longer planning horizons wanted earlier alerts; others wanted last-minute nudges.
+
+**Root cause:** `generate_due_notifications()` in migration 011 used `now() + INTERVAL '24 hours'` as a constant in the due-soon CTE.
+
+**Fix:** Added `notification_lead_time` (INTERVAL, default `'24 hours'`) column to `users`. Replaced the generator to read `COALESCE(u.notification_lead_time, INTERVAL '24 hours')` per user via a JOIN on the users table. A Settings panel dropdown ("Notify me before: 1 hour / 24 hours / 48 hours / 1 week") persists the choice via `setNotificationLeadTime()` through the profile-service.
+
+**Takeaway:** When replacing a hardcoded value with a per-user preference, always `COALESCE` to the original default so users who never change the setting get the same behaviour as before.
+
+**Gitea issue:** [#198](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/198)
+
+### Issue 46: Notification History Page Lacked Filtering
+
+The /notifications page showed every stored notification in chronological order — read and unread, due-soon and overdue mixed together. Users with many entries had to scroll to find actionable items.
+
+**Root cause:** The `getHistory()` method accepted only `limit` and `offset` parameters with a fixed `WHERE user_email = $1` clause.
+
+**Fix:** Added a `filters` object parameter to `getHistory()` supporting `{ unreadOnly: boolean, type: 'due_soon' | 'overdue' }`. The method builds a dynamic WHERE clause with parameterised conditions. The frontend renders four filter tabs (All, Unread, Due soon, Overdue); switching tabs resets pagination and re-fetches.
+
+**Takeaway:** When adding dynamic WHERE clauses, use parameterised queries (`$N` placeholders) rather than string interpolation to prevent SQL injection, even for known-safe filter values.
+
+**Gitea issue:** [#199](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/199)
+
+### Issue 47: Plain-Text Emails Lacked Actionable Context
+
+Notification emails were plain text — just the entry title and due date. Users had to manually navigate to the app and find the project. Browser toasts were not available, so users only learned about notifications when they next opened the app.
+
+**Root cause:** `_sendBrevoEmail()` built a simple text body string rather than `htmlContent`, and the bell component did not integrate with the browser Notification API.
+
+**Fix:** Replaced the email body with a rich HTML template — colored status banner (red for overdue, amber for due-soon), card layout with entry title, project name, formatted due date, and a deep-link button that opens the project directly. Added `Notification.requestPermission()` on bell mount and native `new Notification()` toasts for each newly-arrived unread item (detected by diffing unread IDs between polls). HTML escaping via `escapeHtml()` prevents XSS from user-controlled content.
+
+**Takeaway:** When building HTML emails with user-controlled content, always escape HTML entities — email clients render HTML and an unescaped title like `<script>alert(1)</script>` would execute in the inbox.
+
+**Gitea issue:** [#200](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/200)

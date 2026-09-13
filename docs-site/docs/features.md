@@ -705,6 +705,38 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ---
 
+## Notifications & Alerts
+
+### 38. Notification Enhancements — Snooze, Dismiss, Filters, Lead Time & Rich Emails
+
+**What it does:** Extends the notification system with five user-facing improvements: (1) **Snooze** — hide a notification for 1 hour, 4 hours, or until tomorrow 8 am, after which it re-surfaces as unread; (2) **Dismiss** — soft-delete a notification without marking the underlying entry done; (3) **Filter tabs** on the /notifications history page — All, Unread, Due soon, Overdue — with server-side filtering; (4) **Configurable lead time** — users choose when to be notified before a deadline (1 h, 24 h, 48 h, 1 week) via a Settings dropdown; (5) **Rich HTML emails** with a colored status banner, entry card, project badge, and deep-link button; (6) **Browser toast notifications** via the Notification API when new unread items arrive during an active session.
+
+**Why it was implemented:** Sprint 2 feedback indicated the notification system was useful but too rigid — users wanted control over timing, the ability to defer or dismiss alerts without completing tasks, and better visual filtering on the history page. The plain-text emails also lacked actionable context.
+
+**How it works:**
+
+- Migration `012_notification_enhancements.sql` adds `snoozed_until` (TIMESTAMPTZ) and `dismissed` (BOOLEAN) columns to `notifications`, plus `notification_lead_time` (INTERVAL, default 24 h) to `users`
+- The `generate_due_notifications()` RPC is replaced with a version that reads each user's lead time and auto-unsnoozes expired snoozes (re-marking them unread)
+- Backend `snooze()` and `dismiss()` RPCs update the new columns; `getHistory()` accepts `{ unreadOnly, type }` filter params with dynamic WHERE clause construction
+- `NotificationsBell` shows snooze/dismiss action buttons on each item; snooze opens a popover with three duration options; browser `Notification.requestPermission()` is called on first mount
+- `NotificationsPage` renders filter tabs and the same snooze/dismiss actions; filter changes reset pagination and re-fetch
+- Settings panel gains a "Notify me before" dropdown that persists to the profile-service via `setNotificationLeadTime()`
+- `_sendBrevoEmail()` builds a card-style HTML email with accent color (red for overdue, amber for due-soon), entry title, project name, formatted due date, and a deep-link button
+
+**Key files:**
+
+- `supabase/migrations/012_notification_enhancements.sql` — Schema changes, updated generator with per-user lead time
+- `services/project-service/src/functions/notifications/notifications.js` — `snooze()`, `dismiss()`, filtered `getHistory()`, rich email template
+- `services/project-service/src/Routes/notifications.js` — New `snooze` and `dismiss` route cases
+- `services/profile-service/src/functions/profile.js` — `NotificationLeadTime` class (set/get)
+- `frontend/src/components/NotificationsBell.tsx` — Snooze menu, dismiss button, browser toasts
+- `frontend/src/pages/NotificationsPage.tsx` — Filter tabs, snooze/dismiss actions
+- `frontend/src/components/SettingsPanel.tsx` — "Notify me before" dropdown
+- `frontend/src/functions/project/notifications.js` — Client wrappers for snooze, dismiss, filtered history
+- `frontend/src/functions/profile/profile.js` — `setNotificationLeadTime()`, `getNotificationLeadTime()`
+
+---
+
 ## Summary
 
-The Digital Logbook implements 37 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), and onboarding (guided tour with voice narration, themed sign-in landing). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 38 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (guided tour with voice narration, themed sign-in landing), and notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.

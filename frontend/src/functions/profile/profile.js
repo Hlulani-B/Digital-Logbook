@@ -249,6 +249,47 @@ export async function setEmailNotifications(email, enabled) {
 }
 
 /**
+ * Persist the "Notify me before" lead-time preference server-side.
+ * Valid values: '1 hour', '24 hours', '48 hours', '1 week'.
+ */
+export async function setNotificationLeadTime(email, leadTime) {
+  if (!navigator.onLine) {
+    console.log('[setNotificationLeadTime] Offline, skipping server sync');
+    return { success: true, skipped: true };
+  }
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'notificationLeadTime',
+        values: { email, leadTime },
+      }),
+    });
+  } catch (err) {
+    console.error('[setNotificationLeadTime] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * Fetch the current notification lead-time preference from the server.
+ */
+export async function getNotificationLeadTime(email) {
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'getNotificationLeadTime',
+        values: { email },
+      }),
+    });
+  } catch (err) {
+    console.error('[getNotificationLeadTime] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
  * Delete profile.
  * Clears all caches, then syncs to server.
  */

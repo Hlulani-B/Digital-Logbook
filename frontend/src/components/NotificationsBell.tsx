@@ -4,6 +4,8 @@ import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  snoozeNotification,
+  dismissNotification,
 } from '@/functions/project/notifications.js';
 
 interface NotificationRow {
@@ -15,9 +17,15 @@ interface NotificationRow {
   due_at: string | null;
   read: boolean;
   created_at: string;
+  snoozed_until: string | null;
 }
 
 const POLL_INTERVAL_MS = 60_000;
+const SNOOZE_OPTIONS = [
+  { value: '1h', label: '1 hour' },
+  { value: '4h', label: '4 hours' },
+  { value: 'tomorrow', label: 'Tomorrow 8am' },
+] as const;
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -56,7 +64,9 @@ export function NotificationsBell({ email }: { email: string }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [snoozeMenuId, setSnoozeMenuId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const prevUnreadIds = useRef<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     if (!email || !navigator.onLine) return;
@@ -64,8 +74,27 @@ export function NotificationsBell({ email }: { email: string }) {
     try {
       const result = await getNotifications(email);
       if (result?.success && result.data) {
-        setItems(result.data.notifications || []);
-        setUnreadCount(result.data.unreadCount ?? 0);
+        const newItems = (result.data.notifications || []) as NotificationRow[];
+        setItems(newItems);
+        const newUnread = result.data.unreadCount ?? 0;
+        setUnreadCount(newUnread);
+
+        // Browser toast: fire a native notification for each newly-arrived
+        // unread item (ones that weren't in the previous poll).
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          const newUnreadIds = new Set(newItems.filter((n) => !n.read).map((n) => n.id));
+          for (const n of newItems) {
+            if (!n.read && !prevUnreadIds.current.has(n.id)) {
+              const title = n.type === 'overdue' ? 'Overdue' : 'Due soon';
+              const body = n.entry_title || (n.project_name ? `${n.project_name} entry` : 'Entry');
+              new Notification(`${title}: ${body}`, {
+                icon: '/favicon.ico',
+                tag: n.id,
+              });
+            }
+          }
+          prevUnreadIds.current = newUnreadIds;
+        }
       }
     } finally {
       setLoading(false);
@@ -79,6 +108,12 @@ export function NotificationsBell({ email }: { email: string }) {
     }, POLL_INTERVAL_MS);
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
+
+    // Request browser notification permission on first mount
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
@@ -113,6 +148,19 @@ export function NotificationsBell({ email }: { email: string }) {
     setItems((prev) => prev.map((p) => ({ ...p, read: true })));
     setUnreadCount(0);
     await markAllNotificationsRead(email).catch(() => {});
+  };
+
+  const handleSnooze = async (id: string, duration: string) => {
+    setItems((prev) => prev.filter((p) => p.id !== id));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    setSnoozeMenuId(null);
+    await snoozeNotification(email, id, duration).catch(() => {});
+  };
+
+  const handleDismiss = async (id: string) => {
+    setItems((prev) => prev.filter((p) => p.id !== id));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    await dismissNotification(email, id).catch(() => {});
   };
 
   return (
@@ -162,30 +210,97 @@ export function NotificationsBell({ email }: { email: string }) {
               </p>
             )}
             {items.map((n) => (
-              <button
+              <div
                 key={n.id}
-                type="button"
-                className={`notif-item ${n.read ? 'notif-item--read' : ''}`}
-                onClick={() => handleOpenItem(n)}
+                className={`notif-item-wrap ${n.read ? 'notif-item-wrap--read' : ''}`}
               >
-                <span
-                  className={`notif-dot ${
-                    n.type === 'overdue' ? 'notif-dot--overdue' : 'notif-dot--due-soon'
-                  }`}
-                  aria-hidden="true"
-                />
-                <span className="notif-item-text">
-                  <span className="notif-item-title">
-                    {n.type === 'overdue' ? 'Overdue: ' : 'Due soon: '}
-                    {n.entry_title || (n.project_name ? `${n.project_name} entry` : 'Entry')}
+                <button type="button" className="notif-item" onClick={() => handleOpenItem(n)}>
+                  <span
+                    className={`notif-dot ${
+                      n.type === 'overdue' ? 'notif-dot--overdue' : 'notif-dot--due-soon'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span className="notif-item-text">
+                    <span className="notif-item-title">
+                      {n.type === 'overdue' ? 'Overdue: ' : 'Due soon: '}
+                      {n.entry_title || (n.project_name ? `${n.project_name} entry` : 'Entry')}
+                    </span>
+                    <span className="notif-item-meta">
+                      {n.project_name ? `${n.project_name} \u00b7 ` : ''}
+                      {formatDue(n.due_at) || relativeTime(n.created_at)}
+                    </span>
                   </span>
-                  <span className="notif-item-meta">
-                    {n.project_name ? `${n.project_name} · ` : ''}
-                    {formatDue(n.due_at) || relativeTime(n.created_at)}
-                  </span>
-                </span>
-                {!n.read && <span className="notif-unread-pip" aria-hidden="true" />}
-              </button>
+                  {!n.read && <span className="notif-unread-pip" aria-hidden="true" />}
+                </button>
+                <div className="notif-item-actions">
+                  <button
+                    type="button"
+                    className="notif-action-btn"
+                    title="Snooze"
+                    aria-label="Snooze notification"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSnoozeMenuId((prev) => (prev === n.id ? null : n.id));
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="notif-action-btn"
+                    title="Dismiss"
+                    aria-label="Dismiss notification"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDismiss(n.id);
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                  {snoozeMenuId === n.id && (
+                    <div className="notif-snooze-menu" role="menu">
+                      {SNOOZE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="notif-snooze-option"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSnooze(n.id, opt.value);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
 
