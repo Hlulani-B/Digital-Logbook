@@ -1,9 +1,17 @@
 import pool from '../../db.js';
 
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+const APP_URL = 'https://digital-logbook-bxgv.onrender.com';
 const NOTIFICATION_LIMIT = 30;
 const HISTORY_PAGE_SIZE = 50;
 const HISTORY_MAX_LIMIT = 200;
+
+/** Valid snooze durations — mapped to SQL interval expressions. */
+const SNOOZE_INTERVALS = {
+  '1h': '1 hour',
+  '4h': '4 hours',
+  tomorrow: "date_trunc('day', now() + interval '1 day') + interval '8 hours'",
+};
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -50,9 +58,11 @@ export class Notifications {
       if (!email) return { success: false, message: 'email is required' };
 
       const { rows } = await pool.query(
-        `SELECT id, entry_id, project_name, entry_title, type, due_at, read, created_at
+        `SELECT id, entry_id, project_name, entry_title, type, due_at, read, created_at, snoozed_until
            FROM public.notifications
           WHERE user_email = $1
+            AND dismissed = false
+            AND (snoozed_until IS NULL OR snoozed_until > now())
           ORDER BY read ASC, created_at DESC
           LIMIT $2`,
         [email, NOTIFICATION_LIMIT]
@@ -61,7 +71,10 @@ export class Notifications {
       const { rows: countRows } = await pool.query(
         `SELECT COUNT(*)::int AS count
            FROM public.notifications
-          WHERE user_email = $1 AND read = false`,
+          WHERE user_email = $1
+            AND read = false
+            AND dismissed = false
+            AND (snoozed_until IS NULL OR snoozed_until > now())`,
         [email]
       );
 
@@ -93,7 +106,15 @@ export class Notifications {
    * @param {number} offset Rows to skip (default 0)
    * @returns {{success: boolean, data?: {notifications: Array, total: number, limit: number, offset: number}, message?: string}}
    */
-  async getHistory(email, limit = HISTORY_PAGE_SIZE, offset = 0) {
+  /**
+   * Full notification history with optional server-side filters.
+   *
+   * @param {string} email       Owner email
+   * @param {number} limit       Page size (clamped 1..200, default 50)
+   * @param {number} offset      Rows to skip (default 0)
+   * @param {object} [filters]   Optional: { unreadOnly: boolean, type: 'due_soon'|'overdue' }
+   */
+  async getHistory(email, limit = HISTORY_PAGE_SIZE, offset = 0, filters = {}) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
       if (!email) return { success: false, message: 'email is required' };
@@ -106,20 +127,30 @@ export class Notifications {
       );
       const safeOffset = Math.max(Number.isNaN(parsedOffset) ? 0 : parsedOffset, 0);
 
+      // Build dynamic WHERE clauses for optional filters
+      const conditions = ['user_email = $1', 'dismissed = false'];
+      const params = [email];
+      if (filters.unreadOnly) {
+        conditions.push('read = false');
+      }
+      if (filters.type === 'due_soon' || filters.type === 'overdue') {
+        params.push(filters.type);
+        conditions.push(`type = $${params.length}`);
+      }
+      const whereClause = conditions.join(' AND ');
+
       const { rows } = await pool.query(
-        `SELECT id, entry_id, project_name, entry_title, type, due_at, read, created_at
+        `SELECT id, entry_id, project_name, entry_title, type, due_at, read, created_at, snoozed_until
            FROM public.notifications
-          WHERE user_email = $1
+          WHERE ${whereClause}
           ORDER BY created_at DESC
-          LIMIT $2 OFFSET $3`,
-        [email, safeLimit, safeOffset]
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, safeLimit, safeOffset]
       );
 
       const { rows: totalRows } = await pool.query(
-        `SELECT COUNT(*)::int AS count
-           FROM public.notifications
-          WHERE user_email = $1`,
-        [email]
+        `SELECT COUNT(*)::int AS count FROM public.notifications WHERE ${whereClause}`,
+        params
       );
 
       return {
@@ -259,7 +290,81 @@ export class Notifications {
   }
 
   /**
-   * Single transactional email via the Brevo HTTP API (no SMTP needed).
+   * Snooze a notification — hides it from the bell feed until the snooze
+   * expires, then the cron generator re-surfaces it as unread.
+   *
+   * @param {string} email           Owner email
+   * @param {string} notificationId  Notification UUID
+   * @param {string} duration        '1h' | '4h' | 'tomorrow'
+   */
+  async snooze(email, notificationId, duration) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+      if (!email || !notificationId || !duration) {
+        return { success: false, message: 'email, notificationId and duration are required' };
+      }
+
+      const intervalExpr = SNOOZE_INTERVALS[duration];
+      if (!intervalExpr) {
+        return {
+          success: false,
+          message: `Invalid duration: ${duration}. Use 1h, 4h, or tomorrow.`,
+        };
+      }
+
+      // For simple intervals, use now() + interval; for 'tomorrow', use the
+      // date_trunc expression from SNOOZE_INTERVALS.
+      const snoozeExpr =
+        duration === 'tomorrow' ? intervalExpr : `now() + interval '${intervalExpr}'`;
+
+      const { rowCount } = await pool.query(
+        `UPDATE public.notifications
+            SET snoozed_until = ${snoozeExpr}, read = true
+          WHERE id = $1 AND user_email = $2 AND dismissed = false`,
+        [notificationId, email]
+      );
+
+      if (rowCount === 0) {
+        return { success: false, message: 'Notification not found' };
+      }
+      return { success: true, message: `Snoozed for ${duration}` };
+    } catch (err) {
+      console.error('[snooze] FAILED:', err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  /**
+   * Dismiss a notification — soft-deletes it from all feeds. The row stays
+   * in the table until the 30-day prune window cleans it up.
+   */
+  async dismiss(email, notificationId) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+      if (!email || !notificationId) {
+        return { success: false, message: 'email and notificationId are required' };
+      }
+
+      const { rowCount } = await pool.query(
+        `UPDATE public.notifications
+            SET dismissed = true, read = true
+          WHERE id = $1 AND user_email = $2`,
+        [notificationId, email]
+      );
+
+      if (rowCount === 0) {
+        return { success: false, message: 'Notification not found' };
+      }
+      return { success: true, message: 'Notification dismissed' };
+    } catch (err) {
+      console.error('[dismiss] FAILED:', err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  /**
+   * Single transactional email via the Brevo HTTP API.
+   * Rich HTML template with entry card, project badge, and deep-link button.
    * Returns true only when Brevo accepted the message.
    */
   async _sendBrevoEmail(apiKey, senderEmail, row) {
@@ -267,23 +372,35 @@ export class Notifications {
     const title = row.entry_title || `${row.project_name || 'An'} entry`;
     const dueLabel = formatDueAt(row.due_at);
     const subject = isOverdue ? `Overdue: ${title}` : `Due soon: ${title}`;
-    const heading = isOverdue ? 'You missed a deadline' : 'A deadline is approaching';
-    const bodyText = isOverdue
-      ? `"${title}" was due ${dueLabel || 'recently'} and is still open.`
-      : `"${title}" is due ${dueLabel || 'within the next 24 hours'}.`;
+    const accentColor = isOverdue ? '#dc2626' : '#d97706';
+    const accentBg = isOverdue ? '#fef2f2' : '#fffbeb';
+    const heading = isOverdue ? 'Deadline passed' : 'Deadline approaching';
+    const statusLabel = isOverdue ? 'OVERDUE' : 'DUE SOON';
+    const deepLink = row.project_name
+      ? `${APP_URL}/project/${encodeURIComponent(row.project_name)}`
+      : APP_URL;
 
     const html = `
-      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #1f2933; margin: 0 0 12px;">Digital Logbook</h2>
-        <p style="color: #1f2933; font-size: 16px; margin: 0 0 8px;">${heading}</p>
-        <p style="color: #4b5563; font-size: 14px; line-height: 1.5; margin: 0 0 16px;">
-          ${escapeHtml(bodyText)}
-          ${row.project_name ? `<br/>Project: <strong>${escapeHtml(row.project_name)}</strong>` : ''}
-        </p>
-        <p style="color: #6b7280; font-size: 12px; margin: 0;">
-          You're receiving this because email notifications are enabled in your
-          Digital Logbook settings. Open the app to view or manage this entry.
-        </p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f9fafb; padding: 32px 24px;">
+        <div style="background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+          <div style="background: ${accentColor}; padding: 16px 24px;">
+            <span style="color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">${statusLabel}</span>
+          </div>
+          <div style="padding: 24px;">
+            <h2 style="color: #111827; font-size: 18px; margin: 0 0 8px; font-weight: 600;">${escapeHtml(heading)}</h2>
+            <div style="background: ${accentBg}; border-radius: 8px; padding: 16px; margin: 0 0 16px;">
+              <p style="color: #111827; font-size: 15px; margin: 0 0 4px; font-weight: 500;">${escapeHtml(title)}</p>
+              ${row.project_name ? `<p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Project: ${escapeHtml(row.project_name)}</p>` : ''}
+              ${dueLabel ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Due: ${escapeHtml(dueLabel)}</p>` : ''}
+            </div>
+            <a href="${escapeHtml(deepLink)}" style="display: inline-block; background: #111827; color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open in Digital Logbook</a>
+          </div>
+          <div style="padding: 12px 24px; border-top: 1px solid #f3f4f6;">
+            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
+              You're receiving this because email notifications are enabled in your Digital Logbook settings.
+            </p>
+          </div>
+        </div>
       </div>`;
 
     try {
