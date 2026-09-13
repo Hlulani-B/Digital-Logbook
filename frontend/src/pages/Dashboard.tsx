@@ -165,10 +165,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   );
 
+  // Remembers the last entries-feed mode (cards/checklist/board) so the
+  // Projects button can behave as a toggle: click to show projects, click
+  // again to return to whatever feed view the user was on.
+  const lastFeedModeRef = useRef<'cards' | 'checklist' | 'board'>('cards');
+
   useEffect(() => {
     // Don't persist the transient 'projects' view — persisting it would make
     // the Projects grid the default on next load instead of the entries feed.
     if (displayMode !== 'projects') {
+      lastFeedModeRef.current = displayMode;
       localStorage.setItem('dashboard-display-mode', displayMode);
     }
   }, [displayMode]);
@@ -1698,7 +1704,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <div className="feed-view-toggle">
                 <button
                   className={`feed-view-btn ${displayMode === 'projects' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('projects')}
+                  onClick={() =>
+                    setDisplayMode((m) =>
+                      m === 'projects' ? lastFeedModeRef.current : 'projects'
+                    )
+                  }
                 >
                   Projects
                 </button>
