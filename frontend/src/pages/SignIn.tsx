@@ -5,7 +5,6 @@ import { checkUser } from '../functions/profile/login.js';
 import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '@/lib/supabase';
 import { validateEmailForAuth, suggestEmailCorrection } from '@/lib/validation';
-import { useTheme } from '@/hooks/useTheme';
 import './signin-sections.css';
 
 type Provider = 'google' | 'github';
@@ -313,7 +312,6 @@ export function SignIn() {
   const [success, setSuccess] = useState<string | null>(null);
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const { signInWithGoogle, signInWithGitHub, signInWithEmail, signUpWithEmail } = useAuth();
-  const { isDark } = useTheme();
 
   // Live password requirements for sign-up — shown before submit so users
   // know what is expected instead of discovering it from an error popup.
@@ -608,7 +606,12 @@ export function SignIn() {
   };
 
   return (
-    <>
+    <div className="signin-page">
+      <nav className="signin-topnav" aria-label="Page sections">
+        <a href="#ss-about">About</a>
+        <a href="#ss-about-us">About Us</a>
+        <a href="#ss-features">Features</a>
+      </nav>
       <div className="split-auth">
         {/* Left panel — video showcase */}
         <div className="split-left">
@@ -638,11 +641,6 @@ export function SignIn() {
             <img src="/notebook.jpeg" alt="Digital Logbook" className="split-caption-img" />
             <h2>Digital Logbook</h2>
             <p>Track your time, own your progress</p>
-            <nav className="split-caption-links" aria-label="Page sections">
-              <a href="#ss-about">About</a>
-              <a href="#ss-about-us">About Us</a>
-              <a href="#ss-features">Features</a>
-            </nav>
           </div>
         </div>
 
@@ -742,13 +740,7 @@ export function SignIn() {
                               alignItems: 'center',
                               gap: '0.375rem',
                               fontSize: '0.75rem',
-                              color: req.met
-                                ? isDark
-                                  ? '#4ade80'
-                                  : '#16a34a'
-                                : isDark
-                                  ? '#f87171'
-                                  : '#dc2626',
+                              color: req.met ? '#16a34a' : '#dc2626',
                               transition: 'color 0.2s',
                             }}
                           >
@@ -805,13 +797,7 @@ export function SignIn() {
                             gap: '0.375rem',
                             margin: '0.5rem 0 0',
                             fontSize: '0.75rem',
-                            color: passwordsMatch
-                              ? isDark
-                                ? '#4ade80'
-                                : '#16a34a'
-                              : isDark
-                                ? '#f87171'
-                                : '#dc2626',
+                            color: passwordsMatch ? '#16a34a' : '#dc2626',
                             transition: 'color 0.2s',
                           }}
                         >
@@ -940,6 +926,6 @@ export function SignIn() {
         </div>
       </div>
       <LandingSections />
-    </>
+    </div>
   );
 }

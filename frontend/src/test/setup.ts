@@ -14,3 +14,15 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// jsdom has no IntersectionObserver; stub it so the sign-in landing sections'
+// scroll-reveal effect can mount in tests. Never fires — a no-op observer is
+// enough, since tests assert content, not reveal animation.
+Object.defineProperty(window, 'IntersectionObserver', {
+  writable: true,
+  value: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+});
