@@ -70,31 +70,37 @@ nav:
   - Getting Started: getting-started.md
   - Features: features.md
   - Architecture:
-      - Overview: architecture/overview.md
-      - Database Schema: architecture/database.md
-      - CI/CD & Deployment: architecture/cicd-deployment.md
-      - API Contracts: architecture/api-contracts.md
-      - System Design: architecture/system-design.md
-      - Tech Stack: architecture/teck-stack.md
-      - UI Design: architecture/ui-design.md
-      - Voice Recording: architecture/voice-feature.md
-      - IndexedDB Caching: architecture/caching.md
-      - SSE Real-Time Updates: architecture/sse.md
-      - Keep-Alive Daemons: architecture/daemon.md
-      - Entry Summaries: architecture/entry-summaries.md
-      - UML Architecture Diagrams: architecture/uml-diagrams.md
-      - Third-Party Dependencies: architecture/third-party.md
+      - Overview: Architecture/overview.md
+      - Database Schema: Architecture/database.md
+      - CI/CD & Deployment: Architecture/cicd-deployment.md
+      - API Contracts: Architecture/api-contracts.md
+      - System Design: Architecture/system-design.md
+      - Tech Stack: Architecture/teck-stack.md
+      - UI Design: Architecture/ui-design.md
+      - Voice Recording: Architecture/voice-feature.md
+      - IndexedDB Caching: Architecture/caching.md
+      - SSE Real-Time Updates: Architecture/sse.md
+      - Keep-Alive Daemons: Architecture/daemon.md
+      - Entry Summaries: Architecture/entry-summaries.md
+      - UML Architecture Diagrams: Architecture/uml-diagrams.md
+      - Third-Party Dependencies: Architecture/third-party.md
   - Roadmap: roadmap.md
-  - Development:
-      - Development Log: development/log.md
-      - Methodology & Git Workflow: development/methodology.md
-      - Meeting Log: development/meetings.md
-      - Sprint 1 User Stories: development/user-stories.md
-      - Sprint 2 User Stories: development/sprint-2-user-stories.md
-      - Work Tracker: development/work-tracker.md
-      - Stakeholder Interaction: development/stakeholder-interaction.md
-      - Open Questions & Decisions: development/decisions.md
-      - Issues & Troubleshooting: development/issues.md
-      - Code Quality Tools: development/code-quality.md
-      - Testing & User Feedback: development/testing.md
-      - AI Attribution: development/ai-attribution.md
+  - Meetings:
+      - Sprint 1: Meetings/sprint-one-meetings.md
+      - Sprint 2: Meetings/sprint-two-meetings.md
+  - Stakeholder Interactions:
+      - Sprint 1: Stakeholder_Interactions/sprint-one.md
+      - Sprint 2: Stakeholder_Interactions/sprint-two.md
+  - User Stories:
+      - Sprint 1: User_Stories/sprint-one.md
+      - Sprint 2: User_Stories/sprint-two.md
+  - Project Management:
+      - Development Log: Project_Management/log.md
+      - Methodology & Git Workflow: Project_Management/methodology.md
+      - Work Tracker: Project_Management/work-tracker.md
+      - Open Questions & Decisions: Project_Management/decisions.md
+      - Issues & Troubleshooting: Project_Management/issues.md
+      - AI Attribution: Project_Management/ai-attribution.md
+  - Testing:
+      - Code Quality Tools: Testing/code-quality.md
+      - Testing & User Feedback: Testing/testing.md

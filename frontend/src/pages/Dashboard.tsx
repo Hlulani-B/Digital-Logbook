@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
+import { NotificationsBell } from '@/components/NotificationsBell';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
@@ -12,14 +13,13 @@ import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor, colorForName } from '@/lib/projectColorMap';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
-import { type EntryPayload } from '@/lib/entryPayload';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
@@ -43,23 +43,53 @@ import {
   addMonths,
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
+import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import {
+  getRecentlyCreated,
+  trackCreatedEntry,
+  type RecentlyCreatedEntry,
+} from '@/lib/recentlyCreated';
+import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
 
 /** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
     if (typeof parsed === 'string') return parsed;
+    if (Array.isArray(parsed)) {
+      if (parsed.length > 0) {
+        const first = parsed[0];
+        if (typeof first === 'string') return first;
+        if (typeof first === 'object' && first !== null) {
+          const inner = parseAIResponse(JSON.stringify(first));
+          if (inner) return inner;
+        }
+      }
+      return '';
+    }
     if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
-        if (typeof parsed[key] === 'string') return parsed[key];
+      for (const key of [
+        'placeholder',
+        'message',
+        'instruction',
+        'response',
+        'text',
+        'content',
+        'reply',
+      ]) {
+        if (typeof parsed[key] === 'string' && parsed[key].trim()) return parsed[key];
       }
       for (const val of Object.values(parsed)) {
-        if (typeof val === 'string') return val;
+        if (typeof val === 'string' && val.trim()) return val;
+        if (typeof val === 'object' && val !== null) {
+          const nested = parseAIResponse(JSON.stringify(val));
+          if (nested) return nested;
+        }
       }
     }
-    return response;
+    return '';
   } catch {
-    return response;
+    return typeof response === 'string' ? response : String(response);
   }
 }
 
@@ -68,8 +98,9 @@ type Project = Record<string, unknown>;
 
 type ProjectFieldDraft = {
   field_name: string;
-  data_type: 'text' | 'number' | 'date' | 'boolean';
+  data_type: 'text' | 'number' | 'date' | 'boolean' | 'custom';
   is_required: boolean;
+  custom_options?: string[];
 };
 
 type DashboardProps = {
@@ -83,10 +114,30 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'preferences' | 'account'>('profile');
+  // One-time guided-tour offer for new users (see lib/tour.ts)
+  const [showTourOffer, setShowTourOffer] = useState<boolean>(() => shouldOfferTour());
+
+  useEffect(() => {
+    if (showTourOffer) markTourOffered();
+  }, [showTourOffer]);
   const navigate = useNavigate();
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // The guided tour (lib/tour.ts) asks the shell to open/close the drawer so
+  // its steps can anchor to drawer items. Dashboard renders its own inline
+  // nav (not the shared NavBar), so it needs its own listeners.
+  useEffect(() => {
+    const open = () => setDrawerOpen(true);
+    const close = () => setDrawerOpen(false);
+    window.addEventListener('dl-tour-open-drawer', open);
+    window.addEventListener('dl-tour-close-drawer', close);
+    return () => {
+      window.removeEventListener('dl-tour-open-drawer', open);
+      window.removeEventListener('dl-tour-close-drawer', close);
+    };
+  }, []);
   const [activeView, setActiveView] = useState<'all' | 'recent' | 'drafts' | 'archives' | string>(
     defaultView
   );
@@ -102,16 +153,29 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     localStorage.setItem('dashboard-sort-by', sortBy);
   }, [sortBy]);
 
-  // Display mode: cards, checklist, or board - persist in localStorage
+  // Display mode for the entries feed (cards/checklist/board) - persisted in localStorage
   const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>(() => {
     const saved = localStorage.getItem('dashboard-display-mode');
     if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
     return 'cards';
   });
 
+  // Projects live in a slide-over drawer rather than replacing the entries feed.
+  const [projectsDrawerOpen, setProjectsDrawerOpen] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('dashboard-display-mode', displayMode);
   }, [displayMode]);
+
+  // Allow closing the projects drawer with the Escape key.
+  useEffect(() => {
+    if (!projectsDrawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setProjectsDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [projectsDrawerOpen]);
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -148,6 +212,79 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
+  // Recently viewed and created entries
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedEntry[]>(() =>
+    getRecentlyViewed()
+  );
+  const [recentlyCreated, setRecentlyCreated] = useState<RecentlyCreatedEntry[]>(() =>
+    getRecentlyCreated()
+  );
+
+  // Listen for changes to recently viewed/created (from other components)
+  useEffect(() => {
+    const handleViewedChange = () => setRecentlyViewed(getRecentlyViewed());
+    const handleCreatedChange = () => setRecentlyCreated(getRecentlyCreated());
+    window.addEventListener('recentlyViewedChanged', handleViewedChange);
+    window.addEventListener('recentlyCreatedChanged', handleCreatedChange);
+    return () => {
+      window.removeEventListener('recentlyViewedChanged', handleViewedChange);
+      window.removeEventListener('recentlyCreatedChanged', handleCreatedChange);
+    };
+  }, []);
+
+  // A recently viewed/created shortcut is only useful if the thing it points
+  // at still exists. If the user deletes or archives a project or a task, the
+  // matching quick-jump line must disappear rather than navigate to a dead
+  // target. We decide this against the live cache (source of truth) instead of
+  // hooking every delete/archive call site, so it also catches project→entry
+  // archive cascades, cross-page deletes and offline-queue replays for free.
+  const isRecentItemLive = useCallback(
+    (item: { projectName: string; entryId: string; createdAt?: string; viewedAt?: string }) => {
+      // Grace period: items created/viewed within the last 60 seconds are always
+      // considered live. This avoids a race where trackCreatedEntry fires
+      // before loadData() has updated the projects/entries state.
+      const ts = item.createdAt || item.viewedAt;
+      if (ts) {
+        const age = Date.now() - new Date(ts).getTime();
+        if (age < 60_000) return true;
+      }
+
+      // Don't evaluate until projects have actually loaded — a momentary empty
+      // cache during first paint would otherwise blank both lists.
+      if (projects.length === 0 && loading) return true;
+
+      // Owning project must exist and not be archived. This single check kills
+      // every shortcut under a deleted or archived project (both sections).
+      const projectActive = projects.some(
+        (p) => p.project_name === item.projectName && !p.archived
+      );
+      if (!projectActive) return false;
+
+      // For real tasks, also verify the specific task still exists and isn't
+      // archived. getAllEntries returns rows with deleted=false, so a deleted
+      // task is absent and an archived task carries archived=true. Synthetic
+      // ids (optimistic-/local-/project:) can't be resolved, so skip the entry
+      // check for those — the project-active check above already passed.
+      const isSyntheticId = /^(project:|optimistic-|local-)/.test(item.entryId);
+      if (!isSyntheticId && entries.length > 0) {
+        const match = entries.find((e) => String(e.id) === String(item.entryId));
+        if (!match) return false; // deleted
+        if (match.archived) return false; // archived
+      }
+      return true;
+    },
+    [projects, entries, loading]
+  );
+
+  const visibleRecentlyViewed = useMemo(
+    () => recentlyViewed.filter(isRecentItemLive),
+    [recentlyViewed, isRecentItemLive]
+  );
+  const visibleRecentlyCreated = useMemo(
+    () => recentlyCreated.filter(isRecentItemLive),
+    [recentlyCreated, isRecentItemLive]
+  );
+
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
   const [showGreetingToast, setShowGreetingToast] = useState(false);
@@ -183,8 +320,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [, setAiEmptyMessage] = useState('No entries to show right now.');
-  const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
+  const [, setAiEmptyMessage] = useState('No items to show right now.');
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -203,23 +339,52 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
+  // Sequence counter guarding loadData against concurrent invocations.
+  // Multiple callers fire this function near-simultaneously (mount effect,
+  // three cacheSubscribe listeners, SSE onEntry, visibilitychange). Without
+  // a guard, a call that started earlier can finish LATER than a newer call
+  // and clobber fresh state with a stale snapshot. Only the newest call
+  // (highest seq) is allowed to commit state.
+  const loadSeq = useRef(0);
+
   // Load data — local-first: read ONLY from IndexedDB
   // Initial sync on login populates IndexedDB. Mutations update it directly.
   // No server calls here — SSE handles real-time updates from backend.
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
+    console.log('[Dashboard] loadData START, email=', email, 'seq=', seq);
     try {
+      console.log('[Dashboard] Reading cache...', { seq });
       const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
         cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
+      // A newer loadData call has started since our await — bail without
+      // touching state so the fresher call wins cleanly.
+      if (seq !== loadSeq.current) {
+        console.log('[Dashboard] Stale loadData after cache read, skipping commit', {
+          seq,
+          latest: loadSeq.current,
+        });
+        return;
+      }
+      console.log(
+        '[Dashboard] Cache read done. entries:',
+        !!cachedEntries?.data,
+        'projects:',
+        !!(cachedProjects?.data || cachedProjects?.projects),
+        'dueSoon:',
+        !!cachedDueSoon?.data
+      );
       const hasCache =
         cachedEntries?.data ||
         cachedProjects?.data ||
         cachedProjects?.projects ||
         cachedDueSoon?.data;
       if (hasCache) {
+        console.log('[Dashboard] Using cached data');
         if (cachedEntries?.data)
           setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
         if (cachedProjects?.data || cachedProjects?.projects) {
@@ -241,13 +406,30 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         if (cachedDueSoon?.data)
           setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
       } else {
+        console.log('[Dashboard] NO CACHE — calling syncAllData...');
         // First visit ever — trigger initial sync, then re-read
+        // But if offline, syncAllData can't fetch from server — skip and show empty state
+        if (!navigator.onLine) {
+          console.log('[Dashboard] No cache and offline — nothing to load yet');
+          return;
+        }
+        console.log('[Dashboard] syncAllData starting...');
         await syncAllData(email);
+        console.log('[Dashboard] syncAllData done, re-reading cache...');
         const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
           cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
+        // Second bail-out point: syncAllData + the re-read are long-running,
+        // plenty of time for a subscriber-triggered reload to overtake us.
+        if (seq !== loadSeq.current) {
+          console.log('[Dashboard] Stale loadData after syncAllData, skipping commit', {
+            seq,
+            latest: loadSeq.current,
+          });
+          return;
+        }
         if (freshEntries?.data)
           setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data || freshProjects?.projects) {
@@ -272,7 +454,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
     } finally {
-      setLoading(false);
+      // Only the newest call is allowed to flip the loading flag off; a
+      // stale call finishing late would otherwise clear a spinner that a
+      // fresher call still needs.
+      if (seq === loadSeq.current) {
+        console.log('[Dashboard] loadData FINALLY — setting loading=false', { seq });
+        setLoading(false);
+      } else {
+        console.log('[Dashboard] Stale loadData in finally, leaving loading flag alone', {
+          seq,
+          latest: loadSeq.current,
+        });
+      }
     }
   }, [email]);
 
@@ -289,10 +482,35 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     loadData();
   }, [loadData]);
 
+  // Subscribe to IndexedDB cache changes — when syncAllData finishes writing
+  // data on first login, this triggers a re-load so data appears without refresh.
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ENTRIES, `${email}:due-soon`, () => loadData()),
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [email, loadData]);
+
+  // Re-read from IndexedDB when the tab/page becomes visible again.
+  // This catches the case where the user creates a project on another page
+  // (e.g. Projects page) and navigates back to the Dashboard.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [loadData]);
+
   // Load archived entries when archives view is active
   useEffect(() => {
     if (activeView !== 'archives' || !email) return;
-    (async () => {
+    const loadArchives = async () => {
       try {
         const result = await getArchives(email, null);
         if (result?.success !== false) {
@@ -301,7 +519,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       } catch (err) {
         console.error('Failed to load archived entries:', err);
       }
-    })();
+    };
+    loadArchives();
+    // Re-read when archives cache changes (e.g., after archive/unarchive actions)
+    const unsub = cacheSubscribe(CACHE_STORES.ARCHIVES, `${email}:all`, () => loadArchives());
+    return () => unsub();
   }, [activeView, email]);
 
   // AI-generated greeting ΓÇö shown as a toast (respects AI messages preference)
@@ -338,17 +560,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   }, [showGreetingToast]);
 
-  // Rotating AI placeholder for quick entry
-  useEffect(() => {
-    const placeholders = [
-      'What are you working on?',
-      'What did you just finish?',
-      'Working on anything exciting?',
-      "What's your current task?",
-      'Tell me about your progress...',
-    ];
-    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
-  }, []);
+  // Simple, static placeholder for quick entry (no AI)
+  const aiPlaceholder = 'Write what you worked on...';
 
   // Close drawer on escape
   useEffect(() => {
@@ -374,10 +587,17 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Project colour map — computed once per projects change
+  const dashColorMap = useMemo(
+    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
+    [projects]
+  );
+
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
-    // Use all entries (unarchived)
-    let filtered = [...entries];
+    // Use all entries (unarchived) — ALL_ENTRIES also holds archived rows, so
+    // drop them here; the Archives view sources its list from getArchives.
+    let filtered = entries.filter((e) => !e.archived);
 
     if (activeView === 'recent') {
       const weekAgo = new Date();
@@ -389,12 +609,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
     // Always apply "due soon" filter: only entries with due_date within 3 days
     const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const threeDaysFromNow = new Date(startOfToday.getTime() + 3 * 24 * 60 * 60 * 1000);
     filtered = filtered.filter((e) => {
       if (!e.due_date) return false;
       const due = new Date(e.due_date as string);
       if (isNaN(due.getTime())) return false;
-      return due >= now && due <= threeDaysFromNow;
+      return due >= startOfToday && due <= threeDaysFromNow;
     });
 
     return filtered;
@@ -424,7 +645,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+          `Generate a motivating message for when there are no items to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -453,29 +674,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
-  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  // Load avatar and username from IndexedDB cache (populated by syncAllData on login)
   useEffect(() => {
     if (!email) return;
-    let cancelled = false;
-    (async () => {
+    const loadProfile = async () => {
       try {
-        const result = await getProfile(email);
-        const profileData = result?.data || result;
+        const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+        const profileData = cached?.data || cached?.profile || cached;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
         const username = (profileData as Record<string, unknown>)?.username as string;
-        if (!cancelled) {
-          if (avatar) {
-            setProfileAvatar(avatar);
-          }
-          if (username) {
-            setProfileUsername(username);
-          }
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
+        if (avatar) setProfileAvatar(avatar);
+        if (username) setProfileUsername(username);
+      } catch (err) {
+        console.error('[Dashboard] Failed to load profile from cache:', err);
+      }
     };
+    loadProfile();
+    // Re-read when syncAllData or mutations write the profile to IndexedDB
+    const unsub = cacheSubscribe(CACHE_STORES.PROFILE, email, () => loadProfile());
+    return () => unsub();
   }, [email]);
 
   const handleLogout = async () => {
@@ -517,7 +734,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const addProjectField = () => {
     setProjectFields((prev) => [
       ...prev,
-      { field_name: '', data_type: 'text', is_required: false },
+      { field_name: '', data_type: 'text', is_required: false, custom_options: [] },
     ]);
   };
 
@@ -533,6 +750,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     });
   };
 
+  const addCustomOption = (index: number, option: string) => {
+    setProjectFields((prev) => {
+      const next = [...prev];
+      const opts = next[index].custom_options || [];
+      if (option.trim() && !opts.includes(option.trim())) {
+        next[index] = { ...next[index], custom_options: [...opts, option.trim()] };
+      }
+      return next;
+    });
+  };
+
+  const removeCustomOption = (index: number, option: string) => {
+    setProjectFields((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        custom_options: (next[index].custom_options || []).filter((o) => o !== option),
+      };
+      return next;
+    });
+  };
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
 
@@ -544,9 +783,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
       if (duplicates.length > 0) {
         const uniqueDuplicates = [...new Set(duplicates)];
-        setNewProjectError(`Duplicate field names found: ${uniqueDuplicates.join(', ')}`);
+        setNewProjectError(`Duplicate column names found: ${uniqueDuplicates.join(', ')}`);
         return;
       }
+    }
+
+    // Validate custom fields have at least one option
+    const emptyCustomFields = nonEmptyFields.filter(
+      (f) => f.data_type === 'custom' && (!f.custom_options || f.custom_options.length === 0)
+    );
+    if (emptyCustomFields.length > 0) {
+      setNewProjectError('Custom fields must have at least one option');
+      return;
     }
 
     setCreatingProject(true);
@@ -556,18 +804,36 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const projectName = newProjectName.trim();
       await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
+      // Immediately add the project to local state so the entry picker sees it
+      setProjects((prev) => {
+        if (prev.some((p) => p.project_name === projectName)) return prev;
+        return [
+          ...prev,
+          {
+            project_name: projectName,
+            description: newProjectDescription.trim() || '',
+            archived: false,
+            created_at: new Date().toISOString(),
+          },
+        ];
+      });
+
       // Save any non-empty project fields (best-effort after project is created)
       if (nonEmptyFields.length > 0) {
         const results = await Promise.allSettled(
-          nonEmptyFields.map((f) =>
-            addField(email, projectName, f.field_name.trim(), f.data_type, f.is_required)
-          )
+          nonEmptyFields.map((f) => {
+            const dataType =
+              f.data_type === 'custom'
+                ? `custom:${(f.custom_options || []).join(',')}`
+                : f.data_type;
+            return addField(email, projectName, f.field_name.trim(), dataType, f.is_required);
+          })
         );
         const failures = results
           .map((r, i) => (r.status === 'rejected' ? nonEmptyFields[i].field_name : null))
           .filter((name): name is string => Boolean(name));
         if (failures.length > 0) {
-          window.alert(
+          setNewProjectError(
             `Project created, but these fields could not be saved: ${failures.join(', ')}`
           );
         }
@@ -575,7 +841,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       setNewProjectOpen(false);
       resetProjectForm();
+      trackCreatedEntry({
+        entryId: `project:${projectName}`,
+        projectName,
+        title: `Project: ${projectName}`,
+      });
       await loadData();
+
+      // Navigate to the newly created project's page
+      navigate(`/project/${encodeURIComponent(projectName)}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create project';
       console.error('Failed to create project:', err);
@@ -663,6 +937,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   };
 
+  // True when the feed is showing a single project (not a meta view)
+  const isProjectView =
+    activeView !== 'all' &&
+    activeView !== 'recent' &&
+    activeView !== 'drafts' &&
+    activeView !== 'archives' &&
+    activeView !== 'activity';
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
@@ -673,6 +955,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className="nav-left-group">
             <button
               className="nav-hamburger"
+              data-tour="menu"
               onClick={() => setDrawerOpen(!drawerOpen)}
               aria-label="Toggle menu"
             >
@@ -717,7 +1000,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
 
           <div className="nav-right-group">
-            <div className="nav-user">
+            <button
+              type="button"
+              className="nav-tour-btn"
+              data-tour="nav-guide"
+              onClick={() => startAppTour()}
+              aria-label="Start the guided tour"
+              title="Take the tour"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span className="nav-tour-label">Guide</span>
+            </button>
+            <div data-tour="nav-bell">
+              <NotificationsBell email={email} />
+            </div>
+            <div className="nav-user" data-tour="nav-profile">
               <ProfileMenu
                 displayName={preferredName}
                 email={user?.email || ''}
@@ -758,6 +1068,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <p className="drawer-section-title">Views</p>
           <button
             className={`drawer-item ${activeView === 'all' ? 'active' : ''}`}
+            data-tour="drawer-home"
             onClick={() => {
               navigate('/dashboard/all');
               setDrawerOpen(false);
@@ -797,7 +1108,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Entries
+            All Items
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -820,47 +1131,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
-            onClick={() => {
-              navigate('/stats');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            My Stats
-          </button>
-          <button
-            className={`drawer-item ${activeView === 'activity' ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/dashboard/activity');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Activity Log
-          </button>
-          <button
-            className="drawer-item"
+            data-tour="drawer-calendar"
             onClick={() => {
               navigate('/calendar');
               setDrawerOpen(false);
@@ -883,6 +1154,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-kanban"
             onClick={() => {
               navigate('/kanban');
               setDrawerOpen(false);
@@ -905,6 +1177,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-today"
             onClick={() => {
               navigate('/today');
               setDrawerOpen(false);
@@ -925,10 +1198,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-timeline"
             onClick={() => {
               navigate('/timeline');
               setDrawerOpen(false);
             }}
+            title="See a chronological timeline of all your items across projects"
           >
             <svg
               width="16"
@@ -946,10 +1221,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
+            data-tour="drawer-import-export"
             onClick={() => {
               navigate('/data-portability');
               setDrawerOpen(false);
             }}
+            title="Export all your data or import from a backup"
           >
             <svg
               width="16"
@@ -965,16 +1242,83 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </svg>
             Import & Export
           </button>
+          <button
+            className="drawer-item"
+            onClick={() => {
+              navigate('/data-disclaimer-info');
+              setDrawerOpen(false);
+            }}
+            title="Learn how your data is stored and how AI is used"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Disclaimer
+          </button>
+          <button
+            className="drawer-item"
+            data-tour="drawer-stats"
+            onClick={() => {
+              navigate('/stats');
+              setDrawerOpen(false);
+            }}
+            title="View statistics and insights about your items"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            My Stats
+          </button>
+          <button
+            className={`drawer-item ${activeView === 'activity' ? 'active' : ''}`}
+            onClick={() => {
+              navigate('/dashboard/activity');
+              setDrawerOpen(false);
+            }}
+            title="See a feed of recent activity across all projects"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Activity Log
+          </button>
         </div>
 
         <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title">Projects</p>
+          <p className="drawer-section-title" data-tour="drawer-projects">
+            Projects
+          </p>
           <div className="drawer-project-list">
             {projects
               .filter((p) => !p.archived)
               .map((project) => {
                 const name = project.project_name as string;
                 const count = entries.filter((e) => e.project_name === name).length;
+                const projColor = (project.project_color as string) || colorForName(name);
                 return (
                   <div
                     key={name}
@@ -1002,16 +1346,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         cursor: 'pointer',
                       }}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          background: projColor,
+                          flexShrink: 0,
+                        }}
+                      />
                       {name}
                       <span className="drawer-badge">{count}</span>
                     </button>
@@ -1047,10 +1391,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         <div className="drawer-footer">
           <button
             className="btn-primary drawer-new-btn"
+            data-tour="drawer-new-project"
             onClick={() => {
               setNewProjectOpen(true);
               setDrawerOpen(false);
             }}
+            title="Create a new project to organize your items"
           >
             <svg
               width="16"
@@ -1072,6 +1418,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               setDrawerOpen(false);
             }}
             style={{ marginTop: '0.5rem', width: '100%' }}
+            title="View and manage all your projects"
           >
             Manage Projects
           </button>
@@ -1080,6 +1427,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* One-time guided-tour offer for new users */}
+        {showTourOffer && (
+          <div className="tour-offer" role="status">
+            <p className="tour-offer-text">
+              <strong>New here?</strong> Take the two-minute tour to learn your way around.
+            </p>
+            <div className="tour-offer-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setShowTourOffer(false);
+                  startAppTour();
+                }}
+              >
+                Start tour
+              </button>
+              <button
+                type="button"
+                className="tour-offer-dismiss"
+                onClick={() => setShowTourOffer(false)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* AI Greeting Toast */}
         {showGreetingToast && aiGreeting && (
           <div className="ai-toast animate-in">
@@ -1161,7 +1536,32 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   </div>
                 )}
             </div>
-            <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Stats dashboard shortcut — shown only on a project view */}
+              {isProjectView && (
+                <button
+                  className="feed-stats-btn"
+                  onClick={() => navigate(`/stats?project=${encodeURIComponent(activeView)}`)}
+                  aria-label="Open stats dashboard"
+                  title="Open the stats dashboard for this project"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                  </svg>
+                  Stats Dashboard
+                </button>
+              )}
+              <Stats entries={entries} projects={projects} dueSoonCount={dueSoonRows.length} />
+            </div>
           </div>
         </div>
 
@@ -1287,6 +1687,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       setArchivedEntries((prev) => prev.filter((e) => e.id !== entryId));
                     }
                   }}
+                  projectColor={resolveProjectColor(
+                    (row.project_name as string) || '',
+                    dashColorMap
+                  )}
                 />
               ))
             )}
@@ -1297,23 +1701,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             <div className="feed-controls-row">
               <div className="feed-view-toggle">
                 <button
-                  className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('cards')}
+                  className={`feed-view-btn ${projectsDrawerOpen ? 'active' : ''}`}
+                  onClick={() => setProjectsDrawerOpen(true)}
                 >
-                  Cards
+                  Projects
                 </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('checklist')}
-                >
-                  Checklist
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('board')}
-                >
-                  Board
-                </button>
+              </div>
+              <div className="feed-view-group">
+                <span className="feed-view-label">View:</span>
+                <div className="feed-view-toggle">
+                  <button
+                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('checklist')}
+                  >
+                    Checklist
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('board')}
+                  >
+                    Board
+                  </button>
+                </div>
               </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>
@@ -1358,13 +1773,102 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </div>
 
             {/* Quick Entry Bar - Natural Language */}
-            <QuickEntryBar
-              onEntryCreated={() => {
-                loadData();
-              }}
-              onVoiceOpen={() => setVoiceOpen(true)}
-              placeholder={aiPlaceholder}
-            />
+            <div data-tour="quick-entry">
+              <QuickEntryBar
+                onEntryCreated={(info) => {
+                  loadData();
+                  // Populate "Recently created" with every entry the backend
+                  // actually created (single-match OR multi-match).
+                  for (const item of info?.created ?? []) {
+                    trackCreatedEntry(item);
+                  }
+                  // Only navigate when there's exactly one clear target —
+                  // for multi-match we intentionally stop here and let the
+                  // "Recently created" section drive navigation.
+                  if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+                    navigate(`/project/${encodeURIComponent(info.projectName)}`);
+                  }
+                }}
+                onVoiceOpen={() => setVoiceOpen(true)}
+                placeholder={aiPlaceholder}
+              />
+            </div>
+
+            {/* Recently Viewed Section */}
+            {visibleRecentlyViewed.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Recently viewed</span>
+                </div>
+                <div className="recent-list">
+                  {visibleRecentlyViewed.slice(0, 3).map((item) => (
+                    <button
+                      key={item.entryId}
+                      className="recent-item"
+                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
+                      title={item.type === 'project' ? `View project: ${item.title}` : item.title}
+                    >
+                      <span className="recent-item-title">
+                        {item.type === 'project' && (
+                          <span className="recent-item-badge">Project</span>
+                        )}
+                        {item.title}
+                      </span>
+                      {item.type === 'entry' && (
+                        <span className="recent-item-project">{item.projectName}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recently Created Section */}
+            {visibleRecentlyCreated.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  <span>Recently created</span>
+                </div>
+                <div className="recent-list">
+                  {visibleRecentlyCreated.slice(0, 3).map((item) => (
+                    <button
+                      key={item.entryId}
+                      className="recent-item"
+                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
+                      title={item.title}
+                    >
+                      <span className="recent-item-title">{item.title}</span>
+                      <span className="recent-item-project">{item.projectName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Due Soon Section Label */}
             <div className="due-soon-section-label">
@@ -1394,78 +1898,199 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     height: 24,
                   }}
                 />
-                <p>Loading entries...</p>
+                <p>Loading items...</p>
               </div>
             )}
 
-            {/* Entries feed ΓÇö always shown (filtered by due-soon + sort) */}
-            {!loading && (
-              <div className="entries-feed">
-                {filteredEntries.length === 0 ? (
-                  <div className="empty-state animate-in">
-                    <div className="empty-icon">
-                      <svg
-                        width="48"
-                        height="48"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <>
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </>
-                      </svg>
-                    </div>
-                    <h2 className="empty-title">Nothing due soon</h2>
-                    <p className="empty-desc">No entries are due within the next 3 days.</p>
+            {/* Projects slide-over drawer — opens over the dashboard so the
+                entries feed keeps its place instead of being replaced. */}
+            {projectsDrawerOpen && (
+              <div
+                className="projects-drawer-overlay"
+                role="presentation"
+                onClick={() => setProjectsDrawerOpen(false)}
+              >
+                <aside
+                  className="projects-drawer"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Your projects"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="projects-drawer-header">
+                    <h2 className="projects-grid-title">Your Projects</h2>
+                    <button
+                      type="button"
+                      className="projects-drawer-close"
+                      aria-label="Close projects"
+                      onClick={() => setProjectsDrawerOpen(false)}
+                    >
+                      ✕
+                    </button>
                   </div>
-                ) : displayMode === 'checklist' ? (
-                  <ChecklistView
-                    entries={filteredEntries.map((r) => ({
-                      id: r.id as string,
-                      user_email: r.user_email as string,
-                      project_name: r.project_name as string,
-                      summary: (r.summary as string) || null,
-                      due_date: (r.due_date as string) || null,
-                      status:
-                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as EntryPayload,
-                      started_at: (r.started_at as string) || null,
-                    }))}
+                  <div className="projects-drawer-body">
+                    {projects.filter((p) => !p.archived).length === 0 ? (
+                      <div className="empty-state animate-in">
+                        <div className="empty-icon">
+                          <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </div>
+                        <h2 className="empty-title">No projects yet</h2>
+                        <p className="empty-desc">Create your first project to get started.</p>
+                        <button
+                          className="btn-primary"
+                          onClick={() => {
+                            setProjectsDrawerOpen(false);
+                            setNewProjectOpen(true);
+                          }}
+                          style={{ marginTop: '1rem' }}
+                        >
+                          + New Project
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="projects-grid">
+                        {projects
+                          .filter((p) => !p.archived)
+                          .map((project) => {
+                            const name = project.project_name as string;
+                            const count = entries.filter((e) => e.project_name === name).length;
+                            const inMotionCount = entries.filter(
+                              (e) => e.project_name === name && e.status === 'in_motion'
+                            ).length;
+                            const doneCount = entries.filter(
+                              (e) => e.project_name === name && e.status === 'done_and_dusted'
+                            ).length;
+                            return (
+                              <button
+                                key={name}
+                                className="project-card"
+                                onClick={() => {
+                                  setProjectsDrawerOpen(false);
+                                  navigate(`/project/${encodeURIComponent(name)}`);
+                                }}
+                              >
+                                <div className="project-card-header">
+                                  <h3 className="project-card-name">{name}</h3>
+                                  <span className="project-card-count">{count} entries</span>
+                                </div>
+                                <div className="project-card-stats">
+                                  {inMotionCount > 0 && (
+                                    <span className="project-card-stat project-card-stat--active">
+                                      {inMotionCount} in progress
+                                    </span>
+                                  )}
+                                  {doneCount > 0 && (
+                                    <span className="project-card-stat project-card-stat--done">
+                                      {doneCount} done
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                </aside>
+              </div>
+            )}
+
+            {/* Entries feed. Each display mode gets its own wrapper: cards
+                use the multi-column .entries-feed grid, but board and
+                checklist need full-width containers or the card grid squeezes
+                them into one narrow track and they stack vertically. */}
+            {!loading && filteredEntries.length === 0 && (
+              <div className="entries-feed">
+                <div className="empty-state animate-in">
+                  <div className="empty-icon">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </>
+                    </svg>
+                  </div>
+                  <h2 className="empty-title">Nothing due soon</h2>
+                  <p className="empty-desc">No items are due within the next 3 days.</p>
+                </div>
+              </div>
+            )}
+
+            {displayMode === 'checklist' && !loading && filteredEntries.length > 0 && (
+              <div className="dashboard-checklist-grid">
+                <ChecklistView
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as Record<string, unknown> | string | null,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={dashColorMap}
+                />
+              </div>
+            )}
+
+            {displayMode === 'board' && !loading && filteredEntries.length > 0 && (
+              <div className="dashboard-board-grid">
+                <EntriesByDueDateBoard
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as Record<string, unknown> | string | null,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={dashColorMap}
+                />
+              </div>
+            )}
+
+            {displayMode === 'cards' && !loading && filteredEntries.length > 0 && (
+              <div className="entries-feed">
+                {filteredEntries.map((row, i) => (
+                  <EntryBox
+                    key={`entry-${row.id || i}`}
+                    entry={row as any}
                     onUpdated={() => loadData()}
+                    onPriorityChanged={handleSetPriority}
                     onDelete={() => loadData()}
+                    projectColor={resolveProjectColor(
+                      (row.project_name as string) || '',
+                      dashColorMap
+                    )}
                   />
-                ) : displayMode === 'board' ? (
-                  <EntriesByDueDateBoard
-                    entries={filteredEntries.map((r) => ({
-                      id: r.id as string,
-                      user_email: r.user_email as string,
-                      project_name: r.project_name as string,
-                      summary: (r.summary as string) || null,
-                      due_date: (r.due_date as string) || null,
-                      status:
-                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                      entries: r.entries as EntryPayload,
-                      started_at: (r.started_at as string) || null,
-                    }))}
-                    onUpdated={() => loadData()}
-                    onDelete={() => loadData()}
-                  />
-                ) : (
-                  filteredEntries.map((row, i) => (
-                    <EntryBox
-                      key={`entry-${row.id || i}`}
-                      entry={row as any}
-                      onUpdated={() => loadData()}
-                      onPriorityChanged={handleSetPriority}
-                      onDelete={() => loadData()}
-                    />
-                  ))
-                )}
+                ))}
               </div>
             )}
 
@@ -1548,26 +2173,33 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                         {isToday && <span className="calendar-day-today-label">Today</span>}
                       </div>
                       <div className="calendar-day-entries">
-                        {dayEntries.slice(0, 3).map((entry) => (
-                          <div
-                            key={entry.id}
-                            className={[
-                              'calendar-entry',
-                              entry.status === 'done_and_dusted' && 'calendar-entry--completed',
-                              isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') &&
-                                'calendar-entry--overdue',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            title={getEntryTitle(entry)}
-                            onClick={() =>
-                              navigate(`/project/${encodeURIComponent(entry.project_name)}`)
-                            }
-                          >
-                            <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
-                            <span className="calendar-entry-project">{entry.project_name}</span>
-                          </div>
-                        ))}
+                        {dayEntries.slice(0, 3).map((entry) => {
+                          const entryColor = resolveProjectColor(
+                            entry.project_name || '',
+                            dashColorMap
+                          );
+                          return (
+                            <div
+                              key={entry.id}
+                              className={[
+                                'calendar-entry',
+                                entry.status === 'done_and_dusted' && 'calendar-entry--completed',
+                                isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') &&
+                                  'calendar-entry--overdue',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              title={getEntryTitle(entry)}
+                              onClick={() =>
+                                navigate(`/project/${encodeURIComponent(entry.project_name)}`)
+                              }
+                              style={{ borderLeft: `3px solid ${entryColor}` }}
+                            >
+                              <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
+                              <span className="calendar-entry-project">{entry.project_name}</span>
+                            </div>
+                          );
+                        })}
                         {dayEntries.length > 3 && (
                           <span className="calendar-more-label">+{dayEntries.length - 3} more</span>
                         )}
@@ -1599,34 +2231,54 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       <div className="fab-container">
         {fabOpen && (
           <div className="fab-menu">
-            <button
-              className="fab-menu-item"
-              onClick={() => {
-                setNewEntryOpen(true);
-                setFabOpen(false);
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            {projects.filter((p) => !p.archived).length > 0 ? (
+              <button
+                className="fab-menu-item"
+                onClick={() => {
+                  setNewEntryOpen(true);
+                  setFabOpen(false);
+                }}
+                title="Create a new item in one of your projects"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="11" x2="12" y2="17" />
-                <line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-              New Entry
-            </button>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                New Item
+              </button>
+            ) : (
+              <div className="fab-menu-hint" title="You need to create a project first">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Create a project first</span>
+              </div>
+            )}
             <button
               className="fab-menu-item"
               onClick={() => {
                 setNewProjectOpen(true);
                 setFabOpen(false);
               }}
+              title="Create a new project to organize your items"
             >
               <svg
                 width="16"
@@ -1646,6 +2298,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           className={`fab ${fabOpen ? 'fab-open' : ''}`}
           onClick={() => setFabOpen(!fabOpen)}
           aria-label="Quick actions"
+          title="Quick actions: create a new item or project"
         >
           <svg
             width="20"
@@ -1692,7 +2345,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 className="project-fields-title"
                 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.5rem' }}
               >
-                Project Fields
+                Project Columns
               </h3>
               {projectFields.length === 0 && (
                 <p
@@ -1702,68 +2355,132 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     margin: '0 0 0.5rem',
                   }}
                 >
-                  No fields defined. Add fields to build the entry form for this project.
+                  No columns defined. Add columns to build the entry form for this project.
                 </p>
               )}
               {projectFields.map((field, index) => (
-                <div
-                  key={index}
-                  className="project-field-row"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto auto auto',
-                    gap: '0.5rem',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  <input
-                    type="text"
-                    placeholder="Field name"
-                    value={field.field_name}
-                    onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
-                    className="field-input"
-                  />
-                  <select
-                    value={field.data_type}
-                    onChange={(e) =>
-                      updateProjectField(index, {
-                        data_type: e.target.value as ProjectFieldDraft['data_type'],
-                      })
-                    }
-                    className="field-input"
-                    style={{ width: 'auto' }}
-                  >
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                    <option value="boolean">Boolean</option>
-                  </select>
-                  <label
+                <Fragment key={index}>
+                  <div
+                    className="project-field-row"
                     style={{
-                      display: 'flex',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto auto auto',
+                      gap: '0.5rem',
                       alignItems: 'center',
-                      gap: '0.25rem',
-                      fontSize: '0.875rem',
-                      whiteSpace: 'nowrap',
+                      marginBottom: '0.5rem',
                     }}
                   >
                     <input
-                      type="checkbox"
-                      checked={field.is_required}
-                      onChange={(e) => updateProjectField(index, { is_required: e.target.checked })}
+                      type="text"
+                      placeholder="Column name"
+                      value={field.field_name}
+                      onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
+                      className="field-input"
                     />
-                    Required
-                  </label>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => removeProjectField(index)}
-                    title="Remove field"
-                  >
-                    <FiX size={16} />
-                  </button>
-                </div>
+                    <select
+                      value={field.data_type}
+                      onChange={(e) =>
+                        updateProjectField(index, {
+                          data_type: e.target.value as ProjectFieldDraft['data_type'],
+                        })
+                      }
+                      className="field-input"
+                      style={{ width: 'auto' }}
+                    >
+                      <option value="text">Text</option>
+                      <option value="number">Number</option>
+                      <option value="date">Date</option>
+                      <option value="boolean">Boolean</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.875rem',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={field.is_required}
+                        onChange={(e) =>
+                          updateProjectField(index, { is_required: e.target.checked })
+                        }
+                      />
+                      Required
+                    </label>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => removeProjectField(index)}
+                      title="Remove column"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  </div>
+                  {field.data_type === 'custom' && (
+                    <div style={{ marginBottom: '0.5rem', paddingLeft: '0.5rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                          marginBottom: '0.25rem',
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Add option..."
+                          className="field-input"
+                          style={{ flex: 1 }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val) {
+                                addCustomOption(index, val);
+                                (e.target as HTMLInputElement).value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                          onClick={(e) => {
+                            const input = (e.target as HTMLElement)
+                              .previousElementSibling as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val) {
+                              addCustomOption(index, val);
+                              input.value = '';
+                            }
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                      {(field.custom_options || []).length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                          {(field.custom_options || []).map((opt) => (
+                            <span
+                              key={opt}
+                              className="field-badge"
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => removeCustomOption(index, opt)}
+                              title="Click to remove"
+                            >
+                              {opt} ×
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Fragment>
               ))}
               <button
                 type="button"
@@ -1771,7 +2488,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 onClick={addProjectField}
                 style={{ marginTop: '0.25rem' }}
               >
-                + Add Another Project Field
+                + Add Another Project Column
               </button>
             </div>
 
@@ -1814,7 +2531,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
             {!newEntryProject ? (
               <>
-                <h2 className="modal-title">New Entry</h2>
+                <h2 className="modal-title">New Item</h2>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Select a project:
                 </p>
@@ -1863,10 +2580,33 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <AddEntry
                 user_email={email}
                 project_name={newEntryProject}
-                onAdded={() => {
+                onAdded={(result) => {
                   setNewEntryOpen(false);
                   setNewEntryProject('');
                   loadData();
+                  // Track the created entry
+                  const created = Array.isArray((result as any)?.data)
+                    ? (result as any).data[0]
+                    : (result as any)?.data;
+                  if (created?.id && newEntryProject) {
+                    const title =
+                      typeof created.entries === 'string'
+                        ? created.entries
+                        : (typeof created.entries === 'object' && created.entries
+                            ? (Object.values(created.entries).find(
+                                (v: any) => typeof v === 'string' && v.length > 0
+                              ) as string)
+                            : null) ||
+                          created.summary ||
+                          newEntryProject;
+                    trackCreatedEntry({
+                      entryId: created.id,
+                      projectName: newEntryProject,
+                      title: String(title).slice(0, 100),
+                    });
+                  }
+                  // Navigate to the project page where the entry was created
+                  navigate(`/project/${encodeURIComponent(newEntryProject)}`);
                 }}
                 onCancel={() => {
                   setNewEntryOpen(false);
@@ -1882,9 +2622,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {voiceOpen && (
         <VoiceFeature
           onClose={() => setVoiceOpen(false)}
-          onEntryCreated={() => {
+          onEntryCreated={(info) => {
             setVoiceOpen(false);
             loadData();
+            // Voice creates exactly the same shape of result as QuickEntryBar,
+            // so track every entry in the `created[]` list the same way.
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
           }}
         />
       )}
@@ -1910,6 +2655,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         open={projectSettingsOpen}
         projectName={activeView}
         userEmail={email}
+        currentColor={dashColorMap[activeView] || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => {
           setActiveView('all');

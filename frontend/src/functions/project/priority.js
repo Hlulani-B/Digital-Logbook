@@ -1,5 +1,6 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
+import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 /**
  * Set priority on an entry.
@@ -33,7 +34,20 @@ export async function setPriority(user_email, priorityValue, project_name, entry
     await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchPriority(currentAll) });
   }
 
-  // 3. Sync to server
+  // 3. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[setPriority] Offline, queuing action');
+    await addToQueue('setPriority', 'priority', {
+      user_email,
+      priorityValue,
+      project_name,
+      entry_id,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 4. Sync to server
   try {
     const result = await request(`${PROJECT_URL}/service/priority`, {
       method: 'POST',
@@ -44,10 +58,14 @@ export async function setPriority(user_email, priorityValue, project_name, entry
     });
     return result;
   } catch (err) {
-    // 4. Rollback on failure
-    console.error('[setPriority] Server sync failed, rolling back:', err);
-    if (cachedBefore) await cacheSet(CACHE_STORES.ENTRIES, cacheKey, cachedBefore);
-    if (cachedAllBefore) await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, cachedAllBefore);
-    return { success: false, message: err.message || 'Failed to set priority' };
+    // 5. On failure, queue for retry (don't rollback)
+    console.error('[setPriority] Server sync failed, queuing for retry:', err);
+    await addToQueue('setPriority', 'priority', {
+      user_email,
+      priorityValue,
+      project_name,
+      entry_id,
+    });
+    return { success: true, queued: true };
   }
 }

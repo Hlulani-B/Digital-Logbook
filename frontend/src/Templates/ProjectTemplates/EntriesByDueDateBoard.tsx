@@ -19,6 +19,7 @@ interface EntriesByDueDateBoardProps {
   entries: BoardEntry[];
   onUpdated?: () => void;
   onDelete?: (entryId: string) => void;
+  colorMap?: Record<string, string | null>;
 }
 
 interface Column {
@@ -78,11 +79,7 @@ function groupByWeekday(entries: BoardEntry[]): Column[] {
   return sortedColumns;
 }
 
-export default function EntriesByDueDateBoard({
-  entries = [],
-  onUpdated,
-  onDelete,
-}: EntriesByDueDateBoardProps) {
+export default function EntriesByDueDateBoard({ entries = [], onUpdated, onDelete, colorMap }: EntriesByDueDateBoardProps) {
   const columns = groupByWeekday(entries);
 
   if (!entries.length) {
@@ -108,6 +105,7 @@ export default function EntriesByDueDateBoard({
                 entry={entry}
                 onUpdated={onUpdated}
                 onDelete={onDelete}
+                projectColor={colorMap ? (colorMap[entry.project_name] || undefined) : undefined}
               />
             ))}
           </div>

@@ -1,16 +1,24 @@
 import express from 'express';
-import { Username, Email, Name, Avatar, Profile } from '../functions/profile.js';
+import {
+  Username,
+  Email,
+  Name,
+  Avatar,
+  Profile,
+  EmailNotifications,
+} from '../functions/profile.js';
 
 const router = express.Router();
 
 // Instantiate classes safely
-let username, email, name, avatar, profile;
+let username, email, name, avatar, profile, emailNotifications;
 try {
   username = new Username();
   email = new Email();
   name = new Name();
   avatar = new Avatar();
   profile = new Profile();
+  emailNotifications = new EmailNotifications();
 } catch (err) {
   console.error('Failed to instantiate profile handlers:', err);
 }
@@ -65,6 +73,15 @@ router.post('/profile', async (req, res) => {
         if (!userEmail) return res.status(400).json({ error: 'Missing email parameter' });
 
         const result = await profile.getProfile(userEmail);
+        return res.json(result);
+      }
+      case 'emailNotifications': {
+        const { email: userEmail, enabled } = values;
+        if (!userEmail || typeof enabled !== 'boolean') {
+          return res.status(400).json({ error: 'Missing email parameter or enabled flag' });
+        }
+
+        const result = await emailNotifications.setEmailNotifications(userEmail, enabled);
         return res.json(result);
       }
       case 'deleteProfile': {

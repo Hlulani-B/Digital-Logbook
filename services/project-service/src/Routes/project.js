@@ -76,6 +76,13 @@ router.post('/project', async (req, res) => {
         const result = await project.getProjectsByEmail(user_email);
         return res.json(result);
       }
+      case 'setColor': {
+        const { project_name, color } = values;
+        if (!project_name || !color)
+          return res.status(400).json({ error: 'Missing required parameters' });
+        const result = await project.setProjectColor(user_email, project_name, color);
+        return res.json(result);
+      }
       default:
         return res.status(400).json({ error: 'Invalid function' });
     }

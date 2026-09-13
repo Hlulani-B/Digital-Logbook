@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 
 interface HeaderProps {
   title?: string;
@@ -11,7 +11,12 @@ interface HeaderProps {
   dueSoonCount?: number;
 }
 
-export function Header({ title = 'Dashboard', entries = [], projects = [], dueSoonCount = 0 }: HeaderProps) {
+export function Header({
+  title = 'Dashboard',
+  entries = [],
+  projects = [],
+  dueSoonCount = 0,
+}: HeaderProps) {
   const { user, deleteAccount, resetPassword } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -26,19 +31,21 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
 
   // Profile info from IndexedDB
   const [profileData, setProfileData] = useState<{ displayName: string; avatarUrl: string }>({
-    displayName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User',
+    displayName:
+      user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User',
     avatarUrl: user?.user_metadata?.avatar_url || '',
   });
 
   useEffect(() => {
+    if (!user?.email) return () => {};
+
     const loadProfile = async () => {
-      if (!user?.email) return;
       try {
-        const cached = await cacheGet(CACHE_STORES.PROFILE, user.email);
+        const cached = await cacheGet(CACHE_STORES.PROFILE, user.email!);
         if (cached?.data) {
           const profile = cached.data;
-          // Field names from profile service: avatar, username, name
-          const displayName = profile.username || profile.name || profile.display_name || user.email;
+          const displayName =
+            profile.username || profile.name || profile.display_name || user.email;
           const avatarUrl = profile.avatar || user?.user_metadata?.avatar_url || '';
           setProfileData({ displayName, avatarUrl });
         }
@@ -46,7 +53,12 @@ export function Header({ title = 'Dashboard', entries = [], projects = [], dueSo
         console.error('[Header] Failed to load profile from cache:', err);
       }
     };
+
     loadProfile();
+
+    // Re-read when syncAllData writes the profile to IndexedDB
+    const unsub = cacheSubscribe(CACHE_STORES.PROFILE, user.email, () => loadProfile());
+    return () => unsub();
   }, [user?.email, user?.user_metadata]);
 
   const handleDeleteAccount = async () => {

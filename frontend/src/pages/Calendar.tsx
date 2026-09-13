@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache.js';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache.js';
 import { syncAllData } from '@/CacheFunctions';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
@@ -24,6 +24,7 @@ import {
   parseDueDate,
 } from '@/lib/calendar';
 import './Calendar.css';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 const WEEK_STARTS_ON: 0 | 1 = 0; // Sunday
 const VISIBLE_TASKS_PER_CELL = 4;
@@ -62,6 +63,7 @@ function CalendarDayCell({
   onEntryClick,
   onDayClick,
   isOverdue: isDayOverdue,
+  colorMap,
 }: {
   date: Date;
   isCurrentMonth: boolean;
@@ -72,6 +74,7 @@ function CalendarDayCell({
   onEntryClick: (entry: CalendarEntry) => void;
   onDayClick: (date: Date) => void;
   isOverdue: (date: Date) => boolean;
+  colorMap?: Record<string, string | null>;
 }) {
   const isToday = isSameDay(date, new Date());
   const isDropTarget = dragging !== null;
@@ -117,6 +120,9 @@ function CalendarDayCell({
             draggable
             onDragStart={() => onDragStart(entry, date)}
             onClick={() => onEntryClick(entry)}
+            projectColor={
+              colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined
+            }
           />
         ))}
         {hiddenCount > 0 && (
@@ -142,11 +148,13 @@ function CalendarEntryPill({
   draggable,
   onDragStart,
   onClick,
+  projectColor,
 }: {
   entry: CalendarEntry;
   draggable?: boolean;
   onDragStart?: () => void;
   onClick?: () => void;
+  projectColor?: string;
 }) {
   const status = entry.status ?? 'up_next';
   const isCompleted = status === 'done_and_dusted';
@@ -174,6 +182,7 @@ function CalendarEntryPill({
         if (e.key === 'Enter' || e.key === ' ') onClick?.();
       }}
       title={`${getEntryTitle(entry)}${entry.project_name ? ` · ${entry.project_name}` : ''}`}
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
       <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
       <span className="calendar-entry-project">{entry.project_name}</span>
@@ -187,7 +196,7 @@ export function CalendarPage() {
   const email = user?.email ?? '';
 
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
-  const [projects, setProjects] = useState<{ project_name: string }[]>([]);
+  const [projects, setProjects] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -209,11 +218,17 @@ export function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Load entries — read ONLY from IndexedDB. Mutations update it directly.
+  // Guard against overlapping calls (mount effect + two cacheSubscribe
+  // listeners + visibilitychange can all fire this concurrently).
+  const loadSeq = useRef(0);
+
   const loadEntries = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     setError(null);
     try {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (seq !== loadSeq.current) return;
       if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
         const data = cached.data.filter(
           (entry: CalendarEntry) => !entry.archived && entry.due_date
@@ -224,6 +239,7 @@ export function CalendarPage() {
         setLoading(true);
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (seq !== loadSeq.current) return;
         if (fresh?.data && Array.isArray(fresh.data)) {
           const data = fresh.data.filter(
             (entry: CalendarEntry) => !entry.archived && entry.due_date
@@ -233,24 +249,33 @@ export function CalendarPage() {
       }
       // Also load projects for the add-entry dropdown
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== loadSeq.current) return;
       if (cachedProjects?.data) {
         const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter(
           (p: Record<string, unknown>) => !p.archived
         );
-        setProjects(
-          projs.map((p: Record<string, unknown>) => ({ project_name: p.project_name as string }))
-        );
+        setProjects(projs);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadEntries()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadEntries()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadEntries]);
 
   const gridDays = useMemo(() => {
     return effectiveView === 'month'
@@ -333,6 +358,9 @@ export function CalendarPage() {
     loadEntries();
   };
 
+  // Build colour map from projects
+  const colorMap = useMemo(() => buildProjectColorMap(projects), [projects]);
+
   // Entries for the currently selected day
   const selectedDayEntries = selectedDate ? getEntriesForDay(entries, selectedDate) : [];
 
@@ -342,7 +370,7 @@ export function CalendarPage() {
       <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
       <main className="dash-main">
         <Header title="Calendar" entries={entries as unknown as Array<Record<string, unknown>>} />
-        <div className="calendar-page">
+        <div className="calendar-page" data-tour="page-calendar">
           <div className="calendar-toolbar">
             <div className="calendar-nav">
               <button type="button" className="btn-icon" onClick={handlePrev} aria-label="Previous">
@@ -411,13 +439,13 @@ export function CalendarPage() {
           {loading ? (
             <div className="calendar-loading">
               <span className="calendar-spinner" />
-              Loading entries…
+              Loading items…
             </div>
           ) : entries.length === 0 ? (
             <div className="calendar-empty">
-              <p>No scheduled entries yet.</p>
+              <p>No scheduled items yet.</p>
               <button className="btn-primary" onClick={() => navigate('/dashboard')}>
-                Add an entry
+                Add an item
               </button>
             </div>
           ) : (
@@ -446,6 +474,7 @@ export function CalendarPage() {
                     onEntryClick={handleEntryClick}
                     onDayClick={handleDayClick}
                     isOverdue={isDayOverdue}
+                    colorMap={colorMap}
                   />
                 );
               })}
@@ -477,6 +506,7 @@ export function CalendarPage() {
             onClose={handleModalClose}
             onEntryAdded={handleEntryAdded}
             onEntryClick={handleEntryClick}
+            colorMap={colorMap}
           />
         )}
       </main>

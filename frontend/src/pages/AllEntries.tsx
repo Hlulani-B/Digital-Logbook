@@ -1,23 +1,27 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { type EntryPayload } from '@/lib/entryPayload';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 type Entry = Record<string, unknown>;
 
 export function AllEntriesPage() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,8 +60,8 @@ export function AllEntriesPage() {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState('What are you working on?');
+  // Static placeholder for quick entry (no AI)
+  const aiPlaceholder = 'Write what you worked on...';
 
   const email = user?.email || '';
 
@@ -83,13 +87,19 @@ export function AllEntriesPage() {
   }, [email, signOut]);
 
   // Load data — read ONLY from IndexedDB. Mutations update it directly.
+  // Guard against overlapping calls: mount effect + two cacheSubscribe
+  // listeners + SSE onEntry can all fire loadData within the same tick.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     try {
       const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadSeq.current) return;
       const hasCache = cachedEntries?.data || cachedProjects?.data;
       if (hasCache) {
         if (cachedEntries?.data)
@@ -104,6 +114,7 @@ export function AllEntriesPage() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
+        if (seq !== loadSeq.current) return;
         if (freshEntries?.data)
           setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
         if (freshProjects?.data)
@@ -112,13 +123,24 @@ export function AllEntriesPage() {
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+  
+  // Subscribe to cache changes — re-load when syncAllData writes new data
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      ];
+      return () => unsubs.forEach((unsub) => unsub());
+    }, [email, loadData]);
+>>>>>>> origin/main
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
@@ -159,17 +181,7 @@ export function AllEntriesPage() {
     return filtered;
   }, [entries, searchQuery, sortBy]);
 
-  // AI placeholder
-  useEffect(() => {
-    const placeholders = [
-      'What are you working on?',
-      'What did you just finish?',
-      'Working on anything exciting?',
-      "What's your current task?",
-      'Tell me about your progress...',
-    ];
-    setAiPlaceholder(placeholders[Math.floor(Math.random() * placeholders.length)]);
-  }, []);
+  const colorMap = useMemo(() => buildProjectColorMap(projects as Array<Record<string, unknown>>), [projects]);
 
   return (
     <div className="dash-layout">
@@ -178,7 +190,7 @@ export function AllEntriesPage() {
       <NavBar projects={projects} entries={entries} activeView="all" />
 
       <main className="dash-main">
-        <Header title="My Entries" entries={entries} projects={projects} />
+        <Header title="My Items" entries={entries} projects={projects} />
 
         {/* Search bar */}
         <div className="feed-search-bar">
@@ -274,7 +286,17 @@ export function AllEntriesPage() {
 
         {/* Quick Entry Bar */}
         <QuickEntryBar
-          onEntryCreated={() => loadData()}
+          onEntryCreated={(info) => {
+            loadData();
+            // Track every created entry (single OR multi) in "Recently created".
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
+            // Navigate only when there's exactly one unambiguous target.
+            if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+              navigate(`/project/${encodeURIComponent(info.projectName)}`);
+            }
+          }}
           onVoiceOpen={() => setVoiceOpen(true)}
           placeholder={aiPlaceholder}
         />
@@ -330,6 +352,7 @@ export function AllEntriesPage() {
               }))}
               onUpdated={() => loadData()}
               onDelete={() => loadData()}
+              colorMap={colorMap}
             />
           </div>
         )}
@@ -348,6 +371,7 @@ export function AllEntriesPage() {
               }))}
               onUpdated={() => loadData()}
               onDelete={() => loadData()}
+              colorMap={colorMap}
             />
           </div>
         )}
@@ -360,6 +384,7 @@ export function AllEntriesPage() {
             onDeleteSelected={async () => {
               await loadData();
             }}
+            colorMap={colorMap}
           />
         )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
@@ -371,6 +396,10 @@ export function AllEntriesPage() {
                 onUpdated={() => loadData()}
                 onPriorityChanged={handleSetPriority}
                 onDelete={() => loadData()}
+                projectColor={resolveProjectColor(
+                  (row.project_name as string) || '',
+                  buildProjectColorMap(projects as Array<Record<string, unknown>>)
+                )}
               />
             ))}
           </div>
@@ -381,9 +410,13 @@ export function AllEntriesPage() {
       {voiceOpen && (
         <VoiceFeature
           onClose={() => setVoiceOpen(false)}
-          onEntryCreated={() => {
+          onEntryCreated={(info) => {
             loadData();
             setVoiceOpen(false);
+            // Mirror the QuickEntryBar behaviour: track every created entry.
+            for (const item of info?.created ?? []) {
+              trackCreatedEntry(item);
+            }
           }}
         />
       )}

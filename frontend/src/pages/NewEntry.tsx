@@ -1,11 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
-import { updateEntry, deleteEntryById } from '../functions/project/entries.js';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
+import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
+import { getFields } from '../functions/project/fields.js';
+import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import {
   classifyEntryPayload,
   formatEntryValue,
   getEntryPayloadFields,
+  cleanSummaryText,
   type EntryPayload,
 } from '@/lib/entryPayload';
 
@@ -85,6 +91,7 @@ interface EntryRow {
   ended_at?: string | null;
   duration?: string | null;
   status?: EntryStatus;
+  summary?: string | null;
 }
 
 interface EntryBoxProps {
@@ -93,6 +100,7 @@ interface EntryBoxProps {
   onArchiveToggled?: (entryId: string, archived: boolean) => void;
   onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
   onDelete?: (entryId: string) => void;
+  projectColor?: string | null;
 }
 
 export function EntryBox({
@@ -101,7 +109,9 @@ export function EntryBox({
   onArchiveToggled,
   onPriorityChanged,
   onDelete,
+  projectColor,
 }: EntryBoxProps) {
+  const navigate = useNavigate();
   const {
     id,
     user_email,
@@ -113,8 +123,10 @@ export function EntryBox({
     started_at,
     ended_at,
     status = 'up_next',
+    summary,
   } = entry;
 
+  const safeSummary = cleanSummaryText(summary);
   const payloadState = classifyEntryPayload(entries);
   const parsedEntries = payloadState.kind === 'object' ? payloadState.value : {};
 
@@ -123,8 +135,40 @@ export function EntryBox({
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { openNotes } = useNotes();
+
+  const [refPickerOpen, setRefPickerOpen] = useState<'project' | null>(null);
+  const [refEntries, setRefEntries] = useState<any[]>([]);
+  const [refProjects, setRefProjects] = useState<any[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
+  const [calcField, setCalcField] = useState<string | null>(null);
+
+  const [fieldDefs, setFieldDefs] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!user_email || !project_name) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getFields(user_email, project_name);
+        if (!cancelled && result?.data) {
+          const defs: Record<string, string> = {};
+          for (const f of result.data) { defs[f.field_name] = f.data_type || 'text'; }
+          setFieldDefs(defs);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user_email, project_name]);
+
+  const parseCustomOptions = (dataType: string): string[] | null => {
+    if (!dataType.startsWith('custom:')) return null;
+    const optionsStr = dataType.slice(7);
+    if (!optionsStr) return [];
+    return optionsStr.split(',').map((o) => o.trim()).filter(Boolean);
+  };
 
   // Live elapsed time for in-progress tasks
   const [elapsed, setElapsed] = useState<string>('');
@@ -180,8 +224,12 @@ export function EntryBox({
     'created_at',
     'started_at',
     'ended_at',
+    '_entry_ref',
+    '_project_ref',
   ]);
-  const entryFields = getEntryPayloadFields(entries).filter(({ name }) => !SKIP_FIELDS.has(name));
+  const entryFields = Object.entries(parsedEntries || {}).filter(
+    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
+  );
   const dueLabel = formatDate(due_date);
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
@@ -304,18 +352,18 @@ export function EntryBox({
 
   const handleDelete = async () => {
     if (!user_email || deleting) return;
-    if (!window.confirm('Delete this entry? You can recover it later.')) return;
     setDeleting(true);
     setError(null);
     setMenuOpen(false);
     try {
       const result = await deleteEntryById(user_email, id);
-      if (result?.success === false) throw new Error(result.message || 'Failed to delete entry');
+      if (result?.success === false) throw new Error(result.message || 'Failed to delete item');
       onDelete?.(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete entry');
+      setError(err instanceof Error ? err.message : 'Failed to delete item');
     } finally {
       setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -357,39 +405,6 @@ export function EntryBox({
     }
   };
 
-  const handleStartTask = async () => {
-    if (!user_email || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const now = new Date().toISOString();
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        now
-      );
-      if (result?.success === false) {
-        setError(result.message || 'Failed to start task');
-        return;
-      }
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      // Always reload from database to show actual state
-      onUpdated?.({ ...entry, started_at: now });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start task');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleEndTask = async () => {
     if (!user_email || saving) return;
     setSaving(true);
@@ -408,7 +423,7 @@ export function EntryBox({
         now
       );
       if (result?.success === false) {
-        setError(result.message || 'Failed to end task');
+        setError(result.message || 'Failed to end item');
         return;
       }
       if (result?.error) {
@@ -418,10 +433,64 @@ export function EntryBox({
       // Always reload from database to show actual state
       onUpdated?.({ ...entry, ended_at: now, status: 'done_and_dusted' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to end task');
+      setError(err instanceof Error ? err.message : 'Failed to end item');
     } finally {
       setSaving(false);
     }
+  };
+
+  const openProjectRefPicker = async () => {
+    setRefLoading(true);
+    setRefPickerOpen('project');
+    try {
+      const result = await getProjectsByEmail(user_email);
+      const projects = result?.projects || result?.data || [];
+      setRefProjects(projects);
+    } catch {}
+    setRefLoading(false);
+  };
+
+  const selectProjectRef = async (project: any) => {
+    const ref = { project_name: project.project_name };
+    const newEntries = { ...parsedEntries, _project_ref: ref };
+    await updateEntry(user_email, project_name, id, newEntries);
+    setRefPickerOpen(null);
+    onUpdated?.({ ...entry, entries: newEntries });
+  };
+
+  const removeProjectRef = async () => {
+    const newEntries = { ...parsedEntries };
+    delete newEntries._project_ref;
+    await updateEntry(user_email, project_name, id, newEntries);
+    onUpdated?.({ ...entry, entries: newEntries });
+  };
+
+  const openCalcPicker = async (fieldName: string) => {
+    setCalcField(fieldName);
+    try {
+      const result = await getEntries(user_email, project_name);
+      if (result?.data) setRefEntries(result.data);
+    } catch {}
+  };
+
+  const doCalculation = (type: 'sum' | 'average') => {
+    if (!calcField) return;
+    const values = refEntries
+      .map((e: any) => {
+        const data = typeof e.entries === 'object' && e.entries ? e.entries : {};
+        const val = Number(data[calcField]);
+        return isNaN(val) ? null : val;
+      })
+      .filter((v): v is number => v !== null);
+    if (values.length === 0) { setCalcField(null); return; }
+    const result = type === 'sum'
+      ? values.reduce((a, b) => a + b, 0)
+      : values.reduce((a, b) => a + b, 0) / values.length;
+    const newEntries = { ...parsedEntries, [`_calc_${calcField}`]: { type, value: result } };
+    updateEntry(user_email, project_name, id, newEntries).then(() => {
+      onUpdated?.({ ...entry, entries: newEntries });
+    });
+    setCalcField(null);
   };
 
   if (isEditing) {
@@ -454,7 +523,17 @@ export function EntryBox({
               ))}
             </select>
           </div>
-          <span className="entry-box__project">{project_name}</span>
+          <button
+            type="button"
+            className="entry-box__project entry-box__project--link"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/project/${encodeURIComponent(project_name)}`);
+            }}
+            title={`Go to ${project_name} page`}
+          >
+            {project_name}
+          </button>
         </div>
 
         {error && <div className="entry-box__error">{error}</div>}
@@ -462,22 +541,39 @@ export function EntryBox({
         <div className="entry-box__fields--editing">
           {payloadState.kind !== 'object' ? (
             <div className="entry-box__field--editing">
-              <label className="entry-box__field-key">Legacy content</label>
+              <label className="entry-box__field-key">Item content</label>
               <span>{formatEntryValue(payloadState.value)}</span>
             </div>
           ) : (
-            Object.entries(draftFields).map(([key, value]) => (
+            Object.entries(draftFields).map(([key, value]) => {
+              const customOpts = parseCustomOptions(fieldDefs[key] || '');
+              return (
               <div className="entry-box__field--editing" key={key}>
                 <label className="entry-box__field-key">{formatFieldKey(key)}</label>
-                <input
-                  className="entry-box__field-input"
-                  type="text"
-                  value={value}
-                  onChange={(e) => handleFieldChange(key, e.target.value)}
-                  disabled={saving}
-                />
+                {customOpts ? (
+                  <select
+                    className="entry-box__field-input"
+                    value={value}
+                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="">Select...</option>
+                    {customOpts.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className="entry-box__field-input"
+                    type="text"
+                    value={value}
+                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                    disabled={saving}
+                  />
+                )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -526,7 +622,11 @@ export function EntryBox({
   }
 
   return (
-    <div className={`entry-box ${archived ? 'entry-box--archived' : ''}`}>
+    <>
+    <div
+      className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
+      style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
+    >
       <div className="entry-box__top-row">
         <div className="entry-box__menu-wrap" ref={menuRef}>
           <button
@@ -545,6 +645,26 @@ export function EntryBox({
               </button>
               <button
                 type="button"
+                className="entry-box__menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openNotes(entry);
+                }}
+              >
+                View Notes
+              </button>
+              <button
+                type="button"
+                className="entry-box__menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openNotes(entry);
+                }}
+              >
+                Add Note
+              </button>
+              <button
+                type="button"
                 className="entry-box__menu-item entry-box__menu-item--danger"
                 onClick={handleToggleArchive}
                 disabled={archiving}
@@ -557,14 +677,55 @@ export function EntryBox({
                     ? 'Unarchive'
                     : 'Archive'}
               </button>
-              <button
-                type="button"
-                className="entry-box__menu-item entry-box__menu-item--danger"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
+              {confirmDelete ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.4rem',
+                    padding: '0.5rem 0.9rem',
+                  }}
+                >
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-dim, #6b7280)' }}>
+                    Delete this entry?
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      style={{
+                        background: '#dc2626',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '0.35rem',
+                        padding: '0.3rem 0.7rem',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {deleting ? 'Deleting...' : 'Yes, delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="btn-secondary"
+                      style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="entry-box__menu-item entry-box__menu-item--danger"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={deleting}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -609,18 +770,94 @@ export function EntryBox({
             </span>
           )}
         </div>
-        <span className="entry-box__project">{project_name}</span>
+        <button
+          type="button"
+          className="entry-box__project entry-box__project--link"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/project/${encodeURIComponent(project_name)}`);
+          }}
+          title={`Go to ${project_name} page`}
+        >
+          {project_name}
+        </button>
+      </div>
+
+      {safeSummary && (
+        <p className="entry-box__summary">{safeSummary}</p>
+      )}
+
+      {/* Project reference area */}
+      <div className="entry-box__project-ref-area">
+        {!!parsedEntries._project_ref && (
+          <div className="entry-box__ref-row">
+            <span className="entry-box__ref-label">Project ref:</span>
+            <button
+              type="button"
+              className="entry-box__ref-link"
+              onClick={(e) => {
+                e.stopPropagation();
+                const ref = parsedEntries._project_ref as any;
+                navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+              }}
+            >
+              📁 {(parsedEntries._project_ref as any).project_name}
+            </button>
+            <button
+              type="button"
+              className="entry-box__ref-remove"
+              onClick={(e) => { e.stopPropagation(); removeProjectRef(); }}
+              title="Remove reference"
+            >×</button>
+          </div>
+        )}
+        <button
+          type="button"
+          className="entry-box__ref-btn"
+          onClick={(e) => { e.stopPropagation(); openProjectRefPicker(); }}
+        >
+          + Project Reference
+        </button>
       </div>
 
       {entryFields.length > 0 && (
         <table className="entry-box__table">
           <tbody>
-            {entryFields.map(({ name, value }) => (
-              <tr className="entry-box__row" key={name}>
-                <td className="entry-box__field-key">{formatFieldKey(name)}</td>
-                <td className="entry-box__field-value">{value}</td>
-              </tr>
-            ))}
+            {entryFields.map(([key, value]) => {
+              const isNumeric = fieldDefs[key] === 'number';
+              const calcKey = `_calc_${key}`;
+              const calcResult = parsedEntries[calcKey] as { type: string; value: number } | undefined;
+              return (
+                <React.Fragment key={key}>
+                  <tr className="entry-box__row">
+                    <td className="entry-box__field-key">{formatFieldKey(key)}</td>
+                    <td className="entry-box__field-value">
+                      {formatEntryValue(value)}
+                      {isNumeric && (
+                        <button
+                          type="button"
+                          className="entry-box__calc-btn"
+                          onClick={(e) => { e.stopPropagation(); openCalcPicker(key); }}
+                          title="Calculate sum or average"
+                        >
+                          Calculate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {calcResult && (
+                    <tr className="entry-box__row entry-box__row--calc">
+                      <td className="entry-box__field-key entry-box__field-key--calc">
+                        {calcResult.type === 'sum' ? 'Σ' : 'μ'} {formatFieldKey(key)}
+                      </td>
+                      <td className="entry-box__field-value entry-box__field-value--calc">
+                        {Number(calcResult.value).toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -635,16 +872,6 @@ export function EntryBox({
           )}
         </div>
         <div className="entry-box__meta-right">
-          {!started_at && !ended_at && (
-            <button
-              type="button"
-              className="entry-box__task-btn entry-box__task-btn--start"
-              onClick={handleStartTask}
-              disabled={saving || archived}
-            >
-              ▶ Start Task
-            </button>
-          )}
           {started_at && !ended_at && (
             <div className="entry-box__task-active">
               {elapsed && <span className="entry-box__task-elapsed">{elapsed}</span>}
@@ -662,8 +889,68 @@ export function EntryBox({
         </div>
       </div>
 
+      {/* View Notes button - secondary action on its own line */}
+      <button
+        type="button"
+        className="entry-box__view-notes-btn"
+        onClick={() => openNotes(entry)}
+      >
+        <FiEdit className="entry-box__view-notes-icon" />
+        View Notes
+      </button>
+
       {error && <div className="entry-box__error">{error}</div>}
     </div>
+
+    {/* Project Reference Picker Modal */}
+    {refPickerOpen && (
+      <div className="modal-overlay" onClick={() => setRefPickerOpen(null)}>
+        <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="ref-picker-header">
+            <h3>Select a Project</h3>
+            <button type="button" className="ref-picker-close" onClick={() => setRefPickerOpen(null)}>×</button>
+          </div>
+          {refLoading ? (
+            <div className="ref-picker-loading">Loading...</div>
+          ) : (
+            <div className="ref-picker-list">
+              {refProjects.map((p: any) => (
+                <button
+                  key={p.project_name}
+                  type="button"
+                  className="ref-picker-item"
+                  onClick={() => selectProjectRef(p)}
+                >
+                  <span className="ref-picker-item-project">{p.project_name}</span>
+                </button>
+              ))}
+              {refProjects.length === 0 && <div className="ref-picker-empty">No projects found</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* Calculation Picker Modal */}
+    {calcField && (
+      <div className="modal-overlay" onClick={() => setCalcField(null)}>
+        <div className="ref-picker-modal ref-picker-modal--small" onClick={(e) => e.stopPropagation()}>
+          <div className="ref-picker-header">
+            <h3>Calculate {formatFieldKey(calcField)}</h3>
+            <button type="button" className="ref-picker-close" onClick={() => setCalcField(null)}>×</button>
+          </div>
+          <div className="calc-picker-actions">
+            <button type="button" className="calc-picker-btn" onClick={() => doCalculation('sum')}>
+              Sum
+            </button>
+            <button type="button" className="calc-picker-btn" onClick={() => doCalculation('average')}>
+              Average
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

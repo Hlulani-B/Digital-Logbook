@@ -1,41 +1,43 @@
 /**
- * IndexedDB caching layer with event-driven subscriptions.
+ * SQLite caching layer with event-driven subscriptions.
+ * Uses sql.js (SQLite compiled to WebAssembly) for local-first storage.
  *
  * This module provides a local-first caching mechanism:
  * - Read operations: Return cached data immediately, then fetch fresh data in background
- * - Write operations: Update IndexedDB first (optimistic), then sync to server
+ * - Write operations: Update SQLite first (optimistic), then sync to server
  * - Components subscribe to cache changes via useCachedData hook
  *
- * Pattern: IndexedDB-first with stale-while-revalidate
+ * Pattern: SQLite-first with stale-while-revalidate
  */
 
-import { openDB } from 'idb';
+import initSqlJs from 'sql.js';
 
-const DB_NAME = 'digital-logbook-cache';
-const DB_VERSION = 4;
+const DB_NAME = 'digital-logbook-sqlite';
+const STORAGE_KEY = 'sqlitedb';
 
-// Cache store names
-const STORES = {
+// SQL tables that mirror Supabase schema (store data as JSON for compatibility)
+const TABLES = {
   PROJECTS: 'projects',
   ENTRIES: 'entries',
-  ALL_ENTRIES: 'all-entries',
+  ALL_ENTRIES: 'all_entries',
   PROFILE: 'profile',
   SEARCH: 'search',
   ARCHIVES: 'archives',
   FIELDS: 'fields',
+  OFFLINE_QUEUE: 'offline_queue',
+  NOTES: 'notes',
+  CACHE_META: 'cache_meta',
 };
 
-// Cache metadata (timestamps for stale checks)
-const META_STORE = 'cache-meta';
-
 let dbPromise = null;
+let SQL = null;
 
 // ── Event system for cache changes ──────────────────────────
 const listeners = new Map(); // key -> Set<callback>
 
 /**
  * Subscribe to cache changes for a specific store+key.
- * @param {string} store - The cache store name
+ * @param {string} store - The table name
  * @param {string} key - The cache key
  * @param {Function} callback - Called with new data when cache changes
  * @returns {Function} Unsubscribe function
@@ -70,33 +72,119 @@ function emitCacheChange(store, key, data) {
 }
 
 /**
- * Get or create the IndexedDB database instance.
+ * Persist the SQLite database to IndexedDB for durability.
+ * Exported for use by offlineQueue.js
  */
-function getDB() {
+export function persistDB(db) {
+  try {
+    const data = db.export();
+    const blob = new Blob([data], { type: 'application/octet-stream' });
+    // Use IndexedDB to store the binary
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = () => {
+      const idb = request.result;
+      const tx = idb.transaction('storage', 'readwrite');
+      tx.objectStore('storage').put(blob, STORAGE_KEY);
+      tx.oncomplete = () => idb.close();
+    };
+    request.onerror = () => console.warn('[Cache] Failed to persist DB');
+  } catch (err) {
+    console.warn('[Cache] Persist error:', err);
+  }
+}
+
+/**
+ * Load the SQLite database from IndexedDB.
+ */
+function loadDB() {
+  return new Promise((resolve) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore('storage');
+    };
+    request.onsuccess = () => {
+      const idb = request.result;
+      try {
+        const tx = idb.transaction('storage', 'readonly');
+        const getReq = tx.objectStore('storage').get(STORAGE_KEY);
+        getReq.onsuccess = () => resolve(getReq.result || null);
+        getReq.onerror = () => resolve(null);
+        tx.oncomplete = () => idb.close();
+      } catch {
+        resolve(null);
+      }
+    };
+    request.onerror = () => resolve(null);
+  });
+}
+
+/**
+ * Get or create the SQLite database instance.
+ * Exported for use by offlineQueue.js
+ */
+export async function getSharedDB() {
+  return getDB();
+}
+
+async function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        for (const storeName of [...Object.values(STORES), META_STORE]) {
-          if (!db.objectStoreNames.contains(storeName)) {
-            db.createObjectStore(storeName, { keyPath: 'key' });
-          }
-        }
-      },
-    });
+    dbPromise = (async () => {
+      // Initialize sql.js WASM
+      if (!SQL) {
+        SQL = await initSqlJs({
+          locateFile: file => `/sql-wasm.wasm`
+        });
+      }
+
+      // Try to load existing database
+      const savedData = await loadDB();
+      let db;
+      if (savedData) {
+        const buffer = await savedData.arrayBuffer();
+        db = new SQL.Database(new Uint8Array(buffer));
+      } else {
+        db = new SQL.Database();
+        
+        // Create tables mirroring Supabase schema
+        // Each table has a key (primary key) and data (JSON blob)
+        const createTableSQL = `
+          CREATE TABLE IF NOT EXISTS projects (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS entries (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS all_entries (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS profile (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS search (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS archives (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS fields (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS notes (key TEXT PRIMARY KEY, data TEXT);
+          CREATE TABLE IF NOT EXISTS cache_meta (key TEXT PRIMARY KEY, timestamp INTEGER);
+          CREATE TABLE IF NOT EXISTS offline_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, created_at INTEGER);
+        `;
+        db.run(createTableSQL);
+      }
+
+      // Persist initial state
+      persistDB(db);
+      return db;
+    })();
   }
   return dbPromise;
 }
 
 /**
  * Get cached data for a key.
- * @param {string} store - The object store name
+ * @param {string} store - The table name
  * @param {string} key - The cache key
  * @returns {Promise<any|null>} The cached data or null
  */
 export async function cacheGet(store, key) {
   try {
     const db = await getDB();
-    return await db.get(store, key);
+    const result = db.exec(`SELECT data FROM ${store} WHERE key = ?`, [key]);
+    if (result.length > 0 && result[0].values.length > 0) {
+      const jsonStr = result[0].values[0][0];
+      return JSON.parse(jsonStr);
+    }
+    return null;
   } catch (err) {
     console.warn(`[Cache] Failed to get ${key} from ${store}:`, err);
     return null;
@@ -105,7 +193,7 @@ export async function cacheGet(store, key) {
 
 /**
  * Set cached data for a key.
- * @param {string} store - The object store name
+ * @param {string} store - The table name
  * @param {string} key - The cache key
  * @param {any} data - The data to cache
  * @returns {Promise<void>}
@@ -114,13 +202,19 @@ export async function cacheSet(store, key, data) {
   try {
     const db = await getDB();
     // Wrap data with key if it doesn't have one
-    const record =
-      typeof data === 'object' && data !== null && !Array.isArray(data)
-        ? { ...data, key }
-        : { key, data };
-    await db.put(store, record);
+    const record = typeof data === 'object' && data !== null && !Array.isArray(data)
+      ? { ...data, key }
+      : { key, data };
+    const jsonStr = JSON.stringify(record);
+    
+    db.run(`INSERT OR REPLACE INTO ${store} (key, data) VALUES (?, ?)`, [key, jsonStr]);
+    
     // Update timestamp
-    await db.put(META_STORE, { key, timestamp: Date.now() });
+    db.run(`INSERT OR REPLACE INTO cache_meta (key, timestamp) VALUES (?, ?)`, [key, Date.now()]);
+    
+    // Persist to IndexedDB
+    persistDB(db);
+    
     // Notify subscribers
     emitCacheChange(store, key, data);
   } catch (err) {
@@ -136,8 +230,11 @@ export async function cacheSet(store, key, data) {
 export async function cacheGetTimestamp(key) {
   try {
     const db = await getDB();
-    const meta = await db.get(META_STORE, key);
-    return meta?.timestamp || null;
+    const result = db.exec(`SELECT timestamp FROM cache_meta WHERE key = ?`, [key]);
+    if (result.length > 0 && result[0].values.length > 0) {
+      return result[0].values[0][0];
+    }
+    return null;
   } catch (err) {
     return null;
   }
@@ -145,15 +242,19 @@ export async function cacheGetTimestamp(key) {
 
 /**
  * Delete a cached entry.
- * @param {string} store - The object store name
+ * @param {string} store - The table name
  * @param {string} key - The cache key
  * @returns {Promise<void>}
  */
 export async function cacheDelete(store, key) {
   try {
     const db = await getDB();
-    await db.delete(store, key);
-    await db.delete(META_STORE, key);
+    db.run(`DELETE FROM ${store} WHERE key = ?`, [key]);
+    db.run(`DELETE FROM cache_meta WHERE key = ?`, [key]);
+    
+    // Persist to IndexedDB
+    persistDB(db);
+    
     // Notify subscribers that data was cleared
     emitCacheChange(store, key, null);
   } catch (err) {
@@ -170,20 +271,17 @@ export async function cacheDelete(store, key) {
 export async function clearUserCache(email) {
   try {
     const db = await getDB();
-    const tx = db.transaction(Object.values(STORES), 'readwrite');
-    await Promise.all([
-      tx.objectStore(STORES.PROJECTS).delete(email),
-      tx.objectStore(STORES.ENTRIES).delete(email),
-      tx.objectStore(STORES.ALL_ENTRIES).delete(email),
-      tx.objectStore(STORES.PROFILE).delete(email),
-      tx.objectStore(STORES.SEARCH).delete(email),
-      tx.objectStore(STORES.ARCHIVES).delete(email),
-      tx.objectStore(STORES.FIELDS).delete(email),
-      tx.objectStore(META_STORE).delete(email),
-      tx.done,
-    ]);
+    const tables = ['projects', 'entries', 'all_entries', 'profile', 'search', 'archives', 'fields'];
+    for (const table of tables) {
+      db.run(`DELETE FROM ${table} WHERE key = ?`, [email]);
+    }
+    db.run(`DELETE FROM cache_meta WHERE key = ?`, [email]);
+    
+    // Persist to IndexedDB
+    persistDB(db);
+    
     // Notify all subscribers for this user that data was cleared
-    Object.values(STORES).forEach((store) => {
+    tables.forEach((store) => {
       emitCacheChange(store, email, null);
     });
   } catch (err) {
@@ -197,7 +295,7 @@ export async function clearUserCache(email) {
  * and calls the onUpdate callback when fresh data arrives.
  *
  * @param {Object} options
- * @param {string} options.store - The cache store name
+ * @param {string} options.store - The table name
  * @param {string} options.key - The cache key
  * @param {Function} options.fetcher - Async function to fetch fresh data
  * @param {Function} [options.onUpdate] - Callback when fresh data arrives (receives fresh data)
@@ -249,9 +347,9 @@ export async function staleWhileRevalidate({
 
 /**
  * Cache wrapper for read operations.
- * Wraps a fetch function with IndexedDB caching.
+ * Wraps a fetch function with SQLite caching.
  *
- * @param {string} store - Cache store name
+ * @param {string} store - Table name
  * @param {string} key - Cache key
  * @param {Function} fetchFn - Async function to fetch data
  * @returns {Promise<any>} The data (from cache or fresh)
@@ -286,5 +384,5 @@ export async function cachedFetch(store, key, fetchFn) {
   });
 }
 
-// Export store names for use in other modules
-export { STORES as CACHE_STORES };
+// Export table names for use in other modules
+export { TABLES as CACHE_STORES };

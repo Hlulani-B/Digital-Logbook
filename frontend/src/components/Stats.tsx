@@ -114,7 +114,10 @@ Make it insightful and encouraging. ${tone}`;
   }, [statsOpen, reflection, activeProject, entries, projects]);
 
   // Detect in-progress entries so the live timer only ticks when needed.
-  const hasInProgress = useMemo(() => safeEntries.some((e) => e.started_at && !e.ended_at), [safeEntries]);
+  const hasInProgress = useMemo(
+    () => safeEntries.some((e) => e.started_at && !e.ended_at),
+    [safeEntries]
+  );
   // Ticking timestamp — re-renders every second while a task is running,
   // paused otherwise to avoid unnecessary work.
   const now = useNow(1000, hasInProgress);

@@ -27,6 +27,8 @@ export function AuthCallback() {
       } else if (result.exists) {
         navigate('/dashboard', { replace: true });
       } else {
+        // New user — flag for data disclaimer at end of onboarding
+        sessionStorage.setItem('dl_new_signup', 'true');
         navigate('/create-profile', { replace: true });
       }
     } catch (err) {

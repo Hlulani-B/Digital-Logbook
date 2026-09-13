@@ -72,7 +72,7 @@ export class Project {
     try {
       if (!pool) throw new Error('Database pool not initialized');
       const { rows } = await pool.query(
-        `SELECT project_name, description, created_at, archived
+        `SELECT *
          FROM projects
          WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
          ORDER BY created_at DESC`,
@@ -80,6 +80,23 @@ export class Project {
       );
 
       return { success: true, projects: rows || [] };
+    } catch (error) {
+      console.log(error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async setProjectColor(user_email, project_name, color) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+      await pool.query(
+        `UPDATE projects SET project_color = $1
+         WHERE project_name = $2 AND user_email = $3`,
+        [color, project_name, user_email]
+      );
+
+      console.log('Project color updated');
+      return { success: true, message: 'Project color updated' };
     } catch (error) {
       console.log(error);
       return { success: false, message: error.message };

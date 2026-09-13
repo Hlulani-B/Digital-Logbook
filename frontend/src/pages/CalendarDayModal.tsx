@@ -33,11 +33,12 @@ interface FieldDef {
 interface CalendarDayModalProps {
   date: Date;
   entries: CalendarEntry[];
-  projects: { project_name: string }[];
+  projects: Array<Record<string, unknown>>;
   userEmail: string;
   onClose: () => void;
   onEntryAdded: () => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  colorMap?: Record<string, string | null>;
 }
 
 function parseFieldValue(value: string, dataType: string): unknown {
@@ -90,6 +91,7 @@ export function CalendarDayModal({
   onClose,
   onEntryAdded,
   onEntryClick,
+  colorMap,
 }: CalendarDayModalProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProject, setSelectedProject] = useState('');
@@ -213,6 +215,7 @@ export function CalendarDayModal({
       } finally {
         setSaving(false);
       }
+<<<<<<< HEAD
     },
     [
       selectedProject,
@@ -226,6 +229,36 @@ export function CalendarDayModal({
       onEntryAdded,
     ]
   );
+=======
+      const priorityLabel = priority === '3' ? null : PRIORITY_LABELS[priority];
+
+      await addEntry(
+        userEmail,
+        selectedProject,
+        entryObject,
+        dueDate ? new Date(dueDate).toISOString() : null,
+        priorityLabel,
+        status,
+        null,
+        null,
+        null
+      );
+
+      setSuccessMsg('Entry added!');
+      // Reset form
+      setFieldValues({});
+      setSelectedProject('');
+      setFields([]);
+      setShowAddForm(false);
+      onEntryAdded();
+      setTimeout(() => setSuccessMsg(null), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add item');
+    } finally {
+      setSaving(false);
+    }
+  }, [selectedProject, userEmail, fields, fieldValues, dueDate, priority, status, saving, onEntryAdded]);
+>>>>>>> origin/main
 
   const handleFieldChange = (fieldName: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [fieldName]: value }));
@@ -238,9 +271,7 @@ export function CalendarDayModal({
         <div className="cdm-header">
           <div>
             <h2 className="cdm-date">{formatDateHeading(date)}</h2>
-            <span className="cdm-count">
-              {entries.length} task{entries.length !== 1 ? 's' : ''}
-            </span>
+            <span className="cdm-count">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
           </div>
           <button type="button" className="cdm-close" onClick={onClose} aria-label="Close">
             &times;
@@ -272,6 +303,10 @@ export function CalendarDayModal({
                   const isCompleted = entryStatus === 'done_and_dusted';
                   const statusColor = STATUS_COLORS[entryStatus] || '#6366f1';
 
+                  const entryColor = colorMap
+                    ? (colorMap[entry.project_name] || null)
+                    : null;
+
                   return (
                     <div
                       key={entry.id}
@@ -285,9 +320,8 @@ export function CalendarDayModal({
                       onClick={() => onEntryClick(entry)}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onEntryClick(entry);
-                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') onEntryClick(entry); }}
+                      style={entryColor ? { borderLeft: `3px solid ${entryColor}` } : undefined}
                     >
                       <div
                         className="cdm-entry-indicator"
@@ -313,13 +347,13 @@ export function CalendarDayModal({
           )}
 
           {entries.length === 0 && !showAddForm && (
-            <p className="cdm-empty">No tasks for this day.</p>
+            <p className="cdm-empty">No items for this day.</p>
           )}
 
           {/* Add entry form */}
           {showAddForm ? (
             <form className="cdm-form" onSubmit={handleSubmit}>
-              <h3 className="cdm-form-title">New Entry</h3>
+              <h3 className="cdm-form-title">New Item</h3>
 
               {/* Project selector */}
               <div className="cdm-form-field">
@@ -336,8 +370,8 @@ export function CalendarDayModal({
                 >
                   <option value="">Select a project...</option>
                   {projects.map((p) => (
-                    <option key={p.project_name} value={p.project_name}>
-                      {p.project_name}
+                    <option key={p.project_name as string} value={p.project_name as string}>
+                      {p.project_name as string}
                     </option>
                   ))}
                 </select>
@@ -449,7 +483,7 @@ export function CalendarDayModal({
                   className="cdm-btn cdm-btn--submit"
                   disabled={saving || !selectedProject}
                 >
-                  {saving ? 'Adding...' : 'Add Entry'}
+                  {saving ? 'Adding...' : 'Add Item'}
                 </button>
               </div>
             </form>
@@ -463,7 +497,7 @@ export function CalendarDayModal({
                 setSuccessMsg(null);
               }}
             >
-              + Add Entry
+              + Add Task
             </button>
           )}
         </div>

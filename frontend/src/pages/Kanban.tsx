@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
@@ -16,8 +16,9 @@ import {
 import './Kanban.css';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
@@ -35,10 +36,12 @@ function KanbanCard({
   entry,
   onDragStart,
   onClick,
+  projectColor,
 }: {
   entry: CalendarEntry;
   onDragStart: () => void;
   onClick: () => void;
+  projectColor?: string;
 }) {
   const status = getEntryStatus(entry);
   const due = parseDueDate(entry.due_date);
@@ -62,6 +65,7 @@ function KanbanCard({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onClick();
       }}
+      style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
       <div className="kanban-card-title">{getEntryTitle(entry)}</div>
       <div className="kanban-card-meta">
@@ -88,6 +92,7 @@ function KanbanColumn({
   onDragStart,
   onDrop,
   onEntryClick,
+  colorMap,
 }: {
   status: EntryStatus;
   entries: CalendarEntry[];
@@ -95,6 +100,7 @@ function KanbanColumn({
   onDragStart: (entry: CalendarEntry) => void;
   onDrop: (status: EntryStatus) => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  colorMap?: Record<string, string | null>;
 }) {
   const isDropTarget = dragging !== null && getEntryStatus(dragging) !== status;
 
@@ -127,6 +133,9 @@ function KanbanColumn({
             entry={entry}
             onDragStart={() => onDragStart(entry)}
             onClick={() => onEntryClick(entry)}
+            projectColor={
+              colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined
+            }
           />
         ))}
       </div>
@@ -148,8 +157,14 @@ export function KanbanPage() {
   const [dragging, setDragging] = useState<CalendarEntry | null>(null);
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
 
+  // Guard against overlapping loadData calls — mount effect, three
+  // cacheSubscribe listeners, SSE and visibilitychange all fire this
+  // function concurrently; only the newest invocation may commit state.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
     if (!email) return;
+    const seq = ++loadSeq.current;
     setError(null);
 
     // Read ONLY from IndexedDB. Mutations update it directly.
@@ -158,6 +173,7 @@ export function KanbanPage() {
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
+      if (seq !== loadSeq.current) return;
       if (cachedEntries?.data) {
         const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter(
           (e: CalendarEntry) => !e.archived
@@ -179,6 +195,7 @@ export function KanbanPage() {
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
+        if (seq !== loadSeq.current) return;
         if (freshEntries?.data) {
           const data = (Array.isArray(freshEntries.data) ? freshEntries.data : []).filter(
             (e: CalendarEntry) => !e.archived
@@ -197,7 +214,7 @@ export function KanbanPage() {
     } catch (err) {
       console.error('[Kanban] Failed to load data:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [email]);
 
@@ -205,12 +222,26 @@ export function KanbanPage() {
     loadData();
   }, [loadData]);
 
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  useEffect(() => {
+    if (!email) return;
+    const unsubs = [
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [email, loadData]);
+
   const filteredEntries = useMemo(
     () => filterEntries(entries, projectFilter, searchQuery),
     [entries, projectFilter, searchQuery]
   );
 
   const groupedEntries = useMemo(() => groupEntriesByStatus(filteredEntries), [filteredEntries]);
+  const colorMap = useMemo(
+    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
+    [projects]
+  );
 
   const handleDragStart = (entry: CalendarEntry) => {
     setDragging(entry);
@@ -267,7 +298,7 @@ export function KanbanPage() {
         activeView="all"
       />
       <main className="dash-main">
-        <div className="kanban-page">
+        <div className="kanban-page" data-tour="page-kanban">
           <Header
             title="Kanban Board"
             entries={entries as unknown as Array<Record<string, unknown>>}
@@ -301,7 +332,7 @@ export function KanbanPage() {
                 id="search-filter"
                 type="text"
                 className="kanban-search"
-                placeholder="Search tasks…"
+                placeholder="Search items…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -334,7 +365,7 @@ export function KanbanPage() {
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="kanban-empty">
-              <p>No tasks match the current filter.</p>
+              <p>No items match the current filter.</p>
               <button
                 className="btn-secondary"
                 onClick={() => {
@@ -356,6 +387,7 @@ export function KanbanPage() {
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onEntryClick={handleEntryClick}
+                  colorMap={colorMap}
                 />
               ))}
             </div>

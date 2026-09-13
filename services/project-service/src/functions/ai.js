@@ -40,20 +40,81 @@ const JSON_SYSTEM_INSTRUCTION =
   'Do not include markdown blocks (```json), explanations, preambles, or postscripts.';
 
 // ---------------- Model Arrays ----------------
+//
+// Each array is a fallback chain — the loop in tryProviderModels() walks
+// top to bottom, moving on when a call throws. Order is intentional:
+// strongest / most-likely-available first, then alternatives so a single
+// retired / renamed / region-locked model doesn't kill the whole provider.
+//
+// Sources checked 2026-09-11:
+//   https://console.groq.com/docs/models
+//   https://inference-docs.cerebras.ai/models/overview
+//   https://ai.google.dev/gemini-api/docs/models
+//   https://openrouter.ai/api/v1/models
+//   https://huggingface.co/docs/inference-providers/en/index
 
 const OPENROUTER_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct',
+  // Free variants (no credit needed) — most reliable first
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
+  'thinkingmachines/inkling-small:free',
+  'poolside/laguna-s-2.1:free',
+  'cohere/north-mini-code:free',
+  'liquid/lfm-2.5-2.6b:free',
+  // Legacy free variants (kept for backwards compatibility if still served)
   'nvidia/nemotron-3-nano-30b-a3b:free',
   'google/gemma-3-27b-it:free',
+  // Meta Llama 3.3 70B (was previously available on the free tier)
+  'meta-llama/llama-3.3-70b-instruct',
+  // Catch-all router — picks any healthy free model at random
+  'openrouter/free',
 ];
 
-const CEREBRAS_MODELS = ['llama-3.3-70b', 'llama3.1-8b'];
+const CEREBRAS_MODELS = [
+  // Public endpoints as of Sept 2026 — Cerebras' /v1/models list now returns
+  // only these two IDs (older llama-* IDs retired; keeping them just wastes
+  // a 404 round-trip before the next model is tried).
+  'gpt-oss-120b',
+  'qwen-3.8-27b',
+];
 
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+const GEMINI_MODELS = [
+  // gemini-2.5-flash is still listed as stable by Google
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  // Hot-swap alias — always points to the newest stable Flash release
+  'gemini-flash-latest',
+  // 3.5 / 3.6 stable Flash tiers
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  // Pro as a last-resort quality fallback
+  'gemini-2.5-pro',
+];
 
-const HF_MODELS = ['deepseek-ai/DeepSeek-R1', 'meta-llama/Llama-3.3-70B-Instruct'];
+const HF_MODELS = [
+  // Verified against https://huggingface.co/docs/inference-providers/en/tasks/chat-completion
+  // "Recommended models" list. Anything not on that list risks a
+  // "Model X is not supported by any Inference Provider" 400.
+  'openai/gpt-oss-120b',
+  'Qwen/Qwen3-4B-Thinking-2507',
+  'Qwen/Qwen2.5-7B-Instruct-1M',
+  'Qwen/Qwen2.5-Coder-32B-Instruct',
+  'google/gemma-2-2b-it',
+  'deepseek-ai/DeepSeek-R1',
+];
 
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+const GROQ_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'groq/compound-mini',
+  'groq/compound',
+];
 
 // ---------------- Lazy SDK Instantiators ----------------
 

@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { classifyEntryPayload, formatEntryValue } from '@/lib/entryPayload';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNotes } from '@/context/NotesContext';
+import { FiEdit } from 'react-icons/fi';
+import { classifyEntryPayload, formatEntryValue, cleanSummaryText } from '@/lib/entryPayload';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -336,7 +338,7 @@ function MobileCard({
       {viewMode === 'summary' ? (
         <div className="ptt-mobile-card__title">
           <EditableText
-            value={entry.summary || ''}
+            value={cleanSummaryText(entry.summary) ?? ''}
             onSave={(val) => onUpdate(entry.id, { summary: val })}
             className="ptt-summary-text"
           />
@@ -446,7 +448,7 @@ function TaskRow({
       {viewMode === 'summary' ? (
         <div className="ptt-cell ptt-cell-summary">
           <EditableText
-            value={entry.summary || ''}
+            value={cleanSummaryText(entry.summary) ?? ''}
             onSave={(val) => onUpdate(entry.id, { summary: val })}
             className="ptt-summary-text"
           />
@@ -513,6 +515,7 @@ function ProjectGroup({
   hideHeader,
   selectedIds,
   onToggleSelect,
+  projectColor,
 }: {
   project: any;
   viewMode: 'entry' | 'summary';
@@ -522,6 +525,7 @@ function ProjectGroup({
   hideHeader?: boolean;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
+  projectColor?: string;
 }) {
   const [open, setOpen] = useState(true);
   const fieldColumns = entryFieldColumns(project.entries);
@@ -572,6 +576,13 @@ function ProjectGroup({
             }
             title={onProjectNameClick ? `Open ${project.name}` : undefined}
           >
+            {projectColor && (
+              <span
+                className="ptt-group-dot"
+                style={{ backgroundColor: projectColor }}
+                aria-hidden="true"
+              />
+            )}
             {project.name}
           </span>
           <span className="ptt-group-count">{project.entries.length}</span>
@@ -645,6 +656,7 @@ export default function ProjectTaskTable({
   projectNames,
   showToggle = true,
   onDeleteSelected,
+  colorMap,
 }: {
   rows?: any[];
   viewMode?: 'entry' | 'summary';
@@ -653,6 +665,7 @@ export default function ProjectTaskTable({
   projectNames?: string[]; // Optional: filter to show only these projects' entries
   showToggle?: boolean; // Show Entry/Summary toggle buttons
   onDeleteSelected?: (ids: string[]) => void; // Bulk delete callback
+  colorMap?: Record<string, string | null>;
 }) {
   const [internalViewMode, setInternalViewMode] = useState<'entry' | 'summary'>('entry');
   // Use external viewMode if provided, otherwise use internal state
@@ -660,6 +673,14 @@ export default function ProjectTaskTable({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { openNotes } = useNotes();
+
+  // Find the single selected entry for notes actions
+  const singleSelectedEntry = useMemo(() => {
+    if (selectedIds.size !== 1) return null;
+    const id = Array.from(selectedIds)[0];
+    return rows.find((r) => r.id === id) || null;
+  }, [selectedIds, rows]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -718,6 +739,26 @@ export default function ProjectTaskTable({
       {selectedIds.size > 0 && (
         <div className="ptt-bulk-bar">
           <span className="ptt-bulk-bar__count">{selectedIds.size} selected</span>
+          {singleSelectedEntry && (
+            <>
+              <button
+                type="button"
+                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
+                onClick={() => openNotes(singleSelectedEntry)}
+              >
+                <FiEdit />
+                View Notes
+              </button>
+              <button
+                type="button"
+                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
+                onClick={() => openNotes(singleSelectedEntry)}
+              >
+                <FiEdit />
+                Add Note
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="ptt-bulk-bar__btn ptt-bulk-bar__btn--delete"
@@ -746,6 +787,7 @@ export default function ProjectTaskTable({
           hideHeader={projectNames?.length === 1}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
+          projectColor={colorMap ? (colorMap[project.name] || undefined) : undefined}
         />
       ))}
     </div>

@@ -2,11 +2,37 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 
 import { FiMic } from 'react-icons/fi';
 import { addNaturalLanguageEntry } from '../functions/project/natural_language.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface QuickEntryBarProps {
-  onEntryCreated?: () => void;
+  onEntryCreated?: (info?: {
+    entryId?: string;
+    projectName?: string;
+    title?: string;
+    /**
+     * Every entry the backend actually created for this submission.
+     * Single-entry responses put one item in here; multi-project
+     * responses put one item per created entry. Consumers should
+     * iterate this list to populate "Recently created" — it's the
+     * only shape that reliably covers every branch.
+     */
+    created?: Array<{ entryId?: string; projectName: string; title: string }>;
+  }) => void;
   onVoiceOpen?: () => void;
   placeholder?: string;
+}
+
+function titleFromFields(
+  fields: Record<string, unknown> | undefined,
+  fallback: string
+): string {
+  if (fields) {
+    const first = Object.values(fields).find(
+      (v) => typeof v === 'string' && (v as string).length > 0
+    );
+    if (typeof first === 'string') return first.slice(0, 100);
+  }
+  return fallback;
 }
 
 export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: QuickEntryBarProps) {
@@ -16,6 +42,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
   const [toast, setToast] = useState('');
   const [messageType, setMessageType] = useState(''); // "success" | "error"
   const inputRef = useRef(null);
+  const isOnline = useNetworkStatus();
 
   useEffect(() => {
     if (message) {
@@ -47,26 +74,59 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       const data = result.data as Record<string, unknown>;
       const isProjectOnly = data?.project_only === true;
       const isMulti = data?.multi === true;
+
+      // Extract project name / entry id / title for the single-match case,
+      // and always build a `created[]` list covering every branch so the
+      // "Recently created" section can track multi-match responses too.
+      let projectName: string | undefined;
+      let entryId: string | undefined;
+      let title: string | undefined;
+      const created: Array<{ entryId?: string; projectName: string; title: string }> = [];
+      const rawSummary = (data?.summary as string) || text.trim();
+      const fallbackTitle = rawSummary.slice(0, 100) || 'New entry';
+
       if (isMulti) {
-        const results = data.results as Record<string, unknown[]> | undefined;
-        const oldCount = results?.old?.length || 0;
-        const newCount = results?.new?.length || 0;
-        const total = oldCount + newCount;
+        const results = (data?.results ?? {}) as {
+          old?: Array<{ project_name?: string; fields?: Record<string, unknown>; entry_id?: string }>;
+          new?: Array<{ project_name?: string; fields?: Record<string, unknown>; entry_id?: string }>;
+        };
+        for (const item of [...(results.old ?? []), ...(results.new ?? [])]) {
+          if (!item.project_name) continue;
+          created.push({
+            entryId: item.entry_id,
+            projectName: item.project_name,
+            title: titleFromFields(item.fields, fallbackTitle),
+          });
+        }
+        const total = created.length;
         setMessage(
-          `Added ${total} ${total === 1 ? 'entry' : 'entries'} across ${total} ${total === 1 ? 'project' : 'projects'}!`
+          `Added ${total} ${total === 1 ? 'entry' : 'entries'} — see "Recently created" below.`
         );
       } else if (isProjectOnly) {
-        const projName = (data?.project as string) || '';
-        setMessage(`Project "${projName}" created!`);
+        projectName = (data?.project as string) || undefined;
+        setMessage(`Project "${projectName}" created!`);
+        if (projectName) {
+          created.push({ projectName, title: `Project: ${projectName}` });
+        }
       } else {
+        projectName = (data?.project as string) || undefined;
+        entryId = (data?.entry_id as string) || undefined;
+        title = titleFromFields(
+          data?.fields as Record<string, unknown> | undefined,
+          fallbackTitle
+        );
         setMessage('Entry created!');
+        if (projectName && title) {
+          created.push({ entryId, projectName, title });
+        }
       }
+
       setMessageType('success');
       const comment = data?.comment || (data?.data as Record<string, unknown>)?.comment;
       if (comment && getAiMessagesEnabled()) {
         setToast(comment as string);
       }
-      if (onEntryCreated) onEntryCreated();
+      if (onEntryCreated) onEntryCreated({ entryId, projectName, title, created });
     } else {
       setMessage(result.message || 'Failed to create entry');
       setMessageType('error');
@@ -103,12 +163,19 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             type="text"
             className="quick-entry-input"
             placeholder={
-              placeholder || 'Quick add: "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+              isOnline
+                ? placeholder || 'Write an item, e.g. "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+                : 'Offline — Quick add unavailable'
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={loading}
+            disabled={loading || !isOnline}
+            title={
+              !isOnline
+                ? 'Quick add requires an internet connection'
+                : 'Write what you worked on — the project, priority and due date will be picked up automatically. Example: "Fixed login bug for ProjectX, urgent, due tomorrow"'
+            }
           />
           {/* Voice button */}
           {onVoiceOpen && (
@@ -117,12 +184,25 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title="Record a voice entry"
+              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your item using voice — speak naturally and the item will be created for you'}
+              disabled={!isOnline}
+              style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
               <FiMic size={16} />
             </button>
           )}
-          <button type="submit" className="quick-entry-submit" disabled={loading || !text.trim()}>
+          <button
+            type="submit"
+            className="quick-entry-submit"
+            disabled={loading || !text.trim() || !isOnline}
+            title={
+              !isOnline
+                ? 'Quick add requires an internet connection'
+                : loading
+                  ? 'Creating your item...'
+                  : 'Create the item — we will parse the text and organize it into the right project'
+            }
+          >
             {loading ? (
               <svg
                 className="animate-spin"

@@ -349,6 +349,16 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - AuthCallback TypeScript build error — added null guard for `email` parameter
 - Drawer overflow — Timeline and Import/Export links were clipped by `overflow: hidden` on the navigation drawer; fixed with `overflow-y: auto`
 
+#### Guided Tour with Live Navigation & Voice Narration
+
+- Interactive walkthrough (driver.js) anchored to real UI elements across all views; the tour really navigates — it changes routes and opens/closes the navigation drawer for the user
+- Friendly voice narration via the browser SpeechSynthesis API, with a persisted speaker mute/unmute toggle in the popover
+- Hands-free auto-advance paced by the narration end event (speech is never cut off), with a draining progress bar, hover pause, and a hard cap
+- Offered automatically on the first dashboard visit; replayable from the dashboard banner and navbar; completion persists in localStorage
+- Addresses Sprint 2 survey problem 2 (no onboarding or in-app guidance, issue #119); intro video remains tracked in #126
+- Key files: `frontend/src/lib/tour.ts`, `frontend/src/index.css`
+- PRs #158, #161–165
+
 ### Planned Features
 
 - Server-side caching (Redis)

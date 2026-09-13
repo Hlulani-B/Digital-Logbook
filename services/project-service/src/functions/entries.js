@@ -2,11 +2,42 @@ import pool from '../db.js';
 import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Fields } from './field.js';
+import { Notes } from './notes/notes_crud.js';
 import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 import leven from 'leven';
 
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Detect the notes-payload shape used by AddEntry: an array of
+ * `{entry_type,value}` (or its JSON-stringified form). Historically a
+ * frontend caller passed this array into the `summary` positional argument,
+ * which resulted in the raw notes JSON being stored as the entry summary.
+ * Both the write path and (mirrored in the frontend) the display path use
+ * this check to reject that shape.
+ */
+function isNotesPayloadShape(value) {
+  let arr = value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('[')) return false;
+    try {
+      arr = JSON.parse(trimmed);
+    } catch {
+      return false;
+    }
+  }
+  if (!Array.isArray(arr) || arr.length === 0) return false;
+  return arr.every(
+    (n) =>
+      n &&
+      typeof n === 'object' &&
+      !Array.isArray(n) &&
+      typeof n.entry_type === 'string' &&
+      'value' in n
+  );
 }
 
 export class Entries {
@@ -20,10 +51,19 @@ export class Entries {
     started_at,
     ended_at,
     duration,
-    summary
+    summary,
+    notes
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
+
+      // Defensive swap: a caller that slips the notes payload into the
+      // summary slot gets it moved to `notes` and summary cleared, so a
+      // JSON-stringified notes array can never reach the summary column.
+      if (summary !== undefined && summary !== null && isNotesPayloadShape(summary)) {
+        if (notes === undefined || notes === null) notes = summary;
+        summary = null;
+      }
 
       const insertData = { user_email, project_name, entries: entry_object };
       if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;
@@ -48,8 +88,26 @@ export class Entries {
         values
       );
 
-      console.log('[addEntry] Success, id:', rows?.[0]?.id);
-      return { success: true, message: 'Entry added successfully', data: rows };
+      const entryId = rows?.[0]?.id;
+      console.log('[addEntry] Success, id:', entryId);
+
+      // Add notes if provided
+      let addedNotes = [];
+      if (Array.isArray(notes) && notes.length > 0 && entryId) {
+        const notesHelper = new Notes();
+        for (const note of notes) {
+          const { entry_type, value } = note || {};
+          if (!entry_type || value === undefined || value === null || value === '') continue;
+          const noteResult = await notesHelper.addNote(user_email, entryId, entry_type, value);
+          if (noteResult.success) {
+            addedNotes.push(noteResult.data);
+          } else {
+            console.warn('[addEntry] Failed to add note:', noteResult.message);
+          }
+        }
+      }
+
+      return { success: true, message: 'Entry added successfully', data: rows, notes: addedNotes };
     } catch (error) {
       console.error('[addEntry] FAILED:', error.message);
       return { success: false, message: error.message };
@@ -197,6 +255,13 @@ export class Entries {
         return { success: false, message: 'Entry not found. Something went wrong' };
       }
 
+      // Soft-delete associated notes
+      const entryId = rows[0].id;
+      await pool.query(
+        `UPDATE notes SET deleted = true WHERE entry_id = $1 AND (deleted = false OR deleted IS NULL)`,
+        [entryId]
+      );
+
       console.log('Entry soft-deleted successfully');
       return { success: true, message: 'Entry deleted successfully' };
     } catch (error) {
@@ -208,10 +273,21 @@ export class Entries {
   async deleteEntryById(user_email, entry_id) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
-      await pool.query(
+      const { rows } = await pool.query(
         `UPDATE entries SET deleted = true
-         WHERE id = $1 AND user_email = $2 AND deleted = false`,
+         WHERE id = $1 AND user_email = $2 AND deleted = false
+         RETURNING id`,
         [entry_id, user_email]
+      );
+
+      if (!rows || rows.length === 0) {
+        return { success: false, message: 'Entry not found' };
+      }
+
+      // Soft-delete associated notes
+      await pool.query(
+        `UPDATE notes SET deleted = true WHERE entry_id = $1 AND (deleted = false OR deleted IS NULL)`,
+        [entry_id]
       );
 
       console.log('Entry soft-deleted by id:', entry_id);
@@ -647,16 +723,17 @@ If the entry has no real content, use the project name as the summary.`;
 
       const projectList = (projectsResult.projects || []).filter((p) => !p.archived);
 
-      // 2. Get fields for every existing project
-      const projectsWithFields = [];
-      for (const p of projectList) {
-        const fieldsResult = await fields.getFields(email, p.project_name);
-        projectsWithFields.push({
-          project_name: p.project_name,
-          description: p.description,
-          fields: fieldsResult.success ? fieldsResult.data : [],
-        });
-      }
+      // 2. Get fields for every existing project (parallel — was sequential)
+      const projectsWithFields = await Promise.all(
+        projectList.map(async (p) => {
+          const fieldsResult = await fields.getFields(email, p.project_name);
+          return {
+            project_name: p.project_name,
+            description: p.description,
+            fields: fieldsResult.success ? fieldsResult.data : [],
+          };
+        })
+      );
 
       // ── Pre-calculate the due date from keywords BEFORE involving AI ──
       // This way the AI NEVER has to guess dates — we already know the answer.
@@ -780,8 +857,38 @@ ${commentInstruction}
 === STEP 4: MATCHED VALUES ===
 - matched=0: Single task, NO existing project matches. Create ONE new project + entry.
 - matched=1: Single task, fits ONE existing project EXACTLY. You are CERTAIN it belongs there.
-- matched=2: User ONLY wants to create a project (no entry). Examples: "create a project called X".
+- matched=2: User ONLY wants to create a project — NO entry, NO task. Use this whenever the input is a request/command to set up a project itself, not a description of work done. Only provide project name and field names
 - matched=3: MULTIPLE distinct tasks OR you are UNSURE about project matching. Split into "old" (existing projects you're CERTAIN about) and "new" (new projects for tasks that don't clearly fit).
+
+=== STEP 4a: PROJECT-ONLY VS PROJECT+TASK — DECIDE THIS FIRST (ABSOLUTE RULE) ===
+Before doing anything else, determine whether the user's input is a REQUEST TO CREATE A PROJECT, or a DESCRIPTION OF WORK/TASK.
+
+RULE (NON-NEGOTIABLE): If the user's text is primarily asking you to make/set up/create/add a project, you MUST use matched=2 (project only, no fields, no entry). Do NOT also invent a task in that project unless the user ALSO described an actual task they did or need to do.
+
+CORRECT → matched=2 (project only, no entry):
+- "create a project called X"
+- "make a new project for Y"
+- "I want to set up a project for Z"
+- "add a project named W"
+- "start a new project to track my workouts"
+- "let's make a Gym project"
+- "can you make a Thesis project?"
+- "please create a Reading project"
+- "Create a new project for the marketing campaign"
+- "I need a new project for my kitchen renovation"
+- "set up a project for the AI course"
+
+WRONG — do NOT treat these as matched=2 (they describe an actual task/action done or to do):
+- "started the gym project and did 5km run" → matched=0/1 WITH an entry (the run is the task)
+- "created a new project for Thesis and wrote the intro" → matched=0/1 WITH an entry (writing the intro is the task)
+- "worked on my Gym project, did 3 sets of squats" → matched=1 WITH an entry
+
+CORRECT matched=0/1 with entry:
+- Any text that describes work, actions, activities, or something done/being done — even if it mentions a project name or new project — MUST create the entry too. The project name mention is context, not the whole request.
+
+TEST: Ask yourself, "If I only created the project and NO entry, would the user feel that their message was fully handled?" If YES → matched=2. If NO (they described work you'd lose) → matched=0/1/3 with an entry.
+
+If matched=2, your response MUST have "fields": {} and "new_fields": [] (empty), and MUST NOT invent a task description. The comment should explain that the project was created and remind them they can log entries into it.
 
 === STEP 5: FIELD NAMES AND VALUES — PARAPHRASE NEATLY (STRICT) ===
 
@@ -820,6 +927,7 @@ IMPORTANT: Replace "task" with a MEANINGFUL field name (see Step 5). Never use "
 
 === FINAL CHECK BEFORE RESPONDING (MANDATORY) ===
 Before you output your JSON, verify ALL of these:
+□ Is the user's text primarily a REQUEST to create a project (not a description of work done)? If YES, matched MUST be 2 with fields:{} — do NOT invent an entry/task.
 □ Did I write a comment that is at least 5 sentences long? If not, REWRITE it.
 □ Does my comment mention the project name by name? If not, ADD it.
 □ Does my comment speak directly to the user ("you", "your")? If I used "the user", REWRITE.
@@ -847,13 +955,46 @@ RULES:
 
 Respond with ONLY this JSON, nothing else:`;
 
-      const aiResponse = await AI(prompt);
+      console.log('[Natural_language.entry] === About to call AI() ===');
+      console.log('[Natural_language.entry] email:', email, '| user text:', text);
+      console.log('[Natural_language.entry] prompt length:', prompt.length);
+      console.log(
+        '[Natural_language.entry] env keys present — HF:',
+        !!process.env.HF_API_KEY,
+        'OPENROUTER:',
+        !!process.env.OPENROUTER_API_KEY,
+        'CEREBRAS:',
+        !!process.env.CEREBRAS_API_KEY,
+        'GEMINI:',
+        !!process.env.GEMINI_API_KEY,
+        'GROQ:',
+        !!process.env.GROQ_API_KEY
+      );
+
+      let aiResponse;
+      try {
+        aiResponse = await AI(prompt);
+        console.log(
+          '[Natural_language.entry] AI() returned — typeof:',
+          typeof aiResponse,
+          'length:',
+          aiResponse?.length ?? 'null/undefined',
+          'preview:',
+          typeof aiResponse === 'string' ? aiResponse.slice(0, 200) : String(aiResponse)
+        );
+      } catch (aiErr) {
+        console.error('[Natural_language.entry] AI() THREW:', aiErr?.message || aiErr, aiErr?.stack);
+        throw aiErr;
+      }
 
       if (!aiResponse || aiResponse.trim() === '') {
+        console.error(
+          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown. Check ai_provider_cooldowns table in Supabase.'
+        );
         return {
           success: false,
           message:
-            'All AI providers failed. Please check that API keys are configured and try again.',
+            "Something didn't work on our end. Please try creating the project or task manually — the quick-add will keep working again shortly.",
         };
       }
 
@@ -890,7 +1031,6 @@ Respond with ONLY this JSON, nothing else:`;
           };
         }
 
-        const summary = await this.generateSummary(parsed.project, parsed.fields);
         const addResult = await entries.addEntry(
           email,
           parsed.project,
@@ -901,17 +1041,30 @@ Respond with ONLY this JSON, nothing else:`;
           null, // started_at
           null, // ended_at
           null, // duration
-          summary
+          null  // summary — generated in background below
         );
+
+        // Generate summary in background (don't block the response)
+        if (addResult.success) {
+          const entryId = addResult.data?.[0]?.id;
+          if (entryId) {
+            this.generateSummary(parsed.project, parsed.fields)
+              .then((summary) => {
+                entries.updateEntry(email, parsed.project, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, summary).catch(() => {});
+              })
+              .catch(() => {});
+          }
+        }
 
         return {
           success: addResult.success,
           message: addResult.message,
+          entry_id: addResult.data?.[0]?.id || null,
           project: parsed.project,
           fields: parsed.fields,
           priority: priorityLabel,
           due_date: calculatedDate || null,
-          summary,
+          summary: null,
           comment: parsed.comment || null,
           created_new_project: false,
         };
@@ -1001,7 +1154,6 @@ Respond with ONLY this JSON, nothing else:`;
             continue;
           }
           try {
-            const summary = await this.generateSummary(projName, fieldValues);
             const addResult = await entries.addEntry(
               email,
               projName,
@@ -1012,10 +1164,17 @@ Respond with ONLY this JSON, nothing else:`;
               null, // started_at
               null, // ended_at
               null, // duration
-              summary
+              null  // summary — generated in background
             );
             if (addResult.success) {
-              results.old.push({ project_name: projName, fields: fieldValues, summary });
+              const entryId = addResult.data?.[0]?.id;
+              results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+              // Generate summary in background
+              if (entryId) {
+                this.generateSummary(projName, fieldValues)
+                  .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+                  .catch(() => {});
+              }
             } else {
               results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
             }
@@ -1039,7 +1198,6 @@ Respond with ONLY this JSON, nothing else:`;
             const existingProject = projectsWithFields.find((p) => p.project_name === projName);
             if (existingProject) {
               // Project already exists, just add the entry
-              const summary = await this.generateSummary(projName, fieldValues);
               const addResult = await entries.addEntry(
                 email,
                 projName,
@@ -1050,10 +1208,17 @@ Respond with ONLY this JSON, nothing else:`;
                 null, // started_at
                 null, // ended_at
                 null, // duration
-                summary
+                null  // summary — generated in background
               );
               if (addResult.success) {
-                results.old.push({ project_name: projName, fields: fieldValues, summary });
+                const entryId = addResult.data?.[0]?.id;
+                results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+                // Generate summary in background
+                if (entryId) {
+                  this.generateSummary(projName, fieldValues)
+                    .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+                    .catch(() => {});
+                }
               } else {
                 results.errors.push(
                   `Project "${projName}" already exists but failed to add entry: ${addResult.message}`
@@ -1084,7 +1249,6 @@ Respond with ONLY this JSON, nothing else:`;
             }
 
             // Add the entry
-            const summary = await this.generateSummary(projName, fieldValues);
             const addResult = await entries.addEntry(
               email,
               projName,
@@ -1095,15 +1259,23 @@ Respond with ONLY this JSON, nothing else:`;
               null, // started_at
               null, // ended_at
               null, // duration
-              summary
+              null  // summary — generated in background
             );
             if (addResult.success) {
+              const entryId = addResult.data?.[0]?.id;
               results.new.push({
                 project_name: projName,
                 fields: fieldValues,
-                summary,
+                summary: null,
                 new_fields: newFields,
+                entry_id: entryId,
               });
+              // Generate summary in background
+              if (entryId) {
+                this.generateSummary(projName, fieldValues)
+                  .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+                  .catch(() => {});
+              }
             } else {
               results.errors.push(
                 `Created project "${projName}" but failed to add entry: ${addResult.message}`
@@ -1169,7 +1341,6 @@ Respond with ONLY this JSON, nothing else:`;
         console.log('[Natural_language] Add field', f.field_name, 'result:', addFieldResult);
       }
 
-      const summary = await this.generateSummary(newProjectName, parsed.fields);
       const addResult = await entries.addEntry(
         email,
         newProjectName,
@@ -1180,17 +1351,28 @@ Respond with ONLY this JSON, nothing else:`;
         null, // started_at
         null, // ended_at
         null, // duration
-        summary
+        null  // summary — generated in background
       );
+
+      // Generate summary in background (don't block the response)
+      if (addResult.success) {
+        const entryId = addResult.data?.[0]?.id;
+        if (entryId) {
+          this.generateSummary(newProjectName, parsed.fields)
+            .then((s) => { entries.updateEntry(email, newProjectName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+            .catch(() => {});
+        }
+      }
 
       return {
         success: addResult.success,
         message: addResult.message,
+        entry_id: addResult.data?.[0]?.id || null,
         project: newProjectName,
         fields: parsed.fields,
         priority: priorityLabel,
         due_date: calculatedDate || null,
-        summary,
+        summary: null,
         comment: parsed.comment || null,
         created_new_project: true,
         new_fields: newFields,

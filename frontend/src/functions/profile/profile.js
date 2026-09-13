@@ -1,13 +1,36 @@
 import { request, PROFILE_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
+import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 // ── GET functions ──────────────────────────────────────────────
 
 /**
  * Fetch user profile.
- * Writes to IndexedDB (triggers subscription), returns result for compatibility.
+ * Local-first: returns cached data immediately (instant UI), refreshes from server in background.
  */
 export async function getProfile(email) {
+  const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+
+  // 1. Return cached data first (instant) if available
+  if (cached?.data || cached?.profile || cached?.success) {
+    if (navigator.onLine) {
+      // Refresh in background — don't block the caller
+      _refreshProfileFromServer(email).catch(() => {});
+    }
+    return { ...cached, _fromCache: true };
+  }
+
+  // 2. No cache — must go to server
+  if (!navigator.onLine) {
+    console.log('[getProfile] Offline and no cache');
+    return { success: false, offline: true };
+  }
+
+  return _fetchProfileFromServer(email);
+}
+
+/** Internal: fetch profile from server and write to cache */
+async function _fetchProfileFromServer(email) {
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -20,8 +43,19 @@ export async function getProfile(email) {
     return result;
   } catch (err) {
     console.error('[getProfile] Failed:', err);
+    // Fallback to cache on any server failure
+    const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+    if (cached) {
+      console.log('[getProfile] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false };
   }
+}
+
+/** Internal: background refresh of profile from server */
+async function _refreshProfileFromServer(email) {
+  await _fetchProfileFromServer(email);
 }
 
 // ── POST/PUT functions — optimistic IndexedDB first ──────────
@@ -42,7 +76,18 @@ export async function updateUsername(email, username) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    // Offline: queue for later sync
+    console.log('[updateUsername] Offline, queuing action');
+    await addToQueue('updateUsername', 'profile', {
+      email,
+      username,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -54,9 +99,13 @@ export async function updateUsername(email, username) {
     }
     return result;
   } catch (err) {
-    console.error('[updateUsername] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROFILE, email, cached);
-    return { success: false, message: err.message || 'Failed to update username' };
+    // 4. On failure, queue for retry (don't rollback)
+    console.error('[updateUsername] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateUsername', 'profile', {
+      email,
+      username,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -96,7 +145,17 @@ export async function updateName(email, new_name) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    console.log('[updateName] Offline, queuing action');
+    await addToQueue('updateName', 'profile', {
+      email,
+      new_name,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -108,9 +167,12 @@ export async function updateName(email, new_name) {
     }
     return result;
   } catch (err) {
-    console.error('[updateName] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROFILE, email, cached);
-    return { success: false, message: err.message || 'Failed to update name' };
+    console.error('[updateName] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateName', 'profile', {
+      email,
+      new_name,
+    });
+    return { success: true, queued: true };
   }
 }
 
@@ -130,7 +192,17 @@ export async function updateAvatar(email, avatarUrl) {
     });
   }
 
-  // 2. Sync to server
+  // 2. Check online status
+  if (!navigator.onLine) {
+    console.log('[updateAvatar] Offline, queuing action');
+    await addToQueue('updateAvatar', 'profile', {
+      email,
+      avatarUrl,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
   try {
     const result = await request(`${PROFILE_URL}/service/profile`, {
       method: 'POST',
@@ -142,9 +214,37 @@ export async function updateAvatar(email, avatarUrl) {
     }
     return result;
   } catch (err) {
-    console.error('[updateAvatar] Server sync failed, rolling back:', err);
-    if (cached) await cacheSet(CACHE_STORES.PROFILE, email, cached);
-    return { success: false, message: err.message || 'Failed to update avatar' };
+    console.error('[updateAvatar] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateAvatar', 'profile', {
+      email,
+      avatarUrl,
+    });
+    return { success: true, queued: true };
+  }
+}
+
+/**
+ * Persist the "Email notifications" preference server-side so the
+ * due-date email sender can honour it. localStorage remains the UI
+ * source of truth; this is a fire-and-forget sync.
+ */
+export async function setEmailNotifications(email, enabled) {
+  if (!navigator.onLine) {
+    console.log('[setEmailNotifications] Offline, skipping server sync');
+    return { success: true, skipped: true };
+  }
+
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'emailNotifications',
+        values: { email, enabled: Boolean(enabled) },
+      }),
+    });
+  } catch (err) {
+    console.error('[setEmailNotifications] Failed:', err);
+    return { success: false, message: err.message };
   }
 }
 

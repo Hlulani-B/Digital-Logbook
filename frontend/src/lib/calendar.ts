@@ -3,7 +3,7 @@
  * All functions operate on vanilla Date objects and avoid mutable inputs.
  */
 
-import { type EntryPayload, getEntryPayloadTitle } from '@/lib/entryPayload';
+import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
 
 export type CalendarView = 'month' | 'week';
 
@@ -19,6 +19,7 @@ export interface CalendarEntry {
   ended_at?: string | null;
   duration?: string | null;
   archived?: boolean;
+  summary?: string | null;
   created_at?: string;
 }
 
@@ -106,6 +107,14 @@ export function getEntriesForDay(entries: CalendarEntry[], day: Date): CalendarE
 }
 
 export function getEntryTitle(entry: CalendarEntry): string {
+  // Prefer the AI-generated summary if available. cleanSummaryText guards
+  // against the historical bug where a notes payload was written into the
+  // summary column verbatim, which would otherwise render as raw JSON.
+  const safe = cleanSummaryText(entry.summary);
+  if (safe) return safe;
+
+  if (!entry.entries) return 'Untitled entry';
+
   let payload: unknown = entry.entries;
   if (typeof payload === 'string') {
     try {
@@ -117,7 +126,7 @@ export function getEntryTitle(entry: CalendarEntry): string {
 
   const title = getEntryPayloadTitle(payload);
   return title === 'Not recorded' ? 'Untitled entry' : title;
-}
+}}
 
 export function buildMonthGrid(date: Date, weekStartsOn: 0 | 1 = 0): Date[] {
   const monthStart = startOfMonth(date);

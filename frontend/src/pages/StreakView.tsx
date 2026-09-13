@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { calculateStreaks, streakLabel } from '@/functions/dashboard/streaks.js';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
-import { cacheGet, CACHE_STORES } from '@/lib/cache';
+import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
@@ -19,33 +19,43 @@ export function StreakView() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Guard against overlapping loadData calls (mount effect + the
+  // ALL_ENTRIES cacheSubscribe listener + the syncAllData fallback).
+  const loadSeq = useRef(0);
+
+  const loadData = useCallback(async () => {
+    if (!email) return;
+    const seq = ++loadSeq.current;
+    // Read ONLY from IndexedDB. Mutations update it directly.
+    try {
+      const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+      if (seq !== loadSeq.current) return;
+      if (cached?.data) {
+        setEntries(Array.isArray(cached.data) ? cached.data : []);
+      } else {
+        // First visit ever — trigger initial sync
+        await syncAllData(email);
+        const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
+        if (seq !== loadSeq.current) return;
+        if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+      }
+    } catch (err) {
+      console.error('[StreakView] Failed to load entries:', err);
+    } finally {
+      if (seq === loadSeq.current) setLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
   useEffect(() => {
     if (!email) return;
-    let cancelled = false;
-
-    (async () => {
-      // Read ONLY from IndexedDB. Mutations update it directly.
-      try {
-        const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-        if (!cancelled && cached?.data) {
-          setEntries(Array.isArray(cached.data) ? cached.data : []);
-        } else if (!cancelled) {
-          // First visit ever — trigger initial sync
-          await syncAllData(email);
-          if (!cancelled) {
-            const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
-            if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
-          }
-        }
-      } catch (err) {
-        console.error('[StreakView] Failed to load entries:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [email]);
+    const unsub = cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData());
+    return () => unsub();
+  }, [email, loadData]);
 
   const streaks = useMemo(() => calculateStreaks(entries), [entries]);
 

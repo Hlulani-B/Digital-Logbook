@@ -13,16 +13,16 @@ describe('Migration files', () => {
     .filter((f) => f.endsWith('.sql'))
     .sort();
 
-  it('has at least 8 migration files (000 baseline + 001-007)', () => {
-    expect(files.length).toBeGreaterThanOrEqual(8);
+  it('has at least 9 migration files (000 baseline + 001-008)', () => {
+    expect(files.length).toBeGreaterThanOrEqual(9);
   });
 
   it('includes the baseline migration 000', () => {
     expect(files[0]).toMatch(/^000_/);
   });
 
-  it('includes migrations 001 through 007', () => {
-    for (let i = 1; i <= 7; i++) {
+  it('includes migrations 001 through 008', () => {
+    for (let i = 1; i <= 8; i++) {
       const prefix = String(i).padStart(3, '0');
       const found = files.find((f) => f.startsWith(prefix));
       expect(found).toBeTruthy();
@@ -126,6 +126,44 @@ describe('Migration files', () => {
     it('guards pg_cron behind an extension check', () => {
       expect(baseline).toContain('pg_extension');
       expect(baseline).toContain('pg_cron');
+    });
+  });
+
+  describe('008 field stats migration', () => {
+    const migration = readFileSync(
+      join(
+        MIGRATIONS_DIR,
+        files.find((f) => f.startsWith('008_'))!
+      ),
+      'utf-8'
+    );
+
+    it('creates the generic field-stats RPC', () => {
+      expect(migration).toContain('CREATE OR REPLACE FUNCTION get_field_stats');
+      expect(migration).toContain('SECURITY DEFINER');
+    });
+
+    it('returns the standard stat format for any field', () => {
+      expect(migration).toContain('field_name');
+      expect(migration).toContain('data_type');
+      expect(migration).toContain('entry_count');
+      expect(migration).toContain('filled');
+      expect(migration).toContain('total');
+      expect(migration).toContain('groups');
+      expect(migration).toContain('series');
+      expect(migration).toContain('by_project');
+    });
+
+    it('learns field types from the fields table and infers from data', () => {
+      expect(migration).toContain('public.fields');
+      expect(migration).toContain('jsonb_each_text');
+      expect(migration).toContain("WHEN EVERY(fl.fvalue ~ '^-?[0-9]+(\\.[0-9]+)?$'");
+    });
+
+    it('is idempotent-safe (CREATE OR REPLACE, no destructive statements)', () => {
+      expect(migration).not.toMatch(/\bDROP\s+(TABLE|FUNCTION|COLUMN)\b/i);
+      expect(migration).not.toMatch(/\bDELETE\s+FROM\b/i);
+      expect(migration).not.toMatch(/\bTRUNCATE\b/i);
     });
   });
 });

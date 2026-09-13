@@ -5,7 +5,13 @@ import { AvatarPicker } from '@/components/AvatarPicker';
 import { getTone, setTone, TONE_OPTIONS, type Tone } from '@/functions/tone';
 import { getNudgeFrequency, setNudgeFrequency, type NudgeFrequency } from '@/pages/FrequencySetup';
 import { getAiMessagesEnabled, setAiMessagesEnabled } from '@/functions/aiMessages';
-import { getProfile, updateName, updateUsername, addEmail } from '../functions/profile/profile.js';
+import {
+  getProfile,
+  updateName,
+  updateUsername,
+  addEmail,
+  setEmailNotifications,
+} from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
 
@@ -252,6 +258,7 @@ export function SettingsPanel({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [savedOffline, setSavedOffline] = useState(false);
 
   // Fetch profile from service when panel opens
   useEffect(() => {
@@ -263,14 +270,23 @@ export function SettingsPanel({
         const result = await getProfile(email);
         if (cancelled) return;
 
-        // If profile doesn't exist, create it first
-        if (result?.success === false || result?.error) {
+        // Offline with no cache — show friendly message
+        if (result?.offline && !result?.data && !result?.profile) {
+          if (!cancelled) {
+            setProfileError('Offline — no cached profile available yet');
+            setLoadingProfile(false);
+          }
+          return;
+        }
+
+        // If profile doesn't exist, create it first (skip if offline)
+        if ((result?.success === false || result?.error) && navigator.onLine) {
           const addResult = await addEmail(email);
           if (addResult?.success || addResult?.message?.includes('duplicate')) {
             // Fetch again after creating
             const freshResult = await getProfile(email);
             if (!cancelled) {
-              const profileData = freshResult?.data || freshResult;
+              const profileData = freshResult?.data || freshResult?.profile || freshResult;
               setServerProfile(profileData);
               setName(((profileData as Record<string, unknown>)?.name as string) || '');
               setUsername(((profileData as Record<string, unknown>)?.username as string) || '');
@@ -278,8 +294,13 @@ export function SettingsPanel({
           } else {
             throw new Error(addResult?.message || 'Failed to create profile');
           }
+        } else if (result?.success === false || result?.error) {
+          // Offline and no valid profile
+          if (!cancelled) {
+            setProfileError('Could not load profile — offline and no cached data');
+          }
         } else {
-          const profileData = result?.data || result;
+          const profileData = result?.data || result?.profile || result;
           setServerProfile(profileData);
           setName(((profileData as Record<string, unknown>)?.name as string) || '');
           setUsername(((profileData as Record<string, unknown>)?.username as string) || '');
@@ -312,11 +333,17 @@ export function SettingsPanel({
       const usernameResult = await updateUsername(email, username.trim());
       if (usernameResult?.error) throw new Error(usernameResult.error);
 
+      const wasOffline = nameResult?.queued || usernameResult?.queued || !navigator.onLine;
+      setSavedOffline(wasOffline);
       setProfileSuccess(true);
-      setTimeout(() => {
-        setProfileSuccess(false);
-        onClose();
-      }, 800);
+      setTimeout(
+        () => {
+          setProfileSuccess(false);
+          setSavedOffline(false);
+          onClose();
+        },
+        wasOffline ? 1500 : 800
+      );
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : 'Could not save changes');
     } finally {
@@ -411,14 +438,22 @@ export function SettingsPanel({
                     style={{
                       padding: '0.5rem 0.75rem',
                       borderRadius: 'var(--radius-xs)',
-                      background: 'rgba(34,197,94,0.1)',
-                      border: '1px solid rgba(34,197,94,0.2)',
-                      color: isDark ? '#86efac' : '#15803d',
+                      background: savedOffline ? 'rgba(59,130,246,0.1)' : 'rgba(34,197,94,0.1)',
+                      border: `1px solid ${savedOffline ? 'rgba(59,130,246,0.2)' : 'rgba(34,197,94,0.2)'}`,
+                      color: isDark
+                        ? savedOffline
+                          ? '#93c5fd'
+                          : '#86efac'
+                        : savedOffline
+                          ? '#1d4ed8'
+                          : '#15803d',
                       fontSize: '0.8125rem',
                       marginBottom: '0.75rem',
                     }}
                   >
-                    Profile updated!
+                    {savedOffline
+                      ? 'Saved offline — will sync when back online'
+                      : 'Profile updated!'}
                   </div>
                 )}
 
@@ -562,7 +597,7 @@ export function SettingsPanel({
                     onChange={(e) => setPrefs((p) => ({ ...p, defaultView: e.target.value }))}
                   >
                     <option value="dashboard">Dashboard</option>
-                    <option value="entries">All Entries</option>
+                    <option value="entries">All Items</option>
                     <option value="projects">Projects</option>
                     <option value="calendar">Calendar</option>
                   </select>
@@ -763,12 +798,15 @@ export function SettingsPanel({
                     <input
                       type="checkbox"
                       checked={prefs.notifications}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
                         setPrefs((p) => ({
                           ...p,
-                          notifications: e.target.checked,
-                        }))
-                      }
+                          notifications: enabled,
+                        }));
+                        // Sync to the server so due-date emails honour the toggle
+                        setEmailNotifications(email, enabled);
+                      }}
                     />
                     <span className="toggle-track" />
                   </label>

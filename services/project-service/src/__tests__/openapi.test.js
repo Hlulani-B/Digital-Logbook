@@ -70,6 +70,8 @@ describe('OpenAPI 3 specification', () => {
     '/service/health-ping', // dashboard health
     '/service/login', // profile login
     '/service/profile', // profile CRUD
+    '/service/notifications', // notification feed
+    '/service/notifications/sendPending', // notification email trigger (public)
     '/health', // auth health
   ];
 

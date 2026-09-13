@@ -16,6 +16,8 @@ import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import { type EntryPayload } from '@/lib/entryPayload';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
+import { trackViewedProject } from '@/lib/recentlyViewed';
+import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { setPriority } from '@/functions/project/priority.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
@@ -24,23 +26,39 @@ import { askAI } from '@/functions/ai.js';
 import { getAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiSettings } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
   try {
     const parsed = JSON.parse(response);
     if (typeof parsed === 'string') return parsed;
+    if (Array.isArray(parsed)) {
+      if (parsed.length > 0) {
+        const first = parsed[0];
+        if (typeof first === 'string') return first;
+        if (typeof first === 'object' && first !== null) {
+          const inner = parseAIResponse(JSON.stringify(first));
+          if (inner) return inner;
+        }
+      }
+      return '';
+    }
     if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['message', 'instruction', 'response', 'text', 'content', 'reply']) {
-        if (typeof parsed[key] === 'string') return parsed[key];
+      for (const key of ['placeholder', 'message', 'instruction', 'response', 'text', 'content', 'reply']) {
+        if (typeof parsed[key] === 'string' && parsed[key].trim()) return parsed[key];
       }
       for (const val of Object.values(parsed)) {
-        if (typeof val === 'string') return val;
+        if (typeof val === 'string' && val.trim()) return val;
+        if (typeof val === 'object' && val !== null) {
+          const nested = parseAIResponse(JSON.stringify(val));
+          if (nested) return nested;
+        }
       }
     }
-    return response;
+    return '';
   } catch {
-    return response;
+    return typeof response === 'string' ? response : String(response);
   }
 }
 
@@ -76,6 +94,10 @@ export function ProjectDetailPage() {
   // Settings
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
+  // Project colour (loaded from cached projects)
+  const [projectColor, setProjectColor] = useState<string | null>(null);
+
+
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,10 +110,29 @@ export function ProjectDetailPage() {
   const cacheKey = projectName ? `${email}:${projectName}` : email;
   const cacheStore = projectName ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
 
+  // Track this project as recently viewed when the page loads
+  useEffect(() => {
+    if (projectName) {
+      trackViewedProject({ projectName, title: projectName });
+    }
+  }, [projectName]);
+
   // Read from IndexedDB immediately
   useEffect(() => {
     if (!email || !projectName) return;
     let cancelled = false;
+
+    // Load project colour from cached projects list
+    (async () => {
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (cachedProjects && !cancelled) {
+        const list = cachedProjects.data || cachedProjects.projects || [];
+        const match = (Array.isArray(list) ? list : []).find(
+          (p: Record<string, unknown>) => p.project_name === projectName
+        );
+        if (match?.project_color) setProjectColor(match.project_color as string);
+      }
+    })();
 
     // 1. Read from cache immediately
     (async () => {
@@ -119,9 +160,17 @@ export function ProjectDetailPage() {
     };
   }, [cacheStore, cacheKey]);
 
+  // Guards against overlapping background fetches. sortUnarchivedEntries
+  // is triggered by both the mount/sortType effect below and every add/
+  // update/delete handler via loadEntries; without a seq check a stale
+  // fetch could flip loading off while a newer one is still in flight.
+  const entriesFetchSeq = useRef(0);
+  const projectColorSeq = useRef(0);
+
   // Fetch from server in background
   useEffect(() => {
     if (!email || !projectName) return;
+    const seq = ++entriesFetchSeq.current;
     // Only show loading spinner on initial load (no cached data yet)
     setEntries((prev) => {
       if (prev.length === 0) setLoading(true);
@@ -129,9 +178,28 @@ export function ProjectDetailPage() {
     });
     (async () => {
       await sortUnarchivedEntries(email, projectName, sortType);
+      if (seq !== entriesFetchSeq.current) return;
       setLoading(false); // Data arrived from server
     })();
   }, [email, projectName, sortType]);
+
+  // Subscribe to project colour changes from settings panel
+  useEffect(() => {
+    if (!email || !projectName) return;
+    const seq = ++projectColorSeq.current;
+    const unsub = cacheSubscribe(CACHE_STORES.PROJECTS, email, async () => {
+      const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+      if (seq !== projectColorSeq.current) return;
+      if (cachedProjects) {
+        const list = cachedProjects.data || cachedProjects.projects || [];
+        const match = (Array.isArray(list) ? list : []).find(
+          (p: Record<string, unknown>) => p.project_name === projectName
+        );
+        setProjectColor(match?.project_color as string || null);
+      }
+    });
+    return () => unsub();
+  }, [email, projectName]);
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,14 +232,15 @@ export function ProjectDetailPage() {
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // AI placeholder
-  const [aiPlaceholder, setAiPlaceholder] = useState(
-    "Type what you worked on — we'll log it automatically..."
-  );
+  // Network status
+  const isOnline = useNetworkStatus();
+
+  // Static placeholder for quick add (no AI generation)
+  const quickAddPlaceholder = 'Write what you worked on...';
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
-    'No entries to show yet. Add your first entry above!'
+    'No items to show yet. Add your first item above!'
   );
 
   // Refresh entries from server (called after add/update/delete)
@@ -181,24 +250,6 @@ export function ProjectDetailPage() {
     await sortUnarchivedEntries(email, projectName, sortType);
   }, [email, projectName, sortType]);
 
-  // AI-generated placeholder that describes what quick add is
-  useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
-    (async () => {
-      const result = await askAI(
-        `Generate a short, friendly placeholder text (max 50 chars) for a "Quick Add" input field in a project logbook app. The user is on the "${projectName}" project page. The placeholder should briefly tell the user what quick add does — it lets them type a natural language description of what they worked on and the system automatically creates a log entry for this project. Make it feel like a hint, not a command. Examples of good tone: "Describe what you worked on..." or "Type what you did and we'll log it...". Return ONLY the placeholder text, nothing else — no quotes, no JSON, no explanation.`
-      );
-      if (result.success && result.response) {
-        const msg = parseAIResponse(result.response)
-          .replace(/^["']|["']$/g, '')
-          .trim();
-        if (msg && msg.length <= 80) {
-          setAiPlaceholder(msg);
-        }
-      }
-    })();
-  }, [projectName]);
-
   // AI empty message
   useEffect(() => {
     if (!getAiMessagesEnabled()) return;
@@ -206,7 +257,7 @@ export function ProjectDetailPage() {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when a project has no entries to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
+          `Generate a motivating message for when a project has no items to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
         );
         if (result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -264,6 +315,10 @@ export function ProjectDetailPage() {
     const other: Entry[] = [];
 
     for (const entry of source) {
+      // Archived entries belong to the Archives view, not the active feed —
+      // this also makes an offline archive disappear immediately, since the
+      // optimistic write flips `archived` on this project's ENTRIES cache.
+      if (entry.archived) continue;
       if (entry.due_date) {
         const due = new Date(entry.due_date as string);
         if (!isNaN(due.getTime()) && due >= now && due <= threeDaysFromNow) {
@@ -351,7 +406,7 @@ export function ProjectDetailPage() {
       setQuickMessageType('success');
       await loadEntries();
     } else {
-      setQuickMessage(result.message || 'Failed to create entry');
+      setQuickMessage(result.message || 'Failed to create item');
       setQuickMessageType('error');
     }
   };
@@ -519,6 +574,32 @@ export function ProjectDetailPage() {
             </button>
           </div>
 
+          {/* Stats — opens the stats dashboard scoped to this project */}
+          <button
+            type="button"
+            className="sort-btn"
+            onClick={() =>
+              projectName && navigate(`/stats?project=${encodeURIComponent(projectName)}`)
+            }
+            aria-label="Open stats dashboard"
+            title="Open the stats dashboard for this project"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            Stats
+          </button>
+
           {/* Project Settings button */}
           <button
             type="button"
@@ -554,25 +635,29 @@ export function ProjectDetailPage() {
               <input
                 type="text"
                 className="quick-entry-input"
-                placeholder={aiPlaceholder}
+                placeholder={isOnline ? quickAddPlaceholder : 'Offline — quick add unavailable'}
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
                 onKeyDown={handleQuickKeyDown}
-                disabled={quickLoading}
+                disabled={quickLoading || !isOnline}
+                title={!isOnline ? 'Quick add is not available offline' : undefined}
               />
               <button
                 type="button"
                 className="quick-entry-voice"
                 onClick={() => setVoiceOpen(true)}
-                aria-label="Voice entry"
-                title="Record a voice entry"
+                aria-label="Voice item"
+                title={!isOnline ? 'Voice item is not available offline' : 'Record a voice item'}
+                disabled={!isOnline}
+                style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
               >
                 <FiMic size={16} />
               </button>
               <button
                 type="submit"
                 className="quick-entry-submit"
-                disabled={quickLoading || !quickText.trim()}
+                disabled={quickLoading || !quickText.trim() || !isOnline}
+                title={!isOnline ? 'Quick add is not available offline' : undefined}
               >
                 {quickLoading ? (
                   <svg
@@ -620,7 +705,7 @@ export function ProjectDetailPage() {
                 height: 24,
               }}
             />
-            <p>Loading entries...</p>
+            <p>Loading items...</p>
           </div>
         )}
 
@@ -646,7 +731,7 @@ export function ProjectDetailPage() {
                 </div>
                 <h2 className="empty-title">No results found</h2>
                 <p className="empty-desc">
-                  No entries in {projectName} match "{searchQuery}".
+                  No items in {projectName} match "{searchQuery}".
                 </p>
               </div>
             ) : viewMode === 'checklist' ? (
@@ -663,6 +748,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -678,6 +764,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : (
               <div className="entries-feed">
@@ -688,6 +775,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
+                    projectColor={projectColor}
                   />
                 ))}
               </div>
@@ -698,7 +786,7 @@ export function ProjectDetailPage() {
         {/* All entries */}
         {!searchQuery && (
           <div className="project-content">
-            {entries.length === 0 ? (
+            {!loading && entries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
                   <svg
@@ -717,7 +805,7 @@ export function ProjectDetailPage() {
                     <line x1="9" y1="14" x2="15" y2="14" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No entries yet</h2>
+                <h2 className="empty-title">No items yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
             ) : viewMode === 'table' ? (
@@ -807,6 +895,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -822,6 +911,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
+                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
               />
             ) : (
               <div className="entries-grid">
@@ -832,6 +922,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
+                    projectColor={projectColor}
                   />
                 ))}
               </div>
@@ -866,9 +957,16 @@ export function ProjectDetailPage() {
               <AddEntry
                 user_email={email}
                 project_name={projectName!}
-                onAdded={() => {
+                onAdded={(result) => {
                   setNewEntryOpen(false);
                   loadEntries();
+                  // Track in recently created
+                  const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
+                  if (created?.id && projectName) {
+                    const entries = created.entries;
+                    const title = typeof entries === 'string' ? entries : (typeof entries === 'object' && entries ? Object.values(entries).find((v: any) => typeof v === 'string' && v.length > 0) as string : null) || created.summary || projectName;
+                    trackCreatedEntry({ entryId: created.id, projectName, title: String(title).slice(0, 100) });
+                  }
                 }}
                 onCancel={() => setNewEntryOpen(false)}
               />
@@ -880,29 +978,35 @@ export function ProjectDetailPage() {
         {voiceOpen && (
           <VoiceFeature
             onClose={() => setVoiceOpen(false)}
-            onEntryCreated={() => {
+            onEntryCreated={(info) => {
               setVoiceOpen(false);
               loadEntries();
+              // Track every entry the voice flow created so it shows up
+              // in the Dashboard's "Recently created" list too.
+              for (const item of info?.created ?? []) {
+                trackCreatedEntry(item);
+              }
             }}
           />
         )}
 
-        {/* Project Settings Panel */}
-        <ProjectSettingsPanel
-          open={projectSettingsOpen}
-          projectName={projectName!}
-          userEmail={email}
-          onClose={() => setProjectSettingsOpen(false)}
-          onProjectUpdated={() => {
-            navigate('/dashboard');
-          }}
-          onProjectDeleted={() => {
-            navigate('/dashboard');
-          }}
-          onProjectArchived={() => {
-            navigate('/dashboard');
-          }}
-        />
+      {/* Project Settings Panel */}
+      <ProjectSettingsPanel
+        open={projectSettingsOpen}
+        projectName={projectName!}
+        userEmail={email}
+        currentColor={projectColor}
+        onClose={() => setProjectSettingsOpen(false)}
+        onProjectUpdated={() => {
+          navigate('/dashboard');
+        }}
+        onProjectDeleted={() => {
+          navigate('/dashboard');
+        }}
+        onProjectArchived={() => {
+          navigate('/dashboard');
+        }}
+      />
       </main>
     </div>
   );

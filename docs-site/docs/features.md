@@ -107,6 +107,28 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - `frontend/src/components/SettingsPanel.tsx` — Settings UI
 
+### Due-Date Notifications (Email + In-App)
+
+**What it does:** Alerts you before an entry's due date passes and again if it becomes overdue — both as an email and as an in-app bell icon with an unread badge.
+
+**Why it was implemented:** Users were missing deadlines because due dates were only visible by opening the Calendar or Today page. Proactive reminders close that gap without requiring the user to check the app.
+
+**How it works:**
+
+- An hourly `pg_cron` job (migration 011) scans `entries` and inserts a `due_soon` notification when a deadline is within 24 hours and an `overdue` notification when it has passed — one per entry per type, enforced by a unique constraint so you are never spammed
+- Emails are sent through the Brevo HTTP API from project-service; pending rows are marked `emailed = true` only after Brevo accepts, so a failed send retries on the next cycle
+- Render free-tier services sleep, so the cron pokes the service over HTTP (`pg_net`) and any active app session also flushes pending emails opportunistically
+- The SettingsPanel **Email notifications** toggle is persisted to `users.email_notifications` and honoured by the sender; the in-app bell works regardless
+- The bell polls every 60 seconds (and on window focus), shows an unread-count badge, and opens a dropdown with Mark-all-read; clicking a notification navigates to its project
+- Notifications for completed, archived, or deleted entries are cleared automatically; read notifications are pruned after 30 days
+
+**Key files:**
+
+- `supabase/migrations/011_create_notifications.sql` — table, preference column, generator RPC, cron schedule
+- `services/project-service/src/functions/notifications/notifications.js` — feed queries + Brevo sender
+- `services/project-service/src/Routes/notifications.js` — RPC endpoints
+- `frontend/src/components/NotificationsBell.tsx` — bell UI
+
 ---
 
 ## Dashboard & Navigation
@@ -146,7 +168,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Provides fast access to common actions: New Entry, View All Entries, Export Data.
 
-**Why it was implemented:** Reduces friction for frequent tasks, improving workflow efficiency.
+**Why it was implemented:** Reduces friction for frequent actions, improving workflow efficiency.
 
 **How it works:**
 
@@ -183,7 +205,7 @@ After the 30-day grace period, a background process permanently removes the acco
 - Days are navigated with Previous, Next, and Today controls
 - Overdue entries are highlighted in red and completed entries are shown in green with a strikethrough
 - Dragging an entry onto another day calls `updateEntry()` with the new due date and updates the local list immediately
-- Days with many tasks show the first few entries plus a "+N more" indicator and remain scrollable
+- Days with many items show the first few entries plus a "+N more" indicator and remain scrollable
 
 **Key files:**
 
@@ -195,7 +217,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Shows entries as cards in three columns based on their status: Up Next, In Motion, and Done & Dusted. Cards can be dragged between columns to change status, and the change is saved immediately.
 
-**Why it was implemented:** Provides a task-board view of work in progress and makes it easy to advance or complete entries without opening each one.
+**Why it was implemented:** Provides an item-board view of work in progress and makes it easy to advance or complete entries without opening each one.
 
 **How it works:**
 
@@ -237,19 +259,19 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ### 14. Timeline
 
-**What it does:** Lays tasks out horizontally against time, with bars spanning start to due date and SVG arrows drawn between dependent tasks. The view is scrollable and zoomable across at least a month.
+**What it does:** Lays items out horizontally against time, with bars spanning start to due date and SVG arrows drawn between dependent items. The view is scrollable and zoomable across at least a month.
 
-**Why it was implemented:** Gives a project-planning view of work over time and makes task chains visible.
+**Why it was implemented:** Gives a project-planning view of work over time and makes item chains visible.
 
 **How it works:**
 
 - Fetches all unarchived, incomplete entries using `getAllEntries()`
 - Resolves each entry's start date (`started_at`, then `created_at`, then one day before `due_date`) and end date (`due_date`, then one day after start)
 - Reads dependency IDs from `entries.dependencies` or `entries.depends_on`
-- Assigns rows greedily to avoid overlapping bars, which keeps sequential chained tasks on separate rows
-- Renders an SVG timeline with grid lines, a "today" marker, task bars, and curved arrows between dependencies
+- Assigns rows greedily to avoid overlapping bars, which keeps sequential chained items on separate rows
+- Renders an SVG timeline with grid lines, a "today" marker, item bars, and curved arrows between dependencies
 - Zoom buttons scale the day width from 50% to 400%
-- Empty state is shown when no dated, incomplete tasks exist
+- Empty state is shown when no dated, incomplete items exist
 
 **Key files:**
 
@@ -261,7 +283,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Exports all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and imports them back in. Round-trip safe: an export-then-import cycle reproduces the original row count exactly. Malformed rows are reported by line number rather than failing halfway. iCalendar export produces RFC 5545 compliant .ics files that open in Google Calendar, Outlook, and Apple Calendar.
 
-**Why it was implemented:** Users need to back up their data, migrate between accounts, move data in and out of the logbook without vendor lock-in, and integrate tasks with external calendar applications.
+**Why it was implemented:** Users need to back up their data, migrate between accounts, move data in and out of the logbook without vendor lock-in, and integrate items with external calendar applications.
 
 **How it works:**
 
@@ -423,7 +445,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 **What it does:** Each entry has a priority (0=urgent+important, 1=urgent, 2=not urgent, null=none) and status.
 
-**Why it was implemented:** Helps users prioritize tasks and track completion.
+**Why it was implemented:** Helps users prioritize items and track completion.
 
 **How it works:**
 
@@ -522,7 +544,7 @@ After the 30-day grace period, a background process permanently removes the acco
 **Key files:**
 
 - `frontend/src/pages/VoiceFeature.jsx` — Voice recording UI
-- `docs-site/docs/architecture/voice-feature.md` — Voice feature documentation
+- `docs-site/docs/Architecture/voice-feature.md` — Voice feature documentation
 
 ### 29. Data Export
 
@@ -608,13 +630,13 @@ After the 30-day grace period, a background process permanently removes the acco
 
 - Jest test framework with Babel for ESM support
 - Coverage reports generated on every CI run
-- Badges auto-updated and committed back to repo
+- Coverage badges generated by `scripts/generate-badges.js` (run manually from repo root)
 - 33 tests for `getDate()` alone, plus tests for all other backend functions
 
 **Key files:**
 
 - `services/project-service/src/__tests__/` — Test files
-- `.gitea/workflows/test.yml` — CI test workflow
+- `.gitea/workflows/backend-unit-tests.yml` — Backend unit test workflow
 
 ### 35. CI/CD Pipeline
 
@@ -632,11 +654,38 @@ After the 30-day grace period, a background process permanently removes the acco
 **Key files:**
 
 - `.gitea/workflows/ci.yml` — CI workflow
-- `.gitea/workflows/test.yml` — Test workflow with badge generation
+- `.gitea/workflows/backend-unit-tests.yml` — Backend unit test workflow
+- `.gitea/workflows/backend-integration-tests.yml` — Backend integration test workflow
 - `render.yaml` — Render deployment manifest
+
+---
+
+## Onboarding & Guidance
+
+### 36. Guided Tour with Live Navigation & Voice Narration
+
+**What it does:** An interactive walkthrough that shows new users around the real app. The tour opens the navigation drawer, visits every view (Home, Today, Kanban, Timeline, Calendar, My Stats, Import & Export), walks through creating a project, and points out the notification bell, profile menu, and quick-entry bar — with the spotlight following real UI elements. It really navigates: routes change and the drawer opens and closes as the tour describes them. A friendly voice narrates each stop aloud using the browser's built-in speech synthesis, and hands-free auto-advance moves the tour on when the narration finishes (or after a paced reading delay when muted), shown with a draining progress bar. A speaker toggle in the popover mutes or unmutes narration and the preference persists, hovering the popover pauses the countdown, and clicking Back hands control back to the user.
+
+**Why it was implemented:** Sprint 2 user feedback (survey problem 2, [issue #119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119)) found first-time users had no onboarding or in-app guidance. The setup pages and tooltips were only a partial mitigation; the tour closes the remaining gap with a guided, narrated walkthrough of the real UI. The intro _video_ request from testers remains tracked separately in [issue #126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126).
+
+**How it works:**
+
+- Built on [driver.js](https://driverjs.com/) (lightweight, zero-dependency) with a themed glassmorphism popover
+- Steps anchor to real elements via `data-tour` hooks in each view; navigation steps call the router and toggle the drawer so users see genuine transitions
+- Narration uses the Web Speech API (`speechSynthesis`) — the best available English voice is picked at runtime, nothing leaves the browser, and no API keys are needed
+- Auto-advance is paced by the utterance's `onend` event rather than a duration estimate, so narration is never cut off; a generous hard cap guards against a stuck speech engine
+- Step copy is de-duplicated so the voice never repeats the step title inside the description
+- The tour is offered automatically on first dashboard visit, replayable any time from the dashboard banner or the navbar, and completion plus the voice preference persist in `localStorage`
+
+**Key files:**
+
+- `frontend/src/lib/tour.ts` — Tour engine: step definitions, live navigation, speech-synthesis narration, and auto-advance pacing
+- `frontend/src/pages/Dashboard.tsx` — First-visit offer and "Take the tour" entry point
+- `frontend/src/components/NavBar.tsx` — Replay entry point
+- `frontend/src/index.css` — Tour popover, progress-bar, and voice-toggle styles
 
 ---
 
 ## Summary
 
-The Digital Logbook implements 35 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, and developer experience (OpenAPI 3 spec, CI/CD pipeline). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 36 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), and onboarding (guided tour with voice narration). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
