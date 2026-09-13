@@ -50,6 +50,9 @@ router.post('/entry', async (req, res) => {
           duration,
           summary,
           notes,
+          target_duration_ms,
+          paused_ms,
+          paused_at,
         } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.addEntry(
@@ -63,7 +66,10 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary,
-          notes
+          notes,
+          target_duration_ms,
+          paused_ms,
+          paused_at
         );
         if (result.success) {
           const entrySummary =
@@ -90,6 +96,9 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary: providedSummary,
+          target_duration_ms,
+          paused_ms,
+          paused_at,
         } = values;
         if (!project_name || !entry_id)
           return res.status(400).json({ error: 'Missing required parameters' });
@@ -106,7 +115,10 @@ router.post('/entry', async (req, res) => {
           started_at,
           ended_at,
           duration,
-          providedSummary // preserve user-edited summary; undefined lets AI regeneration handle it
+          providedSummary, // preserve user-edited summary; undefined lets AI regeneration handle it
+          target_duration_ms,
+          paused_ms,
+          paused_at
         );
 
         // Regenerate summary in background if entry content changed and no explicit summary was provided

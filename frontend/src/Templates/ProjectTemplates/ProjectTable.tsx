@@ -787,7 +787,7 @@ export default function ProjectTaskTable({
           hideHeader={projectNames?.length === 1}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
-          projectColor={colorMap ? (colorMap[project.name] || undefined) : undefined}
+          projectColor={colorMap ? colorMap[project.name] || undefined : undefined}
         />
       ))}
     </div>

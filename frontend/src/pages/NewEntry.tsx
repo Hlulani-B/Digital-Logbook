@@ -7,6 +7,7 @@ import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
 import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
+import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/dashboard/stats.js';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -89,6 +90,9 @@ interface EntryRow {
   started_at?: string | null;
   ended_at?: string | null;
   duration?: string | null;
+  target_duration_ms?: number | string | null;
+  paused_ms?: number | string | null;
+  paused_at?: string | null;
   status?: EntryStatus;
   summary?: string | null;
 }
@@ -121,6 +125,9 @@ export function EntryBox({
     archived,
     started_at,
     ended_at,
+    target_duration_ms,
+    paused_ms,
+    paused_at,
     status = 'up_next',
     summary,
   } = entry;
@@ -176,27 +183,29 @@ export function EntryBox({
       .filter(Boolean);
   };
 
-  // Live elapsed time for in-progress tasks
-  const [elapsed, setElapsed] = useState<string>('');
+  // Live timer text for in-progress tasks.
+  // With a target_duration_ms this is a DEADLINE COUNTDOWN (remaining time);
+  // without one it counts UP elapsed work time. Paused entries freeze at the
+  // moment they were paused (anchor = paused_at) and show a Paused badge.
+  const isPaused = Boolean(started_at && !ended_at && paused_at);
+  const [timerText, setTimerText] = useState<string>('');
   useEffect(() => {
     if (!started_at || ended_at) {
-      setElapsed('');
+      setTimerText('');
       return;
     }
-    const start = new Date(started_at).getTime();
+    const liveEntry = { started_at, ended_at, paused_at, paused_ms, target_duration_ms };
     const tick = () => {
-      const diff = Date.now() - start;
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setElapsed(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      const now = Date.now();
+      const remaining = entryRemainingMs(liveEntry, now);
+      setTimerText(
+        remaining != null ? formatTimer(remaining) : formatTimer(entryDurationMs(liveEntry, now))
       );
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [started_at, ended_at]);
+  }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms]);
 
   const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -417,6 +426,13 @@ export function EntryBox({
     setError(null);
     try {
       const now = new Date().toISOString();
+      // If ending while paused, fold the open pause into paused_ms and clear
+      // paused_at so entryDurationMs nets out all paused time.
+      const openPauseMs =
+        paused_at && started_at
+          ? Math.max(0, new Date(now).getTime() - new Date(paused_at).getTime())
+          : 0;
+      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
       const result = await updateEntry(
         user_email,
         project_name,
@@ -426,7 +442,12 @@ export function EntryBox({
         undefined,
         'done_and_dusted',
         undefined,
-        now
+        now,
+        undefined,
+        undefined,
+        undefined,
+        newPausedMs,
+        null // clear any open pause
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to end item');
@@ -437,9 +458,157 @@ export function EntryBox({
         return;
       }
       // Always reload from database to show actual state
-      onUpdated?.({ ...entry, ended_at: now, status: 'done_and_dusted' });
+      onUpdated?.({
+        ...entry,
+        ended_at: now,
+        status: 'done_and_dusted',
+        paused_ms: newPausedMs,
+        paused_at: null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to end item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePauseTask = async () => {
+    if (!user_email || saving || isPaused) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        now // paused_at opens the pause
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to pause');
+        return;
+      }
+      onUpdated?.({ ...entry, paused_at: now });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to pause');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResumeTask = async () => {
+    if (!user_email || saving || !isPaused) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date();
+      // Fold the open pause into the accumulated paused_ms and clear paused_at.
+      const openPauseMs = paused_at
+        ? Math.max(0, now.getTime() - new Date(paused_at).getTime())
+        : 0;
+      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        newPausedMs,
+        null // paused_at cleared → timer runs again
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to resume');
+        return;
+      }
+      onUpdated?.({ ...entry, paused_ms: newPausedMs, paused_at: null });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resume');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Start a task that hasn't been started yet — sets started_at to now,
+  // moves status to in_motion, and makes the timer controls appear.
+  const handleStartTask = async () => {
+    if (!user_email || saving || started_at) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        'in_motion',
+        now,
+        undefined
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to start task');
+        return;
+      }
+      onUpdated?.({ ...entry, started_at: now, status: 'in_motion' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Adds a deadline target to a running task that has none (count-up → countdown)
+  const [targetMinutes, setTargetMinutes] = useState<string>('');
+  const handleSetTarget = async () => {
+    const minutes = Number(targetMinutes);
+    if (!user_email || saving || !Number.isFinite(minutes) || minutes <= 0) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const targetMs = Math.round(minutes * 60000);
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        targetMs,
+        paused_ms === undefined || paused_ms === null ? undefined : Number(paused_ms),
+        paused_at === undefined ? undefined : paused_at
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to set target');
+        return;
+      }
+      onUpdated?.({ ...entry, target_duration_ms: targetMs });
+      setTargetMinutes('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set target');
     } finally {
       setSaving(false);
     }
@@ -901,9 +1070,43 @@ export function EntryBox({
             )}
           </div>
           <div className="entry-box__meta-right">
+            {!started_at && !ended_at && !archived && (
+              <button
+                type="button"
+                className="entry-box__task-btn entry-box__task-btn--start"
+                onClick={handleStartTask}
+                disabled={saving}
+              >
+                ▶ Start
+              </button>
+            )}
             {started_at && !ended_at && (
               <div className="entry-box__task-active">
-                {elapsed && <span className="entry-box__task-elapsed">{elapsed}</span>}
+                {isPaused && <span className="entry-box__task-paused">Paused</span>}
+                {timerText && (
+                  <span className="entry-box__task-elapsed">
+                    {target_duration_ms != null ? `${timerText} left` : timerText}
+                  </span>
+                )}
+                {isPaused ? (
+                  <button
+                    type="button"
+                    className="entry-box__task-btn entry-box__task-btn--resume"
+                    onClick={handleResumeTask}
+                    disabled={saving}
+                  >
+                    ▶ Resume
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="entry-box__task-btn entry-box__task-btn--pause"
+                    onClick={handlePauseTask}
+                    disabled={saving}
+                  >
+                    ❚❚ Pause
+                  </button>
+                )}
                 <button
                   type="button"
                   className="entry-box__task-btn entry-box__task-btn--end"
@@ -912,6 +1115,27 @@ export function EntryBox({
                 >
                   ■ End Task
                 </button>
+                {target_duration_ms == null && (
+                  <span className="entry-box__target-set">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="min"
+                      aria-label="Target minutes"
+                      value={targetMinutes}
+                      onChange={(e) => setTargetMinutes(e.target.value)}
+                      className="entry-box__target-input"
+                    />
+                    <button
+                      type="button"
+                      className="entry-box__task-btn entry-box__task-btn--target"
+                      onClick={handleSetTarget}
+                      disabled={saving || !targetMinutes}
+                    >
+                      Set Target
+                    </button>
+                  </span>
+                )}
               </div>
             )}
             {archived && <span className="entry-box__archived-tag">Archived</span>}

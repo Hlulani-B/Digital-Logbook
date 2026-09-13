@@ -408,4 +408,16 @@ describe('BUILTIN_FIELD_DEFS', () => {
     const stats = computeFieldStats([e], [], { includeBuiltins: true });
     expect(stats.find((s) => s.field === 'duration').total).toBe(entryDurationMs(e));
   });
+
+  it('duration builtin nets out paused_ms and still matches entryDurationMs', () => {
+    const e = entry('A', {}, `2026-01-01${DAY}`, {
+      started_at: '2026-01-01T10:00:00.000Z',
+      ended_at: '2026-01-01T11:00:00.000Z',
+      paused_ms: 20 * 60000,
+    });
+    const stats = computeFieldStats([e], [], { includeBuiltins: true });
+    const durationStat = stats.find((s) => s.field === 'duration').total;
+    expect(durationStat).toBe(entryDurationMs(e));
+    expect(durationStat).toBe(40 * 60000);
+  });
 });

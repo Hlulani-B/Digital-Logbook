@@ -79,7 +79,12 @@ function groupByWeekday(entries: BoardEntry[]): Column[] {
   return sortedColumns;
 }
 
-export default function EntriesByDueDateBoard({ entries = [], onUpdated, onDelete, colorMap }: EntriesByDueDateBoardProps) {
+export default function EntriesByDueDateBoard({
+  entries = [],
+  onUpdated,
+  onDelete,
+  colorMap,
+}: EntriesByDueDateBoardProps) {
   const columns = groupByWeekday(entries);
 
   if (!entries.length) {
@@ -105,7 +110,7 @@ export default function EntriesByDueDateBoard({ entries = [], onUpdated, onDelet
                 entry={entry}
                 onUpdated={onUpdated}
                 onDelete={onDelete}
-                projectColor={colorMap ? (colorMap[entry.project_name] || undefined) : undefined}
+                projectColor={colorMap ? colorMap[entry.project_name] || undefined : undefined}
               />
             ))}
           </div>

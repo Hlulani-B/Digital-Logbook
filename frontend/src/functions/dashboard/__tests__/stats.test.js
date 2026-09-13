@@ -4,6 +4,8 @@ import {
   formatInterval,
   calculateTotalTimeTracked,
   calculateProjectStats,
+  entryDurationMs,
+  entryRemainingMs,
 } from '../stats';
 
 describe('formatDuration', () => {
@@ -77,7 +79,11 @@ describe('calculateTotalTimeTracked', () => {
 
   it('handles completed entries with duration column', () => {
     const entries = [
-      { started_at: '2026-01-01T10:00:00Z', ended_at: '2026-01-01T12:00:00Z', duration: '02:00:00' },
+      {
+        started_at: '2026-01-01T10:00:00Z',
+        ended_at: '2026-01-01T12:00:00Z',
+        duration: '02:00:00',
+      },
     ];
     const result = calculateTotalTimeTracked(entries);
     expect(result.inProgressCount).toBe(0);
@@ -85,9 +91,7 @@ describe('calculateTotalTimeTracked', () => {
   });
 
   it('skips entries without started_at or duration', () => {
-    const entries = [
-      { started_at: null, ended_at: null, duration: null },
-    ];
+    const entries = [{ started_at: null, ended_at: null, duration: null }];
     const result = calculateTotalTimeTracked(entries);
     expect(result.display).toBe('0m');
     expect(result.inProgressCount).toBe(0);
@@ -102,9 +106,24 @@ describe('calculateProjectStats', () => {
   it('groups entries by project_name', () => {
     const now = Date.now();
     const entries = [
-      { project_name: 'Alpha', started_at: new Date(now - 3600000).toISOString(), ended_at: new Date(now).toISOString(), duration: '01:00:00' },
-      { project_name: 'Beta', started_at: new Date(now - 1800000).toISOString(), ended_at: new Date(now).toISOString(), duration: '00:30:00' },
-      { project_name: 'Alpha', started_at: new Date(now - 7200000).toISOString(), ended_at: new Date(now - 3600000).toISOString(), duration: '01:00:00' },
+      {
+        project_name: 'Alpha',
+        started_at: new Date(now - 3600000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        duration: '01:00:00',
+      },
+      {
+        project_name: 'Beta',
+        started_at: new Date(now - 1800000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        duration: '00:30:00',
+      },
+      {
+        project_name: 'Alpha',
+        started_at: new Date(now - 7200000).toISOString(),
+        ended_at: new Date(now - 3600000).toISOString(),
+        duration: '01:00:00',
+      },
     ];
     const stats = calculateProjectStats(entries);
     expect(stats).toHaveLength(2);
@@ -117,8 +136,18 @@ describe('calculateProjectStats', () => {
   it('sorts by total time descending', () => {
     const now = Date.now();
     const entries = [
-      { project_name: 'Short', started_at: new Date(now - 60000).toISOString(), ended_at: new Date(now).toISOString(), duration: '00:01:00' },
-      { project_name: 'Long', started_at: new Date(now - 7200000).toISOString(), ended_at: new Date(now).toISOString(), duration: '02:00:00' },
+      {
+        project_name: 'Short',
+        started_at: new Date(now - 60000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        duration: '00:01:00',
+      },
+      {
+        project_name: 'Long',
+        started_at: new Date(now - 7200000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        duration: '02:00:00',
+      },
     ];
     const stats = calculateProjectStats(entries);
     expect(stats[0].project_name).toBe('Long');
@@ -128,7 +157,12 @@ describe('calculateProjectStats', () => {
   it('uses "Unknown" for entries without project_name', () => {
     const now = Date.now();
     const entries = [
-      { project_name: null, started_at: new Date(now - 3600000).toISOString(), ended_at: new Date(now).toISOString(), duration: '01:00:00' },
+      {
+        project_name: null,
+        started_at: new Date(now - 3600000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        duration: '01:00:00',
+      },
     ];
     const stats = calculateProjectStats(entries);
     expect(stats[0].project_name).toBe('Unknown');
@@ -137,11 +171,141 @@ describe('calculateProjectStats', () => {
   it('tracks in-progress count per project', () => {
     const now = Date.now();
     const entries = [
-      { project_name: 'Alpha', started_at: new Date(now - 1800000).toISOString(), ended_at: null, duration: null },
-      { project_name: 'Alpha', started_at: new Date(now - 3600000).toISOString(), ended_at: new Date(now).toISOString(), duration: '01:00:00' },
+      {
+        project_name: 'Alpha',
+        started_at: new Date(now - 1800000).toISOString(),
+        ended_at: null,
+        duration: null,
+      },
+      {
+        project_name: 'Alpha',
+        started_at: new Date(now - 3600000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        duration: '01:00:00',
+      },
     ];
     const stats = calculateProjectStats(entries);
     expect(stats[0].inProgressCount).toBe(1);
     expect(stats[0].entryCount).toBe(2);
+  });
+});
+
+/* ── Countdown + pause infrastructure ─────────────────────────
+ * Pause fields are additive-optional: entries without them (all legacy
+ * rows) must behave exactly as before. These cases lock that in.
+ */
+describe('entryDurationMs with pause fields', () => {
+  const T0 = '2026-01-01T10:00:00.000Z';
+
+  it('completed entry nets out accumulated paused_ms', () => {
+    const entry = {
+      started_at: T0,
+      ended_at: '2026-01-01T12:00:00.000Z',
+      paused_ms: 30 * 60000,
+    };
+    expect(entryDurationMs(entry)).toBe(2 * 3600000 - 30 * 60000);
+  });
+
+  it('completed entry with string paused_ms (node-pg BIGINT) coerces correctly', () => {
+    const entry = {
+      started_at: T0,
+      ended_at: '2026-01-01T12:00:00.000Z',
+      paused_ms: '1800000',
+    };
+    expect(entryDurationMs(entry)).toBe(2 * 3600000 - 30 * 60000);
+  });
+
+  it('clamps to 0 when paused_ms exceeds wall time', () => {
+    const entry = {
+      started_at: T0,
+      ended_at: '2026-01-01T10:30:00.000Z',
+      paused_ms: 45 * 60000,
+    };
+    expect(entryDurationMs(entry)).toBe(0);
+  });
+
+  it('paused in-progress entry freezes at paused_at and does not accrue', () => {
+    const entry = {
+      started_at: T0,
+      paused_at: '2026-01-01T10:45:00.000Z',
+      paused_ms: 15 * 60000,
+    };
+    const atNoon = new Date('2026-01-01T12:00:00.000Z').getTime();
+    expect(entryDurationMs(entry, atNoon)).toBe(45 * 60000 - 15 * 60000);
+    // Same value an hour later — paused time must not grow
+    expect(entryDurationMs(entry, atNoon + 3600000)).toBe(entryDurationMs(entry, atNoon));
+  });
+
+  it('running in-progress entry subtracts paused_ms from live elapsed', () => {
+    const startedAt = new Date(T0).getTime();
+    const now = startedAt + 60 * 60000;
+    const entry = { started_at: T0, paused_ms: 10 * 60000 };
+    expect(entryDurationMs(entry, now)).toBe(50 * 60000);
+  });
+
+  it('legacy entries without pause fields behave exactly as before', () => {
+    const completed = { started_at: T0, ended_at: '2026-01-01T11:00:00.000Z' };
+    expect(entryDurationMs(completed)).toBe(3600000);
+    const legacyFallback = { created_at: T0, ended_at: '2026-01-01T11:00:00.000Z' };
+    expect(entryDurationMs(legacyFallback)).toBe(3600000);
+    expect(entryDurationMs({})).toBe(0);
+  });
+});
+
+describe('entryRemainingMs (deadline countdown)', () => {
+  const T0 = '2026-01-01T10:00:00.000Z';
+
+  it('returns null for entries without a target (legacy count-up mode)', () => {
+    expect(entryRemainingMs({ started_at: T0 })).toBe(null);
+    expect(entryRemainingMs({ started_at: T0, target_duration_ms: null })).toBe(null);
+  });
+
+  it('counts down from the target and floors at 0', () => {
+    const now = new Date(T0).getTime() + 10 * 60000;
+    const onTrack = { started_at: T0, target_duration_ms: 30 * 60000 };
+    expect(entryRemainingMs(onTrack, now)).toBe(20 * 60000);
+    const expired = { started_at: T0, target_duration_ms: 5 * 60000 };
+    expect(entryRemainingMs(expired, now)).toBe(0);
+  });
+
+  it('paused entry keeps its remaining time frozen', () => {
+    const entry = {
+      started_at: T0,
+      paused_at: '2026-01-01T10:10:00.000Z',
+      target_duration_ms: 60 * 60000,
+    };
+    const atNoon = new Date('2026-01-01T12:00:00.000Z').getTime();
+    const remaining = entryRemainingMs(entry, atNoon);
+    expect(remaining).toBe(60 * 60000 - 10 * 60000);
+    expect(entryRemainingMs(entry, atNoon + 3600000)).toBe(remaining);
+  });
+});
+
+describe('stats aggregation with paused entries', () => {
+  it('calculateTotalTimeTracked nets out paused time', () => {
+    const entries = [
+      {
+        started_at: '2026-01-01T10:00:00.000Z',
+        ended_at: '2026-01-01T11:00:00.000Z',
+        paused_ms: 15 * 60000,
+      },
+    ];
+    const result = calculateTotalTimeTracked(entries);
+    expect(result.display).toBe('45m');
+    expect(result.inProgressCount).toBe(0);
+  });
+
+  it('paused entries still count as in-progress but stop accruing', () => {
+    const now = new Date('2026-01-01T12:00:00.000Z').getTime();
+    const entries = [
+      {
+        started_at: '2026-01-01T10:00:00.000Z',
+        paused_at: '2026-01-01T10:30:00.000Z',
+        paused_ms: 5 * 60000,
+      },
+    ];
+    const result = calculateTotalTimeTracked(entries, now);
+    expect(result.inProgressCount).toBe(1);
+    expect(result.display).toBe('25m'); // frozen at 30m − 5m paused
   });
 });
