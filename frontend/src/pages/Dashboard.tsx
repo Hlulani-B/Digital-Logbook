@@ -156,15 +156,21 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Display mode: cards, checklist, board, or projects - persist in localStorage
   const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'projects'>(
     () => {
+      // 'projects' is a transient view: it should only appear when clicked in
+      // the current session, so it is intentionally never restored as the
+      // landing state on load.
       const saved = localStorage.getItem('dashboard-display-mode');
-      if (saved === 'cards' || saved === 'checklist' || saved === 'board' || saved === 'projects')
-        return saved;
+      if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
       return 'cards';
     }
   );
 
   useEffect(() => {
-    localStorage.setItem('dashboard-display-mode', displayMode);
+    // Don't persist the transient 'projects' view — persisting it would make
+    // the Projects grid the default on next load instead of the entries feed.
+    if (displayMode !== 'projects') {
+      localStorage.setItem('dashboard-display-mode', displayMode);
+    }
   }, [displayMode]);
 
   // Data state
