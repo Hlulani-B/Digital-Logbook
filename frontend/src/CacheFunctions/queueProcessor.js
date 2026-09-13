@@ -106,6 +106,11 @@ function formatActionMessage(entry) {
     deleteEntry: projectName ? `Deleted entry from ${projectName}` : 'Deleted entry',
     deleteEntryById: 'Deleted entry',
 
+    // Notes
+    addNote: 'Saved note',
+    updateNote: 'Updated note',
+    deleteNote: 'Deleted note',
+
     // Projects
     addProject: projectName ? `Created project ${projectName}` : 'Created project',
     editProjectName: payload?.new_project_name

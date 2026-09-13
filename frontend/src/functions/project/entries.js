@@ -223,7 +223,12 @@ export async function addEntry(
   }
   const cacheKey = `${user_email}:${project_name}`;
 
-  // 1. Optimistic update: read current cache, add optimistic entry, write back
+  // 1. Optimistic update: read current cache, add optimistic entry, write back.
+  //    The write is UNCONDITIONAL — it creates the list when the store key is
+  //    still cold. Previously it was guarded by `if (cached)`, so the very
+  //    first entry added while offline (or in a project whose entries were
+  //    never cached) was queued but never rendered: the optimistic row simply
+  //    wasn't written, so no cacheSubscribe fired and the page stayed empty.
   const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
   const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
   const optimisticEntry = {
@@ -242,27 +247,57 @@ export async function addEntry(
     _optimistic: true,
   };
 
-  // Write optimistic entry to per-project cache
-  if (cached) {
-    const currentData = cached.data || cached;
+  // Write optimistic entry to per-project cache (create the list if missing)
+  {
+    const currentData = cached ? (cached.data !== undefined ? cached.data : cached) : [];
     const optimisticData = Array.isArray(currentData)
       ? [...currentData, optimisticEntry]
-      : currentData;
+      : [optimisticEntry];
     await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: optimisticData });
   }
 
-  // Write optimistic entry to all-entries cache
-  if (cachedAll) {
-    const currentAll = cachedAll.data || cachedAll;
-    const optimisticAll = Array.isArray(currentAll) ? [...currentAll, optimisticEntry] : currentAll;
+  // Write optimistic entry to all-entries cache (create the list if missing)
+  {
+    const currentAll = cachedAll
+      ? (cachedAll.data !== undefined ? cachedAll.data : cachedAll)
+      : [];
+    const optimisticAll = Array.isArray(currentAll)
+      ? [...currentAll, optimisticEntry]
+      : [optimisticEntry];
     await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: optimisticAll });
+  }
+
+  // Persist any notes attached at creation time into the notes cache, keyed by
+  // the optimistic entry id, so the notes panel renders them offline too.
+  // (Images are the accepted offline exception — store a placeholder for them.)
+  if (Array.isArray(notes) && notes.length > 0) {
+    const noteRows = notes
+      .filter((n) => n && n.entry_type && n.value != null && n.value !== '')
+      .map((n, i) => ({
+        id: `optimistic-note-${optimisticEntry.id}-${i}`,
+        email: user_email,
+        entry_id: optimisticEntry.id,
+        entry_type: n.entry_type,
+        value: n.entry_type === 'text' || n.entry_type === 'link' ? n.value : '(uploading...)',
+        created_at: new Date().toISOString(),
+        deleted: false,
+        _optimistic: true,
+      }));
+    if (noteRows.length > 0) {
+      await cacheSet(CACHE_STORES.NOTES, `notes:${optimisticEntry.id}`, {
+        success: true,
+        data: noteRows,
+      });
+    }
   }
 
   // 2. Check online status
   if (!navigator.onLine) {
-    // Offline: queue for later sync
+    // Offline: queue for later sync. `optimistic_id` travels with the payload so
+    // the replay can recognise the row already on screen and swap it for the
+    // server row instead of appending a second one.
     console.log('[addEntry] Offline, queuing action');
-    await addToQueue('addEntry', 'entries', {
+    await addToQueue('addEntry', 'entries', buildAddEntryPayload({
       user_email,
       project_name,
       entry_object,
@@ -274,18 +309,156 @@ export async function addEntry(
       duration,
       summary,
       notes,
-    });
+      optimistic_id: optimisticEntry.id,
+    }));
     return { success: true, queued: true, data: optimisticEntry, message: undefined };
   }
 
   // 3. Sync to server in background (don't block the UI)
-  _syncAddEntryToServer({
-    user_email, project_name, entry_object, due_date, priority, status,
-    started_at, ended_at, duration, summary, notes, cacheKey, cached, cachedAll,
-  });
+  _syncAddEntryToServer(
+    buildAddEntryPayload({
+      user_email,
+      project_name,
+      entry_object,
+      due_date,
+      priority,
+      status,
+      started_at,
+      ended_at,
+      duration,
+      summary,
+      notes,
+      optimistic_id: optimisticEntry.id,
+    })
+  );
 
   // Return immediately — optimistic entry is already in IndexedDB
   return { success: true, optimistic: true, data: optimisticEntry, message: undefined };
+}
+
+/**
+ * The canonical addEntry payload. Kept in one place so the queued action, the
+ * background sync and the replay can never drift apart in field names — and so
+ * the payload only ever holds JSON-serialisable values (the queue writes it to
+ * SQLite, a live File or a DOM node would break it there).
+ */
+function buildAddEntryPayload(args) {
+  const { user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration, summary, notes, optimistic_id } = args;
+  return {
+    user_email,
+    project_name,
+    entry_object,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration,
+    summary,
+    notes,
+    optimistic_id,
+  };
+}
+
+/**
+ * Swap the optimistic row for the authoritative server row in both entry caches.
+ *
+ * Always re-reads the cache (the old snapshot taken before the POST may have
+ * been replaced by a background refresh in the meantime) and matches on the
+ * optimistic ID. Matching on the entry *object* never worked: the cache is
+ * JSON, so the row read back is a different object than the one passed in.
+ * When the optimistic row has already gone, the server row is appended rather
+ * than dropped, so a successful POST is never lost from the UI.
+ */
+async function reconcileOptimisticEntry(payload, newEntry) {
+  const { user_email, project_name, optimistic_id: optimisticId } = payload;
+  const cacheKey = `${user_email}:${project_name}`;
+
+  const merge = (rows) => {
+    if (!Array.isArray(rows)) return rows;
+    const sameId = (e, id) => id != null && String(e?.id) === String(id);
+    // Collapse the pending row and any copy of the server row (a retried POST
+    // can create two) into the single authoritative row, keeping its position.
+    const merged = [];
+    let placed = false;
+    for (const e of rows) {
+      if (sameId(e, optimisticId) || sameId(e, newEntry.id)) {
+        if (!placed) {
+          merged.push(newEntry);
+          placed = true;
+        }
+        continue;
+      }
+      merged.push(e);
+    }
+    // The optimistic row is gone (cleared by a refresh, or the list was rebuilt
+    // while the POST was in flight) — the entry still has to appear.
+    if (!placed) merged.push(newEntry);
+    return merged;
+  };
+
+  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+  if (cached) {
+    const currentData = cached.data !== undefined ? cached.data : cached;
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: merge(currentData) });
+  }
+
+  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+  if (cachedAll) {
+    const currentAll = cachedAll.data !== undefined ? cachedAll.data : cachedAll;
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: merge(currentAll) });
+  }
+
+  // Notes typed alongside the new entry were cached under the optimistic entry
+  // id. Move them under the real id so the notes panel keeps showing them
+  // without a server round-trip (the server stored them with the entry).
+  if (optimisticId && newEntry?.id) {
+    const optimisticNotesKey = `notes:${optimisticId}`;
+    const realNotesKey = `notes:${newEntry.id}`;
+    const optimisticNotes = await cacheGet(CACHE_STORES.NOTES, optimisticNotesKey);
+    if (optimisticNotes) {
+      const rows = Array.isArray(optimisticNotes.data) ? optimisticNotes.data : [];
+      await cacheSet(CACHE_STORES.NOTES, realNotesKey, {
+        success: true,
+        data: rows.map((n) => ({ ...n, entry_id: newEntry.id })),
+      });
+      await cacheDelete(CACHE_STORES.NOTES, optimisticNotesKey);
+    }
+  }
+}
+
+/**
+ * Server-only add — no optimistic write, no re-queueing.
+ * Used to replay a queued addEntry: the on-screen optimistic row already
+ * exists, so calling the public addEntry again would append a duplicate.
+ * Throws (or returns success:false) on failure so the queue keeps retrying.
+ */
+export async function addEntrySync(payload) {
+  const result = await request(`${PROJECT_URL}/service/entry`, {
+    method: 'POST',
+    body: JSON.stringify({
+      function: 'add',
+      values: withoutUndefined({
+        user_email: payload.user_email,
+        project_name: payload.project_name,
+        entry_object: payload.entry_object,
+        due_date: payload.due_date,
+        priority: payload.priority,
+        status: payload.status,
+        started_at: payload.started_at,
+        ended_at: payload.ended_at,
+        duration: payload.duration,
+        summary: payload.summary,
+        notes: payload.notes,
+      }),
+    }),
+  });
+
+  if (result?.success && result.data) {
+    const newEntry = Array.isArray(result.data) ? result.data[0] : result.data;
+    await reconcileOptimisticEntry(payload, newEntry);
+  }
+  return result;
 }
 
 /**
@@ -293,64 +466,13 @@ export async function addEntry(
  * Fires after the optimistic write; replaces optimistic data with real server data on success,
  * or queues for retry on failure.
  */
-async function _syncAddEntryToServer({
-  user_email, project_name, entry_object, due_date, priority, status,
-  started_at, ended_at, duration, summary, notes, cacheKey, cached, cachedAll,
-}) {
+async function _syncAddEntryToServer(payload) {
   try {
-    const result = await request(`${PROJECT_URL}/service/entry`, {
-      method: 'POST',
-      body: JSON.stringify({
-        function: 'add',
-        values: withoutUndefined({
-          user_email,
-          project_name,
-          entry_object,
-          due_date,
-          priority,
-          status,
-          started_at,
-          ended_at,
-          duration,
-          summary,
-          notes,
-        }),
-      }),
-    });
-
-    // On success, replace optimistic entry with real data in cache
-    if (result?.success && result.data) {
-      const newEntry = Array.isArray(result.data) ? result.data[0] : result.data;
-      if (cached) {
-        const currentData = cached.data || cached;
-        const newData = Array.isArray(currentData)
-          ? currentData.map((e) =>
-              e.id?.toString().startsWith('optimistic-') && e.entries === entry_object
-                ? newEntry
-                : e
-            )
-          : currentData;
-        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
-      }
-      if (cachedAll) {
-        const currentAll = cachedAll.data || cachedAll;
-        const newAll = Array.isArray(currentAll)
-          ? currentAll.map((e) =>
-              e.id?.toString().startsWith('optimistic-') && e.entries === entry_object
-                ? newEntry
-                : e
-            )
-          : currentAll;
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
-      }
-    }
+    await addEntrySync(payload);
   } catch (err) {
     // On failure, queue for retry (optimistic entry stays in cache)
     console.error('[addEntry] Server sync failed, queuing for retry:', err);
-    await addToQueue('addEntry', 'entries', {
-      user_email, project_name, entry_object, due_date, priority, status,
-      started_at, ended_at, duration, notes,
-    });
+    await addToQueue('addEntry', 'entries', payload);
   }
 }
 

@@ -10,6 +10,7 @@ import * as project from '../functions/project/project';
 import * as archives from '../functions/project/archives';
 import * as priority from '../functions/project/priority';
 import * as profile from '../functions/profile/profile';
+import * as notes from '../functions/project/notes';
 import { addFieldSync, editFieldSync } from '../functions/project/fields';
 
 /**
@@ -17,21 +18,10 @@ import { addFieldSync, editFieldSync } from '../functions/project/fields';
  * Each handler receives the payload object and calls the appropriate function.
  */
 const actionMap = {
-  // Entries
-  addEntry: (payload) =>
-    entries.addEntry(
-      payload.user_email,
-      payload.project_name,
-      payload.entry_object,
-      payload.due_date,
-      payload.priority,
-      payload.status,
-      payload.started_at,
-      payload.ended_at,
-      payload.duration,
-      payload.summary,
-      payload.notes
-    ),
+  // Entries — replay uses the server-only variants: the optimistic row is
+  // already on screen, so re-running the public function would append a second
+  // one and return before the POST had been retried.
+  addEntry: (payload) => entries.addEntrySync(payload),
 
   updateEntry: (payload) =>
     entries.updateEntry(
@@ -53,6 +43,16 @@ const actionMap = {
 
   deleteEntryById: (payload) =>
     entries.deleteEntryById(payload.user_email, payload.entry_id),
+
+  // Notes — without these the dispatcher threw "Unknown action" for every
+  // offline note, and the queue processor dropped it after MAX_ATTEMPTS, so a
+  // note created offline never reached the server and vanished on the next
+  // refresh.
+  addNote: (payload) => notes.addNoteSync(payload),
+
+  updateNote: (payload) => notes.updateNoteSync(payload),
+
+  deleteNote: (payload) => notes.deleteNoteSync(payload),
 
   // Projects
   addProject: (payload) =>
