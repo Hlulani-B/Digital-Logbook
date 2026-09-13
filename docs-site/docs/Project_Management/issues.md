@@ -605,7 +605,11 @@ After the `LandingSections` component (which uses `IntersectionObserver` for scr
 ```typescript
 Object.defineProperty(window, 'IntersectionObserver', {
   writable: true,
-  value: class { observe() {} unobserve() {} disconnect() {} },
+  value: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
 });
 ```
 

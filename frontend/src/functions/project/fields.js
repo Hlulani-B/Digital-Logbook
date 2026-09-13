@@ -88,7 +88,13 @@ export async function addFieldSync({ user_email, table_name, field_name, data_ty
 /**
  * Server-only field edit. Mirrors `addFieldSync` for replay safety.
  */
-export async function editFieldSync({ user_email, table_name, field_name, data_type, is_required }) {
+export async function editFieldSync({
+  user_email,
+  table_name,
+  field_name,
+  data_type,
+  is_required,
+}) {
   const result = await request(`${PROJECT_URL}/service/field`, {
     method: 'POST',
     body: JSON.stringify({

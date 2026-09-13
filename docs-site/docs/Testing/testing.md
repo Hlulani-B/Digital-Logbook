@@ -164,17 +164,17 @@ Each workflow appears separately in the Gitea Actions UI. If any test fails, the
 
 ### Mocking Approach
 
-| Dependency            | Mock strategy                          | Reason                                            |
-| --------------------- | -------------------------------------- | ------------------------------------------------- |
-| Supabase client       | `vi.mock('@/lib/supabase')`            | Prevents real database/auth calls                 |
-| `fetch` / `request()` | `vi.fn()` or `vi.mock('@/lib/api')`    | Isolates from network                             |
-| React Router          | `<MemoryRouter>` wrapper               | Controls navigation in tests                      |
-| IndexedDB             | `fake-indexeddb/auto`                  | Real IndexedDB API in jsdom for integration tests |
-| `localStorage`        | `localStorage.clear()` in `beforeEach` | Prevents test pollution                           |
-| Child components      | `vi.mock('../Component')`              | Tests one component in isolation                  |
-| Auth context          | `vi.mock('@/context/AuthContext')`     | Provides mock user for component tests            |
-| `IntersectionObserver`| No-op class stub in `src/test/setup.ts`| jsdom does not implement it; landing-sections scroll-reveal needs it |
-| `matchMedia`          | No-op stub in `src/test/setup.ts`      | jsdom does not implement it; responsive theme toggle needs it |
+| Dependency             | Mock strategy                           | Reason                                                               |
+| ---------------------- | --------------------------------------- | -------------------------------------------------------------------- |
+| Supabase client        | `vi.mock('@/lib/supabase')`             | Prevents real database/auth calls                                    |
+| `fetch` / `request()`  | `vi.fn()` or `vi.mock('@/lib/api')`     | Isolates from network                                                |
+| React Router           | `<MemoryRouter>` wrapper                | Controls navigation in tests                                         |
+| IndexedDB              | `fake-indexeddb/auto`                   | Real IndexedDB API in jsdom for integration tests                    |
+| `localStorage`         | `localStorage.clear()` in `beforeEach`  | Prevents test pollution                                              |
+| Child components       | `vi.mock('../Component')`               | Tests one component in isolation                                     |
+| Auth context           | `vi.mock('@/context/AuthContext')`      | Provides mock user for component tests                               |
+| `IntersectionObserver` | No-op class stub in `src/test/setup.ts` | jsdom does not implement it; landing-sections scroll-reveal needs it |
+| `matchMedia`           | No-op stub in `src/test/setup.ts`       | jsdom does not implement it; responsive theme toggle needs it        |
 
 ### Coverage Expectations
 
