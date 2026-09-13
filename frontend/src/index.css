@@ -4343,6 +4343,12 @@ img {
   align-items: center;
   gap: 0.5rem;
 }
+/* View toggle relocated under the "Due soon" label — give it a little
+   breathing room above the entries feed it controls. */
+.due-soon-view-toggle {
+  margin-top: -0.25rem;
+  margin-bottom: 0.85rem;
+}
 .feed-view-label {
   font-size: 0.75rem;
   color: var(--text-muted);

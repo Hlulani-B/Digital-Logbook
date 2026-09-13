@@ -1689,29 +1689,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   Projects
                 </button>
               </div>
-              <div className="feed-view-group">
-                <span className="feed-view-label">View:</span>
-                <div className="feed-view-toggle">
-                  <button
-                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('cards')}
-                  >
-                    Cards
-                  </button>
-                  <button
-                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('checklist')}
-                  >
-                    Checklist
-                  </button>
-                  <button
-                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('board')}
-                  >
-                    Board
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Quick Entry Bar - Natural Language */}
@@ -1829,6 +1806,34 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </svg>
               <span>Due soon</span>
             </div>
+
+            {/* View mode toggle — sits with the due-soon entries it controls,
+                hidden entirely when nothing is due soon. */}
+            {!loading && filteredEntries.length > 0 && (
+              <div className="feed-view-group due-soon-view-toggle">
+                <span className="feed-view-label">View:</span>
+                <div className="feed-view-toggle">
+                  <button
+                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('checklist')}
+                  >
+                    Checklist
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('board')}
+                  >
+                    Board
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Loading */}
             {loading && (
