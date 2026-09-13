@@ -127,6 +127,18 @@ function formatActionMessage(entry) {
       ? `Set priority in ${projectName}`
       : 'Set priority',
 
+    // Fields (columns)
+    addField: payload?.field_name
+      ? projectName
+        ? `Added column "${payload.field_name}" to ${projectName}`
+        : `Added column "${payload.field_name}"`
+      : 'Saved column',
+    editField: payload?.field_name
+      ? projectName
+        ? `Updated column "${payload.field_name}" in ${projectName}`
+        : `Updated column "${payload.field_name}"`
+      : 'Updated column',
+
     // Profile
     updateUsername: email ? `Updated username for ${email}` : 'Updated username',
     updateName: email ? `Updated name for ${email}` : 'Updated name',

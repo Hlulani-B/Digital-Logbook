@@ -13,7 +13,6 @@ import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
-import { getProfile } from '@/functions/profile/profile.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
@@ -501,7 +500,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Load archived entries when archives view is active
   useEffect(() => {
     if (activeView !== 'archives' || !email) return;
-    (async () => {
+    const loadArchives = async () => {
       try {
         const result = await getArchives(email, null);
         if (result?.success !== false) {
@@ -510,7 +509,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       } catch (err) {
         console.error('Failed to load archived entries:', err);
       }
-    })();
+    };
+    loadArchives();
+    // Re-read when archives cache changes (e.g., after archive/unarchive actions)
+    const unsub = cacheSubscribe(CACHE_STORES.ARCHIVES, `${email}:all`, () => loadArchives());
+    return () => unsub();
   }, [activeView, email]);
 
   // AI-generated greeting ΓÇö shown as a toast (respects AI messages preference)
@@ -582,8 +585,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
-    // Use all entries (unarchived)
-    let filtered = [...entries];
+    // Use all entries (unarchived) — ALL_ENTRIES also holds archived rows, so
+    // drop them here; the Archives view sources its list from getArchives.
+    let filtered = entries.filter((e) => !e.archived);
 
     if (activeView === 'recent') {
       const weekAgo = new Date();
@@ -660,29 +664,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
-  // Load avatar and username from profile-service (fallback for users who set profile before Supabase sync)
+  // Load avatar and username from IndexedDB cache (populated by syncAllData on login)
   useEffect(() => {
     if (!email) return;
-    let cancelled = false;
-    (async () => {
+    const loadProfile = async () => {
       try {
-        const result = await getProfile(email);
-        const profileData = result?.data || result;
+        const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+        const profileData = cached?.data || cached?.profile || cached;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
         const username = (profileData as Record<string, unknown>)?.username as string;
-        if (!cancelled) {
-          if (avatar) {
-            setProfileAvatar(avatar);
-          }
-          if (username) {
-            setProfileUsername(username);
-          }
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
+        if (avatar) setProfileAvatar(avatar);
+        if (username) setProfileUsername(username);
+      } catch (err) {
+        console.error('[Dashboard] Failed to load profile from cache:', err);
+      }
     };
+    loadProfile();
+    // Re-read when syncAllData or mutations write the profile to IndexedDB
+    const unsub = cacheSubscribe(CACHE_STORES.PROFILE, email, () => loadProfile());
+    return () => unsub();
   }, [email]);
 
   const handleLogout = async () => {
@@ -1696,24 +1696,29 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   Projects
                 </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('cards')}
-                >
-                  Cards
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('checklist')}
-                >
-                  Checklist
-                </button>
-                <button
-                  className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                  onClick={() => setDisplayMode('board')}
-                >
-                  Board
-                </button>
+              </div>
+              <div className="feed-view-group">
+                <span className="feed-view-label">View:</span>
+                <div className="feed-view-toggle">
+                  <button
+                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('checklist')}
+                  >
+                    Checklist
+                  </button>
+                  <button
+                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('board')}
+                  >
+                    Board
+                  </button>
+                </div>
               </div>
               <div className="feed-sort-group">
                 <span className="feed-sort-label">Sort:</span>

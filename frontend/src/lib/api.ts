@@ -30,6 +30,7 @@ export async function request<T>(
     const res = await fetch(url, {
       ...fetchOptions,
       signal: controller.signal,
+      cache: 'no-store', // Never use HTTP cache — all data reads go through SQLite
       headers: {
         'Content-Type': 'application/json',
         Authorization: token ? `Bearer ${token}` : '',

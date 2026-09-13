@@ -11,10 +11,21 @@ function withoutUndefined(values) {
 
 /**
  * Fetch entries for a specific project.
- * Writes result to IndexedDB (triggers subscription), does not return data.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function getEntries(user_email, project_name) {
   const cacheKey = `${user_email}:${project_name}`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+    if (cached) {
+      console.log('[getEntries] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getEntries] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
 
   // Fetch from server and write to IndexedDB
   try {
@@ -32,17 +43,35 @@ export async function getEntries(user_email, project_name) {
     return result;
   } catch (err) {
     console.error('[getEntries] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+    if (cached) {
+      console.log('[getEntries] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }
 
 /**
  * Fetch ALL entries for a user.
- * Writes result to IndexedDB (triggers subscription), does not return data.
+ * Cache-first: reads from IndexedDB, falls back to server.
  * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getAllEntries(user_email) {
   console.log('[getAllEntries] called for', user_email);
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+    if (cached) {
+      console.log('[getAllEntries] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getAllEntries] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -69,15 +98,34 @@ export async function getAllEntries(user_email) {
     return result;
   } catch (err) {
     console.error('[getAllEntries] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
+    if (cached) {
+      console.log('[getAllEntries] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }
 
 /**
  * Fetch sorted unarchived entries for a project.
- * Writes to IndexedDB, does not return data.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function sortUnarchivedEntries(user_email, project_name, sort_type) {
+  const cacheKey = `${user_email}:${project_name}`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+    if (cached) {
+      console.log('[sortUnarchivedEntries] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[sortUnarchivedEntries] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -88,19 +136,39 @@ export async function sortUnarchivedEntries(user_email, project_name, sort_type)
     });
 
     if (result?.success) {
-      await cacheSet(CACHE_STORES.ENTRIES, `${user_email}:${project_name}`, result);
+      await cacheSet(CACHE_STORES.ENTRIES, cacheKey, result);
     }
     return result;
   } catch (err) {
     console.error('[sortUnarchivedEntries] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+    if (cached) {
+      console.log('[sortUnarchivedEntries] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }
 
 /**
  * Fetch sorted archived entries for a project.
+ * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function sortArchivedEntries(user_email, project_name, sort_type) {
+  const cacheKey = `${user_email}:${project_name}:archived`;
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+    if (cached) {
+      console.log('[sortArchivedEntries] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[sortArchivedEntries] Offline and no cache');
+    return { success: false, offline: true, data: [] };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
@@ -111,11 +179,17 @@ export async function sortArchivedEntries(user_email, project_name, sort_type) {
     });
 
     if (result?.success) {
-      await cacheSet(CACHE_STORES.ENTRIES, `${user_email}:${project_name}:archived`, result);
+      await cacheSet(CACHE_STORES.ENTRIES, cacheKey, result);
     }
     return result;
   } catch (err) {
     console.error('[sortArchivedEntries] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
+    if (cached) {
+      console.log('[sortArchivedEntries] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, data: [] };
   }
 }

@@ -10,6 +10,7 @@ import * as project from '../functions/project/project';
 import * as archives from '../functions/project/archives';
 import * as priority from '../functions/project/priority';
 import * as profile from '../functions/profile/profile';
+import { addFieldSync, editFieldSync } from '../functions/project/fields';
 
 /**
  * Map of action names to their handler functions.
@@ -91,6 +92,11 @@ const actionMap = {
       payload.project_name,
       payload.entry_id
     ),
+
+  // Fields — replay uses the server-only variants so a retry never re-queues.
+  addField: (payload) => addFieldSync(payload),
+
+  editField: (payload) => editFieldSync(payload),
 
   // Profile
   updateUsername: (payload) =>

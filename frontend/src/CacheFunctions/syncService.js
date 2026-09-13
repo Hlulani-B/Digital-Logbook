@@ -190,14 +190,20 @@ async function _doSync(email, onProgress) {
   } catch (err) {
     console.log('[syncService] archives batch error:', err?.message);
   }
-  // 5. Fields (2 calls)
+  // 5. Fields — fields are stored per-project (table_name == project_name), so
+  //    warm one cache entry per project the user owns. getFields() caches each
+  //    response itself; a fresh offline load then still shows each project's columns.
+  const fieldProjectNames =
+    projectsResult.status === 'fulfilled'
+      ? (projectsResult.value?.projects || projectsResult.value?.data || [])
+          .map((p) => p.project_name)
+          .filter(Boolean)
+      : [];
   const fieldsResults = { status: 'fulfilled', value: [] };
   try {
-    const [f1, f2] = await Promise.all([
-      safeCall('fields1', () => getFields(email, 'entries')),
-      safeCall('fields2', () => getFields(email, 'projects')),
-    ]);
-    fieldsResults.value = [f1, f2];
+    fieldsResults.value = await Promise.all(
+      fieldProjectNames.map((name) => safeCall(`fields:${name}`, () => getFields(email, name)))
+    );
   } catch (err) {
     console.log('[syncService] fields batch error:', err?.message);
   }
@@ -318,16 +324,13 @@ async function _doSync(email, onProgress) {
     console.error('[syncService] Failed to cache archives:', err);
   }
 
-  // 5. Fields
+  // 5. Fields — getFields() already wrote each project's rows to the cache during
+  //    the fetch above; here we only record what synced.
   try {
-    if (fieldsResults.status === 'fulfilled') {
-      const fieldTables = ['entries', 'projects'];
-      for (let i = 0; i < fieldTables.length; i++) {
-        const fr = fieldsResults.value[i];
-        if (fr.status === 'fulfilled' && fr.value?.success) {
-          await cacheSet(CACHE_STORES.FIELDS, `${email}:${fieldTables[i]}`, fr.value);
-          summary.synced.push(`fields:${fieldTables[i]}`);
-        }
+    for (let i = 0; i < fieldProjectNames.length; i++) {
+      const fr = fieldsResults.value[i];
+      if (fr?.status === 'fulfilled' && fr.value?.success) {
+        summary.synced.push(`fields:${fieldProjectNames[i]}`);
       }
     }
   } catch (err) {

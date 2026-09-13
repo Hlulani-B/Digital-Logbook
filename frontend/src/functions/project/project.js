@@ -6,11 +6,23 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
 /**
  * Fetch all projects for a user.
- * Writes to IndexedDB (triggers subscription), returns result for compatibility.
+ * Cache-first: reads from IndexedDB, falls back to server.
  * Guard: never overwrites non-empty cache with empty server data.
  */
 export async function getProjectsByEmail(user_email) {
   console.log('[getProjectsByEmail] called for', user_email);
+
+  // Offline: serve from cache immediately
+  if (!navigator.onLine) {
+    const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+    if (cached) {
+      console.log('[getProjectsByEmail] Offline — serving from cache');
+      return cached;
+    }
+    console.log('[getProjectsByEmail] Offline and no cache');
+    return { success: false, offline: true, projects: [] };
+  }
+
   try {
     const result = await request(`${PROJECT_URL}/service/project`, {
       method: 'POST',
@@ -40,6 +52,12 @@ export async function getProjectsByEmail(user_email) {
     return result;
   } catch (err) {
     console.error('[getProjectsByEmail] Failed:', err);
+    // Fallback to cache on server failure
+    const cached = await cacheGet(CACHE_STORES.PROJECTS, user_email);
+    if (cached) {
+      console.log('[getProjectsByEmail] Server failed — serving from cache');
+      return cached;
+    }
     return { success: false, projects: [] };
   }
 }
