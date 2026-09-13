@@ -11,116 +11,314 @@ All backend services follow a consistent API pattern:
 
 ## Auth Service (port 5001)
 
+**Production URL:** `https://auth-service-hl52.onrender.com`
+
 ### Sign In
 
-```
+```http
 POST /auth/signin
-Body: { email, password }
-Response: { success: boolean, session?: object, message?: string }
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "session": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": { "id": "...", "email": "user@example.com" }
+  }
+}
+```
+
+**Response (401):**
+
+```json
+{
+  "success": false,
+  "message": "Invalid email or password"
+}
 ```
 
 ### Sign Up
 
-```
+```http
 POST /auth/signup
-Body: { email, password }
-Response: { success: boolean, user?: object, message?: string }
+Content-Type: application/json
+
+{
+  "email": "newuser@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Please check your email to confirm your account before signing in"
+}
 ```
 
 ### Sign Out
 
-```
+```http
 POST /auth/signout
-Headers: Authorization: Bearer <token>
-Response: { success: boolean, message: string }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Signed out successfully"
+}
 ```
 
 ### Reset Password
 
-```
+```http
 POST /auth/reset-password
-Body: { email }
-Response: { success: boolean, message: string }
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Password reset email sent"
+}
 ```
 
 ### Delete Account
 
-```
+```http
 DELETE /auth/delete-account
-Headers: Authorization: Bearer <token>
-Response: { success: boolean, message: string }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Account deletion scheduled. You have 30 days to restore your account."
+}
 ```
 
 ### Check User
 
-```
+```http
 POST /auth/checkuser
-Body: { email: string }
-Response: { exists: boolean, deleted: boolean }
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "exists": true,
+  "deleted": false
+}
 ```
 
 Returns `deleted: true` if the user has soft-deleted their account. The frontend uses this to auto-restore on sign-in.
 
 ## Profile Service (port 5004)
 
+**Production URL:** `https://profile-service-0zk7.onrender.com`
+
 ### Get Profile
 
-```
+```http
 POST /service/profile
-Headers: Authorization: Bearer <token>
-Body: { function: "getProfile", values: { email } }
-Response: { success: boolean, data: { email, username, name, avatar, deleted } }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "getProfile",
+  "values": { "email": "user@example.com" }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "username": "johndoe",
+    "name": "John Doe",
+    "avatar": "https://...",
+    "deleted": false
+  }
+}
 ```
 
 ### Update Profile
 
-```
+```http
 POST /service/profile
-Headers: Authorization: Bearer <token>
-Body: { function: "updateProfile", values: { email, updates: { name?, username?, avatar? } } }
-Response: { success: boolean, data: object }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "updateProfile",
+  "values": {
+    "email": "user@example.com",
+    "updates": { "name": "John Updated", "username": "johnupdated" }
+  }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "username": "johnupdated",
+    "name": "John Updated"
+  }
+}
 ```
 
 ### Create Profile
 
-```
+```http
 POST /service/profile
-Headers: Authorization: Bearer <token>
-Body: { function: "createProfile", values: { email, name, username, avatar? } }
-Response: { success: boolean, message: string }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "createProfile",
+  "values": {
+    "email": "user@example.com",
+    "name": "John Doe",
+    "username": "johndoe"
+  }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Profile created successfully"
+}
 ```
 
 ### Restore Account
 
-```
+```http
 POST /service/profile
-Headers: Authorization: Bearer <token>
-Body: { function: "restoreAccount", values: { email } }
-Response: { success: boolean, message: string }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "restoreAccount",
+  "values": { "email": "user@example.com" }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Account restored successfully"
+}
 ```
 
 Calls the `restore_user()` RPC to reverse a soft-delete.
 
 ## Project Service (port 5003)
 
+**Production URL:** `https://project-service-96ml.onrender.com`
+
+**Interactive Docs:** `https://project-service-96ml.onrender.com/api-docs` (Swagger UI)
+
 ### Projects
 
 #### Create Project
 
-```
+```http
 POST /service/project
-Headers: Authorization: Bearer <token>
-Body: { function: "add", values: { user_email, project_name, description } }
-Response: { success: boolean, message: string, data?: object }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "add",
+  "values": {
+    "user_email": "user@example.com",
+    "project_name": "My Coding Project",
+    "description": "A project for tracking coding tasks"
+  }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Project created successfully",
+  "data": {
+    "id": 1,
+    "project_name": "My Coding Project",
+    "user_email": "user@example.com"
+  }
+}
 ```
 
 #### Get All Projects
 
-```
+```http
 POST /service/project
-Headers: Authorization: Bearer <token>
-Body: { function: "getByEmail", values: { user_email } }
-Response: { success: boolean, projects: array }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "getByEmail",
+  "values": { "user_email": "user@example.com" }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "projects": [
+    {
+      "id": 1,
+      "project_name": "My Coding Project",
+      "user_email": "user@example.com",
+      "created_at": "2026-09-01T10:00:00Z"
+    }
+  ]
+}
 ```
 
 #### Rename Project
@@ -199,19 +397,29 @@ Response: { success: boolean, data: array }
 
 #### Natural Language Entry
 
-```
+```http
 POST /service/natural-language-entry
-Headers: Authorization: Bearer <token>
-Body: { text: string }
-Response: {
-  success: boolean,
-  project: string,
-  fields: object,
-  priority: string | null,
-  due_date: string | null,
-  comment: string | null,
-  created_new_project: boolean,
-  new_fields?: array
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "text": "Fix login bug in the auth service by tomorrow"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "project": "Auth Service",
+  "fields": {
+    "description": "Fix login bug"
+  },
+  "priority": "Urgent and important",
+  "due_date": "2026-09-14",
+  "comment": null,
+  "created_new_project": false
 }
 ```
 
@@ -280,35 +488,105 @@ Response: { success: boolean, data: array }
 
 ## Dashboard Service (port 5002)
 
+**Production URL:** `https://dashboard-service-bpc5.onrender.com`
+
 ### Search
 
 #### Search All Projects
 
-```
+```http
 POST /service/search
-Headers: Authorization: Bearer <token>
-Body: { function: "searchAll", values: { user_email, query } }
-Response: { success: boolean, data: array }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "searchAll",
+  "values": {
+    "user_email": "user@example.com",
+    "query": "login bug"
+  }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "project_name": "Auth Service",
+      "entries": [
+        {
+          "id": 42,
+          "title": "Fix login bug",
+          "due_date": "2026-09-14"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 #### Search Specific Project
 
-```
+```http
 POST /service/search
-Headers: Authorization: Bearer <token>
-Body: { function: "searchProject", values: { user_email, project_name, query } }
-Response: { success: boolean, data: array }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "searchProject",
+  "values": {
+    "user_email": "user@example.com",
+    "project_name": "Auth Service",
+    "query": "login"
+  }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 42,
+      "title": "Fix login bug",
+      "due_date": "2026-09-14"
+    }
+  ]
+}
 ```
 
 ### Stats
 
 #### Get Dashboard Stats
 
-```
+```http
 POST /service/stats
-Headers: Authorization: Bearer <token>
-Body: { function: "getStats", values: { user_email } }
-Response: { success: boolean, data: { total_entries, total_projects, due_soon, time_tracked } }
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "function": "getStats",
+  "values": { "user_email": "user@example.com" }
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_entries": 47,
+    "total_projects": 5,
+    "due_soon": 3,
+    "time_tracked": "12h 30m"
+  }
+}
 ```
 
 ### Soft-Delete
@@ -396,8 +674,88 @@ A Swagger UI is served at `/api-docs` on the project-service, allowing interacti
 - JWT-protected routes have 401 responses
 - Reusable schemas are defined
 
-### Key Files
+### How to Test the API Externally
 
-- `services/project-service/docs/openapi.yaml` — 985-line OpenAPI 3.0 spec
-- `services/project-service/src/index.js` — Swagger UI mount at `/api-docs`
-- `services/project-service/src/__tests__/openapi.test.js` — Spec validation tests
+### 1. Get a JWT Token
+
+First, sign in to get a valid JWT token:
+
+```bash
+curl -X POST https://auth-service-hl52.onrender.com/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{"email": "your@email.com", "password": "yourpassword"}'
+```
+
+Copy the `access_token` from the response.
+
+### 2. Make Authenticated Requests
+
+Use the token in the `Authorization` header:
+
+```bash
+# Get all projects
+curl -X POST https://project-service-96ml.onrender.com/service/project \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"function": "getByEmail", "values": {"user_email": "your@email.com"}}'
+
+# Get dashboard stats
+curl -X POST https://dashboard-service-bpc5.onrender.com/service/stats \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"function": "getStats", "values": {"user_email": "your@email.com"}}'
+
+# Get profile
+curl -X POST https://profile-service-0zk7.onrender.com/service/profile \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"function": "getProfile", "values": {"email": "your@email.com"}}'
+```
+
+### 3. Use Swagger UI (Project Service Only)
+
+Visit `https://project-service-96ml.onrender.com/api-docs` in your browser:
+
+1. Click "Authorize" button
+2. Paste your JWT token (without "Bearer " prefix)
+3. Click "Authorize"
+4. Test endpoints directly from the browser
+
+### 4. Use Postman Collection
+
+Import the Postman collection from [`docs-site/docs/assets/api/Digital-Logbook.postman_collection.json`](../assets/api/Digital-Logbook.postman_collection.json) to test all endpoints with a GUI.
+
+---
+
+## External API Integrations
+
+The Digital Logbook integrates with **5 external AI providers** in a fallback chain for natural language processing:
+
+| Provider          | Purpose                                          | Fallback Order |
+| ----------------- | ------------------------------------------------ | -------------- |
+| **HuggingFace**   | Free-tier AI inference (DeepSeek, Llama)         | 1st (free)     |
+| **OpenRouter**    | Aggregated model access (Llama, Nemotron, Gemma) | 2nd (free)     |
+| **Cerebras**      | Ultra-fast wafer-scale chip inference (Llama)    | 3rd (paid)     |
+| **Google Gemini** | Structured JSON output (Gemini 2.5 Flash)        | 4th (paid)     |
+| **Groq**          | Ultra-fast Llama inference                       | 5th (paid)     |
+
+### How the Fallback Chain Works
+
+1. Request comes in to `/service/natural-language-entry`
+2. Try HuggingFace (free) → if rate-limited (429) or error (503), move to next
+3. Try OpenRouter (free) → if rate-limited, move to next
+4. Try Cerebras (paid, fast) → if rate-limited, move to next
+5. Try Gemini (paid, structured JSON) → if rate-limited, move to next
+6. Try Groq (paid, fast) → if all fail, return error
+
+Each provider has a 5-minute cooldown after a rate-limit error, tracked in the `ai_provider_cooldowns` database table.
+
+### AI Provider Configuration
+
+All API keys are stored as environment variables on Render:
+
+- `HF_API_KEY` — HuggingFace API key
+- `OPENROUTER_API_KEY` — OpenRouter API key
+- `CEREBRAS_API_KEY` — Cerebras API key
+- `GEMINI_API_KEY` — Google Gemini API key
+- `GROQ_API_KEY` — Groq API key
