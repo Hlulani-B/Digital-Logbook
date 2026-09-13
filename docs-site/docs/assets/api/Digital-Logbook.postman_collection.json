@@ -51,27 +51,6 @@
       "name": "Auth Service",
       "item": [
         {
-          "name": "Sign In",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"yourpassword\"\n}"
-            },
-            "url": {
-              "raw": "{{auth_service_url}}/auth/signin",
-              "host": ["{{auth_service_url}}"],
-              "path": ["auth", "signin"]
-            }
-          }
-        },
-        {
           "name": "Sign Up",
           "request": {
             "method": "POST",
@@ -89,18 +68,6 @@
               "raw": "{{auth_service_url}}/auth/signup",
               "host": ["{{auth_service_url}}"],
               "path": ["auth", "signup"]
-            }
-          }
-        },
-        {
-          "name": "Sign Out",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{auth_service_url}}/auth/signout",
-              "host": ["{{auth_service_url}}"],
-              "path": ["auth", "signout"]
             }
           }
         },
