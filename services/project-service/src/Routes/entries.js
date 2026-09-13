@@ -50,6 +50,9 @@ router.post('/entry', async (req, res) => {
           duration,
           summary,
           notes,
+          target_duration_ms,
+          paused_ms,
+          paused_at,
         } = values;
         if (!project_name) return res.status(400).json({ error: 'Missing required parameters' });
         const result = await entries.addEntry(
@@ -63,7 +66,10 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary,
-          notes
+          notes,
+          target_duration_ms,
+          paused_ms,
+          paused_at
         );
         if (result.success) {
           const entrySummary =
@@ -90,11 +96,14 @@ router.post('/entry', async (req, res) => {
           ended_at,
           duration,
           summary: providedSummary,
+          target_duration_ms,
+          paused_ms,
+          paused_at,
         } = values;
         if (!project_name || !entry_id)
           return res.status(400).json({ error: 'Missing required parameters' });
 
-        // Update entry immediately. Summary regeneration happens in background.
+        // Update entry immediately. Summary regeneration happens in background if needed.
         const result = await entries.updateEntry(
           user_email,
           project_name,
@@ -106,14 +115,37 @@ router.post('/entry', async (req, res) => {
           started_at,
           ended_at,
           duration,
-          undefined // summary — regenerated in background below
+          providedSummary, // preserve user-edited summary; undefined lets AI regeneration handle it
+          target_duration_ms,
+          paused_ms,
+          paused_at
         );
 
-        // Regenerate summary in background if entry content changed
-        if (result.success && new_entry !== undefined && new_entry !== null) {
-          nlEntry.generateSummary(project_name, new_entry)
+        // Regenerate summary in background if entry content changed and no explicit summary was provided
+        if (
+          result.success &&
+          new_entry !== undefined &&
+          new_entry !== null &&
+          providedSummary === undefined
+        ) {
+          nlEntry
+            .generateSummary(project_name, new_entry)
             .then((summary) => {
-              entries.updateEntry(user_email, project_name, entry_id, undefined, undefined, undefined, undefined, undefined, undefined, undefined, summary).catch(() => {});
+              entries
+                .updateEntry(
+                  user_email,
+                  project_name,
+                  entry_id,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  summary
+                )
+                .catch(() => {});
             })
             .catch(() => {});
         }

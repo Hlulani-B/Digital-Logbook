@@ -42,9 +42,7 @@ async function setProjectArchivedFlag(user_email, projectName, archived) {
   if (!cached) return;
   const raw = cached.data || cached.projects;
   if (!Array.isArray(raw)) return;
-  const data = raw.map((p) =>
-    p.project_name === projectName ? { ...p, archived } : p
-  );
+  const data = raw.map((p) => (p.project_name === projectName ? { ...p, archived } : p));
   await cacheSet(CACHE_STORES.PROJECTS, user_email, { ...cached, data });
 }
 
@@ -52,9 +50,7 @@ async function setProjectArchivedFlag(user_email, projectName, archived) {
 async function cacheSetEntriesArchivedForProject(user_email, projectName, archived) {
   const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
   if (!cached || !Array.isArray(cached.data)) return;
-  const data = cached.data.map((e) =>
-    e.project_name === projectName ? { ...e, archived } : e
-  );
+  const data = cached.data.map((e) => (e.project_name === projectName ? { ...e, archived } : e));
   await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { ...cached, data });
 }
 
@@ -93,9 +89,7 @@ async function applyProjectArchive(user_email, project_name, archived) {
  * Cache-first: reads from IndexedDB, falls back to server.
  */
 export async function getArchives(user_email, project_name) {
-  const cacheKey = project_name
-    ? `${user_email}:${project_name}`
-    : `${user_email}:all`;
+  const cacheKey = project_name ? `${user_email}:${project_name}` : `${user_email}:all`;
 
   // Offline: serve from cache immediately
   if (!navigator.onLine) {

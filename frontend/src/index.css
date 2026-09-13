@@ -4082,6 +4082,14 @@ img {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.entry-box__task-btn--start {
+  background: var(--success, #2e7d32);
+  color: #fff;
+  border-color: var(--success, #2e7d32);
+}
+.entry-box__task-btn--start:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
 .entry-box__task-btn--end {
   background: var(--danger, #a0522d);
   color: #fff;
@@ -4127,6 +4135,7 @@ img {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 .entry-box__task-elapsed {
   font-family: 'Plus Jakarta Sans', var(--font-body, 'Lora', serif);
@@ -4141,6 +4150,59 @@ img {
   border: 1px solid var(--danger, #a0522d);
   border-radius: var(--radius-xs, 4px);
   padding: 0.2rem 0.45rem;
+  line-height: 1.3;
+}
+
+/* Countdown / pause additions */
+.entry-box__task-paused {
+  font-family: 'Plus Jakarta Sans', var(--font-body, 'Lora', serif);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a6d1d;
+  background: rgba(200, 160, 60, 0.12);
+  border: 1px solid #c8a03c;
+  border-radius: var(--radius-xs, 4px);
+  padding: 0.2rem 0.45rem;
+  line-height: 1.3;
+}
+.entry-box__task-btn--pause {
+  background: rgba(200, 160, 60, 0.12);
+  color: #8a6d1d;
+  border-color: #c8a03c;
+}
+.entry-box__task-btn--pause:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.entry-box__task-btn--resume {
+  background: var(--success, #2e7d32);
+  color: #fff;
+  border-color: var(--success, #2e7d32);
+}
+.entry-box__task-btn--resume:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.entry-box__task-btn--target {
+  background: transparent;
+  color: var(--text-secondary, #555);
+  border-color: var(--border, #ccc);
+}
+.entry-box__task-btn--target:hover:not(:disabled) {
+  background: var(--hover, rgba(0, 0, 0, 0.04));
+}
+.entry-box__target-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.entry-box__target-input {
+  width: 4rem;
+  font-family: var(--font-body, 'Lora', serif);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: var(--radius-xs, 4px);
   line-height: 1.3;
 }
 

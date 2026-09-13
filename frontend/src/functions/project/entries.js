@@ -80,7 +80,11 @@ export async function getAllEntries(user_email) {
         values: { user_email },
       }),
     });
-    console.log('[getAllEntries] server returned:', result?.success, Array.isArray(result?.data) ? `len=${result.data.length}` : 'no-data');
+    console.log(
+      '[getAllEntries] server returned:',
+      result?.success,
+      Array.isArray(result?.data) ? `len=${result.data.length}` : 'no-data'
+    );
 
     if (result?.success) {
       const data = Array.isArray(result.data) ? result.data : [];
@@ -89,7 +93,11 @@ export async function getAllEntries(user_email) {
         const existing = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
         const existingData = existing?.data || [];
         if (Array.isArray(existingData) && existingData.length > 0) {
-          console.warn('[getAllEntries] Server returned 0 entries but cache has', existingData.length, '— keeping cache');
+          console.warn(
+            '[getAllEntries] Server returned 0 entries but cache has',
+            existingData.length,
+            '— keeping cache'
+          );
           return result; // return without writing to cache
         }
       }
@@ -491,7 +499,10 @@ export async function updateEntry(
   started_at,
   ended_at,
   duration,
-  summary
+  summary,
+  target_duration_ms,
+  paused_ms,
+  paused_at
 ) {
   const cacheKey = `${user_email}:${project_name}`;
 
@@ -513,6 +524,10 @@ export async function updateEntry(
           ended_at: ended_at !== undefined ? ended_at : e.ended_at,
           duration: duration !== undefined ? duration : e.duration,
           summary: summary !== undefined ? summary : e.summary,
+          target_duration_ms:
+            target_duration_ms !== undefined ? target_duration_ms : e.target_duration_ms,
+          paused_ms: paused_ms !== undefined ? paused_ms : e.paused_ms,
+          paused_at: paused_at !== undefined ? paused_at : e.paused_at,
         };
       }
       return e;
@@ -551,6 +566,9 @@ export async function updateEntry(
       ended_at,
       duration,
       summary,
+      target_duration_ms,
+      paused_ms,
+      paused_at,
     });
     return { success: true, queued: true };
   }
@@ -573,6 +591,11 @@ export async function updateEntry(
           started_at,
           ended_at,
           summary,
+          target_duration_ms,
+          paused_ms,
+          // paused_at may be explicitly null (Resume / End Task clear the pause)
+          // so it must be sent even though withoutUndefined strips undefined keys.
+          paused_at,
         }),
       }),
     });
@@ -619,6 +642,9 @@ export async function updateEntry(
         ended_at,
         duration,
         summary,
+        target_duration_ms,
+        paused_ms,
+        paused_at,
       });
     }
 
@@ -638,6 +664,9 @@ export async function updateEntry(
       ended_at,
       duration,
       summary,
+      target_duration_ms,
+      paused_ms,
+      paused_at,
     });
     return { success: true, queued: true };
   }

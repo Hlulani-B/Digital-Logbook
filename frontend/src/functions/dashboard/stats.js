@@ -59,30 +59,40 @@ export function formatTimer(ms) {
 }
 
 /**
- * Calculate the elapsed time in ms for a single entry.
+ * Calculate the elapsed (net worked) time in ms for a single entry.
  * Computes purely from timestamps — does NOT rely on the (dropped) `duration` column.
- * - Completed entries (ended_at + started_at): ended_at − started_at.
- * - In-progress entries (started_at set, no ended_at): live started_at → now.
- * - Fallback (ended_at + created_at, no started_at): ended_at − created_at.
+ * - Completed entries (ended_at + started_at): ended_at − started_at − paused_ms.
+ * - In-progress running (started_at set, no ended_at, no paused_at): now − started_at − paused_ms.
+ * - In-progress paused (started_at set, no ended_at, paused_at set): frozen at
+ *   paused_at − started_at − paused_ms (does not accrue while paused).
+ * - Fallback (ended_at + created_at, no started_at): ended_at − created_at (legacy,
+ *   no pause data exists for these rows).
  * - Returns 0 if none of the above.
+ *
+ * Pause fields are additive-optional: entries without them (all legacy rows and
+ * the existing test fixtures) behave exactly as before because `(paused_ms || 0)`
+ * is 0 and the paused_at branch never fires.
  *
  * `now` is accepted as a parameter so callers can pass a single shared timestamp
  * (e.g. a ticking value) for consistent, live-updating in-progress durations.
  */
 export function entryDurationMs(entry, now = Date.now()) {
-  // Completed: ended_at − started_at (the actual work time)
+  // node-pg returns BIGINT as a string; coerce so arithmetic stays numeric.
+  const pausedMs = Number(entry.paused_ms) || 0;
+  // Completed: ended_at − started_at − paused (the actual work time)
   if (entry.ended_at && entry.started_at) {
     const end = new Date(entry.ended_at).getTime();
     const start = new Date(entry.started_at).getTime();
     if (!isNaN(end) && !isNaN(start)) {
-      return end - start;
+      return Math.max(0, end - start - pausedMs);
     }
   }
-  // In-progress: live started_at → now
+  // In-progress: anchor at paused_at when paused (frozen), else live now
   if (entry.started_at && !entry.ended_at) {
     const start = new Date(entry.started_at).getTime();
-    if (!isNaN(start)) {
-      return now - start;
+    const anchor = entry.paused_at ? new Date(entry.paused_at).getTime() : now;
+    if (!isNaN(start) && !isNaN(anchor)) {
+      return Math.max(0, anchor - start - pausedMs);
     }
   }
   // Fallback: legacy entries that have ended_at but no started_at
@@ -94,6 +104,18 @@ export function entryDurationMs(entry, now = Date.now()) {
     }
   }
   return 0;
+}
+
+/**
+ * Countdown support: remaining time until the entry's target duration is met.
+ * Returns null for entries without a target (legacy count-up mode), otherwise
+ * max(0, target_duration_ms − net elapsed). A paused entry keeps whatever
+ * remaining time it had when paused (net elapsed is frozen while paused).
+ */
+export function entryRemainingMs(entry, now = Date.now()) {
+  if (entry.target_duration_ms == null) return null;
+  const remaining = Number(entry.target_duration_ms) - entryDurationMs(entry, now);
+  return Math.max(0, remaining);
 }
 
 /**

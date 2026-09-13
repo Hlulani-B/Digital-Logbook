@@ -14,6 +14,7 @@ import {
 } from '@/functions/project/entries.js';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
+import { type EntryPayload } from '@/lib/entryPayload';
 import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { trackViewedProject } from '@/lib/recentlyViewed';
 import { trackCreatedEntry } from '@/lib/recentlyCreated';
@@ -44,7 +45,15 @@ function parseAIResponse(response: string): string {
       return '';
     }
     if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['placeholder', 'message', 'instruction', 'response', 'text', 'content', 'reply']) {
+      for (const key of [
+        'placeholder',
+        'message',
+        'instruction',
+        'response',
+        'text',
+        'content',
+        'reply',
+      ]) {
         if (typeof parsed[key] === 'string' && parsed[key].trim()) return parsed[key];
       }
       for (const val of Object.values(parsed)) {
@@ -95,7 +104,6 @@ export function ProjectDetailPage() {
 
   // Project colour (loaded from cached projects)
   const [projectColor, setProjectColor] = useState<string | null>(null);
-
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -194,7 +202,7 @@ export function ProjectDetailPage() {
         const match = (Array.isArray(list) ? list : []).find(
           (p: Record<string, unknown>) => p.project_name === projectName
         );
-        setProjectColor(match?.project_color as string || null);
+        setProjectColor((match?.project_color as string) || null);
       }
     });
     return () => unsub();
@@ -742,7 +750,7 @@ export function ProjectDetailPage() {
                   summary: (r.summary as string) || null,
                   due_date: (r.due_date as string) || null,
                   status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as Record<string, unknown> | string | null,
+                  entries: r.entries as EntryPayload,
                   started_at: (r.started_at as string) || null,
                 }))}
                 onUpdated={() => loadEntries()}
@@ -758,7 +766,7 @@ export function ProjectDetailPage() {
                   summary: (r.summary as string) || null,
                   due_date: (r.due_date as string) || null,
                   status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as Record<string, unknown> | string | null,
+                  entries: r.entries as EntryPayload,
                   started_at: (r.started_at as string) || null,
                 }))}
                 onUpdated={() => loadEntries()}
@@ -889,7 +897,7 @@ export function ProjectDetailPage() {
                   summary: (r.summary as string) || null,
                   due_date: (r.due_date as string) || null,
                   status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as Record<string, unknown> | string | null,
+                  entries: r.entries as EntryPayload,
                   started_at: (r.started_at as string) || null,
                 }))}
                 onUpdated={() => loadEntries()}
@@ -905,7 +913,7 @@ export function ProjectDetailPage() {
                   summary: (r.summary as string) || null,
                   due_date: (r.due_date as string) || null,
                   status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as Record<string, unknown> | string | null,
+                  entries: r.entries as EntryPayload,
                   started_at: (r.started_at as string) || null,
                 }))}
                 onUpdated={() => loadEntries()}
@@ -960,11 +968,26 @@ export function ProjectDetailPage() {
                   setNewEntryOpen(false);
                   loadEntries();
                   // Track in recently created
-                  const created = Array.isArray((result as any)?.data) ? (result as any).data[0] : (result as any)?.data;
+                  const created = Array.isArray((result as any)?.data)
+                    ? (result as any).data[0]
+                    : (result as any)?.data;
                   if (created?.id && projectName) {
                     const entries = created.entries;
-                    const title = typeof entries === 'string' ? entries : (typeof entries === 'object' && entries ? Object.values(entries).find((v: any) => typeof v === 'string' && v.length > 0) as string : null) || created.summary || projectName;
-                    trackCreatedEntry({ entryId: created.id, projectName, title: String(title).slice(0, 100) });
+                    const title =
+                      typeof entries === 'string'
+                        ? entries
+                        : (typeof entries === 'object' && entries
+                            ? (Object.values(entries).find(
+                                (v: any) => typeof v === 'string' && v.length > 0
+                              ) as string)
+                            : null) ||
+                          created.summary ||
+                          projectName;
+                    trackCreatedEntry({
+                      entryId: created.id,
+                      projectName,
+                      title: String(title).slice(0, 100),
+                    });
                   }
                 }}
                 onCancel={() => setNewEntryOpen(false)}
@@ -989,23 +1012,23 @@ export function ProjectDetailPage() {
           />
         )}
 
-      {/* Project Settings Panel */}
-      <ProjectSettingsPanel
-        open={projectSettingsOpen}
-        projectName={projectName!}
-        userEmail={email}
-        currentColor={projectColor}
-        onClose={() => setProjectSettingsOpen(false)}
-        onProjectUpdated={() => {
-          navigate('/dashboard');
-        }}
-        onProjectDeleted={() => {
-          navigate('/dashboard');
-        }}
-        onProjectArchived={() => {
-          navigate('/dashboard');
-        }}
-      />
+        {/* Project Settings Panel */}
+        <ProjectSettingsPanel
+          open={projectSettingsOpen}
+          projectName={projectName!}
+          userEmail={email}
+          currentColor={projectColor}
+          onClose={() => setProjectSettingsOpen(false)}
+          onProjectUpdated={() => {
+            navigate('/dashboard');
+          }}
+          onProjectDeleted={() => {
+            navigate('/dashboard');
+          }}
+          onProjectArchived={() => {
+            navigate('/dashboard');
+          }}
+        />
       </main>
     </div>
   );

@@ -52,7 +52,10 @@ export class Entries {
     ended_at,
     duration,
     summary,
-    notes
+    notes,
+    target_duration_ms,
+    paused_ms,
+    paused_at
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -71,6 +74,10 @@ export class Entries {
       if (status !== undefined && status !== null) insertData.status = status;
       if (started_at !== undefined && started_at !== null) insertData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) insertData.ended_at = ended_at;
+      if (target_duration_ms !== undefined && target_duration_ms !== null)
+        insertData.target_duration_ms = target_duration_ms;
+      if (paused_ms !== undefined && paused_ms !== null) insertData.paused_ms = paused_ms;
+      if (paused_at !== undefined && paused_at !== null) insertData.paused_at = paused_at;
       if (summary !== undefined && summary !== null) insertData.summary = summary;
 
       console.log('[addEntry] Inserting:', JSON.stringify(insertData));
@@ -125,7 +132,10 @@ export class Entries {
     started_at,
     ended_at,
     duration,
-    summary
+    summary,
+    target_duration_ms,
+    paused_ms,
+    paused_at
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
@@ -147,6 +157,11 @@ export class Entries {
       if (status !== undefined) updateData.status = status;
       if (started_at !== undefined && started_at !== null) updateData.started_at = started_at;
       if (ended_at !== undefined && ended_at !== null) updateData.ended_at = ended_at;
+      // due_date-style guards: explicit null clears target_duration_ms / paused_at
+      // (needed so Resume / End Task can clear an open pause).
+      if (target_duration_ms !== undefined) updateData.target_duration_ms = target_duration_ms;
+      if (paused_ms !== undefined && paused_ms !== null) updateData.paused_ms = paused_ms;
+      if (paused_at !== undefined) updateData.paused_at = paused_at;
       if (summary !== undefined && summary !== null) updateData.summary = summary;
 
       if (Object.keys(updateData).length === 0) {
@@ -983,7 +998,11 @@ Respond with ONLY this JSON, nothing else:`;
           typeof aiResponse === 'string' ? aiResponse.slice(0, 200) : String(aiResponse)
         );
       } catch (aiErr) {
-        console.error('[Natural_language.entry] AI() THREW:', aiErr?.message || aiErr, aiErr?.stack);
+        console.error(
+          '[Natural_language.entry] AI() THREW:',
+          aiErr?.message || aiErr,
+          aiErr?.stack
+        );
         throw aiErr;
       }
 
@@ -1041,7 +1060,7 @@ Respond with ONLY this JSON, nothing else:`;
           null, // started_at
           null, // ended_at
           null, // duration
-          null  // summary — generated in background below
+          null // summary — generated in background below
         );
 
         // Generate summary in background (don't block the response)
@@ -1050,7 +1069,21 @@ Respond with ONLY this JSON, nothing else:`;
           if (entryId) {
             this.generateSummary(parsed.project, parsed.fields)
               .then((summary) => {
-                entries.updateEntry(email, parsed.project, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, summary).catch(() => {});
+                entries
+                  .updateEntry(
+                    email,
+                    parsed.project,
+                    entryId,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    summary
+                  )
+                  .catch(() => {});
               })
               .catch(() => {});
           }
@@ -1164,15 +1197,36 @@ Respond with ONLY this JSON, nothing else:`;
               null, // started_at
               null, // ended_at
               null, // duration
-              null  // summary — generated in background
+              null // summary — generated in background
             );
             if (addResult.success) {
               const entryId = addResult.data?.[0]?.id;
-              results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+              results.old.push({
+                project_name: projName,
+                fields: fieldValues,
+                summary: null,
+                entry_id: entryId,
+              });
               // Generate summary in background
               if (entryId) {
                 this.generateSummary(projName, fieldValues)
-                  .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+                  .then((s) => {
+                    entries
+                      .updateEntry(
+                        email,
+                        projName,
+                        entryId,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        s
+                      )
+                      .catch(() => {});
+                  })
                   .catch(() => {});
               }
             } else {
@@ -1208,15 +1262,36 @@ Respond with ONLY this JSON, nothing else:`;
                 null, // started_at
                 null, // ended_at
                 null, // duration
-                null  // summary — generated in background
+                null // summary — generated in background
               );
               if (addResult.success) {
                 const entryId = addResult.data?.[0]?.id;
-                results.old.push({ project_name: projName, fields: fieldValues, summary: null, entry_id: entryId });
+                results.old.push({
+                  project_name: projName,
+                  fields: fieldValues,
+                  summary: null,
+                  entry_id: entryId,
+                });
                 // Generate summary in background
                 if (entryId) {
                   this.generateSummary(projName, fieldValues)
-                    .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+                    .then((s) => {
+                      entries
+                        .updateEntry(
+                          email,
+                          projName,
+                          entryId,
+                          undefined,
+                          undefined,
+                          undefined,
+                          undefined,
+                          undefined,
+                          undefined,
+                          undefined,
+                          s
+                        )
+                        .catch(() => {});
+                    })
                     .catch(() => {});
                 }
               } else {
@@ -1259,7 +1334,7 @@ Respond with ONLY this JSON, nothing else:`;
               null, // started_at
               null, // ended_at
               null, // duration
-              null  // summary — generated in background
+              null // summary — generated in background
             );
             if (addResult.success) {
               const entryId = addResult.data?.[0]?.id;
@@ -1273,7 +1348,23 @@ Respond with ONLY this JSON, nothing else:`;
               // Generate summary in background
               if (entryId) {
                 this.generateSummary(projName, fieldValues)
-                  .then((s) => { entries.updateEntry(email, projName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+                  .then((s) => {
+                    entries
+                      .updateEntry(
+                        email,
+                        projName,
+                        entryId,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        s
+                      )
+                      .catch(() => {});
+                  })
                   .catch(() => {});
               }
             } else {
@@ -1351,7 +1442,7 @@ Respond with ONLY this JSON, nothing else:`;
         null, // started_at
         null, // ended_at
         null, // duration
-        null  // summary — generated in background
+        null // summary — generated in background
       );
 
       // Generate summary in background (don't block the response)
@@ -1359,7 +1450,23 @@ Respond with ONLY this JSON, nothing else:`;
         const entryId = addResult.data?.[0]?.id;
         if (entryId) {
           this.generateSummary(newProjectName, parsed.fields)
-            .then((s) => { entries.updateEntry(email, newProjectName, entryId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, s).catch(() => {}); })
+            .then((s) => {
+              entries
+                .updateEntry(
+                  email,
+                  newProjectName,
+                  entryId,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  s
+                )
+                .catch(() => {});
+            })
             .catch(() => {});
         }
       }

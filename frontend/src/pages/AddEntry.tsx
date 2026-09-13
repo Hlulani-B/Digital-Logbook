@@ -32,7 +32,10 @@ function parseCustomOptions(dataType: string): string[] | null {
   if (!dataType.startsWith('custom:')) return null;
   const optionsStr = dataType.slice(7);
   if (!optionsStr) return [];
-  return optionsStr.split(',').map((o) => o.trim()).filter(Boolean);
+  return optionsStr
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 }
 
 interface AddEntryProps {
@@ -142,7 +145,6 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             is_required: !!f.is_required,
           }));
           setFields(defs);
-          // Initialize empty values for each field (booleans default to "false")
           const initial: Record<string, string> = {};
           for (const f of defs) {
             if (f.data_type === 'boolean') {
@@ -295,7 +297,9 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                 >
                   <option value="">Select...</option>
                   {(parseCustomOptions(field.data_type) || []).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
                   ))}
                 </select>
               ) : (
@@ -384,8 +388,12 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           disabled={saving}
         >
           <span>Notes</span>
-          <span className="add-entry__notes-count">{notes.length > 0 ? `(${notes.length})` : ''}</span>
-          <span className={`add-entry__notes-arrow ${notesOpen ? 'add-entry__notes-arrow--open' : ''}`}>
+          <span className="add-entry__notes-count">
+            {notes.length > 0 ? `(${notes.length})` : ''}
+          </span>
+          <span
+            className={`add-entry__notes-arrow ${notesOpen ? 'add-entry__notes-arrow--open' : ''}`}
+          >
             &#9662;
           </span>
         </button>
@@ -409,7 +417,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                   <option value="image">Image</option>
                 </select>
 
-                {(note.entry_type === 'text' || note.entry_type === 'link') ? (
+                {note.entry_type === 'text' || note.entry_type === 'link' ? (
                   <input
                     type={note.entry_type === 'link' ? 'url' : 'text'}
                     className="add-entry__note-input"
@@ -425,7 +433,9 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
                 ) : (
                   <>
                     <input
-                      ref={(el) => { fileInputRefs.current[idx] = el; }}
+                      ref={(el) => {
+                        fileInputRefs.current[idx] = el;
+                      }}
                       type="file"
                       className="add-entry__note-file"
                       accept="image/*"

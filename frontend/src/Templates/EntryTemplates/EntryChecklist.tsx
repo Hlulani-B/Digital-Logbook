@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
-import { classifyEntryPayload, cleanSummaryText } from '@/lib/entryPayload';
+import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -13,7 +13,7 @@ interface ChecklistEntry {
   summary?: string | null;
   due_date?: string | null;
   status?: EntryStatus;
-  entries?: Record<string, unknown> | string | null;
+  entries?: EntryPayload;
   started_at?: string | null;
 }
 
@@ -41,20 +41,16 @@ function getSummary(entry: ChecklistEntry): string {
   const safe = cleanSummaryText(entry.summary);
   if (safe) return safe;
 
-  const payload = classifyEntryPayload(entry.entries);
-  if (payload.kind === 'object') {
-    const summaryKeys = ['summary', 'title', 'name', 'task', 'description'];
-    for (const key of summaryKeys) {
-      if (payload.value[key] && typeof payload.value[key] === 'string') {
-        return payload.value[key] as string;
-      }
-    }
-  }
-
-  return typeof payload.value === 'string' ? payload.value : 'Untitled entry';
+  const summary = getEntryPayloadTitle(entry.entries);
+  return summary === 'Not recorded' ? `${entry.project_name} entry` : summary;
 }
 
-export default function ChecklistEntryCard({ entry, onUpdated, onDelete, projectColor }: ChecklistEntryCardProps) {
+export default function ChecklistEntryCard({
+  entry,
+  onUpdated,
+  onDelete,
+  projectColor,
+}: ChecklistEntryCardProps) {
   const isDone = entry.status === DONE_STATUS;
   const [checking, setChecking] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -62,7 +58,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { openNotes } = useNotes();
-  
+
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
   const [draftDueDate, setDraftDueDate] = useState(
@@ -164,7 +160,14 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
         className={`checklist-card ${isDone ? 'checklist-card--done' : ''}`}
         data-status={entry.status}
         onClick={handleCardClick}
-        style={projectColor ? ({ '--tint': `${projectColor}18`, borderLeft: `3px solid ${projectColor}` } as React.CSSProperties) : undefined}
+        style={
+          projectColor
+            ? ({
+                '--tint': `${projectColor}18`,
+                borderLeft: `3px solid ${projectColor}`,
+              } as React.CSSProperties)
+            : undefined
+        }
       >
         <span className="checklist-project">{entry.project_name}</span>
         <div className="checklist-card-row">
@@ -204,7 +207,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
         </button>
         {/* Context menu for edit/delete (shown on hover) */}
         <div className="checklist-card-menu">
-          <button 
+          <button
             className="checklist-card-menu-btn"
             onClick={(e) => {
               e.stopPropagation();
@@ -214,7 +217,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           >
             Edit
           </button>
-          <button 
+          <button
             className="checklist-card-menu-btn"
             onClick={(e) => {
               e.stopPropagation();
@@ -224,7 +227,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           >
             View Notes
           </button>
-          <button 
+          <button
             className="checklist-card-menu-btn"
             onClick={(e) => {
               e.stopPropagation();
@@ -234,7 +237,7 @@ export default function ChecklistEntryCard({ entry, onUpdated, onDelete, project
           >
             Add Note
           </button>
-          <button 
+          <button
             className="checklist-card-menu-btn checklist-card-menu-btn--delete"
             onClick={(e) => {
               e.stopPropagation();
@@ -354,7 +357,7 @@ export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: Checkl
           entry={entry}
           onUpdated={onUpdated}
           onDelete={onDelete}
-          projectColor={colorMap ? (colorMap[entry.project_name] || undefined) : undefined}
+          projectColor={colorMap ? colorMap[entry.project_name] || undefined : undefined}
         />
       ))}
     </div>

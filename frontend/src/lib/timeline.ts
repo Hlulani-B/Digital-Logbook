@@ -1,4 +1,5 @@
 import { type CalendarEntry, getEntryTitle } from './calendar';
+import { type EntryPayload } from './entryPayload';
 
 export interface TimelineEntry {
   id: string | number;
@@ -18,9 +19,7 @@ function parseDate(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function parseDependencies(entries: Record<string, unknown> | string | null): (string | number)[] {
-  if (!entries) return [];
-
+function parseDependencies(entries: EntryPayload): (string | number)[] {
   let obj: Record<string, unknown>;
   if (typeof entries === 'string') {
     try {
@@ -31,6 +30,7 @@ function parseDependencies(entries: Record<string, unknown> | string | null): (s
       return [];
     }
   } else {
+    if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) return [];
     obj = entries;
   }
 

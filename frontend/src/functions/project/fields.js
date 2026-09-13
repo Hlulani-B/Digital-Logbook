@@ -88,7 +88,13 @@ export async function addFieldSync({ user_email, table_name, field_name, data_ty
 /**
  * Server-only field edit. Mirrors `addFieldSync` for replay safety.
  */
-export async function editFieldSync({ user_email, table_name, field_name, data_type, is_required }) {
+export async function editFieldSync({
+  user_email,
+  table_name,
+  field_name,
+  data_type,
+  is_required,
+}) {
   const result = await request(`${PROJECT_URL}/service/field`, {
     method: 'POST',
     body: JSON.stringify({
@@ -181,6 +187,49 @@ export async function editField(user_email, table_name, field_name, data_type, i
   } catch (err) {
     console.error('[editField] Server sync failed, queuing for retry:', err);
     await addToQueue('editField', 'fields', payload);
+    return { success: true, queued: true };
+  }
+}
+
+/**
+ * Remove a field from future entry forms.
+ * Historical entry values remain unchanged.
+ */
+export async function deleteField(user_email, table_name, field_name) {
+  const cacheKey = `${user_email}:${table_name}`;
+
+  // 1. Optimistic: remove from local cache.
+  const existing = await readCachedFields(user_email, table_name);
+  if (existing) {
+    const nextRows = existing.filter((r) => r?.field_name !== field_name);
+    await cacheSet(CACHE_STORES.FIELDS, cacheKey, { success: true, data: nextRows });
+  }
+
+  const payload = { user_email, table_name, field_name };
+
+  // 2. Offline: queue for later sync.
+  if (!navigator.onLine) {
+    console.log('[deleteField] Offline, queuing action');
+    await addToQueue('deleteField', 'fields', payload);
+    return { success: true, queued: true };
+  }
+
+  // 3. Online: sync to server.
+  try {
+    const result = await request(`${PROJECT_URL}/service/field`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'delete',
+        values: { user_email, table_name, field_name },
+      }),
+    });
+    if (result?.success === false) {
+      await addToQueue('deleteField', 'fields', payload);
+    }
+    return result;
+  } catch (err) {
+    console.error('[deleteField] Server sync failed, queuing for retry:', err);
+    await addToQueue('deleteField', 'fields', payload);
     return { success: true, queued: true };
   }
 }

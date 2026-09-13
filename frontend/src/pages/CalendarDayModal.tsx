@@ -142,7 +142,7 @@ export function CalendarDayModal({
           setFields(defs);
           const initial: Record<string, string> = {};
           for (const f of defs) {
-            initial[f.field_name] = f.data_type === 'boolean' ? 'false' : '';
+            initial[f.field_name] = '';
           }
           setFieldValues(initial);
         }
@@ -152,67 +152,82 @@ export function CalendarDayModal({
         if (!cancelled) setLoadingFields(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProject, userEmail]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProject || !userEmail || saving) return;
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedProject || !userEmail || saving) return;
 
-    // Validate required fields
-    for (const f of fields) {
-      if (!f.is_required) continue;
-      if (f.data_type === 'boolean') {
-        if (fieldValues[f.field_name] !== 'true') {
+      // Validate required fields
+      for (const f of fields) {
+        if (!f.is_required) continue;
+        if (f.data_type === 'boolean') {
+          if (fieldValues[f.field_name] !== 'true') {
+            setError(`"${f.field_name}" is required`);
+            return;
+          }
+        } else if (!fieldValues[f.field_name]?.trim()) {
           setError(`"${f.field_name}" is required`);
           return;
         }
-      } else if (!fieldValues[f.field_name]?.trim()) {
-        setError(`"${f.field_name}" is required`);
-        return;
       }
-    }
 
-    setSaving(true);
-    setError(null);
-    setSuccessMsg(null);
+      setSaving(true);
+      setError(null);
+      setSuccessMsg(null);
 
-    try {
-      const entryObject: Record<string, unknown> = {};
-      for (const f of fields) {
-        const val = fieldValues[f.field_name];
-        if (val !== undefined && val.trim() !== '') {
-          entryObject[f.field_name] = parseFieldValue(val, f.data_type);
+      try {
+        const entryObject: Record<string, unknown> = {};
+        for (const f of fields) {
+          const val = fieldValues[f.field_name];
+          if (val !== undefined && val.trim() !== '') {
+            entryObject[f.field_name] = parseFieldValue(val, f.data_type);
+          }
         }
+        const priorityLabel = priority === '3' ? null : PRIORITY_LABELS[priority];
+
+        await addEntry(
+          userEmail,
+          selectedProject,
+          entryObject,
+          dueDate ? new Date(dueDate).toISOString() : null,
+          priorityLabel,
+          status,
+          null,
+          null,
+          null
+        );
+
+        setSuccessMsg('Entry added!');
+        // Reset form
+        setFieldValues({});
+        setSelectedProject('');
+        setFields([]);
+        setShowAddForm(false);
+        onEntryAdded();
+        setTimeout(() => setSuccessMsg(null), 2500);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to add entry');
+      } finally {
+        setSaving(false);
       }
-      const priorityLabel = priority === '3' ? null : PRIORITY_LABELS[priority];
-
-      await addEntry(
-        userEmail,
-        selectedProject,
-        entryObject,
-        dueDate ? new Date(dueDate).toISOString() : null,
-        priorityLabel,
-        status,
-        null,
-        null,
-        null
-      );
-
-      setSuccessMsg('Entry added!');
-      // Reset form
-      setFieldValues({});
-      setSelectedProject('');
-      setFields([]);
-      setShowAddForm(false);
-      onEntryAdded();
-      setTimeout(() => setSuccessMsg(null), 2500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add item');
-    } finally {
-      setSaving(false);
-    }
-  }, [selectedProject, userEmail, fields, fieldValues, dueDate, priority, status, saving, onEntryAdded]);
+    },
+    [
+      selectedProject,
+      userEmail,
+      fields,
+      fieldValues,
+      dueDate,
+      priority,
+      status,
+      saving,
+      onEntryAdded,
+    ]
+  );
 
   const handleFieldChange = (fieldName: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [fieldName]: value }));
@@ -225,7 +240,9 @@ export function CalendarDayModal({
         <div className="cdm-header">
           <div>
             <h2 className="cdm-date">{formatDateHeading(date)}</h2>
-            <span className="cdm-count">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
+            <span className="cdm-count">
+              {entries.length} item{entries.length !== 1 ? 's' : ''}
+            </span>
           </div>
           <button type="button" className="cdm-close" onClick={onClose} aria-label="Close">
             &times;
@@ -239,7 +256,9 @@ export function CalendarDayModal({
         {error && (
           <div className="cdm-error">
             {error}
-            <button type="button" className="cdm-error-close" onClick={() => setError(null)}>&times;</button>
+            <button type="button" className="cdm-error-close" onClick={() => setError(null)}>
+              &times;
+            </button>
           </div>
         )}
 
@@ -255,9 +274,7 @@ export function CalendarDayModal({
                   const isCompleted = entryStatus === 'done_and_dusted';
                   const statusColor = STATUS_COLORS[entryStatus] || '#6366f1';
 
-                  const entryColor = colorMap
-                    ? (colorMap[entry.project_name] || null)
-                    : null;
+                  const entryColor = colorMap ? colorMap[entry.project_name] || null : null;
 
                   return (
                     <div
@@ -266,14 +283,21 @@ export function CalendarDayModal({
                         'cdm-entry',
                         isCompleted && 'cdm-entry--completed',
                         overdue && 'cdm-entry--overdue',
-                      ].filter(Boolean).join(' ')}
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
                       onClick={() => onEntryClick(entry)}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') onEntryClick(entry); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') onEntryClick(entry);
+                      }}
                       style={entryColor ? { borderLeft: `3px solid ${entryColor}` } : undefined}
                     >
-                      <div className="cdm-entry-indicator" style={{ backgroundColor: statusColor }} />
+                      <div
+                        className="cdm-entry-indicator"
+                        style={{ backgroundColor: statusColor }}
+                      />
                       <div className="cdm-entry-content">
                         <span className="cdm-entry-title">{getEntryTitle(entry)}</span>
                         <span className="cdm-entry-meta">
@@ -304,7 +328,9 @@ export function CalendarDayModal({
 
               {/* Project selector */}
               <div className="cdm-form-field">
-                <label className="cdm-label" htmlFor="cdm-project">Project</label>
+                <label className="cdm-label" htmlFor="cdm-project">
+                  Project
+                </label>
                 <select
                   id="cdm-project"
                   className="cdm-select"
@@ -336,7 +362,9 @@ export function CalendarDayModal({
                       type="checkbox"
                       className="cdm-checkbox"
                       checked={fieldValues[field.field_name] === 'true'}
-                      onChange={(e) => handleFieldChange(field.field_name, e.target.checked ? 'true' : 'false')}
+                      onChange={(e) =>
+                        handleFieldChange(field.field_name, e.target.checked ? 'true' : 'false')
+                      }
                       disabled={saving}
                     />
                   ) : (
@@ -356,7 +384,9 @@ export function CalendarDayModal({
 
               {/* Due date */}
               <div className="cdm-form-field">
-                <label className="cdm-label" htmlFor="cdm-due-date">Due Date</label>
+                <label className="cdm-label" htmlFor="cdm-due-date">
+                  Due Date
+                </label>
                 <input
                   id="cdm-due-date"
                   type="datetime-local"
@@ -370,7 +400,9 @@ export function CalendarDayModal({
               {/* Priority + Status row */}
               <div className="cdm-form-row">
                 <div className="cdm-form-field">
-                  <label className="cdm-label" htmlFor="cdm-priority">Priority</label>
+                  <label className="cdm-label" htmlFor="cdm-priority">
+                    Priority
+                  </label>
                   <select
                     id="cdm-priority"
                     className="cdm-select"
@@ -379,12 +411,16 @@ export function CalendarDayModal({
                     disabled={saving}
                   >
                     {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div className="cdm-form-field">
-                  <label className="cdm-label" htmlFor="cdm-status">Status</label>
+                  <label className="cdm-label" htmlFor="cdm-status">
+                    Status
+                  </label>
                   <select
                     id="cdm-status"
                     className="cdm-select"
@@ -393,7 +429,9 @@ export function CalendarDayModal({
                     disabled={saving}
                   >
                     {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -403,7 +441,10 @@ export function CalendarDayModal({
                 <button
                   type="button"
                   className="cdm-btn cdm-btn--cancel"
-                  onClick={() => { setShowAddForm(false); setError(null); }}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setError(null);
+                  }}
                   disabled={saving}
                 >
                   Cancel
@@ -421,7 +462,11 @@ export function CalendarDayModal({
             <button
               type="button"
               className="cdm-add-btn"
-              onClick={() => { setShowAddForm(true); setError(null); setSuccessMsg(null); }}
+              onClick={() => {
+                setShowAddForm(true);
+                setError(null);
+                setSuccessMsg(null);
+              }}
             >
               + Add Task
             </button>
