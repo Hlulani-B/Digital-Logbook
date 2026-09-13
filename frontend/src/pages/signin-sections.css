@@ -5,7 +5,8 @@
  */
 .ss-sec {
   padding: 5rem 0 3rem;
-  scroll-margin-top: 1.5rem;
+  /* keep anchored headings clear of the fixed .signin-topnav */
+  scroll-margin-top: 4.5rem;
 }
 .ss-sec + .ss-sec {
   border-top: 1px solid var(--border);
@@ -232,21 +233,78 @@
   }
 }
 
-/* Section hyperlinks in the video caption (jump to the sections below) */
-.split-caption-links {
-  display: flex;
-  gap: 20px;
-  margin-top: 1.25rem;
+/* Fixed beige surround: the sign-in page always renders in a warm beige palette
+   regardless of the app theme. Theme variables are overridden locally so the
+   auth form, sections and footer all follow it while the rest of the app
+   keeps the user's theme. */
+.signin-page {
+  --bg: #f5f1e6;
+  --bg-subtle: #ece4d1;
+  --surface: #fffdf6;
+  --surface-hover: #faf5e9;
+  --surface-solid: #fffdf6;
+  --border: rgba(74, 60, 40, 0.16);
+  --border-hover: rgba(74, 60, 40, 0.34);
+  --text: #3f3628;
+  --text-dim: #5c5240;
+  --text-muted: #8b7f68;
+  --text-secondary: #6e6350;
+  --accent: #3f3628;
+  --accent-light: #2f2820;
+  --accent-glow: rgba(63, 54, 40, 0.08);
+  --success: #16a34a;
+  --success-text: #15803d;
+  --danger: #dc2626;
+  --danger-glow: rgba(220, 38, 38, 0.08);
+  --danger-text: #b91c1c;
+  --danger-text-dark: #991b1b;
+  --error-text: #b91c1c;
+  --shadow-card: 0 1px 3px rgba(74, 60, 40, 0.12), 0 1px 2px rgba(74, 60, 40, 0.08);
+  --shadow-card-hover: 0 12px 32px rgba(74, 60, 40, 0.18), 0 4px 10px rgba(74, 60, 40, 0.12);
+  --shadow-dropdown: 0 16px 48px rgba(74, 60, 40, 0.22), 0 4px 12px rgba(74, 60, 40, 0.14);
+  --overlay-bg: rgba(50, 42, 30, 0.45);
+  --navbar-bg: rgba(245, 241, 230, 0.85);
+  --toggle-track: #d9d0ba;
+  --scrollbar-thumb: #cdc3ab;
+  --scrollbar-thumb-hover: #b5a98d;
+  --btn-primary-hover: #2f2820;
+
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  color-scheme: light;
 }
-.split-caption-links a {
+
+/* Slim fixed top nav with the section links */
+.signin-topnav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 14px 26px;
+  background: rgba(245, 241, 230, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(74, 60, 40, 0.14);
+}
+.signin-topnav a {
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(63, 54, 40, 0.72);
   text-decoration: none;
   transition: color 0.25s;
 }
-.split-caption-links a:hover {
-  color: #fff;
+.signin-topnav a:hover {
+  color: #3f3628;
+}
+
+/* Keep the vertically-centred form clear of the fixed top nav */
+.signin-page .split-right {
+  padding-top: 4.5rem;
 }

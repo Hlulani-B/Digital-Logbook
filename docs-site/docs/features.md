@@ -684,8 +684,27 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/components/NavBar.tsx` — Replay entry point
 - `frontend/src/index.css` — Tour popover, progress-bar, and voice-toggle styles
 
+### 37. Sign-In Landing Sections & Themed Page Identity
+
+**What it does:** The public sign-in page extends beyond the authentication form with three scrollable content sections — **About** (three feature cards), **About Us** (team member profiles), and **Features** (eight feature highlights with a "NEW" badge on the latest additions) — plus a footer. A fixed top navigation bar provides anchor links to each section. The entire page is wrapped in a scoped theme override that renders in a warm beige palette (`#f5f1e6`, `#ece4d1`, `#fffdf6`) with dark-brown text, independently of the user's app-side theme setting.
+
+**Why it was implemented:** Sprint 2 user feedback (survey) requested a more informative and visually distinctive public landing page. The previous sign-in was functional but bare — no context about the product for first-time visitors.
+
+**How it works:**
+
+- `LandingSections` component renders three `<section>` blocks with scroll-reveal animations powered by `IntersectionObserver`
+- Fixed `.signin-topnav` with `backdrop-filter: blur(14px)` stays visible while scrolling
+- `.signin-page` wrapper overrides 30+ CSS custom properties locally, so the page renders consistently regardless of the active app theme
+- `.signin-page .split-right { padding-top: 4.5rem }` keeps the vertically-centred auth form clear of the fixed nav
+- Sign-up password checklist uses dark-readable colours (`#16a34a` / `#dc2626`) suitable for the light palette
+
+**Key files:**
+
+- `frontend/src/pages/SignIn.tsx` — LandingSections component, top nav markup, page wrapper
+- `frontend/src/pages/signin-sections.css` — All `.ss-*` section styles, beige theme variable overrides, top nav styles
+
 ---
 
 ## Summary
 
-The Digital Logbook implements 36 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), and onboarding (guided tour with voice narration). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 37 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), and onboarding (guided tour with voice narration, themed sign-in landing). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
