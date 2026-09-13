@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
-import { classifyEntryPayload, cleanSummaryText } from '@/lib/entryPayload';
+import { classifyEntryPayload, formatEntryValue, cleanSummaryText } from '@/lib/entryPayload';
 import './ProjectTable.css';
 
 /* Hook to detect mobile width (< 600px) */
@@ -81,30 +81,40 @@ function groupByProject(rows: any[]) {
   const groups: Record<string, any[]> = {};
   for (const row of rows) {
     if (row.deleted) continue;
-    const payload = classifyEntryPayload(row.entries);
-    const displayRow = payload.kind === 'object' ? row : { ...row, entries: {} };
     const key = row.project_name || 'Unassigned';
     if (!groups[key]) groups[key] = [];
-    groups[key].push(displayRow);
+    groups[key].push(row);
   }
   return Object.entries(groups).map(([name, entries]) => ({ name, entries }));
 }
 
-// Derive columns directly from the entries jsonb keys
-function entryFieldNames(rows: any[]): string[] {
+type EntryFieldColumn = { kind: 'field'; name: string } | { kind: 'legacy' };
+
+function entryFieldColumns(rows: any[]): EntryFieldColumn[] {
   const SKIP = new Set(['started_at', 'description']);
   const keys = new Set<string>();
+  let hasLegacyPayload = false;
+
   for (const row of rows) {
-    const obj = row.entries;
-    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-      for (const key of Object.keys(obj)) {
-        if (!SKIP.has(key)) keys.add(key);
-      }
+    const payload = classifyEntryPayload(row.entries);
+    if (payload.kind !== 'object') {
+      hasLegacyPayload = true;
+      continue;
+    }
+
+    for (const key of Object.keys(payload.value)) {
+      if (!SKIP.has(key)) keys.add(key);
     }
   }
-  const names = Array.from(keys);
-  console.log('[ptt] entry field names:', names);
-  return names;
+
+  return [
+    ...Array.from(keys, (name) => ({ kind: 'field' as const, name })),
+    ...(hasLegacyPayload ? [{ kind: 'legacy' as const }] : []),
+  ];
+}
+
+function fieldColumnLabel(column: EntryFieldColumn) {
+  return column.kind === 'legacy' ? 'Legacy content' : column.name;
 }
 
 // Grid: checkbox | content columns | Priority | Due | Status (far right)
@@ -130,11 +140,13 @@ function EditableText({
   onSave,
   type = 'text',
   className,
+  placeholder = 'click to edit',
 }: {
   value: string;
   onSave: (val: string) => void;
   type?: string;
   className?: string;
+  placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -179,9 +191,52 @@ function EditableText({
       onClick={() => setEditing(true)}
       title="Click to edit"
     >
-      {value || <span className="ptt-placeholder">click to edit</span>}
+      {value || <span className="ptt-placeholder">{placeholder}</span>}
     </span>
   );
+}
+
+function EntryFieldValue({
+  column,
+  payload,
+  onSave,
+}: {
+  column: EntryFieldColumn;
+  payload: ReturnType<typeof classifyEntryPayload>;
+  onSave: (fieldName: string, value: string) => void;
+}) {
+  if (column.kind === 'legacy') {
+    return (
+      <span className="ptt-readonly-value">
+        {payload.kind === 'object' ? (
+          <span className="ptt-placeholder">Not recorded</span>
+        ) : (
+          formatEntryValue(payload.value)
+        )}
+      </span>
+    );
+  }
+
+  if (payload.kind !== 'object') {
+    return (
+      <span className="ptt-readonly-value">
+        <span className="ptt-placeholder">Not recorded</span>
+      </span>
+    );
+  }
+
+  const value = payload.value[column.name];
+  if (typeof value === 'string' || value == null) {
+    return (
+      <EditableText
+        value={value ?? ''}
+        onSave={(nextValue) => onSave(column.name, nextValue)}
+        placeholder="Not recorded"
+      />
+    );
+  }
+
+  return <span className="ptt-readonly-value">{formatEntryValue(value)}</span>;
 }
 
 // ── Inline editable date cell ──────────────────────────────
@@ -242,27 +297,27 @@ function EditableDate({
 // ── Mobile card — stacked layout for < 600px ─────────────
 function MobileCard({
   entry,
-  fieldNames,
+  fieldColumns,
   viewMode,
   onUpdate,
   selected,
   onToggle,
 }: {
   entry: any;
-  fieldNames: string[];
+  fieldColumns: EntryFieldColumn[];
   viewMode: 'entry' | 'summary';
   onUpdate: (id: string, patch: Record<string, any>) => void;
   selected: boolean;
   onToggle: (id: string) => void;
 }) {
-  const customValues = entry.entries || {};
+  const payload = classifyEntryPayload(entry.entries);
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
-      const updated = { ...customValues, [fieldName]: newVal };
-      onUpdate(entry.id, { entries: updated });
+      if (payload.kind !== 'object') return;
+      onUpdate(entry.id, { entries: { ...payload.value, [fieldName]: newVal } });
     },
-    [entry.id, customValues, onUpdate]
+    [entry.id, onUpdate, payload]
   );
 
   return (
@@ -290,15 +345,15 @@ function MobileCard({
         </div>
       ) : (
         <div className="ptt-mobile-card__title">
-          {fieldNames.map((fieldName) => {
-            const val = String(customValues[fieldName] ?? '');
-            return (
-              <div key={fieldName} className="ptt-mobile-card__field-row">
-                <span className="ptt-mobile-card__label">{fieldName}</span>
-                <EditableText value={val} onSave={(newVal) => handleFieldEdit(fieldName, newVal)} />
-              </div>
-            );
-          })}
+          {fieldColumns.map((column) => (
+            <div
+              key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+              className="ptt-mobile-card__field-row"
+            >
+              <span className="ptt-mobile-card__label">{fieldColumnLabel(column)}</span>
+              <EntryFieldValue column={column} payload={payload} onSave={handleFieldEdit} />
+            </div>
+          ))}
         </div>
       )}
 
@@ -347,7 +402,7 @@ function MobileCard({
 // ── Row component ──────────────────────────────────────────
 function TaskRow({
   entry,
-  fieldNames,
+  fieldColumns,
   gridTemplate,
   viewMode,
   onUpdate,
@@ -355,21 +410,21 @@ function TaskRow({
   onToggle,
 }: {
   entry: any;
-  fieldNames: string[];
+  fieldColumns: EntryFieldColumn[];
   gridTemplate: string;
   viewMode: 'entry' | 'summary';
   onUpdate: (id: string, patch: Record<string, any>) => void;
   selected: boolean;
   onToggle: (id: string) => void;
 }) {
-  const customValues = entry.entries || {};
+  const payload = classifyEntryPayload(entry.entries);
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
-      const updated = { ...customValues, [fieldName]: newVal };
-      onUpdate(entry.id, { entries: updated });
+      if (payload.kind !== 'object') return;
+      onUpdate(entry.id, { entries: { ...payload.value, [fieldName]: newVal } });
     },
-    [entry.id, customValues, onUpdate]
+    [entry.id, onUpdate, payload]
   );
 
   return (
@@ -399,14 +454,14 @@ function TaskRow({
           />
         </div>
       ) : (
-        fieldNames.map((fieldName) => {
-          const val = String(customValues[fieldName] ?? '');
-          return (
-            <div className="ptt-cell ptt-cell-custom" key={fieldName}>
-              <EditableText value={val} onSave={(newVal) => handleFieldEdit(fieldName, newVal)} />
-            </div>
-          );
-        })
+        fieldColumns.map((column) => (
+          <div
+            className="ptt-cell ptt-cell-custom"
+            key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+          >
+            <EntryFieldValue column={column} payload={payload} onSave={handleFieldEdit} />
+          </div>
+        ))
       )}
 
       {/* Priority — dropdown */}
@@ -473,9 +528,8 @@ function ProjectGroup({
   projectColor?: string;
 }) {
   const [open, setOpen] = useState(true);
-  // Derive columns from the entries jsonb keys directly
-  const fieldNames = entryFieldNames(project.entries);
-  const colCount = viewMode === 'summary' ? 1 : fieldNames.length;
+  const fieldColumns = entryFieldColumns(project.entries);
+  const colCount = viewMode === 'summary' ? 1 : fieldColumns.length;
   const gridTemplate = buildGridTemplate(viewMode, colCount);
 
   const allSelected =
@@ -543,7 +597,7 @@ function ProjectGroup({
               <MobileCard
                 key={entry.id}
                 entry={entry}
-                fieldNames={fieldNames}
+                fieldColumns={fieldColumns}
                 viewMode={viewMode}
                 onUpdate={onUpdate}
                 selected={selectedIds.has(entry.id)}
@@ -559,9 +613,12 @@ function ProjectGroup({
               {viewMode === 'summary' ? (
                 <div className="ptt-col ptt-col-summary">Summary</div>
               ) : (
-                fieldNames.map((name) => (
-                  <div className="ptt-col ptt-col-custom" key={name}>
-                    {name}
+                fieldColumns.map((column) => (
+                  <div
+                    className="ptt-col ptt-col-custom"
+                    key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+                  >
+                    {fieldColumnLabel(column)}
                   </div>
                 ))
               )}
@@ -575,7 +632,7 @@ function ProjectGroup({
                 <TaskRow
                   key={entry.id}
                   entry={entry}
-                  fieldNames={fieldNames}
+                  fieldColumns={fieldColumns}
                   gridTemplate={gridTemplate}
                   viewMode={viewMode}
                   onUpdate={onUpdate}
