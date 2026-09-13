@@ -216,6 +216,20 @@ describe('calendar entry helpers', () => {
       expect(getEntryTitle(entry)).toBe('String task');
     });
 
+    it('keeps scalar and array legacy payloads readable', () => {
+      const baseEntry = {
+        id: 1,
+        user_email: 'a@b.com',
+        project_name: 'P1',
+        due_date: null,
+        priority: null,
+      };
+
+      expect(getEntryTitle({ ...baseEntry, entries: 0 })).toBe('0');
+      expect(getEntryTitle({ ...baseEntry, entries: false })).toBe('false');
+      expect(getEntryTitle({ ...baseEntry, entries: ['Legacy task'] })).toBe('["Legacy task"]');
+    });
+
     it('returns untitled for empty entries', () => {
       const entry = {
         id: 1,

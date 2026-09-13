@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
-import { classifyEntryPayload, cleanSummaryText } from '@/lib/entryPayload';
+import { type EntryPayload, getEntryPayloadTitle, classifyEntryPayload, cleanSummaryText } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -13,7 +13,7 @@ interface ChecklistEntry {
   summary?: string | null;
   due_date?: string | null;
   status?: EntryStatus;
-  entries?: Record<string, unknown> | string | null;
+  entries?: EntryPayload;
   started_at?: string | null;
 }
 
@@ -41,17 +41,8 @@ function getSummary(entry: ChecklistEntry): string {
   const safe = cleanSummaryText(entry.summary);
   if (safe) return safe;
 
-  const payload = classifyEntryPayload(entry.entries);
-  if (payload.kind === 'object') {
-    const summaryKeys = ['summary', 'title', 'name', 'task', 'description'];
-    for (const key of summaryKeys) {
-      if (payload.value[key] && typeof payload.value[key] === 'string') {
-        return payload.value[key] as string;
-      }
-    }
-  }
-
-  return typeof payload.value === 'string' ? payload.value : 'Untitled entry';
+  const summary = getEntryPayloadTitle(entry.entries);
+  return summary === 'Not recorded' ? 'Untitled entry' : summary;
 }
 
 export default function ChecklistEntryCard({ entry, onUpdated, onDelete, projectColor }: ChecklistEntryCardProps) {

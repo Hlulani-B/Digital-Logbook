@@ -46,6 +46,12 @@ describe('ChecklistEntryCard', () => {
     expect(screen.getByText('Untitled entry')).toBeTruthy();
   });
 
+  it('renders opaque historical payloads when no summary is available', () => {
+    const legacyEntry = { ...sampleEntry, summary: null, entries: ['Legacy task'] };
+    render(<ChecklistEntryCard entry={legacyEntry} />);
+    expect(screen.getByText('["Legacy task"]')).toBeTruthy();
+  });
+
   it('renders the due date', () => {
     render(<ChecklistEntryCard entry={sampleEntry} />);
     // Date is formatted via formatDate
