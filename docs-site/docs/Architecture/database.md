@@ -385,21 +385,23 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 
 ### Migration Files
 
-| File                                              | Purpose                                                                                                                                                 |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                                                                   |
-| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                                                                    |
-| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                                                                        |
-| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                                                                       |
-| `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job                                                    |
-| `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                                                                                                          |
-| `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                                                                                             |
-| `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                                                                                            |
-| `008_add_project_color.sql`                       | `project_color VARCHAR(7)` column on projects for custom colour picker                                                                                  |
-| `008_create_field_stats_rpc.sql`                  | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project)                                                              |
-| `009_create_notes_table.sql`                      | `notes` table for per-entry personalisation (text, image, pdf, link)                                                                                    |
-| `010_purge_unconfirmed_signups.sql`               | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days                                                            |
-| `011_create_notifications.sql`                    | `notifications` table (due-soon/overdue feed), `users.email_notifications` preference, `generate_due_notifications()` RPC + hourly pg_cron/pg_net cycle |
+| File                                              | Purpose                                                                                                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                                                                      |
+| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                                                                       |
+| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                                                                           |
+| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                                                                          |
+| `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job                                                       |
+| `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                                                                                                             |
+| `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                                                                                                |
+| `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                                                                                               |
+| `008_add_project_color.sql`                       | `project_color VARCHAR(7)` column on projects for custom colour picker                                                                                     |
+| `008_create_field_stats_rpc.sql`                  | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project)                                                                 |
+| `009_create_notes_table.sql`                      | `notes` table for per-entry personalisation (text, image, pdf, link)                                                                                       |
+| `010_purge_unconfirmed_signups.sql`               | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days                                                               |
+| `011_create_notifications.sql`                    | `notifications` table (due-soon/overdue feed), `users.email_notifications` preference, `generate_due_notifications()` RPC + hourly pg_cron/pg_net cycle    |
+| `012_add_timer_pause_fields.sql`                  | Timer pause support: `target_duration_ms`, `paused_ms`, `paused_at` columns on `entries`; updated `get_project_stats()` to subtract paused time            |
+| `013_notification_enhancements.sql`               | Snooze (`snoozed_until`), dismiss (`dismissed`) columns on `notifications`; `notification_lead_time` on `users`; updated generator with per-user lead time |
 
 ### CLI Commands
 

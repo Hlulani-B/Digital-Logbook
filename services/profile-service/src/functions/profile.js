@@ -126,6 +126,49 @@ export class EmailNotifications {
 }
 
 /**
+ * Persists the user's notification lead-time preference.
+ * Controls when the due_soon notification fires relative to the entry's
+ * due date (e.g. 1 hour, 24 hours, 48 hours, 1 week before).
+ */
+const VALID_LEAD_TIMES = ['1 hour', '24 hours', '48 hours', '1 week'];
+
+export class NotificationLeadTime {
+  async set(email, leadTime) {
+    try {
+      if (!pool) return { success: false, message: 'Database not connected' };
+      if (!VALID_LEAD_TIMES.includes(leadTime)) {
+        return { success: false, message: `Invalid lead time: ${leadTime}` };
+      }
+      await pool.query(`UPDATE users SET notification_lead_time = $1::interval WHERE email = $2`, [
+        leadTime,
+        email,
+      ]);
+      return { success: true, message: 'Notification lead time updated' };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async get(email) {
+    try {
+      if (!pool) return { success: false, message: 'Database not connected' };
+      const { rows } = await pool.query(
+        `SELECT notification_lead_time FROM users WHERE email = $1`,
+        [email]
+      );
+      if (rows.length === 0) return { success: false, message: 'User not found' };
+      // PostgreSQL returns intervals as strings like '24:00:00' or '7 days'
+      const raw = rows[0].notification_lead_time;
+      return { success: true, data: { leadTime: raw } };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: error.message };
+    }
+  }
+}
+
+/**
  * Aggregates read/delete operations for a user profile.
  */
 export class Profile {
