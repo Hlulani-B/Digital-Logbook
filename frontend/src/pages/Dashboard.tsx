@@ -1771,51 +1771,53 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Due Soon Section Label */}
-            <div className="due-soon-section-label">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span>Due soon</span>
-            </div>
-
-            {/* View mode toggle — sits with the due-soon entries it controls,
-                hidden entirely when nothing is due soon. */}
-            {!loading && filteredEntries.length > 0 && (
-              <div className="feed-view-group due-soon-view-toggle">
-                <span className="feed-view-label">View:</span>
-                <div className="feed-view-toggle">
-                  <button
-                    className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('cards')}
-                  >
-                    Cards
-                  </button>
-                  <button
-                    className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('checklist')}
-                  >
-                    Checklist
-                  </button>
-                  <button
-                    className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('board')}
-                  >
-                    Board
-                  </button>
-                </div>
+            {/* Due Soon header: label on the left, view toggle on the right */}
+            <div className="due-soon-header-row">
+              <div className="due-soon-section-label">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>Due soon</span>
               </div>
-            )}
+
+              {/* View mode toggle — right-aligned with the Due soon label,
+                  hidden entirely when nothing is due soon. */}
+              {!loading && filteredEntries.length > 0 && (
+                <div className="feed-view-group due-soon-view-toggle">
+                  <span className="feed-view-label">View:</span>
+                  <div className="feed-view-toggle">
+                    <button
+                      className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                      onClick={() => setDisplayMode('cards')}
+                    >
+                      Cards
+                    </button>
+                    <button
+                      className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
+                      onClick={() => setDisplayMode('checklist')}
+                    >
+                      Checklist
+                    </button>
+                    <button
+                      className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
+                      onClick={() => setDisplayMode('board')}
+                    >
+                      Board
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Loading */}
             {loading && (
