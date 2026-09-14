@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { useAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Activity = {
   id: number;
@@ -57,10 +57,13 @@ export function ActivitySummary() {
   const email = user?.email || '';
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(true);
+  // Reactive preference — flips back to the static line the moment the user
+  // toggles AI messages off in Settings, without a reload.
+  const aiMessagesOn = useAiMessagesEnabled();
 
   useEffect(() => {
     if (!email) return;
-    if (!getAiMessagesEnabled()) {
+    if (!aiMessagesOn) {
       setSummary("Here's what you've been up to recently.");
       setLoading(false);
       return;
@@ -112,7 +115,7 @@ export function ActivitySummary() {
     return () => {
       cancelled = true;
     };
-  }, [email]);
+  }, [email, aiMessagesOn]);
 
   if (loading || !summary) return null;
 

@@ -13,5 +13,39 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'src/__integration__/**',
+      '**/*.integration.{test,spec}.?(c|m)[jt]s?(x)',
+    ],
+    testTimeout: 15000,
+    hookTimeout: 15000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'html'],
+      reportsDirectory: './coverage',
+      reportOnFailure: true,
+      // Frontend coverage badge scope: the pure-logic utility layer under
+      // src/lib. UI pages/components are exercised by the backend service
+      // suites and integration specs rather than unit tests, so including them
+      // would measure rendering, not logic. `tour.ts` is excluded because it
+      // depends on driver.js, which is not yet installed (WIP).
+      include: ['src/lib/**'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.d.ts',
+        '**/__tests__/**',
+        'src/__integration__/',
+        'src/lib/tour.ts',
+      ],
+      thresholds: {
+        lines: 70,
+        statements: 70,
+        functions: 70,
+        branches: 70,
+      },
+    },
   },
 });

@@ -9,7 +9,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, '..');
 
-const SERVICES = ['auth-service', 'dashboard-service', 'profile-service', 'project-service'];
+// `where` is the directory (relative to repo root) holding coverage/coverage-summary.json
+const SERVICES = [
+  { name: 'auth-service', where: 'services/auth-service' },
+  { name: 'dashboard-service', where: 'services/dashboard-service' },
+  { name: 'profile-service', where: 'services/profile-service' },
+  { name: 'project-service', where: 'services/project-service' },
+  { name: 'frontend', where: 'frontend' },
+];
 const METRICS = [
   { key: 'lines', label: 'lines' },
   { key: 'statements', label: 'statements' },
@@ -52,8 +59,8 @@ function generateSVG(label, pctStr, color) {
 </svg>`;
 }
 
-for (const service of SERVICES) {
-  const coveragePath = join(repoRoot, 'services', service, 'coverage', 'coverage-summary.json');
+for (const { name: service, where } of SERVICES) {
+  const coveragePath = join(repoRoot, where, 'coverage', 'coverage-summary.json');
   const badgeDir = join(repoRoot, 'badges', service);
 
   let coverage;

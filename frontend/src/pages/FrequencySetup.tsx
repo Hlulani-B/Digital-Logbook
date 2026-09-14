@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBellOff, FiBell, FiClock, FiZap } from 'react-icons/fi';
-import { setAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, setAiMessagesEnabled } from '@/functions/aiMessages';
 
 export type NudgeFrequency = 'silent' | 'gentle' | 'daily' | 'active';
 
@@ -66,7 +66,10 @@ export function FrequencySetup() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<NudgeFrequency>('gentle');
   const [saving, setSaving] = useState(false);
-  const [aiMessages, setAiMessages] = useState(true);
+  // Start from the stored preference — returning users pass through this
+  // page during re-onboarding, and hardcoding `true` silently re-enabled
+  // AI messages they had turned off in Settings.
+  const [aiMessages, setAiMessages] = useState(() => getAiMessagesEnabled());
 
   const handleContinue = () => {
     setSaving(true);

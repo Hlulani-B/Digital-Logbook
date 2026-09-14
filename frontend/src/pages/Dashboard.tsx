@@ -24,7 +24,7 @@ import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { useAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
@@ -288,6 +288,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
   const [showGreetingToast, setShowGreetingToast] = useState(false);
+  // Reactive AI-messages preference — toast disappears the instant the user
+  // flips the Settings toggle, no reload required.
+  const aiMessagesOn = useAiMessagesEnabled();
 
   // Derived early so the deleted-account safety check can use it.
   const email = user?.email || '';
@@ -528,29 +531,40 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // AI-generated greeting ΓÇö shown as a toast (respects AI messages preference)
   useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
+    if (!aiMessagesOn) {
+      // Preference flipped off — tear down any toast already on screen.
+      setShowGreetingToast(false);
+      setAiGreeting('');
+      return;
+    }
     if (!loading && projects.length > 0) {
       const hour = new Date().getHours();
       const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
       const entryCount = entries.length;
       const dueCount = dueSoonRows.length;
+      let cancelled = false;
 
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
           `Generate a ${timeOfDay} greeting for a user with ${entryCount} entries and ${dueCount} due soon. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about their productivity, their procrastination, or their life choices. Be witty and entertaining. ${tone}`
         );
-        if (result.success && result.response) {
+        // Re-check on resolve: the user may have flipped the Settings toggle
+        // while the AI request was in flight.
+        if (!cancelled && result.success && result.response) {
           const msg = parseAIResponse(result.response);
           setAiGreeting(msg);
           setShowGreetingToast(true);
         }
       })();
+      return () => {
+        cancelled = true;
+      };
     } else if (!loading) {
       setAiGreeting("Welcome! Let's get you started.");
       setShowGreetingToast(true);
     }
-  }, [loading, projects, entries, dueSoonRows]);
+  }, [aiMessagesOn, loading, projects, entries, dueSoonRows]);
 
   // Auto-dismiss greeting toast after 30 seconds
   useEffect(() => {
@@ -640,19 +654,23 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // AI-generated empty state message
   useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
+    if (!aiMessagesOn) return;
     if (!loading && filteredEntries.length === 0) {
+      let cancelled = false;
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
           `Generate a motivating message for when there are no items to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
-        if (result.success && result.response) {
+        if (!cancelled && result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
         }
       })();
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [loading, filteredEntries.length]);
+  }, [aiMessagesOn, loading, filteredEntries.length]);
 
   // User info
   const fullDisplayName =

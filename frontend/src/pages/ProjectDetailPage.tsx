@@ -261,15 +261,20 @@ export function ProjectDetailPage() {
   useEffect(() => {
     if (!getAiMessagesEnabled()) return;
     if (!loading && filteredEntries.length === 0 && !searchQuery) {
+      let cancelled = false;
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
           `Generate a motivating message for when a project has no items to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
         );
-        if (result.success && result.response) {
+        // Re-check on resolve — the toggle may have been flipped during the request
+        if (!cancelled && getAiMessagesEnabled() && result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
         }
       })();
+      return () => {
+        cancelled = true;
+      };
     }
   }, [loading, projectName, searchQuery]);
 
