@@ -3,6 +3,7 @@ import { addEntry } from '../functions/project/entries.js';
 import { getFields } from '../functions/project/fields.js';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import type { VisibilityConfig } from '@/lib/fieldSchema';
+import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 
 type NoteType = 'text' | 'link' | 'image';
 
@@ -281,55 +282,70 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
               if (field.visibility) {
                 return evaluateVisibility(field as any, fieldValues);
               }
-              return true;
+              // Field-Level Permissions: skip hidden fields
+              // Note: userRole should be fetched from backend; defaulting to 'owner' for now
+              const userRole = 'owner'; // TODO: Fetch actual user role
+              const permission = resolveFieldPermission(field as any, userRole);
+              return permission !== 'hidden';
             })
-            .map((field) => (
-              <div className="add-entry__field-row" key={field.field_name}>
-                <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
-                  {field.field_name.replace(/_/g, ' ')}
-                  {field.is_required && <span className="add-entry__required">*</span>}
-                </label>
-                {field.data_type === 'boolean' ? (
-                  <input
-                    id={`field-${field.field_name}`}
-                    type="checkbox"
-                    className="add-entry__field-input"
-                    checked={fieldValues[field.field_name] === 'true'}
-                    onChange={(e) =>
-                      handleValueChange(field.field_name, e.target.checked ? 'true' : 'false')
-                    }
-                    disabled={saving}
-                  />
-                ) : parseCustomOptions(field.data_type) ? (
-                  <select
-                    id={`field-${field.field_name}`}
-                    className="add-entry__field-input"
-                    value={fieldValues[field.field_name] || ''}
-                    onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                    disabled={saving}
-                    required={field.is_required}
-                  >
-                    <option value="">Select...</option>
-                    {(parseCustomOptions(field.data_type) || []).map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    id={`field-${field.field_name}`}
-                    type={inputTypeForDataType(field.data_type)}
-                    className="add-entry__field-input"
-                    placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
-                    value={fieldValues[field.field_name] || ''}
-                    onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                    disabled={saving}
-                    required={field.is_required}
-                  />
-                )}
-              </div>
-            ))}
+            .map((field) => {
+              // Field-Level Permissions: check if field is read-only
+              // Note: userRole should be fetched from backend; defaulting to 'owner' for now
+              const userRole = 'owner'; // TODO: Fetch actual user role
+              const permission = resolveFieldPermission(field as any, userRole);
+              const isReadOnly = permission === 'view';
+
+              return (
+                <div className="add-entry__field-row" key={field.field_name}>
+                  <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
+                    {field.field_name.replace(/_/g, ' ')}
+                    {field.is_required && !isReadOnly && (
+                      <span className="add-entry__required">*</span>
+                    )}
+                    {isReadOnly && <span className="add-entry__readonly">(Read-only)</span>}
+                  </label>
+                  {field.data_type === 'boolean' ? (
+                    <input
+                      id={`field-${field.field_name}`}
+                      type="checkbox"
+                      className="add-entry__field-input"
+                      checked={fieldValues[field.field_name] === 'true'}
+                      onChange={(e) =>
+                        handleValueChange(field.field_name, e.target.checked ? 'true' : 'false')
+                      }
+                      disabled={saving || isReadOnly}
+                    />
+                  ) : parseCustomOptions(field.data_type) ? (
+                    <select
+                      id={`field-${field.field_name}`}
+                      className="add-entry__field-input"
+                      value={fieldValues[field.field_name] || ''}
+                      onChange={(e) => handleValueChange(field.field_name, e.target.value)}
+                      disabled={saving || isReadOnly}
+                      required={field.is_required}
+                    >
+                      <option value="">Select...</option>
+                      {(parseCustomOptions(field.data_type) || []).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id={`field-${field.field_name}`}
+                      type={inputTypeForDataType(field.data_type)}
+                      className="add-entry__field-input"
+                      placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
+                      value={fieldValues[field.field_name] || ''}
+                      onChange={(e) => handleValueChange(field.field_name, e.target.value)}
+                      disabled={saving || isReadOnly}
+                      required={field.is_required}
+                    />
+                  )}
+                </div>
+              );
+            })}
         </div>
       )}
 

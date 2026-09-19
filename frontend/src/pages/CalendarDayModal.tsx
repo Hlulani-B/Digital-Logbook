@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { addEntry, updateEntry } from '@/functions/project/entries.js';
+import { addEntry } from '@/functions/project/entries.js';
 import { getFields } from '@/functions/project/fields.js';
-import {
-  getEntryTitle,
-  type CalendarEntry,
-  toISODate,
-  parseDueDate,
-  isSameDay,
-  addDays,
-} from '@/lib/calendar';
+import { getEntryTitle, type CalendarEntry } from '@/lib/calendar';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import './CalendarDayModal.css';
 
@@ -99,7 +92,7 @@ export function CalendarDayModal({
   onClose,
   onEntryAdded,
   onEntryClick,
-  onEntryMoved,
+  onEntryMoved: _onEntryMoved,
   colorMap,
 }: CalendarDayModalProps) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -138,50 +131,6 @@ export function CalendarDayModal({
 
   const handleEntryDragEnd = () => {
     setDraggingEntry(null);
-  };
-
-  const handleDropOnDay = async (targetDate: Date) => {
-    if (!draggingEntry || !userEmail) return;
-    const entry = draggingEntry;
-    setDraggingEntry(null);
-
-    const originalDue = parseDueDate(entry.due_date);
-    if (originalDue && isSameDay(originalDue, targetDate)) return;
-
-    try {
-      const newDueDate = toISODate(targetDate);
-      const result = await updateEntry(
-        userEmail,
-        entry.project_name,
-        entry.id,
-        undefined,
-        newDueDate
-      );
-
-      if (result?.success === false) {
-        setError(result.message || 'Failed to reschedule entry');
-        return;
-      }
-
-      // Notify parent component
-      if (onEntryMoved) {
-        onEntryMoved(entry.id, targetDate);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reschedule entry');
-    }
-  };
-
-  // Navigate to previous/next day within modal
-  const handlePrevDay = () => {
-    const prevDay = addDays(date, -1);
-    // We can't change the date prop directly, so we close and let parent handle it
-    // For now, we'll just provide navigation buttons that update the parent's selectedDate
-  };
-
-  const handleNextDay = () => {
-    const nextDay = addDays(date, 1);
-    // Same as above
   };
 
   // Load project fields when project is selected

@@ -19,6 +19,7 @@ import notesRoutes from './Routes/notes.js';
 import notificationRoutes, { sendPendingHandler } from './Routes/notifications.js';
 import templateRoutes from './Routes/templates.js';
 import attachmentRoutes from './Routes/attachments.js';
+import memberRoutes from './Routes/members.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -95,6 +96,7 @@ app.use('/service', requireAuth, notesRoutes);
 app.use('/service', requireAuth, notificationRoutes);
 app.use('/service/templates', requireAuth, templateRoutes);
 app.use('/service/attachments', requireAuth, attachmentRoutes);
+app.use('/service', requireAuth, memberRoutes);
 // Global error handler - ensures CORS headers on errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);

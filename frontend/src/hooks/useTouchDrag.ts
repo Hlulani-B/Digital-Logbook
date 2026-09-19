@@ -173,16 +173,16 @@ export function useTouchDrag({
     // Attach listeners to the calendar grid
     const grid = document.querySelector('.calendar-grid');
     if (grid) {
-      grid.addEventListener('touchstart', handleTouchStart, { passive: true });
-      grid.addEventListener('touchmove', handleTouchMove, { passive: false });
-      grid.addEventListener('touchend', handleTouchEnd, { passive: true });
+      grid.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true });
+      grid.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+      grid.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true });
     }
 
     return () => {
       if (grid) {
-        grid.removeEventListener('touchstart', handleTouchStart);
-        grid.removeEventListener('touchmove', handleTouchMove);
-        grid.removeEventListener('touchend', handleTouchEnd);
+        grid.removeEventListener('touchstart', handleTouchStart as EventListener);
+        grid.removeEventListener('touchmove', handleTouchMove as EventListener);
+        grid.removeEventListener('touchend', handleTouchEnd as EventListener);
       }
     };
   }, [

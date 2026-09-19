@@ -795,11 +795,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   };
 
   const handleTemplateSelect = (template: Template) => {
-    const fields: ProjectFieldDraft[] = template.fields.map((field, index) => ({
+    const fields: ProjectFieldDraft[] = template.fields.map((field) => ({
       field_name: field.field_name,
       data_type: field.data_type as ProjectFieldDraft['data_type'],
       is_required: field.is_required,
-      custom_options: field.options?.map((o) => o.label) || [],
+      custom_options: field.options?.map((o: { label: string }) => o.label) || [],
     }));
     setProjectFields(fields);
     setTemplatePickerOpen(false);
