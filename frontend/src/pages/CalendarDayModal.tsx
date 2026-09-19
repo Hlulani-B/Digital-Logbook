@@ -1,7 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { addEntry } from '@/functions/project/entries.js';
+import { addEntry, updateEntry } from '@/functions/project/entries.js';
 import { getFields } from '@/functions/project/fields.js';
-import { getEntryTitle, type CalendarEntry } from '@/lib/calendar';
+import {
+  getEntryTitle,
+  type CalendarEntry,
+  toISODate,
+  parseDueDate,
+  isSameDay,
+  addDays,
+} from '@/lib/calendar';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import './CalendarDayModal.css';
 
@@ -38,6 +45,7 @@ interface CalendarDayModalProps {
   onClose: () => void;
   onEntryAdded: () => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  onEntryMoved?: (entryId: string | number, newDate: Date) => void;
   colorMap?: Record<string, string | null>;
 }
 
@@ -91,6 +99,7 @@ export function CalendarDayModal({
   onClose,
   onEntryAdded,
   onEntryClick,
+  onEntryMoved,
   colorMap,
 }: CalendarDayModalProps) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -104,6 +113,7 @@ export function CalendarDayModal({
   const [loadingFields, setLoadingFields] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [draggingEntry, setDraggingEntry] = useState<CalendarEntry | null>(null);
 
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +130,59 @@ export function CalendarDayModal({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
+
+  // Drag handlers for entries in the modal
+  const handleEntryDragStart = (entry: CalendarEntry) => {
+    setDraggingEntry(entry);
+  };
+
+  const handleEntryDragEnd = () => {
+    setDraggingEntry(null);
+  };
+
+  const handleDropOnDay = async (targetDate: Date) => {
+    if (!draggingEntry || !userEmail) return;
+    const entry = draggingEntry;
+    setDraggingEntry(null);
+
+    const originalDue = parseDueDate(entry.due_date);
+    if (originalDue && isSameDay(originalDue, targetDate)) return;
+
+    try {
+      const newDueDate = toISODate(targetDate);
+      const result = await updateEntry(
+        userEmail,
+        entry.project_name,
+        entry.id,
+        undefined,
+        newDueDate
+      );
+
+      if (result?.success === false) {
+        setError(result.message || 'Failed to reschedule entry');
+        return;
+      }
+
+      // Notify parent component
+      if (onEntryMoved) {
+        onEntryMoved(entry.id, targetDate);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reschedule entry');
+    }
+  };
+
+  // Navigate to previous/next day within modal
+  const handlePrevDay = () => {
+    const prevDay = addDays(date, -1);
+    // We can't change the date prop directly, so we close and let parent handle it
+    // For now, we'll just provide navigation buttons that update the parent's selectedDate
+  };
+
+  const handleNextDay = () => {
+    const nextDay = addDays(date, 1);
+    // Same as above
+  };
 
   // Load project fields when project is selected
   useEffect(() => {
@@ -283,9 +346,18 @@ export function CalendarDayModal({
                         'cdm-entry',
                         isCompleted && 'cdm-entry--completed',
                         overdue && 'cdm-entry--overdue',
+                        draggingEntry?.id === entry.id && 'cdm-entry--dragging',
                       ]
                         .filter(Boolean)
                         .join(' ')}
+                      draggable
+                      data-entry-id={String(entry.id)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(entry.id));
+                        handleEntryDragStart(entry);
+                      }}
+                      onDragEnd={handleEntryDragEnd}
                       onClick={() => onEntryClick(entry)}
                       role="button"
                       tabIndex={0}
