@@ -26,6 +26,7 @@ export interface FieldOption {
   id: string;
   label: string;
   value?: string;
+  parent_id?: string; // Dynamic Taxonomy: references parent option id
   [key: string]: unknown;
 }
 export interface FieldRules {
@@ -34,8 +35,24 @@ export interface FieldRules {
   minLength?: number;
   maxLength?: number;
   pattern?: string;
+  // Conditional Thresholds
+  warn_min?: number | string;
+  warn_max?: number | string;
+  alert_min?: number | string;
+  alert_max?: number | string;
   [key: string]: unknown;
 }
+export interface VisibilityRule {
+  field: string; // field_name to watch
+  operator: 'eq' | 'neq' | 'in' | 'not_in' | 'exists' | 'not_exists' | 'gt' | 'lt' | 'gte' | 'lte';
+  value?: unknown; // comparison value (not needed for exists/not_exists)
+}
+
+export interface VisibilityConfig {
+  rules: VisibilityRule[]; // ALL must match (AND logic)
+  logic?: 'and' | 'or'; // default: 'and'
+}
+
 export interface FieldDefinition {
   id?: string;
   field_name: string;
@@ -47,6 +64,8 @@ export interface FieldDefinition {
   default_value?: unknown;
   options: FieldOption[];
   display_order: number;
+  // Visibility Triggers
+  visibility?: VisibilityConfig;
   [key: string]: unknown;
 }
 
@@ -100,9 +119,22 @@ export function normalizeField(input: unknown, index = 0): FieldDefinition {
         id: typeof item.id === 'string' ? item.id : `option-${optionIndex + 1}`,
         label,
         ...(typeof item.value === 'string' ? { value: item.value } : {}),
+        ...(typeof item.parent_id === 'string' ? { parent_id: item.parent_id } : {}),
       };
     }),
     display_order: typeof source.display_order === 'number' ? source.display_order : index,
+    // Visibility Triggers
+    ...(isRecord(source.visibility)
+      ? {
+          visibility: {
+            rules: Array.isArray(source.visibility.rules) ? source.visibility.rules : [],
+            ...(typeof source.visibility.logic === 'string' &&
+            (source.visibility.logic === 'and' || source.visibility.logic === 'or')
+              ? { logic: source.visibility.logic as 'and' | 'or' }
+              : {}),
+          } as VisibilityConfig,
+        }
+      : {}),
   };
 }
 

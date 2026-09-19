@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { addEntry } from '../functions/project/entries.js';
 import { getFields } from '../functions/project/fields.js';
+import { evaluateVisibility } from '@/lib/fieldVisibility';
+import type { VisibilityConfig } from '@/lib/fieldSchema';
 
 type NoteType = 'text' | 'link' | 'image';
 
@@ -26,6 +28,7 @@ interface FieldDef {
   field_name: string;
   data_type: string;
   is_required: boolean;
+  visibility?: VisibilityConfig;
 }
 
 function parseCustomOptions(dataType: string): string[] | null {
@@ -143,6 +146,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
             field_name: f.field_name,
             data_type: f.data_type || 'text',
             is_required: !!f.is_required,
+            ...(f.visibility ? { visibility: f.visibility } : {}),
           }));
           setFields(defs);
           const initial: Record<string, string> = {};
@@ -175,9 +179,11 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
     e.preventDefault();
     if (!user_email || !project_name || saving) return;
 
-    // Validate required fields
+    // Validate required fields (skip hidden fields)
     for (const f of fields) {
       if (!f.is_required) continue;
+      // Hidden fields don't require a value
+      if (f.visibility && !evaluateVisibility(f as any, fieldValues)) continue;
       if (f.data_type === 'boolean') {
         if (fieldValues[f.field_name] !== 'true') {
           setError(`"${f.field_name}" is required`);
@@ -269,53 +275,61 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       {fields.length > 0 && (
         <div className="add-entry__fields">
           <span className="add-entry__section-label">Columns</span>
-          {fields.map((field) => (
-            <div className="add-entry__field-row" key={field.field_name}>
-              <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
-                {field.field_name.replace(/_/g, ' ')}
-                {field.is_required && <span className="add-entry__required">*</span>}
-              </label>
-              {field.data_type === 'boolean' ? (
-                <input
-                  id={`field-${field.field_name}`}
-                  type="checkbox"
-                  className="add-entry__field-input"
-                  checked={fieldValues[field.field_name] === 'true'}
-                  onChange={(e) =>
-                    handleValueChange(field.field_name, e.target.checked ? 'true' : 'false')
-                  }
-                  disabled={saving}
-                />
-              ) : parseCustomOptions(field.data_type) ? (
-                <select
-                  id={`field-${field.field_name}`}
-                  className="add-entry__field-input"
-                  value={fieldValues[field.field_name] || ''}
-                  onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                  disabled={saving}
-                  required={field.is_required}
-                >
-                  <option value="">Select...</option>
-                  {(parseCustomOptions(field.data_type) || []).map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id={`field-${field.field_name}`}
-                  type={inputTypeForDataType(field.data_type)}
-                  className="add-entry__field-input"
-                  placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
-                  value={fieldValues[field.field_name] || ''}
-                  onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                  disabled={saving}
-                  required={field.is_required}
-                />
-              )}
-            </div>
-          ))}
+          {fields
+            .filter((field) => {
+              // Visibility: skip hidden fields
+              if (field.visibility) {
+                return evaluateVisibility(field as any, fieldValues);
+              }
+              return true;
+            })
+            .map((field) => (
+              <div className="add-entry__field-row" key={field.field_name}>
+                <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
+                  {field.field_name.replace(/_/g, ' ')}
+                  {field.is_required && <span className="add-entry__required">*</span>}
+                </label>
+                {field.data_type === 'boolean' ? (
+                  <input
+                    id={`field-${field.field_name}`}
+                    type="checkbox"
+                    className="add-entry__field-input"
+                    checked={fieldValues[field.field_name] === 'true'}
+                    onChange={(e) =>
+                      handleValueChange(field.field_name, e.target.checked ? 'true' : 'false')
+                    }
+                    disabled={saving}
+                  />
+                ) : parseCustomOptions(field.data_type) ? (
+                  <select
+                    id={`field-${field.field_name}`}
+                    className="add-entry__field-input"
+                    value={fieldValues[field.field_name] || ''}
+                    onChange={(e) => handleValueChange(field.field_name, e.target.value)}
+                    disabled={saving}
+                    required={field.is_required}
+                  >
+                    <option value="">Select...</option>
+                    {(parseCustomOptions(field.data_type) || []).map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={`field-${field.field_name}`}
+                    type={inputTypeForDataType(field.data_type)}
+                    className="add-entry__field-input"
+                    placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
+                    value={fieldValues[field.field_name] || ''}
+                    onChange={(e) => handleValueChange(field.field_name, e.target.value)}
+                    disabled={saving}
+                    required={field.is_required}
+                  />
+                )}
+              </div>
+            ))}
         </div>
       )}
 
