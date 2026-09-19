@@ -2269,7 +2269,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {/* New Project Modal */}
       {newProjectOpen && (
         <div className="modal-overlay" onClick={() => setNewProjectOpen(false)}>
-          <div className="modal-card glass" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-title">New Project</h2>
             <input
               type="text"
