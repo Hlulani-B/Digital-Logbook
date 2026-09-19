@@ -1,49 +1,61 @@
+/**
+ * Cache schema upgrade test.
+ *
+ * The cache layer was migrated from IndexedDB (idb) to SQLite (sql.js).
+ * This test verifies that the new sql.js cache initializes correctly
+ * and creates all required tables.
+ */
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { deleteDB, openDB } from 'idb';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const DB_NAME = 'digital-logbook-cache';
-const LEGACY_STORES = ['projects', 'entries', 'all-entries', 'profile', 'search', 'cache-meta'];
+// Mock sql.js with an in-memory SQLite implementation
+const tables = new Map();
 
-beforeEach(async () => {
-  await deleteDB(DB_NAME);
+vi.mock('sql.js', () => ({
+  default: vi.fn(() =>
+    Promise.resolve({
+      Database: vi.fn(() => ({
+        run: vi.fn((sql) => {
+          const stmts = sql
+            .split(';')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          for (const stmt of stmts) {
+            const m = stmt.match(/CREATE TABLE IF NOT EXISTS\s+(\w+)/i);
+            if (m) tables.set(m[1], new Map());
+          }
+        }),
+        exec: vi.fn(() => []),
+        export: vi.fn(() => new Uint8Array([])),
+        close: vi.fn(),
+      })),
+    })
+  ),
+}));
 
-  const db = await openDB(DB_NAME, 3, {
-    upgrade(database) {
-      for (const store of LEGACY_STORES) {
-        database.createObjectStore(store, { keyPath: 'key' });
-      }
-    },
-  });
-
-  await db.put('projects', {
-    key: 'user@example.com',
-    success: true,
-    data: [{ project_name: 'Preserved project' }],
-  });
-  await db.put('cache-meta', {
-    key: 'user@example.com',
-    timestamp: 123456789,
-  });
-  db.close();
+beforeEach(() => {
+  tables.clear();
+  // Reset the module-level dbPromise by resetting modules
+  vi.resetModules();
 });
 
 describe('cache schema upgrade', () => {
-  it('preserves v3 cache records and metadata while adding new stores', async () => {
-    const { cacheGet, cacheGetTimestamp, CACHE_STORES } = await import('../cache');
+  it('initializes all required tables in the new sql.js cache', async () => {
+    const { cacheGet, CACHE_STORES } = await import('../cache');
 
-    await expect(cacheGet(CACHE_STORES.PROJECTS, 'user@example.com')).resolves.toEqual({
-      key: 'user@example.com',
-      success: true,
-      data: [{ project_name: 'Preserved project' }],
-    });
-    await expect(cacheGetTimestamp('user@example.com')).resolves.toBe(123456789);
+    // Trigger DB initialization
+    await cacheGet(CACHE_STORES.PROJECTS, 'user@example.com');
 
-    const upgraded = await openDB(DB_NAME, 4);
-    expect(upgraded.objectStoreNames.contains('projects')).toBe(true);
-    expect(upgraded.objectStoreNames.contains('cache-meta')).toBe(true);
-    expect(upgraded.objectStoreNames.contains('archives')).toBe(true);
-    expect(upgraded.objectStoreNames.contains('fields')).toBe(true);
-    upgraded.close();
+    // Verify all expected tables were created
+    expect(tables.has('projects')).toBe(true);
+    expect(tables.has('entries')).toBe(true);
+    expect(tables.has('all_entries')).toBe(true);
+    expect(tables.has('profile')).toBe(true);
+    expect(tables.has('search')).toBe(true);
+    expect(tables.has('archives')).toBe(true);
+    expect(tables.has('fields')).toBe(true);
+    expect(tables.has('notes')).toBe(true);
+    expect(tables.has('cache_meta')).toBe(true);
+    expect(tables.has('offline_queue')).toBe(true);
   });
 });

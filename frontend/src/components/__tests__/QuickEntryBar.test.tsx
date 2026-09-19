@@ -16,7 +16,7 @@ describe('QuickEntryBar', () => {
 
   it('renders the input with default placeholder', () => {
     render(<QuickEntryBar />);
-    expect(screen.getByPlaceholderText(/Quick add/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/Write an item/i)).toBeTruthy();
   });
 
   it('renders with custom placeholder', () => {
@@ -28,7 +28,7 @@ describe('QuickEntryBar', () => {
     const user = userEvent.setup();
     render(<QuickEntryBar />);
 
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
     expect(addNaturalLanguageEntry).not.toHaveBeenCalled();
   });
 
@@ -41,9 +41,9 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Fixed login bug');
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
 
     expect(addNaturalLanguageEntry).toHaveBeenCalledWith('Fixed login bug');
   });
@@ -57,9 +57,9 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Test entry');
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
 
     await waitFor(() => {
       expect(screen.getByText('Entry created!')).toBeTruthy();
@@ -75,9 +75,9 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Test entry');
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
 
     await waitFor(() => {
       expect(screen.getByText('Something went wrong')).toBeTruthy();
@@ -94,9 +94,9 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar onEntryCreated={onEntryCreated} />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Test entry');
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
 
     await waitFor(() => {
       expect(onEntryCreated).toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Quick entry{enter}');
 
     expect(addNaturalLanguageEntry).toHaveBeenCalledWith('Quick entry');
@@ -138,9 +138,9 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'new project stuff');
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
 
     await waitFor(() => {
       expect(screen.getByText('Project "NewProject" created!')).toBeTruthy();
@@ -152,14 +152,16 @@ describe('QuickEntryBar', () => {
     // Don't resolve immediately — keep it pending
     let resolvePromise: (v: any) => void;
     (addNaturalLanguageEntry as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      new Promise((resolve) => { resolvePromise = resolve; })
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
     );
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Quick add/i) as HTMLInputElement;
+    const input = screen.getByPlaceholderText(/Write an item/i) as HTMLInputElement;
     await user.type(input, 'Loading test');
-    await user.click(screen.getByRole('button', { name: '' }));
+    await user.click(document.querySelector('.quick-entry-submit')!);
 
     await waitFor(() => {
       expect(input.disabled).toBe(true);

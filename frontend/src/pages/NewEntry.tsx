@@ -8,6 +8,8 @@ import { getFields } from '../functions/project/fields.js';
 import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/dashboard/stats.js';
+import { FieldEditor } from '@/components/fields/FieldEditors';
+import type { FieldDefinition } from '@/lib/fieldSchema';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -72,16 +74,11 @@ function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function stringifyForInput(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
-}
-
 interface EntryRow {
   id: string;
   user_email: string;
   project_name: string;
+  project_id?: number;
   entries: EntryPayload;
   created_at: string;
   due_date?: string | null;
@@ -119,6 +116,7 @@ export function EntryBox({
     id,
     user_email,
     project_name,
+    project_id,
     entries,
     due_date,
     priority,
@@ -152,7 +150,7 @@ export function EntryBox({
   const [refLoading, setRefLoading] = useState(false);
   const [calcField, setCalcField] = useState<string | null>(null);
 
-  const [fieldDefs, setFieldDefs] = useState<Record<string, string>>({});
+  const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   useEffect(() => {
     if (!user_email || !project_name) return;
     let cancelled = false;
@@ -160,9 +158,30 @@ export function EntryBox({
       try {
         const result = await getFields(user_email, project_name);
         if (!cancelled && result?.data) {
-          const defs: Record<string, string> = {};
+          const defs: Record<string, FieldDefinition> = {};
           for (const f of result.data) {
-            defs[f.field_name] = f.data_type || 'text';
+            const fieldDef: FieldDefinition = {
+              field_name: f.field_name,
+              data_type: (f.data_type || 'text') as FieldDefinition['data_type'],
+              is_required: false,
+              is_unique: false,
+              rules: {},
+              has_default: false,
+              options: [],
+              display_order: 0,
+            };
+            // Convert legacy custom:type format to proper select field
+            if (f.data_type && f.data_type.startsWith('custom:')) {
+              fieldDef.data_type = 'select';
+              const optionsStr = f.data_type.slice(7);
+              if (optionsStr) {
+                fieldDef.options = optionsStr
+                  .split(',')
+                  .map((o, i) => ({ id: `opt-${i}`, label: o.trim(), value: o.trim() }))
+                  .filter((o) => o.label);
+              }
+            }
+            defs[f.field_name] = fieldDef;
           }
           setFieldDefs(defs);
         }
@@ -172,16 +191,6 @@ export function EntryBox({
       cancelled = true;
     };
   }, [user_email, project_name]);
-
-  const parseCustomOptions = (dataType: string): string[] | null => {
-    if (!dataType.startsWith('custom:')) return null;
-    const optionsStr = dataType.slice(7);
-    if (!optionsStr) return [];
-    return optionsStr
-      .split(',')
-      .map((o) => o.trim())
-      .filter(Boolean);
-  };
 
   // Live timer text for in-progress tasks.
   // With a target_duration_ms this is a DEADLINE COUNTDOWN (remaining time);
@@ -207,10 +216,8 @@ export function EntryBox({
     return () => clearInterval(id);
   }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms]);
 
-  const [draftFields, setDraftFields] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
-    )
+  const [draftFields, setDraftFields] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
   const [draftStartedAt, setDraftStartedAt] = useState(toInputDate(started_at));
@@ -249,16 +256,12 @@ export function EntryBox({
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
 
-  const handleFieldChange = (key: string, newValue: string) => {
+  const handleFieldChange = (key: string, newValue: unknown) => {
     setDraftFields((prev) => ({ ...prev, [key]: newValue }));
   };
 
   const handleCancel = () => {
-    setDraftFields(
-      Object.fromEntries(
-        Object.entries(parsedEntries || {}).map(([k, v]) => [k, stringifyForInput(v)])
-      )
-    );
+    setDraftFields(Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v])));
     setDraftDueDate(toInputDate(due_date));
     setDraftStartedAt(toInputDate(started_at));
     setDraftEndedAt(toInputDate(ended_at));
@@ -282,17 +285,7 @@ export function EntryBox({
 
     try {
       const newEntryObject: Record<string, unknown> | undefined =
-        payloadState.kind === 'opaque'
-          ? undefined
-          : Object.fromEntries(
-              Object.entries(draftFields).map(([key, value]) => {
-                try {
-                  return [key, JSON.parse(value)];
-                } catch {
-                  return [key, value];
-                }
-              })
-            );
+        payloadState.kind === 'opaque' ? undefined : { ...draftFields };
 
       // Convert priority index to label string (or null for "No priority")
       const newPriorityLabel =
@@ -725,33 +718,32 @@ export function EntryBox({
             </div>
           ) : (
             Object.entries(draftFields).map(([key, value]) => {
-              const customOpts = parseCustomOptions(fieldDefs[key] || '');
-              return (
-                <div className="entry-box__field--editing" key={key}>
-                  <label className="entry-box__field-key">{formatFieldKey(key)}</label>
-                  {customOpts ? (
-                    <select
-                      className="entry-box__field-input"
-                      value={value}
-                      onChange={(e) => handleFieldChange(key, e.target.value)}
-                      disabled={saving}
-                    >
-                      <option value="">Select...</option>
-                      {customOpts.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
+              const fieldDef = fieldDefs[key];
+              if (!fieldDef) {
+                // Fallback for fields without definitions
+                return (
+                  <div className="entry-box__field--editing" key={key}>
+                    <label className="entry-box__field-key">{formatFieldKey(key)}</label>
                     <input
                       className="entry-box__field-input"
                       type="text"
-                      value={value}
+                      value={typeof value === 'string' ? value : JSON.stringify(value)}
                       onChange={(e) => handleFieldChange(key, e.target.value)}
                       disabled={saving}
                     />
-                  )}
+                  </div>
+                );
+              }
+              return (
+                <div className="entry-box__field--editing" key={key}>
+                  <FieldEditor
+                    field={fieldDef}
+                    value={value}
+                    onChange={(newValue) => handleFieldChange(key, newValue)}
+                    disabled={saving}
+                    projectId={project_id}
+                    entryId={id}
+                  />
                 </div>
               );
             })
@@ -1018,7 +1010,7 @@ export function EntryBox({
           <table className="entry-box__table">
             <tbody>
               {entryFields.map(([key, value]) => {
-                const isNumeric = fieldDefs[key] === 'number';
+                const fieldDef = fieldDefs[key];
                 const calcKey = `_calc_${key}`;
                 const calcResult = parsedEntries[calcKey] as
                   { type: string; value: number } | undefined;
@@ -1027,8 +1019,12 @@ export function EntryBox({
                     <tr className="entry-box__row">
                       <td className="entry-box__field-key">{formatFieldKey(key)}</td>
                       <td className="entry-box__field-value">
-                        {formatEntryValue(value)}
-                        {isNumeric && (
+                        {fieldDef ? (
+                          <FieldDisplay field={fieldDef} value={value} />
+                        ) : (
+                          formatEntryValue(value)
+                        )}
+                        {fieldDef && fieldDef.data_type === 'number' && (
                           <button
                             type="button"
                             className="entry-box__calc-btn"

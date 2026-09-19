@@ -28,6 +28,8 @@ import { useAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
+import { TemplatePicker } from '@/components/fields/TemplatePicker';
+import type { Template } from '@/lib/templateApi';
 import { FiArchive, FiRotateCcw, FiX } from 'react-icons/fi';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import {
@@ -333,6 +335,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [creatingProject, setCreatingProject] = useState(false);
   const [newProjectError, setNewProjectError] = useState<string | null>(null);
   const [projectFields, setProjectFields] = useState<ProjectFieldDraft[]>([]);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -789,6 +792,17 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       };
       return next;
     });
+  };
+
+  const handleTemplateSelect = (template: Template) => {
+    const fields: ProjectFieldDraft[] = template.fields.map((field, index) => ({
+      field_name: field.field_name,
+      data_type: field.data_type as ProjectFieldDraft['data_type'],
+      is_required: field.is_required,
+      custom_options: field.options?.map((o) => o.label) || [],
+    }));
+    setProjectFields(fields);
+    setTemplatePickerOpen(false);
   };
 
   const handleCreateProject = async () => {
@@ -2288,6 +2302,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               style={{ resize: 'vertical', minHeight: '60px' }}
             />
 
+            {/* Template Picker */}
+            <div style={{ marginBottom: '1rem' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setTemplatePickerOpen(true)}
+                style={{ width: '100%', padding: '0.75rem' }}
+              >
+                📋 Choose a Template (optional)
+              </button>
+            </div>
+
             {/* Project Fields */}
             <div className="project-fields-section" style={{ marginTop: '1rem' }}>
               <h3
@@ -2337,10 +2363,21 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       style={{ width: 'auto' }}
                     >
                       <option value="text">Text</option>
+                      <option value="markdown">Markdown</option>
+                      <option value="integer">Integer</option>
+                      <option value="float">Float</option>
                       <option value="number">Number</option>
                       <option value="date">Date</option>
+                      <option value="timestamp">Timestamp</option>
                       <option value="boolean">Boolean</option>
-                      <option value="custom">Custom</option>
+                      <option value="select">Select</option>
+                      <option value="multiselect">Multi-Select</option>
+                      <option value="geolocation">Geolocation</option>
+                      <option value="currency">Currency</option>
+                      <option value="file">File</option>
+                      <option value="image">Image</option>
+                      <option value="entity_link">Entity Link</option>
+                      <option value="custom">Custom (Legacy)</option>
                     </select>
                     <label
                       style={{
@@ -2464,6 +2501,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 {creatingProject ? 'Creating...' : 'Create'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Picker Modal */}
+      {templatePickerOpen && (
+        <div className="modal-overlay" onClick={() => setTemplatePickerOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
+            <TemplatePicker
+              onSelect={handleTemplateSelect}
+              onCancel={() => setTemplatePickerOpen(false)}
+            />
           </div>
         </div>
       )}
