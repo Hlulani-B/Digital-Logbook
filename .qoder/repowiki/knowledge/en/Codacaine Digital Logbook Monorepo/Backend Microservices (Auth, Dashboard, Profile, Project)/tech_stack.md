@@ -1,0 +1,1 @@
+Node.js with Express 5, Supabase JS SDK (auth-service) and PostgreSQL via `pg` (dashboard/profile/project services); project-service adds AI providers (@google/generative-ai, @cerebras/cerebras_cloud_sdk, @huggingface/inference, openai), SSE support, Sharp image processing, and Swagger UI for API docs.

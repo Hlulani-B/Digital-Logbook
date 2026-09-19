@@ -1,0 +1,6 @@
+- Each page implements a `loadData` wrapped in a `loadSeq` ref counter so that only the newest concurrent load can commit state, preventing stale cache reads from overwriting fresher data after `syncAllData` or SSE triggers.
+- Pages subscribe to relevant `CACHE_STORES` keys via `cacheSubscribe` and re-run `loadData` on change, ensuring UI stays in sync without polling.
+- Derived UI state (filtered entries, sections, charts, color maps) is computed inside `useMemo` keyed by the underlying data arrays to avoid recomputation on every render.
+- User preferences that survive reloads (display mode, sort-by, calendar view, tone) are persisted to `localStorage` and restored on component init via lazy `useState` initializers.
+- Charts and stat panels are built as small pure presentational components (`StatCard`, `BarChart`, `DonutChart`, `FieldStatPanel`, `StreakHeatmap`) that receive typed props and render based solely on data, keeping pages focused on orchestration.
+- AI-driven copy (greetings, empty-state messages) is gated by `getAiMessagesEnabled()` and shaped by `getToneInstruction()`, then parsed through a shared `parseAIResponse` helper that normalizes varied JSON/text responses.

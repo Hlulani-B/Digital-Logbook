@@ -1,0 +1,17 @@
+schema_version: 1
+module_path: frontend/dashboard_stats
+title: Dashboard & Activity Stats Pages
+scope:
+  - frontend/src/pages/Dashboard.tsx
+  - frontend/src/pages/Today.tsx
+  - frontend/src/pages/Calendar.tsx
+  - frontend/src/pages/StatsView.tsx
+  - frontend/src/pages/StreakView.tsx
+  - frontend/src/pages/Activity.tsx
+  - frontend/src/functions/activity.js
+  - frontend/src/functions/tone.ts
+  - frontend/src/functions/voicefeature.js
+source_files: []
+depends_on: []
+related_to:
+  - path: services

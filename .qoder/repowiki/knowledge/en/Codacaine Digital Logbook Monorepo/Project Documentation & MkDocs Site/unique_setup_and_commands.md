@@ -1,0 +1,1 @@
+Requires Python 3.9+ and `pip install -r requirements.txt` (mkdocs, mkdocs-material). Local preview: `mkdocs serve` (live reload at http://172.0.0.1:8000). Production build: `mkdocs build` outputs to `docs-site/site/`. Adding a page requires both creating the `.md` file and registering it in the `nav:` block of `mkdocs.yml`.

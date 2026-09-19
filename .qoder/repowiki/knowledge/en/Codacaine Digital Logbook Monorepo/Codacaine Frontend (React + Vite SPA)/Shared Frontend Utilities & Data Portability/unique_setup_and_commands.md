@@ -1,0 +1,1 @@
+Requires Vite env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to initialise the Supabase client; service URLs (`VITE_AUTH_SERVICE_URL`, `VITE_DASHBOARD_SERVICE_URL`, `VITE_PROJECT_SERVICE_URL`, `VITE_PROFILE_SERVICE_URL`) default to Render-hosted endpoints when not set.

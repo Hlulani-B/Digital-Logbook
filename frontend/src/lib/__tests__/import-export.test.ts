@@ -1,12 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildExportBundle,
+  attachmentKey,
   exportToCSV,
   exportToICS,
   exportToJSON,
   exportToMarkdown,
 } from '@/lib/export';
-import { parseCSVImport, parseJSONImport, parseMarkdownImport, parseImport } from '@/lib/import';
+import {
+  parseCSVImport,
+  parseJSONImport,
+  parseMarkdownImport,
+  parseImport,
+  restoreImport,
+  type ImportAdapters,
+} from '@/lib/import';
 
 const SAMPLE_PROJECTS = [
   { project_name: 'Alpha', description: 'First project', archived: false },
@@ -113,7 +121,7 @@ describe('JSON round-trip', () => {
 
     const result = parseJSONImport(exportToJSON(bundle));
 
-    expect(bundle.version).toBe(2);
+    expect(bundle.version).toBe(3);
     expect(result.rejections).toHaveLength(0);
     expect(result.projects).toEqual([
       { project_name: 'Archived', description: 'Preserved description', archived: true },
@@ -158,12 +166,271 @@ describe('JSON round-trip', () => {
   });
 
   it('refuses unsupported future backup versions', () => {
-    const result = parseJSONImport(JSON.stringify({ version: 3, projects: [], entries: [] }));
+    const result = parseJSONImport(JSON.stringify({ version: 4, projects: [], entries: [] }));
 
     expect(result.projects).toEqual([]);
     expect(result.fields).toEqual([]);
     expect(result.entries).toEqual([]);
-    expect(result.rejections).toEqual([{ line: 'N/A', reason: 'Unsupported export version: 3' }]);
+    expect(result.rejections).toEqual([{ line: 'N/A', reason: 'Unsupported export version: 4' }]);
+  });
+});
+
+describe('JSON v3 schema and atomic restore', () => {
+  function fixture() {
+    return buildExportBundle(
+      'foreign@example.com',
+      [
+        {
+          project_name: 'P',
+          schema_revision: 7,
+          template: { id: 'template', revision: 3, kind: 'personal' },
+        },
+      ],
+      [
+        {
+          project_name: 'P',
+          entries: {
+            Tags: ['old-option'],
+            Amount: { amount: '9007199254740993.001', currency: 'USD' },
+          },
+        },
+      ],
+      [
+        {
+          table_name: 'P',
+          id: 'old-field',
+          field_name: 'Tags',
+          data_type: 'multiselect',
+          is_required: true,
+          is_unique: false,
+          rules: {},
+          has_default: true,
+          default_value: ['old-option'],
+          display_order: 4,
+          options: [{ id: 'old-option', label: 'Work', value: 'work' }],
+        },
+      ]
+    );
+  }
+  function adapters(): ImportAdapters {
+    return {
+      isOnline: () => true,
+      addProject: vi
+        .fn()
+        .mockResolvedValue({
+          success: true,
+          data: {
+            schema_revision: 1,
+            fields: [
+              {
+                field_name: 'Tags',
+                id: 'new-field',
+                data_type: 'multiselect',
+                options: [{ id: 'new-option', label: 'Work', value: 'work' }],
+                default_value: ['new-option'],
+              },
+            ],
+          },
+        }),
+      addEntry: vi.fn().mockResolvedValue({ success: true, data: { id: 'new-entry' } }),
+      archiveEntry: vi.fn().mockResolvedValue({ success: true }),
+      archiveProject: vi.fn().mockResolvedValue({ success: true }),
+      uploadFieldAttachment: vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { attachmentId: 'new-asset' } }),
+    };
+  }
+  it('preserves every declared type, rules, defaults, options, order and provenance exactly', () => {
+    const bundle = fixture();
+    const types = [
+      'text',
+      'markdown',
+      'integer',
+      'float',
+      'number',
+      'date',
+      'timestamp',
+      'boolean',
+      'select',
+      'multiselect',
+      'geolocation',
+      'currency',
+      'file',
+      'image',
+    ];
+    types.forEach((data_type, index) =>
+      bundle.fields.push({
+        table_name: 'P',
+        field_name: `f${index}`,
+        data_type,
+        is_required: false,
+        is_unique: false,
+        has_default: false,
+        default_value: null,
+        display_order: index,
+        rules: { min: '0.001', max: 100, minLength: 0, maxLength: 20, pattern: '[a-z]+' },
+      })
+    );
+    bundle.fields.push({
+      table_name: 'P',
+      field_name: 'null-default',
+      data_type: 'text',
+      is_required: false,
+      has_default: true,
+      default_value: null,
+    });
+    const result = parseJSONImport(exportToJSON(bundle));
+    expect(result.rejections).toEqual([]);
+    expect(result.fields).toEqual(bundle.fields);
+    expect(result.projects).toEqual(bundle.projects);
+    expect(result.entries).toEqual(bundle.entries);
+  });
+  it.each([null, false, 0, 'opaque', ['opaque', { nested: 4 }]])(
+    'keeps opaque payload %j unchanged',
+    (entries) => {
+      const bundle = buildExportBundle(
+        'a',
+        [{ project_name: 'P' }],
+        [{ project_name: 'P', entries }]
+      );
+      expect(parseJSONImport(exportToJSON(bundle)).entries[0].entries).toEqual(entries);
+    }
+  );
+  it('still reads explicit v2 and rejects malformed rows without throwing', () => {
+    const result = parseJSONImport(
+      JSON.stringify({ version: 2, projects: [null], fields: [null], entries: [null, 1, []] })
+    );
+    expect(result.rejections).toHaveLength(5);
+    expect(parseJSONImport(JSON.stringify({ ...fixture(), version: 2 })).fields).toHaveLength(1);
+  });
+  it('creates project and schema once, maps option IDs and uses the signed-in owner', async () => {
+    const result = parseJSONImport(exportToJSON(fixture()));
+    const api = adapters();
+    const outcome = await restoreImport(result, 'local@example.com', api);
+    expect(outcome).toMatchObject({ projects: 1, fields: 1, entries: 1, failures: [] });
+    expect(api.addProject).toHaveBeenCalledExactlyOnceWith(
+      'local@example.com',
+      'P',
+      '',
+      expect.objectContaining({ fields: result.fields, schema_revision: 7 })
+    );
+    expect(api.addEntry).toHaveBeenCalledWith(
+      'local@example.com',
+      expect.objectContaining({
+        entries: {
+          Tags: ['new-option'],
+          Amount: { amount: '9007199254740993.001', currency: 'USD' },
+        },
+      }),
+      1
+    );
+    expect(result.entries[0].entries).toMatchObject({ Tags: ['old-option'] });
+  });
+  it('blocks a partially invalid schema rather than silently dropping its fields', async () => {
+    const bundle = fixture();
+    const result = parseJSONImport(
+      JSON.stringify({ ...bundle, fields: [...bundle.fields, { table_name: 'P', field_name: '' }] })
+    );
+    const api = adapters();
+    const outcome = await restoreImport(result, 'local', api);
+    expect(api.addProject).not.toHaveBeenCalled();
+    expect(api.addEntry).not.toHaveBeenCalled();
+    expect(outcome.notRestored).toHaveLength(1);
+  });
+  it('keeps successful counts when another entry fails with field errors', async () => {
+    const result = parseJSONImport(exportToJSON(fixture()));
+    result.entries.push({ ...result.entries[0] });
+    const api = adapters();
+    vi.mocked(api.addEntry).mockResolvedValueOnce({
+      success: false,
+      errors: { Tags: [{ code: 'unique', message: 'Already used' }] },
+    });
+    const outcome = await restoreImport(result, 'local', api);
+    expect(outcome.entries).toBe(1);
+    expect(outcome.notRestored[0].errors).toEqual({
+      Tags: [{ code: 'unique', message: 'Already used' }],
+    });
+    expect(outcome.failures[0]).toContain('Already used');
+  });
+  it('never counts optimistic or queued results as persisted', async () => {
+    const api = adapters();
+    vi.mocked(api.addEntry).mockResolvedValue({
+      success: true,
+      queued: true,
+      data: { id: 'optimistic-1' },
+    });
+    const outcome = await restoreImport(parseJSONImport(exportToJSON(fixture())), 'local', api);
+    expect(outcome.entries).toBe(0);
+    expect(outcome.notRestored).toHaveLength(1);
+  });
+  it('does not write while offline', async () => {
+    const api = adapters();
+    api.isOnline = () => false;
+    const outcome = await restoreImport(parseJSONImport(exportToJSON(fixture())), 'local', api);
+    expect(api.addProject).not.toHaveBeenCalled();
+    expect(outcome.failures).toHaveLength(1);
+  });
+  it('exports a credential-free manifest and requires explicit reupload to new field IDs', async () => {
+    const bundle = buildExportBundle(
+      'foreign',
+      [{ project_name: 'P' }],
+      [
+        {
+          project_name: 'P',
+          entries: {
+            Receipt: {
+              attachmentId: 'foreign-id',
+              signedUrl: 'secret-url',
+              storage_key: 'private-key',
+              bytes: 'base64',
+            },
+          },
+        },
+      ],
+      [{ table_name: 'P', field_name: 'Receipt', data_type: 'file', id: 'old-field' }]
+    );
+    const json = exportToJSON(bundle);
+    expect(json).not.toMatch(/secret-url|private-key|base64/);
+    expect(bundle.attachments[0]).toMatchObject({
+      binary_included: false,
+      attachment_id: 'foreign-id',
+    });
+    const result = parseJSONImport(JSON.stringify({ ...bundle, attachments: [] }));
+    const api = adapters();
+    vi.mocked(api.addProject).mockResolvedValue({
+      success: true,
+      fields: [
+        {
+          table_name: 'P',
+          field_name: 'Receipt',
+          data_type: 'file',
+          is_required: false,
+          id: 'new-field',
+        },
+      ],
+    });
+    const missing = await restoreImport(result, 'local', api);
+    expect(missing.notRestored[0].reason).toContain('reupload required');
+    expect(api.addEntry).not.toHaveBeenCalled();
+    const file = new File(['receipt'], 'receipt.txt');
+    const restored = await restoreImport(
+      result,
+      'local',
+      api,
+      new Map([[attachmentKey(result.attachments![0]), file]])
+    );
+    expect(restored.entries).toBe(1);
+    expect(api.uploadFieldAttachment).toHaveBeenCalledWith({
+      email: 'local',
+      projectName: 'P',
+      fieldId: 'new-field',
+      file,
+    });
+    expect(api.addEntry).toHaveBeenCalledWith(
+      'local',
+      expect.objectContaining({ entries: { Receipt: { attachmentId: 'new-asset' } } }),
+      undefined
+    );
   });
 });
 

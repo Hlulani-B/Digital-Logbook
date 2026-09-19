@@ -726,3 +726,43 @@ When a user marks an entry as "Done & Dusted", the `generate_due_notifications()
 **Fix:** Migration 014 removes the `done_and_dusted` condition from the cleanup. Notifications now persist for completed entries. The cleanup still removes notifications for archived, deleted, or no-due-date entries. The overdue INSERT also no longer filters by status, so completed past-due entries continue to appear as overdue.
 
 **Takeaway:** In a logbook or audit-trail context, notifications serve as a historical record. Don't delete them when the underlying work item is completed — only clean up when the entry itself is removed (archived/deleted).
+
+### Issue 52: Customizable Logbook — Dynamic Field Types, Templates, and Entity Linking
+
+The project needed a customizable logbook system to support diverse use cases (lab notebooks, field logs, project trackers, inspection reports) with typed fields, reusable templates, and relational linking between entries.
+
+**Scope implemented:**
+
+1. **Dynamic Field Types** — 15 canonical types: text, markdown, integer, float, date, timestamp, boolean, select, multiselect, geolocation, currency, file, image, entity_link. Each type has authoritative validation in both backend (fieldSchema.js) and frontend (fieldValidation.ts) using RE2JS for regex patterns.
+
+2. **Property Overrides** — Fields support is_required, is_unique, rules (min/max, minLength/maxLength, pattern), has_default/default_value, and display_order. Uniqueness is enforced for scalar types and currency. Defaults are validated against the field's type and rules.
+
+3. **Schema Templates** — Three scopes: built-in (4 presets: Lab Notebook, Field Log, Project Tracker, Inspection Report), personal (user-created), and global (admin-created). Templates are deep-copied into projects on creation; no live inheritance. Templates support versioning (incremented on field updates) and forking (tracking provenance).
+
+4. **Entity Linking** — Fields of type `entity_link` store arrays of entry UUIDs, enabling relational tagging between entries within or across projects. Validation ensures all IDs are valid UUIDs.
+
+5. **Private Attachments** — File and image fields use a lease-based upload flow: create a lease (30-min TTL), upload to Supabase storage, then finalize with entry binding. Stale leases are cleaned up automatically. Storage bucket is private; only server-side reads are permitted.
+
+**Database migrations:**
+
+- 015: schema_revision, provenance, field rules (is_unique, rules, has_default, default_value, options, display_order)
+- 016: schema_templates table with scope, version, fork tracking
+- 017: field_attachments table with lease lifecycle
+- 018: entity_link support (link_target_project, link_target_table, link_allow_multiple)
+
+**Backend:**
+
+- `domain/fieldSchema.js` — canonical type validation, normalization, unique value canonicalization
+- `functions/templates.js` — CRUD operations, built-in template registry
+- `functions/attachments.js` — lease creation, finalization, cleanup
+- `routes/templates.js`, `routes/attachments.js` — REST endpoints
+
+**Frontend:**
+
+- `lib/fieldSchema.ts`, `lib/fieldValidation.ts` — type definitions and validation
+- `lib/templateApi.ts`, `lib/attachmentApi.ts` — API clients
+- `components/fields/FieldEditors.tsx` — typed editors for all 15 types
+- `components/fields/FieldDisplay.tsx` — read-only display with SafeMarkdown
+- `components/fields/TemplatePicker.tsx` — template selection UI
+
+**Takeaway:** A customizable logbook requires a clear separation between schema metadata (field definitions) and entry payloads (values). Canonical types with authoritative validation on both client and server prevent type drift. Templates should be deep-copied (not live-linked) to allow projects to evolve independently. Attachment uploads need a lease-based flow to prevent orphaned storage objects.

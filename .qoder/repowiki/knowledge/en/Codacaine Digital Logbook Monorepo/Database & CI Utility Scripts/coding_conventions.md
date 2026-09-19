@@ -1,0 +1,6 @@
+- Each script is a standalone ESM module with a top-level `async function main()` invoked at the bottom, wrapped in a `.catch` that logs a fatal error and exits with code 1.
+- Environment variables are loaded lazily via dynamic `import('dotenv')` and resolved from a fixed ordered list of `.env` paths (cwd, project-service, frontend) so missing files are silently ignored.
+- Scripts require `DATABASE_URL` and exit with a clear error message if it is absent before performing any work.
+- External PostgreSQL tooling (`pg_dump`, `pg_restore`) is validated by running `--version` via `execFileSync` before attempting the actual operation, with cross-platform installation hints printed on failure.
+- Backup/restore operations target only the `public` schema using `--schema=public` plus `--no-owner` and `--no-acl` to produce portable dumps across environments.
+- Migration SQL files are discovered by reading `supabase/migrations/*.sql`, sorted lexicographically by filename, and tracked in `public.schema_migrations` with both version and a SHA-256 checksum prefix.

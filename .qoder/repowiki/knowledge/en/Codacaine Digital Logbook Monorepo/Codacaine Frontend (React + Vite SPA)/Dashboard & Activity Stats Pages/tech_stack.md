@@ -1,0 +1,1 @@
+React + TypeScript/JSX with react-router-dom navigation; Web Speech API (`SpeechRecognition`/`webkitSpeechRecognition`) for browser-side speech-to-text; IndexedDB-backed cache via `@/lib/cache` with `CACHE_STORES`; server communication via a shared `request` helper posting JSON-RPC-style payloads to `PROJECT_URL`.

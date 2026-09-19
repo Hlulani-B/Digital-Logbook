@@ -1,0 +1,1 @@
+React 19 + TypeScript + Vite build; routing via react-router-dom v7; data layer built on Supabase JS client with IndexedDB caching (`idb`) and SQL.js for local queries; testing via Vitest with @testing-library/react and fake-indexeddb; audio transcription via ffmpeg-static; guided tours via driver.js.

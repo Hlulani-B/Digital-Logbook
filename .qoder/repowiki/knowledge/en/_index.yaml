@@ -1,0 +1,162 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: '2026-09-12T18:54:11Z'
+modules:
+  '':
+    dir_name: Codacaine Digital Logbook Monorepo
+    title: Codacaine Digital Logbook Monorepo
+    scope:
+      - README.md
+      - package.json
+      - package-lock.json
+      - .gitignore
+      - .prettierrc.json
+      - .prettierignore
+      - render.yaml
+      - AI_USAGE.md
+      - TESTING_IMPLEMENTATION.md
+      - USER_FEEDBACK.md
+      - issues.md
+      - screenshot_signin.png
+      - sprint1clientmeetingproof.jpg
+      - tmp_diff.txt
+    source_files: []
+    children:
+      - database_schema
+      - documentation
+      - frontend
+      - scripts_and_tooling
+      - services
+    depends_on: []
+    related_to: []
+  database_schema:
+    dir_name: Supabase Database Schema & Migrations
+    title: Supabase Database Schema & Migrations
+    scope:
+      - supabase/
+    source_files: []
+    children: []
+    depends_on: []
+    related_to:
+      - path: services
+  documentation:
+    dir_name: Project Documentation & MkDocs Site
+    title: Project Documentation & MkDocs Site
+    scope:
+      - docs/
+      - docs-site/
+      - presentations/
+    source_files: []
+    children: []
+    depends_on: []
+    related_to: []
+  frontend:
+    dir_name: Codacaine Frontend (React + Vite SPA)
+    title: Codacaine Frontend (React + Vite SPA)
+    scope:
+      - frontend/
+    source_files: []
+    children:
+      - frontend/auth_profile
+      - frontend/dashboard_stats
+      - frontend/projects_entries
+      - frontend/shared_libs
+    depends_on: []
+    related_to: []
+  frontend/auth_profile:
+    dir_name: Authentication & Profile Onboarding Pages
+    title: Authentication & Profile Onboarding Pages
+    scope:
+      - frontend/src/pages/AuthCallback.tsx
+      - frontend/src/pages/CreateProfile.tsx
+      - frontend/src/pages/SignIn.tsx
+    source_files: []
+    children: []
+    depends_on: []
+    related_to:
+      - path: frontend/projects_entries
+  frontend/dashboard_stats:
+    dir_name: Dashboard & Activity Stats Pages
+    title: Dashboard & Activity Stats Pages
+    scope:
+      - frontend/src/pages/Dashboard.tsx
+      - frontend/src/pages/Today.tsx
+      - frontend/src/pages/Calendar.tsx
+      - frontend/src/pages/StatsView.tsx
+      - frontend/src/pages/StreakView.tsx
+      - frontend/src/pages/Activity.tsx
+      - frontend/src/functions/activity.js
+      - frontend/src/functions/tone.ts
+      - frontend/src/functions/voicefeature.js
+    source_files: []
+    children: []
+    depends_on: []
+    related_to:
+      - path: services
+  frontend/projects_entries:
+    dir_name: Project & Entry Management Pages
+    title: Project & Entry Management Pages
+    scope:
+      - frontend/src/pages/Project.tsx
+      - frontend/src/pages/ProjectDetailPage.tsx
+      - frontend/src/pages/AddEntry.tsx
+      - frontend/src/pages/NewEntry.tsx
+      - frontend/src/pages/AllEntries.tsx
+      - frontend/src/pages/Timeline.tsx
+      - frontend/src/pages/Kanban.tsx
+      - frontend/src/pages/Archives.tsx
+      - frontend/src/pages/NotesPage.tsx
+      - frontend/src/pages/DataPortability.tsx
+    source_files: []
+    children: []
+    depends_on: []
+    related_to:
+      - path: frontend/auth_profile
+  frontend/shared_libs:
+    dir_name: Shared Frontend Utilities & Data Portability
+    title: Shared Frontend Utilities & Data Portability
+    scope:
+      - frontend/src/lib/api.ts
+      - frontend/src/lib/supabase.ts
+      - frontend/src/lib/export.ts
+      - frontend/src/lib/import.ts
+      - frontend/src/lib/kanban.ts
+      - frontend/src/lib/calendar.ts
+      - frontend/src/lib/timeline.ts
+      - frontend/src/lib/today.ts
+      - frontend/src/lib/validation.ts
+      - frontend/src/lib/recentlyCreated.ts
+      - frontend/src/lib/recentlyViewed.ts
+      - frontend/src/lib/entryPayload.ts
+      - frontend/src/lib/profileService.ts
+      - frontend/src/lib/projectColorMap.ts
+      - frontend/src/lib/tour.ts
+      - frontend/src/functions/ai.js
+      - frontend/src/functions/aiMessages.ts
+    source_files: []
+    children: []
+    depends_on: []
+    related_to: []
+  scripts_and_tooling:
+    dir_name: Database & CI Utility Scripts
+    title: Database & CI Utility Scripts
+    scope:
+      - scripts/
+    source_files: []
+    children: []
+    depends_on: []
+    related_to: []
+  services:
+    dir_name: Backend Microservices (Auth, Dashboard, Profile, Project)
+    title: Backend Microservices (Auth, Dashboard, Profile, Project)
+    scope:
+      - services/
+    source_files: []
+    children: []
+    depends_on: []
+    related_to:
+      - path: database_schema
+      - path: frontend/dashboard_stats

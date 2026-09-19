@@ -1,0 +1,21 @@
+schema_version: 1
+module_path: ''
+title: Codacaine Digital Logbook Monorepo
+scope:
+  - README.md
+  - package.json
+  - package-lock.json
+  - .gitignore
+  - .prettierrc.json
+  - .prettierignore
+  - render.yaml
+  - AI_USAGE.md
+  - TESTING_IMPLEMENTATION.md
+  - USER_FEEDBACK.md
+  - issues.md
+  - screenshot_signin.png
+  - sprint1clientmeetingproof.jpg
+  - tmp_diff.txt
+source_files: []
+depends_on: []
+related_to: []
