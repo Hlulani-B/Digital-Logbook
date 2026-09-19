@@ -1,13 +1,37 @@
 import pool from '../db.js';
 
 export class Fields {
-  async addField(user_email, table_name, field_name, data_type, is_required) {
+  async addField(
+    user_email,
+    table_name,
+    field_name,
+    data_type,
+    is_required,
+    field_permissions,
+    visibility
+  ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
+
+      // Validate field_permissions shape if provided
+      if (field_permissions !== undefined) {
+        if (typeof field_permissions !== 'object' || field_permissions === null) {
+          return { success: false, message: 'field_permissions must be a JSON object' };
+        }
+      }
+
       await pool.query(
-        `INSERT INTO fields (user_email, table_name, field_name, data_type, is_required)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [user_email, table_name, field_name, data_type, is_required]
+        `INSERT INTO fields (user_email, table_name, field_name, data_type, is_required, field_permissions, visibility)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          user_email,
+          table_name,
+          field_name,
+          data_type,
+          is_required,
+          field_permissions ? JSON.stringify(field_permissions) : '{}',
+          visibility ? JSON.stringify(visibility) : null,
+        ]
       );
 
       console.log('Field added successfully');
@@ -18,16 +42,46 @@ export class Fields {
     }
   }
 
-  async editField(user_email, table_name, old_field_name, field_name, data_type, is_required) {
+  async editField(
+    user_email,
+    table_name,
+    old_field_name,
+    field_name,
+    data_type,
+    is_required,
+    field_permissions,
+    visibility
+  ) {
     if (old_field_name === field_name) {
       try {
         if (!pool) throw new Error('Database pool not initialized');
+
+        const updateFields = ['data_type = $1', 'is_required = $2'];
+        const params = [data_type, is_required];
+
+        // Add field_permissions update if provided
+        if (field_permissions !== undefined) {
+          if (typeof field_permissions !== 'object' || field_permissions === null) {
+            return { success: false, message: 'field_permissions must be a JSON object' };
+          }
+          updateFields.push('field_permissions = $' + (params.length + 1));
+          params.push(JSON.stringify(field_permissions));
+        }
+
+        // Add visibility update if provided
+        if (visibility !== undefined) {
+          updateFields.push('visibility = $' + (params.length + 1));
+          params.push(visibility ? JSON.stringify(visibility) : null);
+        }
+
+        params.push(user_email, table_name, field_name);
+
         const { rows } = await pool.query(
-          `UPDATE fields SET data_type = $1, is_required = $2
-           WHERE user_email = $3 AND table_name = $4 AND field_name = $5
+          `UPDATE fields SET ${updateFields.join(', ')}
+           WHERE user_email = $${params.length - 2} AND table_name = $${params.length - 1} AND field_name = $${params.length}
              AND (deleted = false OR deleted IS NULL)
            RETURNING *`,
-          [data_type, is_required, user_email, table_name, field_name]
+          params
         );
 
         if (!rows || rows.length === 0) {
@@ -95,10 +149,17 @@ export class Fields {
         [old_field_name, field_name, user_email, table_name]
       );
       const { rows } = await client.query(
-        `UPDATE fields SET field_name = $1, data_type = $2, is_required = $3
-         WHERE id = $4
+        `UPDATE fields SET field_name = $1, data_type = $2, is_required = $3, field_permissions = $4, visibility = $5
+         WHERE id = $6
          RETURNING *`,
-        [field_name, data_type, is_required, sourceFields[0].id]
+        [
+          field_name,
+          data_type,
+          is_required,
+          field_permissions ? JSON.stringify(field_permissions) : '{}',
+          visibility ? JSON.stringify(visibility) : null,
+          sourceFields[0].id,
+        ]
       );
 
       await client.query('COMMIT');

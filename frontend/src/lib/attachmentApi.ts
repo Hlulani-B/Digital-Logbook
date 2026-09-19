@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 const API_BASE = import.meta.env.VITE_PROJECT_SERVICE_URL || 'http://localhost:5003';
 
@@ -32,7 +32,7 @@ export async function createAttachmentLease(
 ): Promise<AttachmentLease> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(
     `${API_BASE}/service/attachments/projects/${projectId}/fields/${fieldId}/leases`,
@@ -59,10 +59,10 @@ export async function createAttachmentLease(
 export async function uploadAttachment(lease: AttachmentLease, file: File): Promise<void> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const { error } = await supabase.storage
-    .from('field-attachments')
+  const { error } = await getSupabase()
+    .storage.from('field-attachments')
     .upload(lease.storage_key, file, {
       cacheControl: '3600',
       upsert: false,
@@ -78,7 +78,7 @@ export async function finalizeAttachment(
 ): Promise<Attachment> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/attachments/${attachmentId}/finalize`, {
     method: 'POST',
@@ -98,7 +98,7 @@ export async function finalizeAttachment(
 export async function getAttachment(attachmentId: string): Promise<Attachment> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/attachments/${attachmentId}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
@@ -108,7 +108,7 @@ export async function getAttachment(attachmentId: string): Promise<Attachment> {
 }
 
 export function getAttachmentDownloadUrl(storageKey: string): string {
-  const { data } = supabase.storage.from('field-attachments').getPublicUrl(storageKey);
+  const { data } = getSupabase().storage.from('field-attachments').getPublicUrl(storageKey);
   return data.publicUrl;
 }
 

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 const API_BASE = import.meta.env.VITE_PROJECT_SERVICE_URL || 'http://localhost:5003';
 
@@ -20,7 +20,7 @@ export async function listTemplates(
 ): Promise<Template[]> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates?scope=${scope}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
@@ -33,7 +33,7 @@ export async function listTemplates(
 export async function getTemplate(templateId: string): Promise<Template> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
@@ -52,7 +52,7 @@ export async function createTemplate(input: {
 }): Promise<Template> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates`, {
     method: 'POST',
@@ -80,7 +80,7 @@ export async function updateTemplate(
 ): Promise<Template> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
     method: 'PUT',
@@ -101,7 +101,7 @@ export async function updateTemplate(
 export async function deleteTemplate(templateId: string): Promise<void> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
     method: 'DELETE',

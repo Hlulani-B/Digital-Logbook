@@ -13,6 +13,7 @@ import { FieldDisplay } from '@/components/fields/FieldDisplay';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import { normalizeField } from '@/lib/fieldSchema';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
+import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -722,6 +723,15 @@ export function EntryBox({
               if (fieldDef && !evaluateVisibility(fieldDef, draftFields)) {
                 return null;
               }
+              // Field-Level Permissions: skip hidden fields
+              // Note: userRole should be fetched from backend; defaulting to 'owner' for now
+              const userRole = 'owner'; // TODO: Fetch actual user role
+              if (fieldDef) {
+                const permission = resolveFieldPermission(fieldDef, userRole);
+                if (permission === 'hidden') {
+                  return null;
+                }
+              }
               if (!fieldDef) {
                 // Fallback for fields without definitions
                 return (
@@ -743,7 +753,7 @@ export function EntryBox({
                     field={fieldDef}
                     value={value}
                     onChange={(newValue) => handleFieldChange(key, newValue)}
-                    disabled={saving}
+                    disabled={saving || resolveFieldPermission(fieldDef, userRole) === 'view'}
                     projectId={project_id}
                     entryId={id}
                   />

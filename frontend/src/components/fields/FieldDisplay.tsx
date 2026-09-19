@@ -1,4 +1,3 @@
-import React from 'react';
 import { SafeMarkdown } from './SafeMarkdown';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 

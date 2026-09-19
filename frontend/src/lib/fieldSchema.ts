@@ -53,6 +53,10 @@ export interface VisibilityConfig {
   logic?: 'and' | 'or'; // default: 'and'
 }
 
+// Field-Level Permissions
+export type FieldPermissionLevel = 'edit' | 'view' | 'hidden';
+export type FieldPermissionMap = Record<string, FieldPermissionLevel>;
+
 export interface FieldDefinition {
   id?: string;
   field_name: string;
@@ -66,6 +70,8 @@ export interface FieldDefinition {
   display_order: number;
   // Visibility Triggers
   visibility?: VisibilityConfig;
+  // Field-Level Permissions
+  field_permissions?: FieldPermissionMap;
   [key: string]: unknown;
 }
 
@@ -134,6 +140,10 @@ export function normalizeField(input: unknown, index = 0): FieldDefinition {
               : {}),
           } as VisibilityConfig,
         }
+      : {}),
+    // Field-Level Permissions
+    ...(isRecord(source.field_permissions)
+      ? { field_permissions: { ...source.field_permissions } as FieldPermissionMap }
       : {}),
   };
 }

@@ -265,6 +265,10 @@ export function CalendarPage() {
     return isNaN(d.getTime()) ? null : d;
   }, []);
 
+  const handleDragEnd = () => {
+    setDragging(null);
+  };
+
   useTouchDrag({
     onDragStart: handleTouchDragStart,
     onDrop: handleTouchDrop,
@@ -365,10 +369,6 @@ export function CalendarPage() {
 
   const handleDragStart = (entry: CalendarEntry, sourceDate: Date) => {
     setDragging({ entry, sourceDate });
-  };
-
-  const handleDragEnd = () => {
-    setDragging(null);
   };
 
   const handleDrop = async (date: Date) => {
@@ -584,10 +584,9 @@ export function CalendarPage() {
                   {formatShortDay(day)}
                 </div>
               ))}
-              {gridDays.map((day, index) => {
+              {gridDays.map((day) => {
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                 const dayEntries = getEntriesForDay(entries, day);
-                const isFocused = focusedDayIndex === index;
                 return (
                   <CalendarDayCell
                     key={day.toISOString()}

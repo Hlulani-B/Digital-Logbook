@@ -34,7 +34,8 @@ router.post('/field', async (req, res) => {
 
     switch (func) {
       case 'add': {
-        const { table_name, field_name, data_type, is_required } = values;
+        const { table_name, field_name, data_type, is_required, field_permissions, visibility } =
+          values;
         if (!table_name || !field_name)
           return res.status(400).json({ error: 'Missing required parameters' });
         const result = await fields.addField(
@@ -42,7 +43,9 @@ router.post('/field', async (req, res) => {
           table_name,
           field_name,
           data_type,
-          is_required
+          is_required,
+          field_permissions,
+          visibility
         );
         if (result.success) {
           await logActivity(user_email, 'FIELD_ADDED', 'field', field_name, {
@@ -54,7 +57,15 @@ router.post('/field', async (req, res) => {
         return res.json(result);
       }
       case 'edit': {
-        const { table_name, old_field_name, field_name, data_type, is_required } = values;
+        const {
+          table_name,
+          old_field_name,
+          field_name,
+          data_type,
+          is_required,
+          field_permissions,
+          visibility,
+        } = values;
         const sourceFieldName = old_field_name || field_name;
         if (!table_name || !sourceFieldName || !field_name)
           return res.status(400).json({ error: 'Missing required parameters' });
@@ -64,7 +75,9 @@ router.post('/field', async (req, res) => {
           sourceFieldName,
           field_name,
           data_type,
-          is_required
+          is_required,
+          field_permissions,
+          visibility
         );
         if (result.success) {
           await logActivity(
