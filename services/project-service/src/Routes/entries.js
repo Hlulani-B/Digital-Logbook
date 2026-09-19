@@ -359,13 +359,15 @@ router.post('/natural-language-entry', async (req, res) => {
 // Get project progress metrics
 router.get('/progress', async (req, res) => {
   try {
-    const user_email = req.userEmail;
-    if (!user_email) {
-      return res.status(401).json({ error: 'Unauthorized: verified email not available' });
+    const userEmail = req.userEmail;
+    if (!userEmail) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
-
-    const result = await getProjectProgress(user_email);
-    return res.json(result);
+    const result = await getProjectProgress(userEmail);
+    if (result.success) {
+      return res.json(result);
+    }
+    return res.status(500).json({ success: false, error: result.message });
   } catch (error) {
     console.error('Error in /progress:', error);
     return res.status(500).json({ success: false, error: error.message });
