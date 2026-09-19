@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { addEntry } from '../functions/project/entries.js';
 import { getFields } from '../functions/project/fields.js';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
-import type { VisibilityConfig } from '@/lib/fieldSchema';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
+import { FieldEditor } from '@/components/fields/FieldEditors';
+import type { FieldDefinition } from '@/lib/fieldSchema';
+import { normalizeField } from '@/lib/fieldSchema';
 
 type NoteType = 'text' | 'link' | 'image';
 
@@ -25,59 +27,12 @@ const STATUS_LABELS: Record<string, string> = {
   done_and_dusted: 'Done & Dusted',
 };
 
-interface FieldDef {
-  field_name: string;
-  data_type: string;
-  is_required: boolean;
-  visibility?: VisibilityConfig;
-}
-
-function parseCustomOptions(dataType: string): string[] | null {
-  if (!dataType.startsWith('custom:')) return null;
-  const optionsStr = dataType.slice(7);
-  if (!optionsStr) return [];
-  return optionsStr
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-}
-
 interface AddEntryProps {
   user_email: string;
   project_name: string;
+  projectId?: number;
   onAdded?: (result: unknown) => void;
   onCancel?: () => void;
-}
-
-function parseFieldValue(value: string, dataType: string): unknown {
-  if (dataType.startsWith('custom:')) return value;
-  if (dataType === 'number' || dataType === 'integer' || dataType === 'float') {
-    const num = Number(value);
-    return isNaN(num) ? value : num;
-  }
-  if (dataType === 'boolean') {
-    return value === 'true';
-  }
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
-
-function inputTypeForDataType(dataType: string): string {
-  switch (dataType) {
-    case 'number':
-    case 'integer':
-    case 'float':
-      return 'number';
-    case 'date':
-      return 'date';
-    case 'boolean':
-      return 'text';
-    default:
-      return 'text';
-  }
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -85,7 +40,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // Strip the data:...;base64, prefix if present
       const base64 = result.includes(',') ? result.split(',')[1] : result;
       resolve(base64);
     };
@@ -94,10 +48,6 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-/**
- * Compress an image file client-side using canvas.
- * Resizes large images to max 1600px and outputs JPEG at 0.7 quality.
- */
 async function compressImageClient(file: File, maxSize = 1600, quality = 0.7): Promise<File> {
   const bitmap = await createImageBitmap(file);
   let { width, height } = bitmap;
@@ -122,9 +72,15 @@ async function compressImageClient(file: File, maxSize = 1600, quality = 0.7): P
   return new File([blob], file.name, { type: 'image/jpeg' });
 }
 
-export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEntryProps) {
-  const [fields, setFields] = useState<FieldDef[]>([]);
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+export function AddEntry({
+  user_email,
+  project_name,
+  projectId,
+  onAdded,
+  onCancel,
+}: AddEntryProps) {
+  const [fields, setFields] = useState<FieldDefinition[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 16));
   const [priorityValue, setPriorityValue] = useState('3');
   const [statusValue, setStatusValue] = useState('up_next');
@@ -143,20 +99,22 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       try {
         const result = await getFields(user_email, project_name);
         if (!cancelled) {
-          const defs: FieldDef[] = (result?.data || []).map((f: any) => ({
-            field_name: f.field_name,
-            data_type: f.data_type || 'text',
-            is_required: !!f.is_required,
-            ...(f.visibility ? { visibility: f.visibility } : {}),
-          }));
+          const defs: FieldDefinition[] = (result?.data || []).map((f: any) => normalizeField(f));
           setFields(defs);
-          const initial: Record<string, string> = {};
+          const initial: Record<string, unknown> = {};
           for (const f of defs) {
             if (f.data_type === 'boolean') {
-              initial[f.field_name] = 'false';
+              initial[f.field_name] = false;
+            } else if (f.data_type === 'multiselect') {
+              initial[f.field_name] = [];
+            } else if (f.data_type === 'geolocation') {
+              initial[f.field_name] = { latitude: 0, longitude: 0 };
+            } else if (f.data_type === 'currency') {
+              initial[f.field_name] = { amount: '', currency: 'USD' };
+            } else if (f.data_type === 'select' && f.options.length > 0) {
+              initial[f.field_name] = f.options[0].value ?? f.options[0].label;
             } else {
-              const customOpts = parseCustomOptions(f.data_type);
-              initial[f.field_name] = customOpts && customOpts.length > 0 ? customOpts[0] : '';
+              initial[f.field_name] = '';
             }
           }
           setFieldValues(initial);
@@ -172,7 +130,7 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
     };
   }, [user_email, project_name]);
 
-  const handleValueChange = (fieldName: string, value: string) => {
+  const handleValueChange = (fieldName: string, value: unknown) => {
     setFieldValues((prev) => ({ ...prev, [fieldName]: value }));
   };
 
@@ -183,14 +141,16 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
     // Validate required fields (skip hidden fields)
     for (const f of fields) {
       if (!f.is_required) continue;
-      // Hidden fields don't require a value
-      if (f.visibility && !evaluateVisibility(f as any, fieldValues)) continue;
+      if (f.visibility && !evaluateVisibility(f, fieldValues)) continue;
+      const val = fieldValues[f.field_name];
       if (f.data_type === 'boolean') {
-        if (fieldValues[f.field_name] !== 'true') {
+        // boolean is always valid (true or false)
+      } else if (f.data_type === 'multiselect') {
+        if (!Array.isArray(val) || val.length === 0) {
           setError(`"${f.field_name}" is required`);
           return;
         }
-      } else if (!fieldValues[f.field_name]?.trim()) {
+      } else if (val === null || val === undefined || val === '') {
         setError(`"${f.field_name}" is required`);
         return;
       }
@@ -203,8 +163,8 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
       const entryObject: Record<string, unknown> = {};
       for (const f of fields) {
         const val = fieldValues[f.field_name];
-        if (val !== undefined && val.trim() !== '') {
-          entryObject[f.field_name] = parseFieldValue(val, f.data_type);
+        if (val !== undefined && val !== null && val !== '') {
+          entryObject[f.field_name] = val;
         }
       }
       // Convert priority index to label (null = no priority)
@@ -278,71 +238,28 @@ export function AddEntry({ user_email, project_name, onAdded, onCancel }: AddEnt
           <span className="add-entry__section-label">Columns</span>
           {fields
             .filter((field) => {
-              // Visibility: skip hidden fields
               if (field.visibility) {
-                return evaluateVisibility(field as any, fieldValues);
+                return evaluateVisibility(field, fieldValues);
               }
-              // Field-Level Permissions: skip hidden fields
-              // Note: userRole should be fetched from backend; defaulting to 'owner' for now
               const userRole = 'owner'; // TODO: Fetch actual user role
-              const permission = resolveFieldPermission(field as any, userRole);
+              const permission = resolveFieldPermission(field, userRole);
               return permission !== 'hidden';
             })
             .map((field) => {
-              // Field-Level Permissions: check if field is read-only
-              // Note: userRole should be fetched from backend; defaulting to 'owner' for now
               const userRole = 'owner'; // TODO: Fetch actual user role
-              const permission = resolveFieldPermission(field as any, userRole);
+              const permission = resolveFieldPermission(field, userRole);
               const isReadOnly = permission === 'view';
 
               return (
                 <div className="add-entry__field-row" key={field.field_name}>
-                  <label className="add-entry__field-label" htmlFor={`field-${field.field_name}`}>
-                    {field.field_name.replace(/_/g, ' ')}
-                    {field.is_required && !isReadOnly && (
-                      <span className="add-entry__required">*</span>
-                    )}
-                    {isReadOnly && <span className="add-entry__readonly">(Read-only)</span>}
-                  </label>
-                  {field.data_type === 'boolean' ? (
-                    <input
-                      id={`field-${field.field_name}`}
-                      type="checkbox"
-                      className="add-entry__field-input"
-                      checked={fieldValues[field.field_name] === 'true'}
-                      onChange={(e) =>
-                        handleValueChange(field.field_name, e.target.checked ? 'true' : 'false')
-                      }
-                      disabled={saving || isReadOnly}
-                    />
-                  ) : parseCustomOptions(field.data_type) ? (
-                    <select
-                      id={`field-${field.field_name}`}
-                      className="add-entry__field-input"
-                      value={fieldValues[field.field_name] || ''}
-                      onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                      disabled={saving || isReadOnly}
-                      required={field.is_required}
-                    >
-                      <option value="">Select...</option>
-                      {(parseCustomOptions(field.data_type) || []).map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      id={`field-${field.field_name}`}
-                      type={inputTypeForDataType(field.data_type)}
-                      className="add-entry__field-input"
-                      placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
-                      value={fieldValues[field.field_name] || ''}
-                      onChange={(e) => handleValueChange(field.field_name, e.target.value)}
-                      disabled={saving || isReadOnly}
-                      required={field.is_required}
-                    />
-                  )}
+                  <FieldEditor
+                    field={field}
+                    value={fieldValues[field.field_name]}
+                    onChange={(newValue) => handleValueChange(field.field_name, newValue)}
+                    disabled={saving || isReadOnly}
+                    projectId={projectId}
+                    entryId={undefined}
+                  />
                 </div>
               );
             })}
