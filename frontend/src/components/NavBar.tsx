@@ -4,7 +4,6 @@ import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { FiArchive } from 'react-icons/fi';
-import { Logo } from '@/components/Logo';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { colorForName } from '@/lib/projectColorMap';
 import { startAppTour } from '@/lib/tour';
@@ -170,7 +169,7 @@ export function NavBar({
               onClick={() => navigate('/dashboard')}
               aria-label="Go to dashboard"
             >
-              <Logo size={20} showText={true} />
+              Digital Logbook
             </button>
           </div>
 
