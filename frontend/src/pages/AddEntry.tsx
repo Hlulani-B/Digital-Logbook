@@ -164,7 +164,17 @@ export function AddEntry({
       for (const f of fields) {
         const val = fieldValues[f.field_name];
         if (val !== undefined && val !== null && val !== '') {
-          entryObject[f.field_name] = val;
+          // Convert File objects to base64 for file/image fields during creation
+          if (val instanceof File) {
+            if (f.data_type === 'image') {
+              const compressed = await compressImageClient(val);
+              entryObject[f.field_name] = await fileToBase64(compressed);
+            } else {
+              entryObject[f.field_name] = await fileToBase64(val);
+            }
+          } else {
+            entryObject[f.field_name] = val;
+          }
         }
       }
       // Convert priority index to label (null = no priority)

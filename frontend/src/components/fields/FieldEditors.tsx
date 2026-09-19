@@ -483,7 +483,13 @@ export function FileFieldEditor({
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !projectId || !entryId) return;
+    if (!file) return;
+    // If no entryId yet (creating new entry), store File object for later upload
+    if (!projectId || !entryId) {
+      onChange(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     setUploading(true);
     try {
       const result = await uploadAndFinalize(projectId, field.id || '', entryId, file);
@@ -496,6 +502,9 @@ export function FileFieldEditor({
     }
   };
 
+  // Check if value is a File object (selected during creation, not yet uploaded)
+  const selectedFile = value instanceof File ? value : null;
+
   return (
     <div className="field-editor">
       <label className="field-label">
@@ -506,6 +515,15 @@ export function FileFieldEditor({
         {attachmentId ? (
           <div className="field-file-preview">
             <span>File attached: {attachmentId.slice(0, 8)}...</span>
+            <button type="button" onClick={() => onChange(null)} disabled={disabled}>
+              Remove
+            </button>
+          </div>
+        ) : selectedFile ? (
+          <div className="field-file-preview">
+            <span>
+              {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+            </span>
             <button type="button" onClick={() => onChange(null)} disabled={disabled}>
               Remove
             </button>
@@ -524,7 +542,7 @@ export function FileFieldEditor({
               disabled={disabled || uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? 'Uploading...' : 'Upload File'}
+              {uploading ? 'Uploading...' : entryId ? 'Upload File' : 'Select File'}
             </button>
           </>
         )}
@@ -545,16 +563,35 @@ export function ImageFieldEditor({
 }: FieldEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const attachmentId =
     typeof value === 'object' && value !== null && 'attachmentId' in value
       ? (value as any).attachmentId
       : null;
+  const selectedFile = value instanceof File ? value : null;
+
+  // Update preview when selectedFile changes
+  React.useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedFile]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !projectId || !entryId) return;
+    if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
+      return;
+    }
+    // If no entryId yet (creating new entry), store File object for later upload
+    if (!projectId || !entryId) {
+      onChange(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     setUploading(true);
@@ -583,6 +620,17 @@ export function ImageFieldEditor({
               Remove
             </button>
           </div>
+        ) : previewUrl ? (
+          <div className="field-image-preview">
+            <img
+              src={previewUrl}
+              alt="Selected"
+              style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+            />
+            <button type="button" onClick={() => onChange(null)} disabled={disabled}>
+              Remove
+            </button>
+          </div>
         ) : (
           <>
             <input
@@ -598,7 +646,7 @@ export function ImageFieldEditor({
               disabled={disabled || uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? 'Uploading...' : 'Upload Image'}
+              {uploading ? 'Uploading...' : entryId ? 'Upload Image' : 'Select Image'}
             </button>
           </>
         )}
