@@ -1,6 +1,7 @@
 import { getSupabase } from '@/lib/supabase';
 
-const API_BASE = import.meta.env.VITE_PROJECT_SERVICE_URL || 'http://localhost:5003';
+const API_BASE =
+  import.meta.env.VITE_PROJECT_SERVICE_URL || 'https://project-service-96ml.onrender.com';
 
 export interface Template {
   id: string;
