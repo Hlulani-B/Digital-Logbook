@@ -34,6 +34,7 @@ import { DataDisclaimer } from '@/pages/DataDisclaimer';
 import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
 import { NotesPage } from '@/pages/NotesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
+import TrackerPage from '@/pages/TrackerPage';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -314,6 +315,14 @@ export function App() {
                   element={
                     <ProtectedRoute>
                       <NotificationsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tracker"
+                  element={
+                    <ProtectedRoute>
+                      <TrackerPage />
                     </ProtectedRoute>
                   }
                 />
