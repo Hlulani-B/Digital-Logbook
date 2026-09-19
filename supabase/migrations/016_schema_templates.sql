@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.schema_templates (
   version INTEGER NOT NULL DEFAULT 1,
   is_fork BOOLEAN NOT NULL DEFAULT false,
   forked_from UUID,
+  deleted BOOLEAN NOT NULL DEFAULT false,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT schema_templates_name_length CHECK (length(name) BETWEEN 1 AND 255),

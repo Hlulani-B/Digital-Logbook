@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { FieldDefinition } from '@/lib/fieldSchema';
+import { uploadAndFinalize } from '@/lib/attachmentApi';
 
 interface FieldEditorProps {
   field: FieldDefinition;
@@ -7,6 +8,8 @@ interface FieldEditorProps {
   onChange: (value: unknown) => void;
   error?: string;
   disabled?: boolean;
+  projectId?: number;
+  entryId?: string;
 }
 
 export function TextFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
@@ -336,11 +339,37 @@ export function CurrencyFieldEditor({ field, value, onChange, error, disabled }:
   );
 }
 
-export function FileFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+export function FileFieldEditor({
+  field,
+  value,
+  onChange,
+  error,
+  disabled,
+  projectId,
+  entryId,
+}: FieldEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = React.useState(false);
   const attachmentId =
     typeof value === 'object' && value !== null && 'attachmentId' in value
       ? (value as any).attachmentId
       : null;
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId || !entryId) return;
+    setUploading(true);
+    try {
+      const result = await uploadAndFinalize(projectId, field.id || '', entryId, file);
+      onChange({ attachmentId: result.attachmentId });
+    } catch (err) {
+      console.error('File upload failed:', err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="field-editor">
       <label className="field-label">
@@ -356,9 +385,22 @@ export function FileFieldEditor({ field, value, onChange, error, disabled }: Fie
             </button>
           </div>
         ) : (
-          <button type="button" disabled={disabled}>
-            Upload File
-          </button>
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+              disabled={disabled}
+            />
+            <button
+              type="button"
+              disabled={disabled || uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? 'Uploading...' : 'Upload File'}
+            </button>
+          </>
         )}
       </div>
       {error && <div className="field-error-message">{error}</div>}
@@ -366,11 +408,41 @@ export function FileFieldEditor({ field, value, onChange, error, disabled }: Fie
   );
 }
 
-export function ImageFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+export function ImageFieldEditor({
+  field,
+  value,
+  onChange,
+  error,
+  disabled,
+  projectId,
+  entryId,
+}: FieldEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = React.useState(false);
   const attachmentId =
     typeof value === 'object' && value !== null && 'attachmentId' in value
       ? (value as any).attachmentId
       : null;
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId || !entryId) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+    setUploading(true);
+    try {
+      const result = await uploadAndFinalize(projectId, field.id || '', entryId, file);
+      onChange({ attachmentId: result.attachmentId });
+    } catch (err) {
+      console.error('Image upload failed:', err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="field-editor">
       <label className="field-label">
@@ -386,9 +458,23 @@ export function ImageFieldEditor({ field, value, onChange, error, disabled }: Fi
             </button>
           </div>
         ) : (
-          <button type="button" disabled={disabled}>
-            Upload Image
-          </button>
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+              disabled={disabled}
+            />
+            <button
+              type="button"
+              disabled={disabled || uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? 'Uploading...' : 'Upload Image'}
+            </button>
+          </>
         )}
       </div>
       {error && <div className="field-error-message">{error}</div>}
