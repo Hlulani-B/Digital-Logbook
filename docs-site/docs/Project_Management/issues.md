@@ -716,3 +716,13 @@ The "New Project" modal squeezes the project columns row so the column name inpu
 **Fix:** Added `modal-card-wide` class (max-width: 560px) to the New Project modal, matching the width already used by the New Entry modal. This gives the name input ~296px of space.
 
 **Takeaway:** When a modal contains a multi-column grid of form controls, use `modal-card-wide` (560px) rather than the default `modal-card` (400px). The 400px width is suitable for simple two-field forms but not for rows with 3+ inline controls.
+
+### Issue 51: Notifications Deleted When Entries Marked Done & Dusted
+
+When a user marks an entry as "Done & Dusted", the `generate_due_notifications()` function deleted the associated notification rows. For a logbook, users want to keep the history of overdue notifications as a record of what was late.
+
+**Root cause:** Migration 013's generator included `e.status = 'done_and_dusted'` in the cleanup DELETE condition, removing notifications whenever an entry was completed.
+
+**Fix:** Migration 014 removes the `done_and_dusted` condition from the cleanup. Notifications now persist for completed entries. The cleanup still removes notifications for archived, deleted, or no-due-date entries. The overdue INSERT also no longer filters by status, so completed past-due entries continue to appear as overdue.
+
+**Takeaway:** In a logbook or audit-trail context, notifications serve as a historical record. Don't delete them when the underlying work item is completed — only clean up when the entry itself is removed (archived/deleted).
