@@ -62,9 +62,9 @@ describe('Auth + Cache Integration', () => {
       await clearUserCache(EMAIL);
 
       // 2. Verify all stores are empty
-      expect(await cacheGet(CACHE_STORES.PROJECTS, EMAIL)).toBeUndefined();
-      expect(await cacheGet(CACHE_STORES.ALL_ENTRIES, EMAIL)).toBeUndefined();
-      expect(await cacheGet(CACHE_STORES.PROFILE, EMAIL)).toBeUndefined();
+      expect(await cacheGet(CACHE_STORES.PROJECTS, EMAIL)).toBeNull();
+      expect(await cacheGet(CACHE_STORES.ALL_ENTRIES, EMAIL)).toBeNull();
+      expect(await cacheGet(CACHE_STORES.PROFILE, EMAIL)).toBeNull();
     });
 
     it('disconnects SSE on signOut', async () => {
@@ -85,8 +85,8 @@ describe('Auth + Cache Integration', () => {
       await mockRpc('delete_user');
 
       // Verify cache is cleared
-      expect(await cacheGet(CACHE_STORES.PROJECTS, EMAIL)).toBeUndefined();
-      expect(await cacheGet(CACHE_STORES.PROFILE, EMAIL)).toBeUndefined();
+      expect(await cacheGet(CACHE_STORES.PROJECTS, EMAIL)).toBeNull();
+      expect(await cacheGet(CACHE_STORES.PROFILE, EMAIL)).toBeNull();
       expect(mockDisconnectSSE).toHaveBeenCalled();
       expect(mockRpc).toHaveBeenCalledWith('delete_user');
     });

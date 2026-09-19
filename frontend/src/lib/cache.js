@@ -11,8 +11,15 @@
  */
 
 import initSqlJs from 'sql.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const DB_NAME = 'digital-logbook-sqlite';
+
+// Get __dirname equivalent for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const STORAGE_KEY = 'sqlitedb';
 
 // SQL tables that mirror Supabase schema (store data as JSON for compatibility)
@@ -131,8 +138,13 @@ async function getDB() {
     dbPromise = (async () => {
       // Initialize sql.js WASM
       if (!SQL) {
+        // Use absolute path for Node.js (tests), relative URL for browser
+        const isNode = typeof process !== 'undefined' && process.versions?.node;
         SQL = await initSqlJs({
-          locateFile: file => `/sql-wasm.wasm`
+          locateFile: (file) =>
+            isNode
+              ? path.resolve(__dirname, '../../node_modules/sql.js/dist/', file)
+              : `/sql-wasm.wasm`,
         });
       }
 
@@ -144,7 +156,7 @@ async function getDB() {
         db = new SQL.Database(new Uint8Array(buffer));
       } else {
         db = new SQL.Database();
-        
+
         // Create tables mirroring Supabase schema
         // Each table has a key (primary key) and data (JSON blob)
         const createTableSQL = `
@@ -202,19 +214,20 @@ export async function cacheSet(store, key, data) {
   try {
     const db = await getDB();
     // Wrap data with key if it doesn't have one
-    const record = typeof data === 'object' && data !== null && !Array.isArray(data)
-      ? { ...data, key }
-      : { key, data };
+    const record =
+      typeof data === 'object' && data !== null && !Array.isArray(data)
+        ? { ...data, key }
+        : { key, data };
     const jsonStr = JSON.stringify(record);
-    
+
     db.run(`INSERT OR REPLACE INTO ${store} (key, data) VALUES (?, ?)`, [key, jsonStr]);
-    
+
     // Update timestamp
     db.run(`INSERT OR REPLACE INTO cache_meta (key, timestamp) VALUES (?, ?)`, [key, Date.now()]);
-    
+
     // Persist to IndexedDB
     persistDB(db);
-    
+
     // Notify subscribers
     emitCacheChange(store, key, data);
   } catch (err) {
@@ -251,10 +264,10 @@ export async function cacheDelete(store, key) {
     const db = await getDB();
     db.run(`DELETE FROM ${store} WHERE key = ?`, [key]);
     db.run(`DELETE FROM cache_meta WHERE key = ?`, [key]);
-    
+
     // Persist to IndexedDB
     persistDB(db);
-    
+
     // Notify subscribers that data was cleared
     emitCacheChange(store, key, null);
   } catch (err) {
@@ -271,15 +284,23 @@ export async function cacheDelete(store, key) {
 export async function clearUserCache(email) {
   try {
     const db = await getDB();
-    const tables = ['projects', 'entries', 'all_entries', 'profile', 'search', 'archives', 'fields'];
+    const tables = [
+      'projects',
+      'entries',
+      'all_entries',
+      'profile',
+      'search',
+      'archives',
+      'fields',
+    ];
     for (const table of tables) {
       db.run(`DELETE FROM ${table} WHERE key = ?`, [email]);
     }
     db.run(`DELETE FROM cache_meta WHERE key = ?`, [email]);
-    
+
     // Persist to IndexedDB
     persistDB(db);
-    
+
     // Notify all subscribers for this user that data was cleared
     tables.forEach((store) => {
       emitCacheChange(store, email, null);

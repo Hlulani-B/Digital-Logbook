@@ -30,4 +30,4 @@ jobs:
         run: npm ci
 
       - name: Run integration tests
-        run: npx vitest run src/__integration__/ --testTimeout=15000 --teardownTimeout=15000
+        run: npx vitest run src/__integration__/ --exclude "**/node_modules/**" "**/dist/**" --testTimeout=15000 --teardownTimeout=15000
