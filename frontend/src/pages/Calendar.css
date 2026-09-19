@@ -187,6 +187,12 @@
   padding: 0.5rem;
   background: var(--card-bg, var(--bg-elevated));
   overflow: hidden;
+  outline: none;
+}
+
+.calendar-grid:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .calendar-grid--week {
@@ -233,6 +239,16 @@
   border-style: dashed;
   border-color: var(--accent);
   background: rgba(99, 102, 241, 0.08);
+  box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.calendar-day--touch-drop-target {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.3);
+  transform: scale(1.02);
+  transition: transform 0.15s ease;
 }
 
 .calendar-day--overdue:not(.calendar-day--today) {
@@ -291,11 +307,21 @@
   line-height: 1.25;
   transition:
     transform 0.1s,
-    box-shadow 0.1s;
+    box-shadow 0.1s,
+    opacity 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 
 .calendar-entry:active {
   cursor: grabbing;
+}
+
+.calendar-entry--dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .calendar-entry-title {

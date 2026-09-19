@@ -93,16 +93,39 @@ export function formatDayNumber(date: Date): number {
   return date.getDate();
 }
 
+/**
+ * Returns a date-only string (YYYY-MM-DD) for the given Date,
+ * using local time components. Safe for storage and comparison.
+ */
+export function toISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Parse a due_date string into a Date normalized to local midnight.
+ * Handles both "YYYY-MM-DD" and full ISO 8601 strings.
+ */
 export function parseDueDate(dueDate: string | null | undefined): Date | null {
   if (!dueDate) return null;
-  const d = new Date(dueDate);
-  return isNaN(d.getTime()) ? null : d;
+  // If it's a date-only string (YYYY-MM-DD), parse it directly as local date
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    const [y, m, d] = dueDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  // Full ISO string — extract date parts to avoid timezone shift
+  const dt = new Date(dueDate);
+  if (isNaN(dt.getTime())) return null;
+  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
 
 export function getEntriesForDay(entries: CalendarEntry[], day: Date): CalendarEntry[] {
+  const dayStart = stripTime(day);
   return entries.filter((entry) => {
     const due = parseDueDate(entry.due_date);
-    return due ? isSameDay(due, day) : false;
+    return due ? isSameDay(stripTime(due), dayStart) : false;
   });
 }
 
