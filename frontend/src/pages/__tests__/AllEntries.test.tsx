@@ -13,6 +13,7 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/lib/cache', () => ({
   cacheGet: vi.fn().mockResolvedValue({ data: [] }),
+  cacheSubscribe: vi.fn(() => () => {}),
   CACHE_STORES: {
     ALL_ENTRIES: 'all_entries',
     PROJECTS: 'projects',
@@ -85,7 +86,7 @@ describe('AllEntriesPage', () => {
   it('renders the Header with "My Entries" title', () => {
     renderPage();
     expect(screen.getByTestId('header')).toBeTruthy();
-    expect(screen.getByText('My Entries')).toBeTruthy();
+    expect(screen.getByText('My Items')).toBeTruthy();
   });
 
   it('renders the QuickEntryBar', () => {

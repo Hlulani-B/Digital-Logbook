@@ -18,12 +18,17 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/lib/cache', () => ({
   cacheGet: vi.fn().mockResolvedValue(null),
+  cacheSubscribe: vi.fn(() => () => {}),
   CACHE_STORES: { PROFILE: 'profile' },
 }));
 
 vi.mock('@/components/SettingsPanel', () => ({
   SettingsPanel: vi.fn(({ open, onClose }: any) =>
-    open ? <div data-testid="settings-panel"><button onClick={onClose}>Close</button></div> : null
+    open ? (
+      <div data-testid="settings-panel">
+        <button onClick={onClose}>Close</button>
+      </div>
+    ) : null
   ),
 }));
 

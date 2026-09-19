@@ -23,6 +23,7 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/lib/cache', () => ({
   cacheGet: vi.fn().mockResolvedValue(null),
+  cacheSubscribe: vi.fn(() => () => {}),
   CACHE_STORES: {
     PROJECTS: 'projects',
     ALL_ENTRIES: 'all_entries',
@@ -69,7 +70,7 @@ describe('NavBar', () => {
     fireEvent.click(screen.getByLabelText('Toggle menu'));
 
     expect(screen.getByText('Home')).toBeTruthy();
-    expect(screen.getByText('All Entries')).toBeTruthy();
+    expect(screen.getByText('All Items')).toBeTruthy();
     expect(screen.getByText('Archives')).toBeTruthy();
     expect(screen.getByText('My Stats')).toBeTruthy();
     expect(screen.getByText('Activity Log')).toBeTruthy();
@@ -118,7 +119,7 @@ describe('NavBar', () => {
   it('navigates to /entries when All Entries is clicked', () => {
     renderNavBar();
     fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('All Entries'));
+    fireEvent.click(screen.getByText('All Items'));
     expect(mockNavigate).toHaveBeenCalledWith('/entries');
   });
 
@@ -195,9 +196,7 @@ describe('NavBar', () => {
     // Click settings
     fireEvent.click(screen.getByText('Settings'));
 
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'open-settings' })
-    );
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'open-settings' }));
     dispatchSpy.mockRestore();
   });
 

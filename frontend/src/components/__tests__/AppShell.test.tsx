@@ -28,7 +28,9 @@ describe('AppShell', () => {
   it('renders children', () => {
     render(
       <MemoryRouter>
-        <AppShell><div data-testid="child">Hello</div></AppShell>
+        <AppShell>
+          <div data-testid="child">Hello</div>
+        </AppShell>
       </MemoryRouter>
     );
     expect(screen.getByTestId('child')).toBeTruthy();
@@ -38,7 +40,9 @@ describe('AppShell', () => {
   it('renders the navbar with Digital Logbook title', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     expect(screen.getByText('Digital Logbook')).toBeTruthy();
@@ -47,7 +51,9 @@ describe('AppShell', () => {
   it('renders the hamburger button', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     expect(screen.getByLabelText('Toggle menu')).toBeTruthy();
@@ -56,7 +62,9 @@ describe('AppShell', () => {
   it('opens drawer on hamburger click', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
@@ -66,12 +74,14 @@ describe('AppShell', () => {
   it('shows navigation items in the drawer', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
     expect(screen.getByText('Home')).toBeTruthy();
-    expect(screen.getByText('All Entries')).toBeTruthy();
+    expect(screen.getByText('All Items')).toBeTruthy();
     expect(screen.getByText('My Stats')).toBeTruthy();
     expect(screen.getByText('Kanban')).toBeTruthy();
     expect(screen.getByText('Today')).toBeTruthy();
@@ -82,7 +92,9 @@ describe('AppShell', () => {
   it('navigates to /dashboard when Home is clicked', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
@@ -93,18 +105,22 @@ describe('AppShell', () => {
   it('navigates to /entries when All Entries is clicked', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('All Entries'));
+    fireEvent.click(screen.getByText('All Items'));
     expect(mockNavigate).toHaveBeenCalledWith('/entries');
   });
 
   it('navigates to /calendar when Calendar is clicked', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
@@ -115,7 +131,9 @@ describe('AppShell', () => {
   it('navigates to /streaks when Streaks is clicked', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
@@ -126,7 +144,9 @@ describe('AppShell', () => {
   it('renders ProfileMenu', () => {
     render(
       <MemoryRouter>
-        <AppShell><div /></AppShell>
+        <AppShell>
+          <div />
+        </AppShell>
       </MemoryRouter>
     );
     // ProfileMenu renders an avatar button with aria-haspopup attribute
