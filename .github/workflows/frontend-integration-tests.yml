@@ -35,7 +35,7 @@ jobs:
         run: npm ci
 
       - name: Run integration tests with JUnit reporter
-        run: npx vitest run src/__integration__/ --reporter=default --reporter=junit --outputFile=test-results.xml --testTimeout=15000 --teardownTimeout=15000
+        run: npx vitest run src/__integration__/ --exclude "**/node_modules/**" "**/dist/**" --reporter=default --reporter=junit --outputFile=test-results.xml --testTimeout=15000 --teardownTimeout=15000
         env:
           CI: true
 
