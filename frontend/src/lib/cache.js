@@ -11,14 +11,8 @@
  */
 
 import initSqlJs from 'sql.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const DB_NAME = 'digital-logbook-sqlite';
-
-// Get __dirname equivalent for ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const STORAGE_KEY = 'sqlitedb';
 
@@ -140,11 +134,19 @@ async function getDB() {
       if (!SQL) {
         // Use absolute path for Node.js (tests), relative URL for browser
         const isNode = typeof process !== 'undefined' && process.versions?.node;
+        let wasmPath = '/sql-wasm.wasm';
+        if (isNode) {
+          // Resolve WASM path for Node.js (tests) — avoids bundling Node built-ins for browser
+          const { createRequire } = await import('module');
+          const require = createRequire(import.meta.url);
+          const nodePath = require('path');
+          const nodeUrl = require('url');
+          const filename = nodeUrl.fileURLToPath(import.meta.url);
+          const dirname = nodePath.dirname(filename);
+          wasmPath = nodePath.resolve(dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm');
+        }
         SQL = await initSqlJs({
-          locateFile: (file) =>
-            isNode
-              ? path.resolve(__dirname, '../../node_modules/sql.js/dist/', file)
-              : `/sql-wasm.wasm`,
+          locateFile: () => wasmPath,
         });
       }
 
