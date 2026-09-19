@@ -638,8 +638,8 @@ export function SignIn() {
           </div>
           <div className="split-video-overlay" />
           <div className="split-video-caption">
-            <img src="/notebook.jpeg" alt="Digital Logbook" className="split-caption-img" />
-            <h2>Digital Logbook</h2>
+            <img src="/logo.svg" alt="Logwise" className="split-caption-img" />
+            <h2>Logwise</h2>
             <p>Track your time, own your progress</p>
           </div>
         </div>
