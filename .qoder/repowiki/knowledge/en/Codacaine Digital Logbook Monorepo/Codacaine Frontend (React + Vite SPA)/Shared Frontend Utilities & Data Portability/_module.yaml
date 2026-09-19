@@ -1,0 +1,24 @@
+schema_version: 1
+module_path: frontend/shared_libs
+title: Shared Frontend Utilities & Data Portability
+scope:
+  - frontend/src/lib/api.ts
+  - frontend/src/lib/supabase.ts
+  - frontend/src/lib/export.ts
+  - frontend/src/lib/import.ts
+  - frontend/src/lib/kanban.ts
+  - frontend/src/lib/calendar.ts
+  - frontend/src/lib/timeline.ts
+  - frontend/src/lib/today.ts
+  - frontend/src/lib/validation.ts
+  - frontend/src/lib/recentlyCreated.ts
+  - frontend/src/lib/recentlyViewed.ts
+  - frontend/src/lib/entryPayload.ts
+  - frontend/src/lib/profileService.ts
+  - frontend/src/lib/projectColorMap.ts
+  - frontend/src/lib/tour.ts
+  - frontend/src/functions/ai.js
+  - frontend/src/functions/aiMessages.ts
+source_files: []
+depends_on: []
+related_to: []

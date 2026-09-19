@@ -1,0 +1,1 @@
+Defines the Digital Logbook's PostgreSQL schema, stored procedures, and idempotent migrations for Supabase, covering users, projects, entries, fields, activity logs, notes, health pings, AI cooldowns, and notifications.

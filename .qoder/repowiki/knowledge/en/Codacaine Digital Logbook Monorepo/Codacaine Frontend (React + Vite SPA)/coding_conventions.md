@@ -1,0 +1,6 @@
+- Page components live under `src/pages/` and are imported directly into the central `App.tsx` route table rather than lazy-loaded.
+- Public routes wrap their elements in `<PublicRoute>` while authenticated routes wrap in `<ProtectedRoute>` to enforce login gating uniformly.
+- Cross-cutting UI chrome (offline banner, sync toasts, notes overlay) is rendered once inside `App`'s provider tree instead of duplicated per page.
+- User-facing side effects that depend on auth state (e.g. initial IndexedDB sync, theme application) are implemented as small wrapper components/hooks mounted near the root.
+- Feature logic is split into pure helpers under `src/functions/<domain>/` (project, dashboard, profile, activity) and reused by multiple pages, keeping pages thin.
+- Tests mirror source layout with `__tests__/` folders colocated next to the module they cover and run via Vitest.

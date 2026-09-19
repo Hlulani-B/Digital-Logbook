@@ -19,13 +19,47 @@ import {
 
 export type { EntryPayload } from './entryPayload';
 
-export interface ExportedProject {
+export interface ProjectSchemaMetadata {
+  schema_revision?: number;
+  template?: Record<string, unknown> | null;
+  template_provenance?: Record<string, unknown> | null;
+  source_template_id?: string | null;
+  source_template_revision?: number | null;
+}
+
+export interface FieldSchemaMetadata {
+  id?: string;
+  is_unique?: boolean;
+  rules?: {
+    min?: number | string;
+    max?: number | string;
+    minLength?: number;
+    maxLength?: number;
+    pattern?: string;
+  };
+  has_default?: boolean;
+  default_value?: EntryPayload;
+  options?: { id: string; label: string; value?: string }[];
+  display_order?: number;
+}
+
+export interface AttachmentManifestItem {
+  entry_index: number;
+  project_name: string;
+  field_name: string;
+  field_id?: string;
+  path: string[];
+  attachment_id: string;
+  binary_included: false;
+}
+
+export interface ExportedProject extends ProjectSchemaMetadata {
   project_name: string;
   description: string;
   archived: boolean;
 }
 
-export interface ExportedField {
+export interface ExportedField extends FieldSchemaMetadata {
   table_name: string;
   field_name: string;
   data_type: string | null;
@@ -46,7 +80,8 @@ export interface ExportedEntry {
 }
 
 export interface ExportBundle {
-  version: 2;
+  version: 3;
+  attachments: AttachmentManifestItem[];
   exported_at: string;
   user_email: string;
   projects: ExportedProject[];
@@ -67,25 +102,128 @@ export interface RawEntryRow {
   archived?: boolean;
 }
 
-export interface RawProjectRow {
+export interface RawProjectRow extends ProjectSchemaMetadata {
   project_name?: string;
   description?: string;
   archived?: boolean;
 }
 
-export interface RawFieldRow {
+export interface RawFieldRow extends FieldSchemaMetadata {
   table_name?: string;
   field_name?: string;
   data_type?: string | null;
   is_required?: boolean;
 }
 
-function normaliseEntriesField(value: EntryPayload | undefined): EntryPayload {
-  return value === undefined ? null : value;
+function normaliseEntriesField(value: unknown): EntryPayload {
+  if (value === undefined) return null;
+  if (Array.isArray(value)) return value.map(normaliseEntriesField);
+  if (value && typeof value === 'object') {
+    // Attachment references are portable identities, never access credentials or binary data.
+    const record = value as Record<string, unknown>;
+    if (typeof record.attachmentId === 'string') return { attachmentId: record.attachmentId };
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normaliseEntriesField(item)])
+    );
+  }
+  return value as EntryPayload;
+}
+
+export function projectSchemaMetadata(project: ProjectSchemaMetadata): ProjectSchemaMetadata {
+  const result: ProjectSchemaMetadata = {};
+  for (const key of [
+    'schema_revision',
+    'source_template_id',
+    'source_template_revision',
+  ] as const) {
+    if (Object.prototype.hasOwnProperty.call(project, key))
+      Object.assign(result, { [key]: project[key] });
+  }
+  for (const key of ['template', 'template_provenance'] as const) {
+    const value = project[key];
+    if (value === null) result[key] = null;
+    else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = Object.fromEntries(
+        [
+          'id',
+          'name',
+          'revision',
+          'version',
+          'source',
+          'kind',
+          'template_id',
+          'template_revision',
+          'source_template_id',
+          'source_template_revision',
+        ]
+          .filter((name) => Object.prototype.hasOwnProperty.call(value, name))
+          .map((name) => [name, value[name]])
+      );
+    }
+  }
+  return result;
+}
+
+export function fieldSchemaMetadata(field: FieldSchemaMetadata): FieldSchemaMetadata {
+  const result: FieldSchemaMetadata = {};
+  for (const key of ['id', 'is_unique', 'has_default', 'default_value', 'display_order'] as const) {
+    if (Object.prototype.hasOwnProperty.call(field, key))
+      Object.assign(result, { [key]: field[key] });
+  }
+  if (field.rules)
+    result.rules = Object.fromEntries(
+      ['min', 'max', 'minLength', 'maxLength', 'pattern']
+        .filter((key) => Object.prototype.hasOwnProperty.call(field.rules!, key))
+        .map((key) => [key, field.rules![key as keyof typeof field.rules]])
+    );
+  if (Array.isArray(field.options))
+    result.options = field.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      ...(Object.prototype.hasOwnProperty.call(option, 'value') ? { value: option.value } : {}),
+    }));
+  return result;
+}
+
+export function attachmentKey(item: Pick<AttachmentManifestItem, 'entry_index' | 'path'>): string {
+  return JSON.stringify([item.entry_index, item.path]);
+}
+
+export function buildAttachmentManifest(
+  entries: ExportedEntry[],
+  fields: ExportedField[] = []
+): AttachmentManifestItem[] {
+  const manifest: AttachmentManifestItem[] = [];
+  entries.forEach((entry, entry_index) => {
+    const visit = (value: unknown, path: string[]) => {
+      if (!value || typeof value !== 'object') return;
+      const record = value as Record<string, unknown>;
+      if (!Array.isArray(value) && typeof record.attachmentId === 'string') {
+        const field = fields.find(
+          (candidate) =>
+            candidate.table_name === entry.project_name && candidate.field_name === path[0]
+        );
+        manifest.push({
+          entry_index,
+          project_name: entry.project_name,
+          field_name: path[0] ?? '',
+          ...(field?.id ? { field_id: field.id } : {}),
+          path,
+          attachment_id: record.attachmentId,
+          binary_included: false,
+        });
+        return;
+      }
+      Object.entries(value).forEach(([key, item]) => visit(item, [...path, key]));
+    };
+    visit(entry.entries, []);
+  });
+  return manifest;
 }
 
 export function normaliseProjects(projects: RawProjectRow[]): ExportedProject[] {
   return projects.map((project) => ({
+    ...projectSchemaMetadata(project),
     project_name: project.project_name ?? '',
     description: project.description ?? '',
     archived: project.archived === true,
@@ -94,6 +232,7 @@ export function normaliseProjects(projects: RawProjectRow[]): ExportedProject[] 
 
 export function normaliseFields(fields: RawFieldRow[]): ExportedField[] {
   return fields.map((field) => ({
+    ...fieldSchemaMetadata(field),
     table_name: field.table_name ?? '',
     field_name: field.field_name ?? '',
     data_type: field.data_type ?? null,
@@ -122,13 +261,16 @@ export function buildExportBundle(
   entries: RawEntryRow[],
   fields: RawFieldRow[] = []
 ): ExportBundle {
+  const normalizedEntries = normaliseEntries(entries);
+  const normalizedFields = normaliseFields(fields);
   return {
-    version: 2,
+    version: 3,
+    attachments: buildAttachmentManifest(normalizedEntries, normalizedFields),
     exported_at: new Date().toISOString(),
     user_email: userEmail,
     projects: normaliseProjects(projects),
-    fields: normaliseFields(fields),
-    entries: normaliseEntries(entries),
+    fields: normalizedFields,
+    entries: normalizedEntries,
   };
 }
 

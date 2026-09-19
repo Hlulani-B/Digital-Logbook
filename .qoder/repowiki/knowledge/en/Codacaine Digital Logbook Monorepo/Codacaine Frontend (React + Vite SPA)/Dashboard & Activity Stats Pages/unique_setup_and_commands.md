@@ -1,0 +1,1 @@
+Voice transcription requires a browser that implements the Web Speech API (Chrome/Edge/Safari); calling `createTranscriber()` or `getTranscript()` will throw if unsupported. Tone preference must be written to localStorage key `dl_tone` for AI greeting/message generation to take effect.

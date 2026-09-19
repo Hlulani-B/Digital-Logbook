@@ -1,0 +1,1 @@
+`npm run dev` starts the Vite dev server; `npm run build` runs `tsc -b` then `vite build`; `npm run test` / `test:watch` / `test:coverage` drive Vitest across unit and integration tests; `npm run format` / `format:check` use Prettier.

@@ -1,0 +1,339 @@
+.field-editor {
+  margin-bottom: 1rem;
+}
+
+.field-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary, #1f2937);
+}
+
+.field-required {
+  color: #ef4444;
+  margin-left: 0.25rem;
+}
+
+.field-input,
+.field-textarea,
+.field-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1f2937);
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease;
+}
+
+.field-input:focus,
+.field-textarea:focus,
+.field-select:focus {
+  outline: none;
+  border-color: var(--accent-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.field-input:disabled,
+.field-textarea:disabled,
+.field-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field-textarea {
+  resize: vertical;
+  font-family: inherit;
+  min-height: 100px;
+}
+
+.field-error {
+  border-color: #ef4444;
+}
+
+.field-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.field-error-message {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-checkbox input[type='checkbox'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+.field-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.field-checkbox-item input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.field-geolocation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-geolocation-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-geolocation-row label {
+  min-width: 80px;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.field-geolocation-row input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1f2937);
+}
+
+.field-currency {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.field-currency-amount {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1f2937);
+}
+
+.field-currency-code {
+  width: 100px;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1f2937);
+}
+
+.field-file,
+.field-image {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-file button,
+.field-image button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1f2937);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.field-file button:hover,
+.field-image button:hover {
+  background: var(--bg-secondary, #f3f4f6);
+}
+
+.field-file button:disabled,
+.field-image button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field-file-preview,
+.field-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 0.375rem;
+}
+
+.field-file-preview span,
+.field-image-preview span {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.field-file-preview button,
+.field-image-preview button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: none;
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.field-file-preview button:hover,
+.field-image-preview button:hover {
+  background: #dc2626;
+}
+
+.field-entity-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-entity-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-entity-link-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 0.375rem;
+}
+
+.field-entity-link-item span {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.field-entity-link-item button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: none;
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.field-entity-link button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1f2937);
+  cursor: pointer;
+}
+
+.cf-markdown {
+  line-height: 1.6;
+  color: var(--text-primary, #1f2937);
+}
+
+.cf-markdown h1,
+.cf-markdown h2,
+.cf-markdown h3,
+.cf-markdown h4,
+.cf-markdown h5,
+.cf-markdown h6 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.cf-markdown p {
+  margin-bottom: 0.75rem;
+}
+
+.cf-markdown ul,
+.cf-markdown ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.cf-markdown li {
+  margin-bottom: 0.25rem;
+}
+
+.cf-markdown code {
+  padding: 0.125rem 0.25rem;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 0.25rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.875em;
+}
+
+.cf-markdown pre {
+  padding: 0.75rem;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+}
+
+.cf-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.cf-markdown blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid var(--border-color, #d1d5db);
+  margin-left: 0;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.cf-markdown a {
+  color: var(--accent-color, #3b82f6);
+  text-decoration: none;
+}
+
+.cf-markdown a:hover {
+  text-decoration: underline;
+}
+
+.cf-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+}
+
+.cf-markdown th,
+.cf-markdown td {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  text-align: left;
+}
+
+.cf-markdown th {
+  background: var(--bg-secondary, #f3f4f6);
+  font-weight: 600;
+}

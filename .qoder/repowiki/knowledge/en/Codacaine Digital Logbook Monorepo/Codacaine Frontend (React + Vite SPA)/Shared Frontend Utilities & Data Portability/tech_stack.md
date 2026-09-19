@@ -1,0 +1,1 @@
+Supabase JS client (`@supabase/supabase-js`) for DB/auth access; `driver.js` for the interactive getting-started tour; browser `fetch` with `AbortController`-based timeouts for service calls; `SpeechSynthesis` API for voice-guided tour narration.

@@ -1,0 +1,136 @@
+.template-picker {
+  background: var(--bg-primary, #ffffff);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color, #d1d5db);
+}
+
+.template-picker-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.template-picker-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary, #6b7280);
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+}
+
+.template-picker-close:hover {
+  background: var(--bg-secondary, #f3f4f6);
+}
+
+.template-picker-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color, #d1d5db);
+}
+
+.template-picker-tab {
+  flex: 1;
+  padding: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.template-picker-tab:hover {
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #1f2937);
+}
+
+.template-picker-tab.active {
+  color: var(--accent-color, #3b82f6);
+  border-bottom-color: var(--accent-color, #3b82f6);
+}
+
+.template-picker-loading,
+.template-picker-error,
+.template-picker-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary, #6b7280);
+}
+
+.template-picker-error {
+  color: #ef4444;
+}
+
+.template-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.template-picker-item {
+  padding: 1rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.375rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.template-picker-item:hover {
+  border-color: var(--accent-color, #3b82f6);
+  background: var(--bg-secondary, #f3f4f6);
+}
+
+.template-picker-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.template-picker-item-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.template-picker-fork {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--accent-color, #3b82f6);
+  color: #ffffff;
+  border-radius: 0.25rem;
+}
+
+.template-picker-description {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.4;
+}
+
+.template-picker-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #9ca3af);
+}

@@ -1,0 +1,1 @@
+`setup.sql` is designed to be pasted into the Supabase Dashboard SQL Editor as a single execution. Migration 000 documents being run via `npm run db:migrate` from the repo root. Each migration self-registers its pg_cron job by first unscheduling any existing job with the same name before rescheduling.

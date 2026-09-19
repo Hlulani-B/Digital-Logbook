@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: frontend/auth_profile
+title: Authentication & Profile Onboarding Pages
+scope:
+  - frontend/src/pages/AuthCallback.tsx
+  - frontend/src/pages/CreateProfile.tsx
+  - frontend/src/pages/SignIn.tsx
+source_files: []
+depends_on: []
+related_to:
+  - path: frontend/projects_entries
