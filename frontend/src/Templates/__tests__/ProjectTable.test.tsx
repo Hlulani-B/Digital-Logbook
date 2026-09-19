@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ProjectTaskTable from '../ProjectTemplates/ProjectTable';
+import { NotesProvider } from '@/context/NotesContext';
 
 const mockOnUpdate = vi.fn();
 
@@ -42,26 +43,34 @@ describe('ProjectTaskTable', () => {
     vi.clearAllMocks();
   });
 
+  function renderTable(rows: any[]) {
+    return render(
+      <NotesProvider>
+        <ProjectTaskTable rows={rows} onUpdate={mockOnUpdate} />
+      </NotesProvider>
+    );
+  }
+
   it('renders without crashing with empty rows', () => {
-    render(<ProjectTaskTable rows={[]} onUpdate={mockOnUpdate} />);
+    renderTable([]);
     expect(document.body).toBeTruthy();
   });
 
   it('renders all entry summaries', () => {
-    render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
+    renderTable(sampleRows);
     expect(screen.getByText('Build feature X')).toBeTruthy();
     expect(screen.getByText('Fix bug Y')).toBeTruthy();
     expect(screen.getByText('Write docs')).toBeTruthy();
   });
 
   it('renders project names', () => {
-    render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
+    renderTable(sampleRows);
     expect(screen.getByText('Alpha')).toBeTruthy();
     expect(screen.getByText('Beta')).toBeTruthy();
   });
 
   it('renders status labels as select options', () => {
-    render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
+    renderTable(sampleRows);
     // Statuses are rendered as <select> options
     const statusSelects = document.querySelectorAll('.ptt-select-status');
     expect(statusSelects.length).toBeGreaterThanOrEqual(1);
@@ -73,7 +82,7 @@ describe('ProjectTaskTable', () => {
   });
 
   it('renders priority labels as select options', () => {
-    render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
+    renderTable(sampleRows);
     // Priorities are rendered as <select> options
     const prioritySelects = document.querySelectorAll('.ptt-select-priority');
     expect(prioritySelects.length).toBeGreaterThanOrEqual(1);
@@ -89,12 +98,12 @@ describe('ProjectTaskTable', () => {
       ...sampleRows,
       { ...sampleRows[0], id: 'deleted-1', summary: 'Deleted task', deleted: true },
     ];
-    render(<ProjectTaskTable rows={withDeleted} onUpdate={mockOnUpdate} />);
+    renderTable(withDeleted);
     expect(screen.queryByText('Deleted task')).toBeNull();
   });
 
   it('renders due dates formatted', () => {
-    render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
+    renderTable(sampleRows);
     const dateElements = screen.getAllByText(/Sep/);
     expect(dateElements.length).toBe(3);
     // All three entries should have date cells
@@ -103,7 +112,7 @@ describe('ProjectTaskTable', () => {
   });
 
   it('groups entries by project', () => {
-    render(<ProjectTaskTable rows={sampleRows} onUpdate={mockOnUpdate} />);
+    renderTable(sampleRows);
     const alphaLabels = screen.getAllByText('Alpha');
     expect(alphaLabels.length).toBeGreaterThanOrEqual(1);
   });
@@ -124,7 +133,7 @@ describe('ProjectTaskTable', () => {
       },
     ];
 
-    render(<ProjectTaskTable rows={historicalRows} onUpdate={mockOnUpdate} />);
+    renderTable(historicalRows);
 
     expect(screen.getByText('Legacy content')).toBeTruthy();
     const legacyValue = screen.getByText('Original plain-text entry');

@@ -133,7 +133,7 @@ describe('Migration files', () => {
     const migration = readFileSync(
       join(
         MIGRATIONS_DIR,
-        files.find((f) => f.startsWith('008_'))!
+        files.find((f) => f.startsWith('008_') && f.includes('field_stats'))!
       ),
       'utf-8'
     );

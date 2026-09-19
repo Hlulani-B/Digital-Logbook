@@ -41,7 +41,8 @@ vi.mock('@/functions/project/fields', () => ({
 
 vi.mock('@/lib/cache', () => ({
   cacheGet: vi.fn().mockResolvedValue({ data: [] }),
-  CACHE_STORES: { ALL_ENTRIES: 'all-entries', PROJECTS: 'projects' },
+  cacheSubscribe: vi.fn(() => () => {}),
+  CACHE_STORES: { ALL_ENTRIES: 'all_entries', PROJECTS: 'projects' },
 }));
 
 vi.mock('@/components/NavBar', () => ({
