@@ -1641,3 +1641,81 @@ Respond with ONLY this JSON, nothing else:`;
     }
   }
 }
+
+/**
+ * Get project progress metrics for a user.
+ * Returns completion %, overdue count, upcoming deadlines, and recent activity.
+ */
+export async function getProjectProgress(user_email) {
+  try {
+    // Get all projects for the user
+    const { rows: projects } = await pool.query(
+      `SELECT project_name, project_status FROM projects WHERE user_email = $1 AND deleted = false`,
+      [user_email]
+    );
+
+    const progressData = [];
+
+    for (const project of projects) {
+      const { project_name, project_status } = project;
+
+      // Get total entries and completed entries
+      const { rows: entryStats } = await pool.query(
+        `SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+          COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue,
+          COUNT(CASE WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE AND status != 'completed' THEN 1 END) as past_due
+        FROM entries 
+        WHERE user_email = $1 AND project_name = $2 AND deleted = false`,
+        [user_email, project_name]
+      );
+
+      const { total, completed, overdue, past_due } = entryStats[0];
+      const completionPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      // Get upcoming deadlines (next 7 days)
+      const { rows: upcomingDeadlines } = await pool.query(
+        `SELECT id, summary, due_date, status, priority
+        FROM entries 
+        WHERE user_email = $1 
+          AND project_name = $2 
+          AND deleted = false
+          AND due_date IS NOT NULL
+          AND due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+          AND status != 'completed'
+        ORDER BY due_date ASC
+        LIMIT 5`,
+        [user_email, project_name]
+      );
+
+      // Get recent activity (last 5 entries)
+      const { rows: recentActivity } = await pool.query(
+        `SELECT id, summary, status, created_at, due_date
+        FROM entries 
+        WHERE user_email = $1 
+          AND project_name = $2 
+          AND deleted = false
+        ORDER BY created_at DESC
+        LIMIT 5`,
+        [user_email, project_name]
+      );
+
+      progressData.push({
+        project_name,
+        project_status,
+        total_entries: parseInt(total),
+        completed_entries: parseInt(completed),
+        overdue_entries: parseInt(past_due),
+        completion_percentage: completionPercentage,
+        upcoming_deadlines: upcomingDeadlines,
+        recent_activity: recentActivity,
+      });
+    }
+
+    return { success: true, data: progressData };
+  } catch (error) {
+    console.log('[getProjectProgress] FAILED:', error.message);
+    return { success: false, message: error.message };
+  }
+}

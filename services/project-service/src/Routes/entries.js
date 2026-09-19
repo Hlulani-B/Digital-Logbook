@@ -1,5 +1,5 @@
 import express from 'express';
-import { Entries, Natural_language } from '../functions/entries.js';
+import { Entries, Natural_language, getProjectProgress } from '../functions/entries.js';
 import { logActivity } from '../functions/activityLog.js';
 import { registerConnection, removeConnection, sendToUser } from '../functions/sseRegistry.js';
 
@@ -352,6 +352,22 @@ router.post('/natural-language-entry', async (req, res) => {
         error: error.message,
       });
     }
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get project progress metrics
+router.get('/progress', async (req, res) => {
+  try {
+    const user_email = req.userEmail;
+    if (!user_email) {
+      return res.status(401).json({ error: 'Unauthorized: verified email not available' });
+    }
+
+    const result = await getProjectProgress(user_email);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error in /progress:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });
