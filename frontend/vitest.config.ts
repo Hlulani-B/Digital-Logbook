@@ -13,12 +13,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      'src/__integration__/**',
-      '**/*.integration.{test,spec}.?(c|m)[jt]s?(x)',
-    ],
+    exclude: ['**/node_modules/**', '**/dist/**'],
     testTimeout: 15000,
     hookTimeout: 15000,
     coverage: {

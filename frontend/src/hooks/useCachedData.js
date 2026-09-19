@@ -1,15 +1,15 @@
 /**
  * useCachedData — React hook for IndexedDB-first data loading.
- * 
+ *
  * Usage:
  *   const data = useCachedData(CACHE_STORES.PROJECTS, email, fetchFn);
- * 
+ *
  * Behavior:
  * 1. Reads from IndexedDB immediately (no loading state)
  * 2. Subscribes to cache changes — re-renders when cache updates
  * 3. Calls fetchFn in background to refresh data from server
  * 4. fetchFn should write to IndexedDB via cacheSet, which triggers re-render
- * 
+ *
  * @param {string} store - Cache store name (from CACHE_STORES)
  * @param {string} key - Cache key
  * @param {Function} fetchFn - Optional async function to fetch fresh data from server
@@ -87,7 +87,7 @@ export function useCachedProjects(email, fetchFn) {
  */
 export function useCachedEntries(email, projectName, fetchFn) {
   const key = projectName ? `${email}:${projectName}` : email;
-  const store = projectName ? 'entries' : 'all-entries';
+  const store = projectName ? 'entries' : 'all_entries';
   return useCachedData(store, key, fetchFn, [email, projectName]);
 }
 
