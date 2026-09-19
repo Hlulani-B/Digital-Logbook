@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
-import { Logo } from '@/components/Logo';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -62,7 +61,7 @@ export function AppShell({ children }: AppShellProps) {
               onClick={() => navigate('/dashboard')}
               aria-label="Go to dashboard"
             >
-              <Logo size={20} showText={true} />
+              Digital Logbook
             </button>
           </div>
 

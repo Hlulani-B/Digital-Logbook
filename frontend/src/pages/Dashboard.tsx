@@ -9,7 +9,6 @@ import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ActivitySummary } from '@/components/ActivitySummary';
-import { Logo } from '@/components/Logo';
 import { addProject } from '@/functions/project/project.js';
 import { addField } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
@@ -1013,7 +1012,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               onClick={() => navigate('/dashboard')}
               aria-label="Go to dashboard"
             >
-              <Logo size={20} showText={true} />
+              Digital Logbook
             </button>
           </div>
 
