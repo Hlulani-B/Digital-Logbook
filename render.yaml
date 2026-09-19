@@ -15,6 +15,14 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
+      - key: VITE_PROJECT_SERVICE_URL
+        sync: false
+      - key: VITE_AUTH_SERVICE_URL
+        sync: false
+      - key: VITE_DASHBOARD_SERVICE_URL
+        sync: false
+      - key: VITE_PROFILE_SERVICE_URL
+        sync: false
 
   - type: web
     name: auth-service
