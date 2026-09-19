@@ -706,3 +706,13 @@ When applying migration 011, the `SELECT cron.schedule(...)` and `SELECT cron.un
 **Fix:** Skip the two `cron.*` lines when applying the migration. Notifications still work — the bell's `getNotifications()` call triggers an opportunistic email flush via `sendPendingEmails()`, so emails go out within a poll interval of any active session. To enable the hourly backup trigger later, go to **Supabase Dashboard → Database → Extensions**, enable `pg_cron`, then run `SELECT cron.schedule('due-notification-cycle', '7 * * * *', 'SELECT public.run_due_notification_cycle();');`.
 
 **Takeaway:** When a migration uses multiple optional extensions (pg_net, pg_cron), guard each one independently — a `DO` block or `IF EXISTS` check per extension — so the migration succeeds even when some extensions are unavailable. The core functionality should degrade gracefully rather than failing the entire migration.
+
+### Issue 50: New Project Modal Too Narrow for Project Columns Grid
+
+The "New Project" modal squeezes the project columns row so the column name input is truncated to show only "Cc".
+
+**Root cause:** The New Project modal used `modal-card` (max-width: 400px) while the project fields row uses a 4-column CSS grid (`1fr auto auto auto` for name + type dropdown + required checkbox + remove button). At 400px, after accounting for modal padding (3rem), gaps (1.5rem), and the three fixed-width controls (~192px), the name input gets only ~136px — far too narrow for a text input.
+
+**Fix:** Added `modal-card-wide` class (max-width: 560px) to the New Project modal, matching the width already used by the New Entry modal. This gives the name input ~296px of space.
+
+**Takeaway:** When a modal contains a multi-column grid of form controls, use `modal-card-wide` (560px) rather than the default `modal-card` (400px). The 400px width is suitable for simple two-field forms but not for rows with 3+ inline controls.
