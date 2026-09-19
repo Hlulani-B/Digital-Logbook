@@ -11,7 +11,9 @@ import {
   supportsUnique,
 } from './fieldSchema';
 import type { FieldDefinition, FieldError } from './fieldSchema';
+import type { AlertLevel } from './fieldVisibility';
 export type { FieldError } from './fieldSchema';
+export type { AlertLevel } from './fieldVisibility';
 
 export const MAX_PATTERN_LENGTH = 512;
 export const MAX_PATTERN_INPUT_LENGTH = 65_536;
@@ -298,6 +300,32 @@ export function validateFieldDefinitions(input: unknown): {
         optionIds.add(option.id);
         values.add(persisted);
       }
+      // Dynamic Taxonomy: Validate parent_id references
+      for (const option of field.options) {
+        if (option.parent_id !== undefined) {
+          if (typeof option.parent_id !== 'string' || !option.parent_id.trim()) {
+            fail('options', 'parent_id must be a nonempty string.');
+          } else if (!optionIds.has(option.parent_id)) {
+            fail('options', `parent_id "${option.parent_id}" does not reference a valid option.`);
+          } else if (option.parent_id === option.id) {
+            fail('options', 'Option cannot be its own parent.');
+          }
+        }
+      }
+      // Check for circular parent references
+      const optionMap = new Map(field.options.map((o) => [o.id, o]));
+      for (const option of field.options) {
+        const visited = new Set<string>();
+        let current: string | undefined = option.parent_id;
+        while (current) {
+          if (visited.has(current)) {
+            fail('options', `Circular parent reference detected involving "${current}".`);
+            break;
+          }
+          visited.add(current);
+          current = optionMap.get(current)?.parent_id;
+        }
+      }
     }
     const rules = field.rules;
     for (const key of ['minLength', 'maxLength'] as const) {
@@ -357,6 +385,59 @@ export function validateFieldDefinitions(input: unknown): {
         if (!checked.errors.length) field.default_value = checked.value;
       }
     }
+    // Visibility Triggers: Validate visibility rules
+    if (field.visibility) {
+      if (!isRecord(field.visibility)) {
+        fail('visibility', 'Visibility must be an object.');
+      } else {
+        if (!Array.isArray(field.visibility.rules)) {
+          fail('visibility', 'Visibility rules must be an array.');
+        } else {
+          const validOperators = [
+            'eq',
+            'neq',
+            'in',
+            'not_in',
+            'exists',
+            'not_exists',
+            'gt',
+            'lt',
+            'gte',
+            'lte',
+          ];
+          for (const rule of field.visibility.rules) {
+            if (!isRecord(rule)) {
+              fail('visibility', 'Each visibility rule must be an object.');
+            } else {
+              if (typeof rule.field !== 'string' || !rule.field.trim()) {
+                fail('visibility', 'Visibility rule must specify a field name.');
+              }
+              if (typeof rule.operator !== 'string' || !validOperators.includes(rule.operator)) {
+                fail('visibility', `Invalid visibility operator: ${rule.operator}`);
+              }
+              // exists/not_exists don't require a value
+              if (
+                rule.operator !== 'exists' &&
+                rule.operator !== 'not_exists' &&
+                rule.value === undefined
+              ) {
+                fail(
+                  'visibility',
+                  `Visibility rule with operator "${rule.operator}" requires a value.`
+                );
+              }
+            }
+          }
+        }
+        if (
+          field.visibility.logic !== undefined &&
+          field.visibility.logic !== 'and' &&
+          field.visibility.logic !== 'or'
+        ) {
+          fail('visibility', 'Visibility logic must be "and" or "or".');
+        }
+      }
+    }
   });
   return { valid: errors.length === 0, fields, errors };
 }
@@ -409,4 +490,102 @@ export function canonicalUniqueValue(input: unknown, value: unknown): string | n
   if (field.data_type === 'currency' && isRecord(checked.value))
     return JSON.stringify([checked.value.currency, normalizeDecimal(checked.value.amount)]);
   return JSON.stringify(checked.value);
+}
+
+/**
+ * Check if a value breaches warning or alert thresholds.
+ * Returns the alert level and an optional message.
+ */
+export function checkThresholds(
+  field: FieldDefinition,
+  value: unknown
+): { level: AlertLevel; message?: string } {
+  const rules = field.rules;
+  if (!rules) return { level: 'ok' };
+
+  // Only apply to numeric, currency, date, and timestamp fields
+  const isThresholdType =
+    isNumericField(field.data_type) ||
+    field.data_type === 'currency' ||
+    field.data_type === 'date' ||
+    field.data_type === 'timestamp';
+
+  if (!isThresholdType || isEmptyFieldValue(value)) {
+    return { level: 'ok' };
+  }
+
+  let numericValue: number | null = null;
+
+  if (isNumericField(field.data_type) && typeof value === 'number') {
+    numericValue = value;
+  } else if (
+    field.data_type === 'currency' &&
+    isRecord(value) &&
+    typeof value.amount === 'string'
+  ) {
+    const normalized = normalizeDecimal(value.amount);
+    if (normalized !== null) {
+      numericValue = parseFloat(normalized);
+    }
+  } else if (field.data_type === 'date' && typeof value === 'string') {
+    numericValue = Date.parse(value);
+  } else if (field.data_type === 'timestamp' && typeof value === 'string') {
+    numericValue = Date.parse(value);
+  }
+
+  if (numericValue === null || !Number.isFinite(numericValue)) {
+    return { level: 'ok' };
+  }
+
+  // Check alert thresholds first (more severe)
+  if (rules.alert_min !== undefined) {
+    const alertMin =
+      field.data_type === 'currency' && typeof rules.alert_min === 'string'
+        ? parseFloat(normalizeDecimal(rules.alert_min) ?? '0')
+        : field.data_type === 'date' || field.data_type === 'timestamp'
+          ? Date.parse(String(rules.alert_min))
+          : Number(rules.alert_min);
+    if (Number.isFinite(alertMin) && numericValue < alertMin) {
+      return { level: 'alert', message: `Value is below alert minimum (${rules.alert_min})` };
+    }
+  }
+
+  if (rules.alert_max !== undefined) {
+    const alertMax =
+      field.data_type === 'currency' && typeof rules.alert_max === 'string'
+        ? parseFloat(normalizeDecimal(rules.alert_max) ?? '0')
+        : field.data_type === 'date' || field.data_type === 'timestamp'
+          ? Date.parse(String(rules.alert_max))
+          : Number(rules.alert_max);
+    if (Number.isFinite(alertMax) && numericValue > alertMax) {
+      return { level: 'alert', message: `Value exceeds alert maximum (${rules.alert_max})` };
+    }
+  }
+
+  // Check warning thresholds
+  if (rules.warn_min !== undefined) {
+    const warnMin =
+      field.data_type === 'currency' && typeof rules.warn_min === 'string'
+        ? parseFloat(normalizeDecimal(rules.warn_min) ?? '0')
+        : field.data_type === 'date' || field.data_type === 'timestamp'
+          ? Date.parse(String(rules.warn_min))
+          : Number(rules.warn_min);
+    if (Number.isFinite(warnMin) && numericValue < warnMin) {
+      return { level: 'warning', message: `Value is below warning minimum (${rules.warn_min})` };
+    }
+  }
+
+  if (rules.warn_max !== undefined) {
+    const warnMax =
+      field.data_type === 'currency' && typeof rules.warn_max === 'string'
+        ? parseFloat(normalizeDecimal(rules.warn_max) ?? '0')
+        : field.data_type === 'date' || field.data_type === 'timestamp'
+          ? Date.parse(String(rules.warn_max))
+          : Number(rules.warn_max);
+    if (Number.isFinite(warnMax) && numericValue > warnMax) {
+      return { level: 'warning', message: `Value exceeds warning maximum (${rules.warn_max})` };
+    }
+  }
+
+  return { level: 'ok' };
 }

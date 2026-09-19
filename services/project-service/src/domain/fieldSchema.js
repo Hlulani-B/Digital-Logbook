@@ -64,11 +64,23 @@ export function normalizeField(input = {}, index = 0) {
                 id: option.id,
                 label: option.label,
                 ...(option.value !== undefined ? { value: option.value } : {}),
+                ...(option.parent_id !== undefined ? { parent_id: option.parent_id } : {}),
               }
             : option
         )
       : options,
     display_order: source.display_order ?? index,
+    // Visibility Triggers
+    ...(isRecord(source.visibility)
+      ? {
+          visibility: {
+            rules: Array.isArray(source.visibility.rules) ? source.visibility.rules : [],
+            ...(typeof source.visibility.logic === 'string'
+              ? { logic: source.visibility.logic }
+              : {}),
+          },
+        }
+      : {}),
   };
   if (field.has_default) field.default_value = source.default_value;
   return field;
@@ -329,6 +341,32 @@ export function validateFieldDefinitions(input) {
         optionIds.add(option.id);
         values.add(option.value ?? option.label);
       }
+      // Dynamic Taxonomy: Validate parent_id references
+      for (const option of field.options) {
+        if (option.parent_id !== undefined) {
+          if (typeof option.parent_id !== 'string' || !option.parent_id.trim()) {
+            fail('options', 'parent_id must be a nonempty string.');
+          } else if (!optionIds.has(option.parent_id)) {
+            fail('options', `parent_id "${option.parent_id}" does not reference a valid option.`);
+          } else if (option.parent_id === option.id) {
+            fail('options', 'Option cannot be its own parent.');
+          }
+        }
+      }
+      // Check for circular parent references
+      const optionMap = new Map(field.options.map((o) => [o.id, o]));
+      for (const option of field.options) {
+        const visited = new Set();
+        let current = option.parent_id;
+        while (current) {
+          if (visited.has(current)) {
+            fail('options', `Circular parent reference detected involving "${current}".`);
+            break;
+          }
+          visited.add(current);
+          current = optionMap.get(current)?.parent_id;
+        }
+      }
     }
     if (!isRecord(field.rules)) fail('rules', 'Rules must be an object.');
     else {
@@ -368,6 +406,19 @@ export function validateFieldDefinitions(input) {
               fail('pattern', 'Unsupported regular expression.');
             }
           }
+        } else if (['warn_min', 'warn_max', 'alert_min', 'alert_max'].includes(key)) {
+          const ok = numeric.includes(type)
+            ? typeof value === 'number' &&
+              Number.isFinite(value) &&
+              (type !== 'integer' || Number.isSafeInteger(value))
+            : type === 'date'
+              ? validDate(value)
+              : type === 'timestamp'
+                ? validTimestamp(value)
+                : type === 'currency'
+                  ? decimal(value)
+                  : false;
+          if (!ok) fail(key, `Invalid ${key} threshold for ${type}.`);
         } else fail('rules', `Unknown rule: ${key}.`);
       }
       if (errors.length === start) {
@@ -386,6 +437,58 @@ export function validateFieldDefinitions(input) {
                   : a > b;
             if (reversed) fail('bounds', 'Minimum cannot exceed maximum.');
           }
+        }
+      }
+    }
+    // Visibility Triggers: Validate visibility rules
+    if (field.visibility) {
+      if (!isRecord(field.visibility)) {
+        fail('visibility', 'Visibility must be an object.');
+      } else {
+        if (!Array.isArray(field.visibility.rules)) {
+          fail('visibility', 'Visibility rules must be an array.');
+        } else {
+          const validOperators = [
+            'eq',
+            'neq',
+            'in',
+            'not_in',
+            'exists',
+            'not_exists',
+            'gt',
+            'lt',
+            'gte',
+            'lte',
+          ];
+          for (const rule of field.visibility.rules) {
+            if (!isRecord(rule)) {
+              fail('visibility', 'Each visibility rule must be an object.');
+            } else {
+              if (typeof rule.field !== 'string' || !rule.field.trim()) {
+                fail('visibility', 'Visibility rule must specify a field name.');
+              }
+              if (typeof rule.operator !== 'string' || !validOperators.includes(rule.operator)) {
+                fail('visibility', `Invalid visibility operator: ${rule.operator}`);
+              }
+              if (
+                rule.operator !== 'exists' &&
+                rule.operator !== 'not_exists' &&
+                rule.value === undefined
+              ) {
+                fail(
+                  'visibility',
+                  `Visibility rule with operator "${rule.operator}" requires a value.`
+                );
+              }
+            }
+          }
+        }
+        if (
+          field.visibility.logic !== undefined &&
+          field.visibility.logic !== 'and' &&
+          field.visibility.logic !== 'or'
+        ) {
+          fail('visibility', 'Visibility logic must be "and" or "or".');
         }
       }
     }

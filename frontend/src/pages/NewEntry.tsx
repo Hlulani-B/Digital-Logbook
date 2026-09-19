@@ -9,7 +9,10 @@ import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/dashboard/stats.js';
 import { FieldEditor } from '@/components/fields/FieldEditors';
+import { FieldDisplay } from '@/components/fields/FieldDisplay';
 import type { FieldDefinition } from '@/lib/fieldSchema';
+import { normalizeField } from '@/lib/fieldSchema';
+import { evaluateVisibility } from '@/lib/fieldVisibility';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -160,16 +163,8 @@ export function EntryBox({
         if (!cancelled && result?.data) {
           const defs: Record<string, FieldDefinition> = {};
           for (const f of result.data) {
-            const fieldDef: FieldDefinition = {
-              field_name: f.field_name,
-              data_type: (f.data_type || 'text') as FieldDefinition['data_type'],
-              is_required: false,
-              is_unique: false,
-              rules: {},
-              has_default: false,
-              options: [],
-              display_order: 0,
-            };
+            // Use normalizeField to properly handle all schema properties including visibility
+            const fieldDef = normalizeField(f);
             // Convert legacy custom:type format to proper select field
             if (f.data_type && f.data_type.startsWith('custom:')) {
               fieldDef.data_type = 'select';
@@ -177,8 +172,12 @@ export function EntryBox({
               if (optionsStr) {
                 fieldDef.options = optionsStr
                   .split(',')
-                  .map((o, i) => ({ id: `opt-${i}`, label: o.trim(), value: o.trim() }))
-                  .filter((o) => o.label);
+                  .map((o: string, i: number) => ({
+                    id: `opt-${i}`,
+                    label: o.trim(),
+                    value: o.trim(),
+                  }))
+                  .filter((o: { label: string }) => o.label);
               }
             }
             defs[f.field_name] = fieldDef;
@@ -719,6 +718,10 @@ export function EntryBox({
           ) : (
             Object.entries(draftFields).map(([key, value]) => {
               const fieldDef = fieldDefs[key];
+              // Visibility: skip fields that are hidden by visibility rules
+              if (fieldDef && !evaluateVisibility(fieldDef, draftFields)) {
+                return null;
+              }
               if (!fieldDef) {
                 // Fallback for fields without definitions
                 return (
