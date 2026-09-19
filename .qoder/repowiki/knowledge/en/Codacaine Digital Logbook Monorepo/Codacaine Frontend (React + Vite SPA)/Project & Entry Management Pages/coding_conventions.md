@@ -1,0 +1,6 @@
+- Data loading uses a cache-first strategy: read from `cacheGet(CACHE_STORES.X, emailKey)`, subscribe with `cacheSubscribe` for live updates, and call `syncAllData(email)` only when the cache is empty on first mount.
+- Concurrent load handlers are protected by an incrementing `useRef` sequence counter checked after each await so stale responses do not clobber newer state.
+- User identity is obtained via `useAuth()` and stored as a local `email` variable used as the cache key prefix for all project-scoped data.
+- Priority values are normalized through shared `PRIORITY_LABELS` maps that translate between numeric indices ('0'–'3') and human-friendly strings before calling server functions.
+- View mode selection (cards/table/checklist/board) is persisted to `localStorage` under stable keys (`project-view-mode`, `allentries-display-mode`, `allentries-sort-by`) and restored on mount.
+- Mutations update the local state optimistically (or rely on cache subscribers) and then call the corresponding `../functions/project/*` API, re-triggering a reload via `loadEntries()` / `loadData()`.

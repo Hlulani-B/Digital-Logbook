@@ -1,0 +1,1 @@
+Root-level npm scripts provide unified DB operations across the monorepo: `npm run db:migrate`, `db:bootstrap`, `db:status`, `db:backup`, `db:restore`; formatting is enforced via Husky + lint-staged running Prettier on staged files across all packages.

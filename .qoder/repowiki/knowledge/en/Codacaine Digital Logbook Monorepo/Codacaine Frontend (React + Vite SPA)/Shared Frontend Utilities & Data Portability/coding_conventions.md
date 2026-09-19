@@ -1,0 +1,6 @@
+- Each module exports pure functions operating on plain objects rather than class instances, keeping helpers testable and side-effect free except for explicit I/O modules.
+- Persistent preferences are stored in `localStorage` behind a dedicated key constant and exposed as paired getter/setter functions that wrap reads/writes in try/catch to tolerate blocked storage.
+- Cross-module coordination uses `window.dispatchEvent(new CustomEvent(...))` (e.g. `recentlyCreatedChanged`, `recentlyViewedChanged`, `dl-tour-*`) instead of direct imports between UI layers.
+- Date handling goes through dedicated helpers (`calendar.ts`, `today.ts`) that strip time zones via local midnight bounds rather than raw `new Date()` comparisons.
+- Import/export parsers return a uniform result shape containing both accepted rows and a `rejections` array with line numbers, so callers can surface partial failures to users.
+- Service URLs and credentials are read exclusively from `import.meta.env.*` constants at module top level, never passed as parameters.

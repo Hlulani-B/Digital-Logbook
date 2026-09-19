@@ -1,0 +1,1 @@
+MkDocs with the Material theme, MkDocs search plugin, and pymdownx extensions (superfences, highlight, tabbed, snippets, extra); Mermaid diagrams rendered via a custom `javascripts/mermaid.js` loader; built to plain HTML/CSS/JS suitable for deployment to Cloudflare Pages or similar static hosts.

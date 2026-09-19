@@ -1,0 +1,18 @@
+schema_version: 1
+module_path: frontend/projects_entries
+title: Project & Entry Management Pages
+scope:
+  - frontend/src/pages/Project.tsx
+  - frontend/src/pages/ProjectDetailPage.tsx
+  - frontend/src/pages/AddEntry.tsx
+  - frontend/src/pages/NewEntry.tsx
+  - frontend/src/pages/AllEntries.tsx
+  - frontend/src/pages/Timeline.tsx
+  - frontend/src/pages/Kanban.tsx
+  - frontend/src/pages/Archives.tsx
+  - frontend/src/pages/NotesPage.tsx
+  - frontend/src/pages/DataPortability.tsx
+source_files: []
+depends_on: []
+related_to:
+  - path: frontend/auth_profile

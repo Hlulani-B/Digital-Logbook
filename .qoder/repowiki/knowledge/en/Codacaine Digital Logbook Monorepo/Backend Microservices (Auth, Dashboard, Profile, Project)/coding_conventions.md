@@ -1,0 +1,5 @@
+- Every service defines an identical CORS policy: an `allowedOrigins` array of Render domains plus localhost patterns, applied globally via `cors(corsOptions)` with a regex-based preflight handler for Express 5.
+- Route handlers are split into `src/Routes/<feature>.js` files that export Express routers mounted under the shared `/service` prefix, while business logic lives in sibling `src/functions/<feature>.js` modules.
+- Database access is abstracted behind a per-service `src/db.js` module that is mocked via `__mocks__/db.js` so unit tests can run without a live database.
+- Services expose a health root (`/`) returning `{ service, status }` and a global error-handling middleware that preserves CORS headers on 5xx responses.
+- Tests are colocated in `src/__tests__/` alongside source files, using Jest with `collectCoverageFrom` excluding `__tests__` and `__mocks__` directories.

@@ -1,0 +1,6 @@
+- All DDL uses idempotent guards (`CREATE TABLE IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF EXISTS`) so migrations and setup scripts can be re-run without errors.
+- User-scoped rows are filtered by `user_email` and soft-deleted via a `deleted BOOLEAN DEFAULT false` column present on every user-owned table, with RPCs toggling this flag instead of hard deletes during account deletion.
+- Server-side business logic is exposed as PL/pgSQL functions declared `LANGUAGE plpgsql SECURITY DEFINER` that derive the current user from `auth.uid()` rather than accepting it as a parameter.
+- pg_cron jobs are registered inside their migration by first calling `cron.unschedule('<jobname>')` guarded by an existence check, then scheduling the job at a fixed cron expression.
+- Indexes are created with `CREATE INDEX IF NOT EXISTS` and named with a consistent `idx_<table>_<column(s)>` convention.
+- New features are added as incrementally numbered migration files under `migrations/` while `000_baseline_full_schema.sql` keeps a complete snapshot of the entire schema for fresh provisioning.

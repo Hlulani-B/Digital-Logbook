@@ -1,0 +1,4 @@
+- Each documentation section is a top-level directory under `docs-site/docs/` (e.g., `Architecture/`, `Meetings/`, `Project_Management/`) with one Markdown file per topic.
+- All new pages must be registered in the `nav:` mapping of `mkdocs.yml` so they appear in the generated sidebar.
+- Diagrams and illustrations are stored as versioned assets under `docs-site/docs/assets/` (UML SVGs in `uml/`, UI screenshots in `ui-images/`, meeting images in `meetings/`) and linked from Markdown rather than embedded inline.
+- Mermaid diagrams are written inside fenced code blocks tagged with the `mermaid` class, relying on the pymdownx superfences extension and the custom `javascripts/mermaid.js` loader.

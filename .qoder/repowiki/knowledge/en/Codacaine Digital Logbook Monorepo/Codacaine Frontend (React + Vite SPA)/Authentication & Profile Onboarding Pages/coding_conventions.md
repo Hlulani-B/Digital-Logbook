@@ -1,0 +1,5 @@
+- Post-auth routing is centralized through a `routeAfterAuth` / `routeUser` helper that calls `checkUser(email)` and branches on `{ exists, deleted }` to navigate to `/dashboard`, `/create-profile`, or the restore prompt.
+- Soft-deleted accounts are handled by signing out via `getSupabase().auth.signOut()` before redirecting to the restore flow, ensuring the user cannot proceed while the account is pending deletion.
+- New-signup state is flagged via `sessionStorage.setItem('dl_new_signup', 'true')` during both the OAuth callback path and the email sign-up path so downstream screens can show a data disclaimer once.
+- Error states are surfaced through local `useState<string | null>` variables rendered as styled `auth-error` divs rather than thrown up to a global error boundary.
+- UI state follows a loading/error/success triad per async action (e.g. `oauthLoading`, `emailLoading`, `error`, `success`), with buttons disabled based on the combined `isLoading` flag.

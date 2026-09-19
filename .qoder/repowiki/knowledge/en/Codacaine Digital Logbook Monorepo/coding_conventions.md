@@ -1,0 +1,3 @@
+- Each backend service lives in its own directory under `services/` with an independent `package.json`, `.env`, and port (5001–5004), started as separate processes.
+- Database changes are applied exclusively through versioned SQL migrations under `supabase/migrations/` using the root `scripts/migrate.js` tool rather than ad-hoc SQL.
+- Environment secrets are kept per-package in `.env` files excluded from git and supplied to Render via `render.yaml` env var entries.

@@ -1,0 +1,1 @@
+React + React Router (`useNavigate`, `useSearchParams`) with Supabase Auth for both email/password and OAuth (Google, GitHub); uses PKCE and implicit hash-token flows via `client.auth.exchangeCodeForSession` and `setSession`.

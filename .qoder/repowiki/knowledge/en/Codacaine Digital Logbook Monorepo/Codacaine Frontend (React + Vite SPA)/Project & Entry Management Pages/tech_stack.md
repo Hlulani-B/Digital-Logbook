@@ -1,0 +1,1 @@
+React + TypeScript with `react-router-dom` for routing, `react-icons/fi` for icons, IndexedDB-backed caching via `@/lib/cache`, Supabase client calls through `../functions/project/*` modules, and SVG-based timeline rendering in Timeline.tsx.

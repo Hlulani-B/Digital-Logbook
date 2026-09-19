@@ -1,0 +1,1 @@
+Node.js ESM modules (`"type": "module"`) with `dotenv` for environment loading and `pg` (PostgreSQL client) for direct DB access; relies on external PostgreSQL client binaries `pg_dump` and `pg_restore` for backup/restore workflows.
