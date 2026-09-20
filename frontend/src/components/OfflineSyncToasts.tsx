@@ -1,6 +1,6 @@
 /**
  * Offline Sync Toast Notifications
- * 
+ *
  * Displays toast notifications when the offline queue is being processed.
  * Shows progress as actions are synced to the server.
  */
@@ -41,7 +41,7 @@ export function OfflineSyncToasts() {
   const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, message, type }]);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -58,8 +58,11 @@ export function OfflineSyncToasts() {
       getPendingCount().then((count) => {
         if (count > 0) {
           setIsProcessing(true);
-          addToast(`Back online! Syncing ${count} pending action${count > 1 ? 's' : ''}...`, 'info');
-          
+          addToast(
+            `Back online! Syncing ${count} pending action${count > 1 ? 's' : ''}...`,
+            'info'
+          );
+
           processQueue((progress: ProgressUpdate) => {
             switch (progress.type) {
               case 'success':
@@ -74,7 +77,10 @@ export function OfflineSyncToasts() {
               case 'complete':
                 const { succeeded = 0, failed = 0 } = progress;
                 if (failed === 0) {
-                  addToast(`All ${succeeded} action${succeeded !== 1 ? 's' : ''} synced successfully!`, 'success');
+                  addToast(
+                    `All ${succeeded} action${succeeded !== 1 ? 's' : ''} synced successfully!`,
+                    'success'
+                  );
                 } else {
                   addToast(`Sync complete: ${succeeded} succeeded, ${failed} failed`, 'warning');
                 }
@@ -83,7 +89,9 @@ export function OfflineSyncToasts() {
                   (async () => {
                     try {
                       const { getSupabase } = await import('../lib/supabase');
-                      const { data: { session } } = await getSupabase().auth.getSession();
+                      const {
+                        data: { session },
+                      } = await getSupabase().auth.getSession();
                       const userEmail = session?.user?.email;
                       if (userEmail) {
                         syncAllData(userEmail, { force: true }).catch((err) => {
@@ -91,7 +99,10 @@ export function OfflineSyncToasts() {
                         });
                       }
                     } catch (err) {
-                      console.warn('[OfflineSyncToasts] Failed to get user email for refresh:', err);
+                      console.warn(
+                        '[OfflineSyncToasts] Failed to get user email for refresh:',
+                        err
+                      );
                     }
                   })();
                 }
@@ -111,16 +122,18 @@ export function OfflineSyncToasts() {
   if (toasts.length === 0) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      right: '20px',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-      maxWidth: '400px',
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        maxWidth: '400px',
+      }}
+    >
       {toasts.map((toast) => (
         <div
           key={toast.id}
@@ -128,9 +141,14 @@ export function OfflineSyncToasts() {
           style={{
             padding: '12px 16px',
             borderRadius: '8px',
-            backgroundColor: toast.type === 'success' ? '#10b981' :
-                           toast.type === 'error' ? '#ef4444' :
-                           toast.type === 'warning' ? '#f59e0b' : '#3b82f6',
+            backgroundColor:
+              toast.type === 'success'
+                ? '#10b981'
+                : toast.type === 'error'
+                  ? '#ef4444'
+                  : toast.type === 'warning'
+                    ? '#f59e0b'
+                    : '#3b82f6',
             color: 'white',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             cursor: 'pointer',

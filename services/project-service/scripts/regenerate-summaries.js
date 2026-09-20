@@ -26,8 +26,12 @@ const { AI } = await import(aiPath);
 const { Pool } = pg;
 
 async function generateSummary(projectName, entryObject) {
-  const hasContent = entryObject && typeof entryObject === 'object' &&
-    Object.values(entryObject).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+  const hasContent =
+    entryObject &&
+    typeof entryObject === 'object' &&
+    Object.values(entryObject).some(
+      (v) => v !== null && v !== undefined && String(v).trim() !== ''
+    );
   if (!hasContent) return projectName;
 
   const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
@@ -67,7 +71,9 @@ If the entry has no real content, use the project name as the summary.`;
         if (match) return match[1].trim();
       }
     }
-  } catch { /* retry failed */ }
+  } catch {
+    /* retry failed */
+  }
 
   return projectName;
 }
@@ -105,16 +111,28 @@ async function main() {
       const summary = await generateSummary(row.project_name, entryObj);
       await pool.query('UPDATE entries SET summary = $1 WHERE id = $2', [summary, row.id]);
       updated++;
-      console.log('[' + (i + 1) + '/' + rows.length + '] OK #' + row.id.slice(0, 8) + ': "' + summary + '"');
+      console.log(
+        '[' + (i + 1) + '/' + rows.length + '] OK #' + row.id.slice(0, 8) + ': "' + summary + '"'
+      );
     } catch (err) {
       failed++;
       await pool.query('UPDATE entries SET summary = $1 WHERE id = $2', [row.project_name, row.id]);
-      console.log('[' + (i + 1) + '/' + rows.length + '] FAIL #' + row.id.slice(0, 8) + ': using project name "' + row.project_name + '"');
+      console.log(
+        '[' +
+          (i + 1) +
+          '/' +
+          rows.length +
+          '] FAIL #' +
+          row.id.slice(0, 8) +
+          ': using project name "' +
+          row.project_name +
+          '"'
+      );
     }
 
     if ((i + 1) % 10 === 0 && i + 1 < rows.length) {
       console.log('  ... pausing 1s (' + updated + ' updated, ' + failed + ' failed so far)');
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
     }
   }
 
@@ -123,7 +141,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Fatal:', err);
   process.exit(1);
 });

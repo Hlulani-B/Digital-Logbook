@@ -37,7 +37,9 @@ router.post('/notes', async (req, res) => {
         const { entry_id, entry_type, value, email } = values;
         const ownerEmail = email || userEmail;
         if (!entry_id || !entry_type || value === undefined) {
-          return res.status(400).json({ error: 'Missing required parameters: entry_id, entry_type, value' });
+          return res
+            .status(400)
+            .json({ error: 'Missing required parameters: entry_id, entry_type, value' });
         }
         const result = await notes.addNote(ownerEmail, entry_id, entry_type, value);
         return res.json(result);

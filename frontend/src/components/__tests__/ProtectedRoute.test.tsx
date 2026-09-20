@@ -30,7 +30,14 @@ function renderProtected(authOverrides = {}) {
   return render(
     <MemoryRouter initialEntries={['/protected']}>
       <Routes>
-        <Route path="/protected" element={<ProtectedRoute><div data-testid="protected-content">Protected</div></ProtectedRoute>} />
+        <Route
+          path="/protected"
+          element={
+            <ProtectedRoute>
+              <div data-testid="protected-content">Protected</div>
+            </ProtectedRoute>
+          }
+        />
         <Route path="/signin" element={<div>Sign In Page</div>} />
       </Routes>
     </MemoryRouter>

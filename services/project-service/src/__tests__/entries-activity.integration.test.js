@@ -43,7 +43,16 @@ describe('Entries + Activity Log Integration', () => {
         rows: [{ id: 42, user_email: EMAIL, project_name: 'WebApp', entries: { task: 'Login' } }],
       });
       const addResult = await entries.addEntry(
-        EMAIL, 'WebApp', { task: 'Login' }, null, null, null, null, null, null, null
+        EMAIL,
+        'WebApp',
+        { task: 'Login' },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       );
       expect(addResult.success).toBe(true);
       expect(addResult.data[0].id).toBe(42);
@@ -95,9 +104,21 @@ describe('Entries + Activity Log Integration', () => {
       // Retrieve activities — should return all 3
       pool.query.mockResolvedValueOnce({
         rows: [
-          { action_type: 'ENTRY_DELETED', entity_name: 'Task A', created_at: '2026-09-07T12:00:00Z' },
-          { action_type: 'ENTRY_UPDATED', entity_name: 'Task A', created_at: '2026-09-07T11:00:00Z' },
-          { action_type: 'ENTRY_CREATED', entity_name: 'Task A', created_at: '2026-09-07T10:00:00Z' },
+          {
+            action_type: 'ENTRY_DELETED',
+            entity_name: 'Task A',
+            created_at: '2026-09-07T12:00:00Z',
+          },
+          {
+            action_type: 'ENTRY_UPDATED',
+            entity_name: 'Task A',
+            created_at: '2026-09-07T11:00:00Z',
+          },
+          {
+            action_type: 'ENTRY_CREATED',
+            entity_name: 'Task A',
+            created_at: '2026-09-07T10:00:00Z',
+          },
         ],
       });
 
@@ -119,13 +140,7 @@ describe('Entries + Activity Log Integration', () => {
 
       const call = pool.query.mock.calls[0];
       expect(call[0]).toContain('INSERT INTO activity_log');
-      expect(call[1]).toEqual([
-        EMAIL,
-        'PROJECT_CREATED',
-        'project',
-        'NewProject',
-        '{}',
-      ]);
+      expect(call[1]).toEqual([EMAIL, 'PROJECT_CREATED', 'project', 'NewProject', '{}']);
     });
   });
 

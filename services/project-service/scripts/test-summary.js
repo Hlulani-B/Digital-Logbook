@@ -157,10 +157,9 @@ async function main() {
   console.log('✓ Got JWT token');
 
   // Ensure profile exists
-  await pool.query(
-    `INSERT INTO public.users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`,
-    [testEmail]
-  );
+  await pool.query(`INSERT INTO public.users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`, [
+    testEmail,
+  ]);
 
   // ── 5. Add entry via natural language ─────────────────────────────
   log('Step 5: POST /service/natural-language-entry');

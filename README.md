@@ -13,7 +13,7 @@ This project uses AI-assisted development for the frontend authentication module
 
 | Service               |                    Lines                     |                       Statements                       |                      Functions                       |                      Branches                      |
 | :-------------------- | :------------------------------------------: | :----------------------------------------------------: | :--------------------------------------------------: | :------------------------------------------------: |
-| **Frontend**          |      ![Lines](badges/frontend/lines.svg)     |      ![Statements](badges/frontend/statements.svg)      |      ![Functions](badges/frontend/functions.svg)     |      ![Branches](badges/frontend/branches.svg)     |
+| **Frontend**          |     ![Lines](badges/frontend/lines.svg)      |     ![Statements](badges/frontend/statements.svg)      |     ![Functions](badges/frontend/functions.svg)      |     ![Branches](badges/frontend/branches.svg)      |
 | **Auth Service**      |   ![Lines](badges/auth-service/lines.svg)    |   ![Statements](badges/auth-service/statements.svg)    |   ![Functions](badges/auth-service/functions.svg)    |   ![Branches](badges/auth-service/branches.svg)    |
 | **Dashboard Service** | ![Lines](badges/dashboard-service/lines.svg) | ![Statements](badges/dashboard-service/statements.svg) | ![Functions](badges/dashboard-service/functions.svg) | ![Branches](badges/dashboard-service/branches.svg) |
 | **Profile Service**   |  ![Lines](badges/profile-service/lines.svg)  |  ![Statements](badges/profile-service/statements.svg)  |  ![Functions](badges/profile-service/functions.svg)  |  ![Branches](badges/profile-service/branches.svg)  |

@@ -168,12 +168,10 @@ describe('private Supabase REST transport (mocked only)', () => {
     SUPABASE_SERVICE_ROLE_KEY: 'server-only-test',
   };
   test('uses five-minute signing and a safe download name', async () => {
-    const fetchImpl = jest
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ signedURL: `/object/sign/field-attachments/${key}?token=test` }),
-      });
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ signedURL: `/object/sign/field-attachments/${key}?token=test` }),
+    });
     const storage = createAttachmentStorage({ env, fetchImpl });
     const signed = new URL(await storage.sign(key, 'résumé "1".txt', 'text/plain'));
     expect(signed.searchParams.get('download')).toBe('r_sum_ _1_.txt');

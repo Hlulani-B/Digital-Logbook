@@ -194,7 +194,14 @@ describe('viewNote', () => {
 
   it('fetches file data for image notes', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 'n1', entry_type: 'image', value: 'https://storage.example.com/img.jpg', deleted: false }],
+      rows: [
+        {
+          id: 'n1',
+          entry_type: 'image',
+          value: 'https://storage.example.com/img.jpg',
+          deleted: false,
+        },
+      ],
     });
 
     const fileBytes = new Uint8Array([0xff, 0xd8, 0xff]);
@@ -214,7 +221,14 @@ describe('viewNote', () => {
 
   it('fetches file data for pdf notes', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 'n1', entry_type: 'pdf', value: 'https://storage.example.com/doc.pdf', deleted: false }],
+      rows: [
+        {
+          id: 'n1',
+          entry_type: 'pdf',
+          value: 'https://storage.example.com/doc.pdf',
+          deleted: false,
+        },
+      ],
     });
 
     const fileBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
@@ -233,7 +247,14 @@ describe('viewNote', () => {
 
   it('returns file_error when fetch fails', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 'n1', entry_type: 'image', value: 'https://storage.example.com/broken.jpg', deleted: false }],
+      rows: [
+        {
+          id: 'n1',
+          entry_type: 'image',
+          value: 'https://storage.example.com/broken.jpg',
+          deleted: false,
+        },
+      ],
     });
 
     global.fetch = jest.fn().mockResolvedValueOnce({
@@ -249,7 +270,14 @@ describe('viewNote', () => {
 
   it('returns file_error when network throws', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 'n1', entry_type: 'image', value: 'https://storage.example.com/down.jpg', deleted: false }],
+      rows: [
+        {
+          id: 'n1',
+          entry_type: 'image',
+          value: 'https://storage.example.com/down.jpg',
+          deleted: false,
+        },
+      ],
     });
 
     global.fetch = jest.fn().mockRejectedValueOnce(new Error('Network down'));
@@ -280,8 +308,12 @@ describe('viewNote', () => {
 describe('updateNote', () => {
   it('updates a text note', async () => {
     pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 'n1', entry_type: 'text', value: 'old', deleted: false }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'n1', entry_type: 'text', value: 'new', deleted: false }] });
+      .mockResolvedValueOnce({
+        rows: [{ id: 'n1', entry_type: 'text', value: 'old', deleted: false }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'n1', entry_type: 'text', value: 'new', deleted: false }],
+      });
 
     const result = await notes.updateNote('n1', 'new');
 
@@ -340,10 +372,7 @@ describe('deleteNote', () => {
     const result = await notes.deleteNote('n1');
 
     expect(result.success).toBe(true);
-    expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('SET deleted = true'),
-      ['n1']
-    );
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('SET deleted = true'), ['n1']);
   });
 
   it('returns not found when note does not exist', async () => {

@@ -18,13 +18,7 @@ export {
   isSyncing,
 } from './syncService';
 
-export {
-  addToQueue,
-  getQueue,
-  removeFromQueue,
-  clearQueue,
-  getQueueLength,
-} from './offlineQueue';
+export { addToQueue, getQueue, removeFromQueue, clearQueue, getQueueLength } from './offlineQueue';
 
 export { processQueue, hasPendingActions, getPendingCount } from './queueProcessor';
 export { dispatchAction, getRegisteredActions } from './actionDispatcher';

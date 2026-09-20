@@ -110,7 +110,11 @@ describe('ProfileMenu', () => {
   });
 
   it('closes dropdown on outside click', async () => {
-    render(<div data-testid="outside"><ProfileMenu {...defaultProps} /></div>);
+    render(
+      <div data-testid="outside">
+        <ProfileMenu {...defaultProps} />
+      </div>
+    );
     fireEvent.click(screen.getByRole('button', { name: /Alice/i }));
     expect(screen.getByRole('menu')).toBeTruthy();
 

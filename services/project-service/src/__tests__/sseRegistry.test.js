@@ -66,12 +66,8 @@ describe('SSE Registry', () => {
       const data = { project: 'TestProject', fields: { task: 'Test task' } };
       const sent = sendToUser('test@example.com', 'entry_parsed', data);
       expect(sent).toBe(1);
-      expect(mockRes.write).toHaveBeenCalledWith(
-        expect.stringContaining('event: entry_parsed')
-      );
-      expect(mockRes.write).toHaveBeenCalledWith(
-        expect.stringContaining(JSON.stringify(data))
-      );
+      expect(mockRes.write).toHaveBeenCalledWith(expect.stringContaining('event: entry_parsed'));
+      expect(mockRes.write).toHaveBeenCalledWith(expect.stringContaining(JSON.stringify(data)));
     });
 
     it('should return 0 when no connections exist', () => {

@@ -27,7 +27,10 @@ describe('storeFile', () => {
   it('uploads a file and returns the public URL on success', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ publicUrl: 'https://test.supabase.co/storage/v1/object/public/test-bucket/user@example.com/abc.png' }),
+      json: async () => ({
+        publicUrl:
+          'https://test.supabase.co/storage/v1/object/public/test-bucket/user@example.com/abc.png',
+      }),
       text: async () => '',
     });
 
@@ -112,10 +115,7 @@ describe('storeFile', () => {
     const url = await storeFile(testBuffer, 'photo.png', email);
 
     expect(url).toBeNull();
-    expect(console.error).toHaveBeenCalledWith(
-      '[storeFile] Error:',
-      'Network down'
-    );
+    expect(console.error).toHaveBeenCalledWith('[storeFile] Error:', 'Network down');
   });
 
   it('throws TypeError for empty buffer', async () => {

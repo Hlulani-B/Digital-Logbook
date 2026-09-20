@@ -1,6 +1,6 @@
 /**
  * Offline Queue Manager
- * 
+ *
  * Manages the queue of offline actions that need to be synced
  * when connectivity is restored. Actions are stored in SQLite
  * and processed in FIFO order when online.
@@ -29,9 +29,12 @@ export async function addToQueue(action, module, payload) {
       attempts: 0,
     };
     const jsonStr = JSON.stringify(entry);
-    db.run(`INSERT INTO ${CACHE_STORES.OFFLINE_QUEUE} (data, created_at) VALUES (?, ?)`, [jsonStr, entry.timestamp]);
+    db.run(`INSERT INTO ${CACHE_STORES.OFFLINE_QUEUE} (data, created_at) VALUES (?, ?)`, [
+      jsonStr,
+      entry.timestamp,
+    ]);
     persistDB(db);
-    
+
     // Get the last inserted ID
     const result = db.exec(`SELECT last_insert_rowid()`);
     const id = result[0]?.values[0][0];
@@ -50,11 +53,13 @@ export async function addToQueue(action, module, payload) {
 export async function getQueue() {
   try {
     const db = await getSharedDB();
-    const result = db.exec(`SELECT id, data FROM ${CACHE_STORES.OFFLINE_QUEUE} ORDER BY created_at ASC`);
+    const result = db.exec(
+      `SELECT id, data FROM ${CACHE_STORES.OFFLINE_QUEUE} ORDER BY created_at ASC`
+    );
     if (result.length === 0) return [];
     return result[0].values.map(([id, data]) => ({
       id,
-      ...JSON.parse(data)
+      ...JSON.parse(data),
     }));
   } catch (err) {
     console.error('[OfflineQueue] Failed to get queue:', err);

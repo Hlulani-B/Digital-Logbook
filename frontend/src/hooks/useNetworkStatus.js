@@ -1,6 +1,6 @@
 /**
  * Network Status Hook
- * 
+ *
  * Provides real-time network status (online/offline) to React components.
  * Listens to browser online/offline events and updates state accordingly.
  */
@@ -21,7 +21,7 @@ export function useNetworkStatus() {
       console.log('[Network] Online');
       setIsOnline(true);
     };
-    
+
     const handleOffline = () => {
       console.log('[Network] Offline');
       setIsOnline(false);

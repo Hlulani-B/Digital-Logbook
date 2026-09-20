@@ -13,48 +13,69 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { createElement } from 'react';
 import { cacheSet, clearUserCache, CACHE_STORES } from '@/lib/cache';
-import { useCachedData, useCachedProjects, useCachedEntries, useCachedProfile } from '@/hooks/useCachedData';
+import {
+  useCachedData,
+  useCachedProjects,
+  useCachedEntries,
+  useCachedProfile,
+} from '@/hooks/useCachedData';
 
 const EMAIL = 'hook@test.com';
 
 // Helper component that uses the hook and renders the data
-function TestDataComponent({ store, keyName, fetchFn, deps }: {
+function TestDataComponent({
+  store,
+  keyName,
+  fetchFn,
+  deps,
+}: {
   store: string;
   keyName: string;
   fetchFn: (() => Promise<void>) | null;
   deps: unknown[];
 }) {
   const { data, loaded } = useCachedData(store, keyName, fetchFn, deps);
-  return createElement('div', null,
+  return createElement(
+    'div',
+    null,
     createElement('span', { 'data-testid': 'loaded' }, String(loaded)),
-    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data)),
+    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data))
   );
 }
 
 function TestProjectsComponent({ fetchFn }: { fetchFn: (() => Promise<void>) | null }) {
   const { data, loaded } = useCachedProjects(EMAIL, fetchFn);
-  return createElement('div', null,
+  return createElement(
+    'div',
+    null,
     createElement('span', { 'data-testid': 'loaded' }, String(loaded)),
-    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data)),
+    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data))
   );
 }
 
-function TestEntriesComponent({ projectName, fetchFn }: {
+function TestEntriesComponent({
+  projectName,
+  fetchFn,
+}: {
   projectName: string | null;
   fetchFn: (() => Promise<void>) | null;
 }) {
   const { data, loaded } = useCachedEntries(EMAIL, projectName, fetchFn);
-  return createElement('div', null,
+  return createElement(
+    'div',
+    null,
     createElement('span', { 'data-testid': 'loaded' }, String(loaded)),
-    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data)),
+    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data))
   );
 }
 
 function TestProfileComponent({ fetchFn }: { fetchFn: (() => Promise<void>) | null }) {
   const { data, loaded } = useCachedProfile(EMAIL, fetchFn);
-  return createElement('div', null,
+  return createElement(
+    'div',
+    null,
     createElement('span', { 'data-testid': 'loaded' }, String(loaded)),
-    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data)),
+    createElement('span', { 'data-testid': 'data' }, JSON.stringify(data))
   );
 }
 
@@ -66,12 +87,14 @@ describe('useCachedData Hook Integration', () => {
 
   describe('basic hook behavior', () => {
     it('returns null data when cache is empty and no fetchFn', async () => {
-      render(createElement(TestDataComponent, {
-        store: CACHE_STORES.PROJECTS,
-        keyName: EMAIL,
-        fetchFn: null,
-        deps: [],
-      }));
+      render(
+        createElement(TestDataComponent, {
+          store: CACHE_STORES.PROJECTS,
+          keyName: EMAIL,
+          fetchFn: null,
+          deps: [],
+        })
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('loaded').textContent).toBe('true');
@@ -86,12 +109,14 @@ describe('useCachedData Hook Integration', () => {
         data: [{ project_name: 'CachedProject' }],
       });
 
-      render(createElement(TestDataComponent, {
-        store: CACHE_STORES.PROJECTS,
-        keyName: EMAIL,
-        fetchFn: null,
-        deps: [],
-      }));
+      render(
+        createElement(TestDataComponent, {
+          store: CACHE_STORES.PROJECTS,
+          keyName: EMAIL,
+          fetchFn: null,
+          deps: [],
+        })
+      );
 
       await waitFor(() => {
         const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');
@@ -109,12 +134,14 @@ describe('useCachedData Hook Integration', () => {
         });
       });
 
-      render(createElement(TestDataComponent, {
-        store: CACHE_STORES.PROJECTS,
-        keyName: EMAIL,
-        fetchFn,
-        deps: [],
-      }));
+      render(
+        createElement(TestDataComponent, {
+          store: CACHE_STORES.PROJECTS,
+          keyName: EMAIL,
+          fetchFn,
+          deps: [],
+        })
+      );
 
       await waitFor(() => {
         const data = JSON.parse(screen.getByTestId('data').textContent ?? 'null');

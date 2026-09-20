@@ -109,9 +109,7 @@ describe('SSE + Cache Integration', () => {
       });
 
       // Callback should have been called with the data
-      expect(callback).toHaveBeenCalledWith(
-        expect.objectContaining({ project: 'WebApp' })
-      );
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ project: 'WebApp' }));
     });
 
     it('should invalidate projects cache when new project is created', async () => {
@@ -152,15 +150,11 @@ describe('SSE + Cache Integration', () => {
             { project_name: 'WebApp', fields: { task: 'Bug fix' } },
             { project_name: 'Gym', fields: { activity: 'Ran 5km' } },
           ],
-          new: [
-            { project_name: 'Cooking', fields: { recipe: 'Pasta' } },
-          ],
+          new: [{ project_name: 'Cooking', fields: { recipe: 'Pasta' } }],
         },
       });
 
-      expect(callback).toHaveBeenCalledWith(
-        expect.objectContaining({ multi: true })
-      );
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ multi: true }));
     });
   });
 

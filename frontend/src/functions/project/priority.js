@@ -27,11 +27,17 @@ export async function setPriority(user_email, priorityValue, project_name, entry
 
   if (cachedBefore) {
     const currentData = cachedBefore.data || cachedBefore;
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: patchPriority(currentData) });
+    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, {
+      success: true,
+      data: patchPriority(currentData),
+    });
   }
   if (cachedAllBefore) {
     const currentAll = cachedAllBefore.data || cachedAllBefore;
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: patchPriority(currentAll) });
+    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, {
+      success: true,
+      data: patchPriority(currentAll),
+    });
   }
 
   // 3. Check online status

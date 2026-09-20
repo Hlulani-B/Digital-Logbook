@@ -38,8 +38,8 @@ export function DataDisclaimer() {
           </div>
           <h1 className="auth-title">Your data &amp; AI — the honest picture</h1>
           <p className="auth-subtitle" style={{ marginBottom: '1.25rem' }}>
-            Before you dive in, we want you to know exactly what happens with your information.
-            No surprises.
+            Before you dive in, we want you to know exactly what happens with your information. No
+            surprises.
           </p>
 
           <div
@@ -64,12 +64,12 @@ export function DataDisclaimer() {
                 </li>
                 <li>
                   A copy of your data is also cached <strong>locally in your browser</strong>{' '}
-                  (IndexedDB) so the app works fast and offline. This cache stays on your device
-                  and is never sent anywhere except back to your own account.
+                  (IndexedDB) so the app works fast and offline. This cache stays on your device and
+                  is never sent anywhere except back to your own account.
                 </li>
                 <li>
-                  The app is hosted on <strong>Render</strong> (free tier). Your data in transit
-                  is encrypted via HTTPS.
+                  The app is hosted on <strong>Render</strong> (free tier). Your data in transit is
+                  encrypted via HTTPS.
                 </li>
               </ul>
             </div>
@@ -82,18 +82,18 @@ export function DataDisclaimer() {
               </div>
               <ul className="disclaimer-list">
                 <li>
-                  When you type a quick entry, the text is sent to an <strong>AI model</strong>{' '}
-                  to parse it into structured data (project, priority, due date). This is the
-                  only automated AI processing that happens.
+                  When you type a quick entry, the text is sent to an <strong>AI model</strong> to
+                  parse it into structured data (project, priority, due date). This is the only
+                  automated AI processing that happens.
                 </li>
                 <li>
                   The AI <strong>reads your entry text and project names</strong> to understand
-                  context. It does <strong>not</strong> have access to your password, email, or
-                  any other personal data.
+                  context. It does <strong>not</strong> have access to your password, email, or any
+                  other personal data.
                 </li>
                 <li>
-                  AI-generated comments and greetings are <strong>optional</strong> — you can
-                  turn them off at any time in Settings → Preferences → AI Messages.
+                  AI-generated comments and greetings are <strong>optional</strong> — you can turn
+                  them off at any time in Settings → Preferences → AI Messages.
                 </li>
                 <li>
                   We do <strong>not</strong> train any external AI model on your data. The AI
@@ -101,11 +101,11 @@ export function DataDisclaimer() {
                   training.
                 </li>
                 <li>
-                  <strong>Quick Add is not perfect.</strong> The AI may misread your intent —
-                  for example it could assign an entry to the wrong project, guess the wrong
-                  priority, or parse a due date incorrectly. <strong>Always verify</strong>{' '}
-                  that the entry was filed in the right place after using Quick Add. You can
-                  edit any entry to fix mistakes.
+                  <strong>Quick Add is not perfect.</strong> The AI may misread your intent — for
+                  example it could assign an entry to the wrong project, guess the wrong priority,
+                  or parse a due date incorrectly. <strong>Always verify</strong> that the entry was
+                  filed in the right place after using Quick Add. You can edit any entry to fix
+                  mistakes.
                 </li>
               </ul>
             </div>
@@ -118,12 +118,12 @@ export function DataDisclaimer() {
               </div>
               <ul className="disclaimer-list">
                 <li>
-                  You can <strong>export all your data</strong> at any time via Settings →
-                  Data Portability (JSON format).
+                  You can <strong>export all your data</strong> at any time via Settings → Data
+                  Portability (JSON format).
                 </li>
                 <li>
-                  You can <strong>delete your account</strong> permanently from Settings →
-                  Account. There is a 30-day grace period in case you change your mind.
+                  You can <strong>delete your account</strong> permanently from Settings → Account.
+                  There is a 30-day grace period in case you change your mind.
                 </li>
                 <li>
                   Your data is <strong>yours</strong>. We will never sell it, share it with

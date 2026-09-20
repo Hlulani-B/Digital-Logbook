@@ -26,14 +26,14 @@ services rather than by a generated Supabase data API.
 
 ### Service boundaries
 
-| Component | Boundary and responsibility evidenced in the codebase |
-| --- | --- |
-| Frontend | React/Vite UI, Supabase session client, and local-first IndexedDB synchronization. `syncAllData()` warms the cache, and pages then read cached data. |
-| `auth-service` | Separate Express deployment for account/auth lifecycle responsibilities and service health. |
-| `dashboard-service` | Separate Express deployment for dashboard-supporting search and health-ping/keep-alive responsibilities. |
-| `project-service` | The core domain boundary: project, entry, field, priority, archive, activity, and AI routes are mounted here. Its protected routes use `requireAuth`. |
-| `profile-service` | Separate Express deployment for profile and login-related routes. |
-| Supabase | Shared managed platform for authentication/JWKS and PostgreSQL persistence. |
+| Component           | Boundary and responsibility evidenced in the codebase                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend            | React/Vite UI, Supabase session client, and local-first IndexedDB synchronization. `syncAllData()` warms the cache, and pages then read cached data.  |
+| `auth-service`      | Separate Express deployment for account/auth lifecycle responsibilities and service health.                                                           |
+| `dashboard-service` | Separate Express deployment for dashboard-supporting search and health-ping/keep-alive responsibilities.                                              |
+| `project-service`   | The core domain boundary: project, entry, field, priority, archive, activity, and AI routes are mounted here. Its protected routes use `requireAuth`. |
+| `profile-service`   | Separate Express deployment for profile and login-related routes.                                                                                     |
+| Supabase            | Shared managed platform for authentication/JWKS and PostgreSQL persistence.                                                                           |
 
 ## Deployment diagram
 

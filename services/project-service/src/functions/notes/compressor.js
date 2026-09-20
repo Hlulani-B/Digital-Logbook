@@ -7,9 +7,7 @@ const gzipAsync = promisify(gzip);
 /** 500 KB in bytes */
 const MAX_SIZE = 500 * 1024;
 
-const IMAGE_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png', '.webp', '.gif', '.tiff', '.tif', '.avif',
-];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.tiff', '.tif', '.avif'];
 
 /**
  * Detect whether a filename/extension refers to an image.
@@ -52,9 +50,7 @@ export async function compressImage(buffer, maxSize = MAX_SIZE) {
   // Try WebP at decreasing quality
   for (const quality of [60, 40, 20]) {
     try {
-      const compressed = await sharp(buffer)
-        .webp({ quality })
-        .toBuffer();
+      const compressed = await sharp(buffer).webp({ quality }).toBuffer();
       if (compressed.length <= maxSize) {
         return { buffer: compressed, format: 'webp' };
       }
@@ -66,10 +62,7 @@ export async function compressImage(buffer, maxSize = MAX_SIZE) {
   // Resize down progressively while trying JPEG q=10
   for (const width of [1600, 1200, 800, 600, 400]) {
     try {
-      const compressed = await sharp(buffer)
-        .resize(width)
-        .jpeg({ quality: 10 })
-        .toBuffer();
+      const compressed = await sharp(buffer).resize(width).jpeg({ quality: 10 }).toBuffer();
       if (compressed.length <= maxSize) {
         return { buffer: compressed, format: 'jpeg' };
       }
@@ -80,10 +73,7 @@ export async function compressImage(buffer, maxSize = MAX_SIZE) {
 
   // Last resort: return the smallest we managed to produce
   try {
-    const smallest = await sharp(buffer)
-      .resize(400)
-      .jpeg({ quality: 1 })
-      .toBuffer();
+    const smallest = await sharp(buffer).resize(400).jpeg({ quality: 1 }).toBuffer();
     return { buffer: smallest, format: 'jpeg' };
   } catch {
     return { buffer, format: 'original' };
@@ -123,7 +113,12 @@ export async function compressFile(file, filename = '', maxSize = MAX_SIZE) {
   if (isImage(filename)) {
     console.log('[compressFile] detected image (' + filename + '), running compressImage...');
     const result = await compressImage(buffer, maxSize);
-    console.log('[compressFile] compressImage done, output format=', result.format, 'length=', result.buffer.length);
+    console.log(
+      '[compressFile] compressImage done, output format=',
+      result.format,
+      'length=',
+      result.buffer.length
+    );
     return result.buffer;
   }
 

@@ -22,10 +22,7 @@ interface QuickEntryBarProps {
   placeholder?: string;
 }
 
-function titleFromFields(
-  fields: Record<string, unknown> | undefined,
-  fallback: string
-): string {
+function titleFromFields(fields: Record<string, unknown> | undefined, fallback: string): string {
   if (fields) {
     const first = Object.values(fields).find(
       (v) => typeof v === 'string' && (v as string).length > 0
@@ -87,8 +84,16 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
 
       if (isMulti) {
         const results = (data?.results ?? {}) as {
-          old?: Array<{ project_name?: string; fields?: Record<string, unknown>; entry_id?: string }>;
-          new?: Array<{ project_name?: string; fields?: Record<string, unknown>; entry_id?: string }>;
+          old?: Array<{
+            project_name?: string;
+            fields?: Record<string, unknown>;
+            entry_id?: string;
+          }>;
+          new?: Array<{
+            project_name?: string;
+            fields?: Record<string, unknown>;
+            entry_id?: string;
+          }>;
         };
         for (const item of [...(results.old ?? []), ...(results.new ?? [])]) {
           if (!item.project_name) continue;
@@ -111,10 +116,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
       } else {
         projectName = (data?.project as string) || undefined;
         entryId = (data?.entry_id as string) || undefined;
-        title = titleFromFields(
-          data?.fields as Record<string, unknown> | undefined,
-          fallbackTitle
-        );
+        title = titleFromFields(data?.fields as Record<string, unknown> | undefined, fallbackTitle);
         setMessage('Entry created!');
         if (projectName && title) {
           created.push({ entryId, projectName, title });
@@ -166,7 +168,8 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
             className="quick-entry-input"
             placeholder={
               isOnline
-                ? placeholder || 'Write an item, e.g. "Fixed login bug for ProjectX, urgent, due tomorrow"...'
+                ? placeholder ||
+                  'Write an item, e.g. "Fixed login bug for ProjectX, urgent, due tomorrow"...'
                 : 'Offline — Quick add unavailable'
             }
             value={text}
@@ -186,7 +189,11 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
               className="quick-entry-voice"
               onClick={onVoiceOpen}
               aria-label="Voice entry"
-              title={!isOnline ? 'Voice input requires an internet connection' : 'Dictate your item using voice — speak naturally and the item will be created for you'}
+              title={
+                !isOnline
+                  ? 'Voice input requires an internet connection'
+                  : 'Dictate your item using voice — speak naturally and the item will be created for you'
+              }
               disabled={!isOnline}
               style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
