@@ -53,8 +53,9 @@ describe('Natural_language', () => {
       pool.query.mockResolvedValueOnce({ rows: mockFields });
       // Q3: getFields for MobileApp
       pool.query.mockResolvedValueOnce({ rows: [] });
-      // Q4: addEntry
-      pool.query.mockResolvedValueOnce({
+      // Q4+: addEntry internal queries (getUserRole x2, getFieldPermissions, INSERT, activity_log)
+      // Use mockResolvedValue for all remaining calls since addEntry makes multiple queries
+      pool.query.mockResolvedValue({
         rows: [{ id: 1, entries: { description: 'Fixed login bug' } }],
       });
 
@@ -101,8 +102,8 @@ describe('Natural_language', () => {
       pool.query.mockResolvedValueOnce({ rows: [{ id: 101 }] });
       // Q5: addField notes
       pool.query.mockResolvedValueOnce({ rows: [{ id: 102 }] });
-      // Q6: addEntry
-      pool.query.mockResolvedValueOnce({ rows: [{ id: 200 }] });
+      // Q6+: addEntry internal queries (getUserRole x2, getFieldPermissions, INSERT, activity_log)
+      pool.query.mockResolvedValue({ rows: [{ id: 200 }] });
 
       AI.mockResolvedValue(
         JSON.stringify({
