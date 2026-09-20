@@ -41,10 +41,14 @@ export class Email {
       }
 
       // Generate a default username from the email prefix (before @)
+      // Dots become underscores; other special chars are hex-encoded
       const defaultUsername = email
         .split('@')[0]
         .toLowerCase()
-        .replace(/[^a-z0-9_]/g, '_');
+        .replace(/[^a-z0-9_]/g, (char) => {
+          if (char === '.') return '_';
+          return char.charCodeAt(0).toString(16);
+        });
 
       await pool.query(`INSERT INTO users (email, username, name) VALUES ($1, $2, $3)`, [
         email,
