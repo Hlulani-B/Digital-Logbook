@@ -3,6 +3,7 @@ import { editProjectName, deleteProject, setProjectColor } from '@/functions/pro
 import { getFields, addField, editField, deleteField } from '@/functions/project/fields.js';
 import { archiveProject } from '@/functions/project/archives.js';
 import { FiEdit2, FiArchive, FiCheck, FiTrash2 } from 'react-icons/fi';
+import { FIELD_TYPES } from '@/lib/fieldSchema';
 
 interface ProjectSettingsPanelProps {
   open: boolean;
@@ -181,7 +182,7 @@ export function ProjectSettingsPanel({
 
   const handleAddField = async () => {
     const name = newFieldName.trim();
-    if (!name) return;
+    if (!name || !newFieldType) return;
     if (newFieldType === 'custom' && newFieldOptions.length === 0) {
       setFieldError('Custom fields must have at least one option');
       return;
@@ -487,10 +488,14 @@ export function ProjectSettingsPanel({
                             className="field-input"
                             style={{ width: 'auto' }}
                           >
-                            <option value="text">Text</option>
-                            <option value="number">Number</option>
-                            <option value="date">Date</option>
-                            <option value="boolean">Boolean</option>
+                            {FIELD_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {t === 'entity_link'
+                                  ? 'Entity Link'
+                                  : t.charAt(0).toUpperCase() + t.slice(1)}
+                              </option>
+                            ))}
+                            <option value="custom">Custom (Select)</option>
                           </select>
                           <label
                             className="field-hint"
@@ -615,11 +620,15 @@ export function ProjectSettingsPanel({
                     className="field-input"
                     style={{ width: 'auto' }}
                   >
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                    <option value="boolean">Boolean</option>
-                    <option value="custom">Custom</option>
+                    <option value="">Select type…</option>
+                    {FIELD_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t === 'entity_link'
+                          ? 'Entity Link'
+                          : t.charAt(0).toUpperCase() + t.slice(1)}
+                      </option>
+                    ))}
+                    <option value="custom">Custom (Select)</option>
                   </select>
                   <label
                     className="field-hint"
@@ -642,6 +651,7 @@ export function ProjectSettingsPanel({
                     className="btn-primary"
                     onClick={handleAddField}
                     disabled={
+                      !newFieldType ||
                       !newFieldName.trim() ||
                       (newFieldType === 'custom' && newFieldOptions.length === 0)
                     }
