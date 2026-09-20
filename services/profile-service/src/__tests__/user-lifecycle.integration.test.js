@@ -17,9 +17,13 @@ let Login, Email, Username, Profile;
 
 beforeEach(async () => {
   pool.query.mockReset();
+  pool.connect.mockReset();
   mockClient.query.mockReset();
   mockClient.release.mockReset();
   jest.spyOn(console, 'error').mockImplementation(() => {});
+
+  // Ensure pool.connect() returns the same mockClient that the test monitors
+  pool.connect.mockResolvedValue(mockClient);
 
   const loginMod = await import('../functions/login.js');
   const profileMod = await import('../functions/profile.js');
