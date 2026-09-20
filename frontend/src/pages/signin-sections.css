@@ -306,5 +306,6 @@
 
 /* Keep the vertically-centred form clear of the fixed top nav */
 .signin-page .split-right {
-  padding-top: 4.5rem;
+  align-items: flex-start;
+  padding-top: 5rem;
 }
