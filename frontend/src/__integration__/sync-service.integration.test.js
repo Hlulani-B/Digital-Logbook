@@ -36,7 +36,8 @@ vi.mock('@/functions/project/archives.js', () => ({
   getUnarchivedProjects: (...args) => mockGetUnarchivedProjects(...args),
 }));
 
-const { syncAllData, computeDueSoon, syncProjectEntries } = await import('@/CacheFunctions/syncService.js');
+const { syncAllData, computeDueSoon, syncProjectEntries } =
+  await import('@/CacheFunctions/syncService.js');
 
 const EMAIL = 'sync@test.com';
 
@@ -113,13 +114,16 @@ describe('SyncService Integration', () => {
 
     it('reports errors for failed stores without stopping other syncs', async () => {
       mockGetProjectsByEmail.mockRejectedValue(new Error('Server down'));
-      mockGetAllEntries.mockResolvedValue({ success: true, data: [{ id: '1', project_name: 'X' }] });
+      mockGetAllEntries.mockResolvedValue({
+        success: true,
+        data: [{ id: '1', project_name: 'X' }],
+      });
       mockGetProfile.mockResolvedValue({ success: true, data: { username: 'ok' } });
 
       const result = await syncAllData(EMAIL, { force: true });
 
       expect(result.errors.length).toBeGreaterThanOrEqual(1);
-      expect(result.errors.some(e => e.store === 'projects')).toBe(true);
+      expect(result.errors.some((e) => e.store === 'projects')).toBe(true);
       // Other stores should still sync
       expect(result.synced).toContain('all-entries');
       expect(result.synced).toContain('profile');
@@ -132,7 +136,7 @@ describe('SyncService Integration', () => {
 
       // Should be called for projects, all-entries, profile, archives, due-soon
       expect(onProgress.mock.calls.length).toBeGreaterThanOrEqual(3);
-      const stores = onProgress.mock.calls.map(c => c[0].store);
+      const stores = onProgress.mock.calls.map((c) => c[0].store);
       expect(stores).toContain('projects');
       expect(stores).toContain('all-entries');
       expect(stores).toContain('profile');

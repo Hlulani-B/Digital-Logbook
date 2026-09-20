@@ -215,23 +215,21 @@ describe('JSON v3 schema and atomic restore', () => {
   function adapters(): ImportAdapters {
     return {
       isOnline: () => true,
-      addProject: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: {
-            schema_revision: 1,
-            fields: [
-              {
-                field_name: 'Tags',
-                id: 'new-field',
-                data_type: 'multiselect',
-                options: [{ id: 'new-option', label: 'Work', value: 'work' }],
-                default_value: ['new-option'],
-              },
-            ],
-          },
-        }),
+      addProject: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          schema_revision: 1,
+          fields: [
+            {
+              field_name: 'Tags',
+              id: 'new-field',
+              data_type: 'multiselect',
+              options: [{ id: 'new-option', label: 'Work', value: 'work' }],
+              default_value: ['new-option'],
+            },
+          ],
+        },
+      }),
       addEntry: vi.fn().mockResolvedValue({ success: true, data: { id: 'new-entry' } }),
       archiveEntry: vi.fn().mockResolvedValue({ success: true }),
       archiveProject: vi.fn().mockResolvedValue({ success: true }),

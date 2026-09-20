@@ -61,10 +61,7 @@ export function useSSEEntries({ onEntry, enabled = true }: UseSSEEntriesOptions 
         await cacheDelete(CACHE_STORES.PROJECTS, email);
 
         // Invalidate entries cache for each affected project
-        const allEntries = [
-          ...(data.results.old || []),
-          ...(data.results.new || []),
-        ];
+        const allEntries = [...(data.results.old || []), ...(data.results.new || [])];
         for (const e of allEntries) {
           if (e.project_name) {
             await cacheDelete(CACHE_STORES.ENTRIES, `${email}:${e.project_name}`);

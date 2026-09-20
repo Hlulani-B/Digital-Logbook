@@ -15,10 +15,10 @@ When a user adds an entry (via natural language or direct add), the system:
 
 The summary is written in neutral, factual style — no first-person pronouns.
 
-| Input | Summary |
-|---|---|
-| Project: "WebApp", Entry: `{"task": "Fixed login authentication bug"}` | "Fixed login authentication bug in WebApp." |
-| Project: "Gym", Entry: `{"activity": "Ran 5km on treadmill"}` | "Completed a 5km treadmill run at the gym." |
+| Input                                                                     | Summary                                                  |
+| ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Project: "WebApp", Entry: `{"task": "Fixed login authentication bug"}`    | "Fixed login authentication bug in WebApp."              |
+| Project: "Gym", Entry: `{"activity": "Ran 5km on treadmill"}`             | "Completed a 5km treadmill run at the gym."              |
 | Project: "COS3011A", Entry: `{"task": "Finished sprint 2 documentation"}` | "Completed sprint 2 documentation for COS3011A project." |
 
 ---
@@ -84,11 +84,11 @@ await entries.addEntry(
   entry_object,
   due_date,
   priority,
-  null,    // status
-  null,    // started_at
-  null,    // ended_at
-  null,    // duration
-  summary  // ← new optional parameter
+  null, // status
+  null, // started_at
+  null, // ended_at
+  null, // duration
+  summary // ← new optional parameter
 );
 ```
 
@@ -106,6 +106,7 @@ node scripts/backfill-summaries.js
 ```
 
 The script:
+
 - Fetches all entries where `summary IS NULL AND deleted = false`
 - For each entry, calls the AI with the project name + entry object
 - Updates the `summary` column
@@ -126,7 +127,7 @@ All existing retrieval methods (`getEntries`, `getAllEntries`, `sortUnarchivedEn
       "id": 42,
       "user_email": "user@example.com",
       "project_name": "WebApp",
-      "entries": {"task": "Fixed login authentication bug"},
+      "entries": { "task": "Fixed login authentication bug" },
       "summary": "Fixed login authentication bug in WebApp.",
       "due_date": "2026-09-03",
       "priority": "Urgent and important",
@@ -156,12 +157,12 @@ sendToUser(user_email, 'entry_parsed', {
 
 ## Cost & Performance
 
-| Metric | Value |
-|---|---|
-| Extra AI calls per entry | 1 (lightweight, ≤ 20 words output) |
-| Latency added | ~500ms–1s per entry (after main parsing completes) |
-| Token cost | ~50 input + ~20 output tokens per summary |
-| Storage | ~50–100 bytes per entry (TEXT column) |
+| Metric                   | Value                                              |
+| ------------------------ | -------------------------------------------------- |
+| Extra AI calls per entry | 1 (lightweight, ≤ 20 words output)                 |
+| Latency added            | ~500ms–1s per entry (after main parsing completes) |
+| Token cost               | ~50 input + ~20 output tokens per summary          |
+| Storage                  | ~50–100 bytes per entry (TEXT column)              |
 
 The summary generation runs sequentially after the main AI parsing, so it does not slow down the primary entry creation flow. If the summary AI call fails, the entry is still created — the `summary` field is simply `null`.
 
@@ -169,9 +170,9 @@ The summary generation runs sequentially after the main AI parsing, so it does n
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `supabase/migrations/007_add_summary_column.sql` | Adds `summary TEXT` column |
-| `services/project-service/src/functions/entries.js` | `addEntry()` accepts summary; `generateSummary()` method |
-| `services/project-service/src/Routes/entries.js` | SSE push includes summary |
-| `services/project-service/scripts/backfill-summaries.js` | Backfill script for existing entries |
+| File                                                     | Purpose                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------- |
+| `supabase/migrations/007_add_summary_column.sql`         | Adds `summary TEXT` column                               |
+| `services/project-service/src/functions/entries.js`      | `addEntry()` accepts summary; `generateSummary()` method |
+| `services/project-service/src/Routes/entries.js`         | SSE push includes summary                                |
+| `services/project-service/scripts/backfill-summaries.js` | Backfill script for existing entries                     |

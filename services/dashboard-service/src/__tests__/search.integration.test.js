@@ -68,25 +68,17 @@ describe('Dashboard Search Integration', () => {
 
       // Step 1: Search for projects matching "app"
       pool.query.mockResolvedValueOnce({
-        rows: [
-          { project_name: 'WebApp' },
-          { project_name: 'MobileApp' },
-        ],
+        rows: [{ project_name: 'WebApp' }, { project_name: 'MobileApp' }],
       });
 
       // Step 2: Fetch entries for WebApp
       pool.query.mockResolvedValueOnce({
-        rows: [
-          { entries: { task: 'Login page' } },
-          { entries: { task: 'Dashboard' } },
-        ],
+        rows: [{ entries: { task: 'Login page' } }, { entries: { task: 'Dashboard' } }],
       });
 
       // Step 3: Fetch entries for MobileApp
       pool.query.mockResolvedValueOnce({
-        rows: [
-          { entries: { task: 'Push notifications' } },
-        ],
+        rows: [{ entries: { task: 'Push notifications' } }],
       });
 
       const result = await search.searchProjects(EMAIL, 'app');
@@ -131,9 +123,7 @@ describe('Dashboard Search Integration', () => {
 
     it('searchAll and searchProject return consistent results for same data', async () => {
       const search = new Search();
-      const mockEntries = [
-        { entries: { task: 'Shared task' } },
-      ];
+      const mockEntries = [{ entries: { task: 'Shared task' } }];
 
       // searchAll
       pool.query.mockResolvedValueOnce({ rows: mockEntries });

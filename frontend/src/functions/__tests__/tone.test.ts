@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { getTone, setTone, getToneInstruction, TONE_OPTIONS } from '../tone';
 
 describe('getTone', () => {
-  beforeEach(() => { localStorage.clear(); });
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('returns "soft" when nothing is stored', () => {
     expect(getTone()).toBe('soft');
@@ -25,7 +27,9 @@ describe('getTone', () => {
 });
 
 describe('setTone', () => {
-  beforeEach(() => { localStorage.clear(); });
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('stores the tone in localStorage', () => {
     setTone('tough');
@@ -40,7 +44,9 @@ describe('setTone', () => {
 });
 
 describe('getToneInstruction', () => {
-  beforeEach(() => { localStorage.clear(); });
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('returns warm message for soft tone', () => {
     setTone('soft');

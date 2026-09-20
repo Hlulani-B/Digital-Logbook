@@ -6,12 +6,12 @@ capture, timeline, and basic statistics — not the whole Digital Logbook
 feature set.
 
 !!! tip "Feedback traceability"
-    Stories that were *refined* in Sprint 2 in response to the quick-survey
-    are marked with a **Refined by:** note pointing at the originating
-    problem, Gitea issue and shipped commit/PR. Stories that were *created
-    new* in Sprint 2 sit under
-    [Sprint 2 Feedback-Derived Stories](#sprint-2-feedback-derived-stories)
-    at the end of this file.
+Stories that were _refined_ in Sprint 2 in response to the quick-survey
+are marked with a **Refined by:** note pointing at the originating
+problem, Gitea issue and shipped commit/PR. Stories that were _created
+new_ in Sprint 2 sit under
+[Sprint 2 Feedback-Derived Stories](#sprint-2-feedback-derived-stories)
+at the end of this file.
 
 ## Demo flow
 
@@ -52,7 +52,7 @@ feature set.
 
 **Refined by:** Sprint 2 Quick-Survey problem 1 ("Projects, calendar, entries
 and activity log feel disconnected"). The dashboard was extended with
-*Recently created* and *Recently viewed* quick-jump strips (liveness-filtered
+_Recently created_ and _Recently viewed_ quick-jump strips (liveness-filtered
 against the current projects and entries) and every data-loading page was
 subscribed to `cacheSubscribe` so writes elsewhere appear without a reload.
 Tracked as Gitea issue [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118)
@@ -106,7 +106,7 @@ so downstream pages see the new project without a reload (issues
 surface (Dashboard FAB, Project page, AllEntries, Calendar, Timeline,
 QuickAdd, voice capture) was unified so the muscle memory transfers
 between pages, and each of them now records the new task into the
-*Recently created* strip. Task-creation is also protected by a sequence-ref
+_Recently created_ strip. Task-creation is also protected by a sequence-ref
 race guard so the project the user just created is guaranteed to be
 selectable immediately. Tracked as issues
 [#118](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/118),
@@ -173,7 +173,7 @@ selectable immediately. Tracked as issues
 
 ## Sprint 2 Feedback-Derived Stories
 
-These stories were created *new* in Sprint 2, directly from the quick-survey
+These stories were created _new_ in Sprint 2, directly from the quick-survey
 findings. Each cites the originating problem number, the Gitea issue it is
 tracked under, and the PR / merge commit that shipped it — closing the
 feedback → story → implementation loop that the "User Feedback" and
@@ -189,11 +189,11 @@ feedback → story → implementation loop that the "User Feedback" and
 **What:** I want the app to call the things by names I already understand
 **Why:** So that I do not have to build a new mental model to use it.
 
-| Test | Given | When | Then |
-| ---- | ----- | ---- | ---- |
-| AT1 | User is on any entry-list surface | User reads the page | Labels say "Task" / "Tasks" not "Entry" / "Entries" |
-| AT2 | User opens Project Settings | User sees the format builder | Column definitions are labelled "Columns" with a tooltip |
-| AT3 | User hovers a project name in a task row | A tooltip appears | The tooltip names the project and the row links to it |
+| Test | Given                                    | When                         | Then                                                     |
+| ---- | ---------------------------------------- | ---------------------------- | -------------------------------------------------------- |
+| AT1  | User is on any entry-list surface        | User reads the page          | Labels say "Task" / "Tasks" not "Entry" / "Entries"      |
+| AT2  | User opens Project Settings              | User sees the format builder | Column definitions are labelled "Columns" with a tooltip |
+| AT3  | User hovers a project name in a task row | A tooltip appears            | The tooltip names the project and the row links to it    |
 
 ### US12. See and reach the last things I created or opened
 
@@ -205,11 +205,11 @@ feedback → story → implementation loop that the "User Feedback" and
 **What:** I want the dashboard to show me my last few creations and last few views
 **Why:** So that I can pick up where I left off without hunting.
 
-| Test | Given | When | Then |
-| ---- | ----- | ---- | ---- |
-| AT1 | User just added a task from any surface | User lands on the Dashboard | The task appears in *Recently created* and links to its project |
-| AT2 | User just visited a project | User navigates back to the Dashboard | The project appears at the top of *Recently viewed* |
-| AT3 | A project or task in the recents has been deleted or archived | Dashboard re-renders | The stale recents entry is filtered out automatically |
+| Test | Given                                                         | When                                 | Then                                                            |
+| ---- | ------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------- |
+| AT1  | User just added a task from any surface                       | User lands on the Dashboard          | The task appears in _Recently created_ and links to its project |
+| AT2  | User just visited a project                                   | User navigates back to the Dashboard | The project appears at the top of _Recently viewed_             |
+| AT3  | A project or task in the recents has been deleted or archived | Dashboard re-renders                 | The stale recents entry is filtered out automatically           |
 
 ### US13. Understand exactly what data the app stores and how AI is used
 
@@ -223,11 +223,11 @@ and `DataDisclaimer2.tsx`.
 **What:** I want an upfront, honest disclosure of where my data lives and what the AI does with it
 **Why:** So that I can decide whether to trust the app before entering anything.
 
-| Test | Given | When | Then |
-| ---- | ----- | ---- | ---- |
-| AT1 | User just completed sign-up | Router hands off to `/data-disclaimer` | A one-time page appears listing Supabase, IndexedDB, Render, AI scope, opt-out, export, deletion grace period |
-| AT2 | User accepts the disclaimer | User clicks Continue | Flag is cleared and the user lands on the dashboard |
-| AT3 | User is signing in later (not a new signup) | Route runs `routeUser` | The disclaimer is skipped; the always-available `DataDisclaimer2` page is linked from the NavBar drawer |
+| Test | Given                                       | When                                   | Then                                                                                                          |
+| ---- | ------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| AT1  | User just completed sign-up                 | Router hands off to `/data-disclaimer` | A one-time page appears listing Supabase, IndexedDB, Render, AI scope, opt-out, export, deletion grace period |
+| AT2  | User accepts the disclaimer                 | User clicks Continue                   | Flag is cleared and the user lands on the dashboard                                                           |
+| AT3  | User is signing in later (not a new signup) | Route runs `routeUser`                 | The disclaimer is skipped; the always-available `DataDisclaimer2` page is linked from the NavBar drawer       |
 
 ### US14. Confirm destructive actions with an in-app dialog, not a browser pop-up
 
@@ -241,11 +241,11 @@ tester-feedback batch.
 **What:** I want delete/undo confirmations to look like the rest of the app
 **Why:** So that the experience feels polished and does not flash a browser chrome.
 
-| Test | Given | When | Then |
-| ---- | ----- | ---- | ---- |
-| AT1 | User opens the entry row menu | User clicks *Delete* | An inline "Delete? / Yes, delete / Cancel" prompt appears in the menu itself |
-| AT2 | Project field-save partially fails on the dashboard | The failure returns | The message renders inline in the form; no `window.alert` |
-| AT3 | User clicks *Cancel* on any inline prompt | Prompt disappears | No mutation was issued to the server |
+| Test | Given                                               | When                 | Then                                                                         |
+| ---- | --------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| AT1  | User opens the entry row menu                       | User clicks _Delete_ | An inline "Delete? / Yes, delete / Cancel" prompt appears in the menu itself |
+| AT2  | Project field-save partially fails on the dashboard | The failure returns  | The message renders inline in the form; no `window.alert`                    |
+| AT3  | User clicks _Cancel_ on any inline prompt           | Prompt disappears    | No mutation was issued to the server                                         |
 
 ### US15. Give each project its own colour, and pick a website theme
 
@@ -261,11 +261,11 @@ project-colour work tracked with the same feedback tag; migration
 **What:** I want to colour-code projects and pick a global theme
 **Why:** So that the app feels personal and I can recognise projects at a glance.
 
-| Test | Given | When | Then |
-| ---- | ----- | ---- | ---- |
-| AT1 | User opens Project Settings on any project | User selects a swatch | `project_color` is stored server-side, cache is patched optimistically, all surfaces update |
-| AT2 | User reopens the app on a different device | Dashboard loads | The stored colour is present cross-device (server-side persistence, not localStorage) |
-| AT3 | User opens Settings → Theme | User selects a dark variant | Theme applies instantly via CSS variables and persists in preferences |
+| Test | Given                                      | When                        | Then                                                                                        |
+| ---- | ------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------- |
+| AT1  | User opens Project Settings on any project | User selects a swatch       | `project_color` is stored server-side, cache is patched optimistically, all surfaces update |
+| AT2  | User reopens the app on a different device | Dashboard loads             | The stored colour is present cross-device (server-side persistence, not localStorage)       |
+| AT3  | User opens Settings → Theme                | User selects a dark variant | Theme applies instantly via CSS variables and persists in preferences                       |
 
 ### US16. See the individual logbook record called by the same word everywhere
 
@@ -281,24 +281,24 @@ still saw `entry` / `task` / `item` depending on where they looked.
 **Shipped:** commit `ff5b77e` (19 files, 62 user-facing strings).
 
 **Who:** As any user
-**What:** I want the app to call a single logbook record an *"item"*
+**What:** I want the app to call a single logbook record an _"item"_
 everywhere it appears on screen, so that the vocabulary matches the
 docs, the DB, the export files, and the code
 **Why:** So that I never have to translate between three words for the
 same thing.
 
-| Test | Given | When | Then |
-| ---- | ----- | ---- | ---- |
-| AT1 | User is on any surface that lists logbook records (Dashboard, All Items, Calendar, Kanban, Today, Timeline, Project detail, Quick Add, Add Entry) | User reads headings, buttons, tooltips, empty states and messages | The word is *"item" / "items"*; the word *"task"* does not appear anywhere user-facing |
-| AT2 | User exports data or reads the Data Portability help | User inspects labels | Same *"item"* vocabulary as the UI |
-| AT3 | Developer greps for user-facing "task" in `frontend/src` | Only non-user-facing contexts remain | Remaining matches are identifiers, CSS classes, `data-key` lookups, and internal comments; no UI string contains "task" |
+| Test | Given                                                                                                                                             | When                                                              | Then                                                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| AT1  | User is on any surface that lists logbook records (Dashboard, All Items, Calendar, Kanban, Today, Timeline, Project detail, Quick Add, Add Entry) | User reads headings, buttons, tooltips, empty states and messages | The word is _"item" / "items"_; the word _"task"_ does not appear anywhere user-facing                                  |
+| AT2  | User exports data or reads the Data Portability help                                                                                              | User inspects labels                                              | Same _"item"_ vocabulary as the UI                                                                                      |
+| AT3  | Developer greps for user-facing "task" in `frontend/src`                                                                                          | Only non-user-facing contexts remain                              | Remaining matches are identifiers, CSS classes, `data-key` lookups, and internal comments; no UI string contains "task" |
 
 !!! info "Scope"
-    Internal identifiers (`entry`, `entries`, `task`, database columns,
-    cache keys, event names, CSS classes, `data-key` attributes, AI
-    prompt keys) are unchanged — this is a **UI-only** rename. The
-    database still calls the row an "entry" and the code still calls
-    it an "entry" in most places; only what the user sees was unified
-    to "item". This avoids a costly migration for zero user benefit.
+Internal identifiers (`entry`, `entries`, `task`, database columns,
+cache keys, event names, CSS classes, `data-key` attributes, AI
+prompt keys) are unchanged — this is a **UI-only** rename. The
+database still calls the row an "entry" and the code still calls
+it an "entry" in most places; only what the user sees was unified
+to "item". This avoids a costly migration for zero user benefit.
 
 <!-- AI Attribution: Formatting and table generation provided by Gemini (Model: Gemini 1.5 Pro). Purpose: Agile user story structuring and markdown formatting. -->

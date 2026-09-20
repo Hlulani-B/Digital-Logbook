@@ -196,8 +196,16 @@ describe('SSE Integration Tests', () => {
     });
 
     it('should handle all connections dying simultaneously', () => {
-      const dead1 = { write: jest.fn().mockImplementation(() => { throw new Error('closed'); }) };
-      const dead2 = { write: jest.fn().mockImplementation(() => { throw new Error('closed'); }) };
+      const dead1 = {
+        write: jest.fn().mockImplementation(() => {
+          throw new Error('closed');
+        }),
+      };
+      const dead2 = {
+        write: jest.fn().mockImplementation(() => {
+          throw new Error('closed');
+        }),
+      };
 
       registerConnection('user@test.com', dead1);
       registerConnection('user@test.com', dead2);

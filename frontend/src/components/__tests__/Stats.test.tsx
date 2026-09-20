@@ -75,7 +75,12 @@ describe('Stats', () => {
 
   it('shows scoped stats for activeProject', () => {
     const entries = [
-      { id: '1', project_name: 'MyProject', started_at: '2025-01-01T10:00:00Z', ended_at: '2025-01-01T11:00:00Z' },
+      {
+        id: '1',
+        project_name: 'MyProject',
+        started_at: '2025-01-01T10:00:00Z',
+        ended_at: '2025-01-01T11:00:00Z',
+      },
       { id: '2', project_name: 'OtherProject' },
     ];
     render(<Stats entries={entries} projects={[]} dueSoonCount={0} activeProject="MyProject" />);

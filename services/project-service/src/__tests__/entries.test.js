@@ -4,7 +4,9 @@ import { Entries } from '../functions/entries.js';
 jest.mock('../db.js');
 jest.mock('../functions/ai.js', () => ({ AI: jest.fn() }));
 jest.mock('../functions/notes/notes_crud.js', () => {
-  const mockAddNote = jest.fn().mockResolvedValue({ success: true, data: { id: 'n1', entry_type: 'text', value: 'test' } });
+  const mockAddNote = jest
+    .fn()
+    .mockResolvedValue({ success: true, data: { id: 'n1', entry_type: 'text', value: 'test' } });
   return { Notes: jest.fn().mockImplementation(() => ({ addNote: mockAddNote })) };
 });
 
@@ -65,7 +67,19 @@ describe('Entries', () => {
         { entry_type: 'link', value: 'https://example.com' },
       ];
 
-      const result = await entries.addEntry('a@b.com', 'P1', { task: 'test' }, null, null, null, null, null, null, null, notes);
+      const result = await entries.addEntry(
+        'a@b.com',
+        'P1',
+        { task: 'test' },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        notes
+      );
 
       expect(result.success).toBe(true);
       expect(result.notes).toHaveLength(2);
@@ -82,7 +96,19 @@ describe('Entries', () => {
         null,
       ];
 
-      const result = await entries.addEntry('a@b.com', 'P1', { task: 'test' }, null, null, null, null, null, null, null, notes);
+      const result = await entries.addEntry(
+        'a@b.com',
+        'P1',
+        { task: 'test' },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        notes
+      );
 
       expect(result.success).toBe(true);
       expect(result.notes).toHaveLength(0);

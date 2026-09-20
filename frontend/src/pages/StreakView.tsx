@@ -90,96 +90,123 @@ export function StreakView() {
       <main className="dash-main">
         <Header title="My Streaks" entries={entries} />
         <div className="stats-page">
+          {entries.length === 0 ? (
+            <div className="stats-empty glass">
+              <svg
+                width="64"
+                height="64"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ opacity: 0.4 }}
+              >
+                <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
+                <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
+              </svg>
+              <h2>No entries yet</h2>
+              <p>Start logging entries to build your streak!</p>
+            </div>
+          ) : (
+            <div className="stats-content">
+              {/* Streak Cards */}
+              <div className="stats-cards-grid">
+                <div className="stat-card glass">
+                  <div className="stat-card-icon">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
+                      <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-value">{streaks.currentStreak}</span>
+                    <span className="stat-card-label">Current Streak</span>
+                    <span className="stat-card-sub">{streakLabel(streaks.currentStreak)}</span>
+                  </div>
+                </div>
 
-      {entries.length === 0 ? (
-        <div className="stats-empty glass">
-          <svg
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ opacity: 0.4 }}
-          >
-            <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
-            <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
-          </svg>
-          <h2>No entries yet</h2>
-          <p>Start logging entries to build your streak!</p>
-        </div>
-      ) : (
-        <div className="stats-content">
-          {/* Streak Cards */}
-          <div className="stats-cards-grid">
-            <div className="stat-card glass">
-              <div className="stat-card-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
-                  <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
-                </svg>
+                <div className="stat-card glass">
+                  <div className="stat-card-icon">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
+                      <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-value">{streaks.longestStreak}</span>
+                    <span className="stat-card-label">Longest Streak</span>
+                    <span className="stat-card-sub">Best run ever</span>
+                  </div>
+                </div>
+
+                <div className="stat-card glass">
+                  <div className="stat-card-icon">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-value">{streaks.totalDays}</span>
+                    <span className="stat-card-label">Active Days</span>
+                    <span className="stat-card-sub">Total days logged</span>
+                  </div>
+                </div>
+
+                <div className="stat-card glass">
+                  <div className="stat-card-icon">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-value">{entries.length}</span>
+                    <span className="stat-card-label">Total Entries</span>
+                    <span className="stat-card-sub">All time</span>
+                  </div>
+                </div>
               </div>
-              <div className="stat-card-body">
-                <span className="stat-card-value">{streaks.currentStreak}</span>
-                <span className="stat-card-label">Current Streak</span>
-                <span className="stat-card-sub">{streakLabel(streaks.currentStreak)}</span>
+
+              {/* Activity Heatmap */}
+              <div className="stats-panel glass">
+                <h3 className="stats-panel-title">Activity (Last 90 Days)</h3>
+                <StreakHeatmap entries={entries} />
               </div>
             </div>
-
-            <div className="stat-card glass">
-              <div className="stat-card-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2c1 3-2 5-2 8a4 4 0 0 0 8 0c0-3-2-5-2-8" />
-                  <path d="M8 14c-1.5 1-3 3-3 5a5 5 0 0 0 10 0c0-2-1.5-4-3-5" />
-                </svg>
-              </div>
-              <div className="stat-card-body">
-                <span className="stat-card-value">{streaks.longestStreak}</span>
-                <span className="stat-card-label">Longest Streak</span>
-                <span className="stat-card-sub">Best run ever</span>
-              </div>
-            </div>
-
-            <div className="stat-card glass">
-              <div className="stat-card-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </div>
-              <div className="stat-card-body">
-                <span className="stat-card-value">{streaks.totalDays}</span>
-                <span className="stat-card-label">Active Days</span>
-                <span className="stat-card-sub">Total days logged</span>
-              </div>
-            </div>
-
-            <div className="stat-card glass">
-              <div className="stat-card-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-              </div>
-              <div className="stat-card-body">
-                <span className="stat-card-value">{entries.length}</span>
-                <span className="stat-card-label">Total Entries</span>
-                <span className="stat-card-sub">All time</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Activity Heatmap */}
-          <div className="stats-panel glass">
-            <h3 className="stats-panel-title">Activity (Last 90 Days)</h3>
-            <StreakHeatmap entries={entries} />
-          </div>
-        </div>
-      )}
+          )}
         </div>
       </main>
     </div>

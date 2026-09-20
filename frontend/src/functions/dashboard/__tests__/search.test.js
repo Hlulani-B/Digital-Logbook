@@ -42,7 +42,8 @@ describe('search functions', () => {
 
     it('returns error on invalid JSON response', async () => {
       fetch.mockResolvedValueOnce({
-        ok: true, status: 200,
+        ok: true,
+        status: 200,
         text: () => Promise.resolve('not-json{{{'),
       });
       const result = await searchAll('user@test.com', 'test');
@@ -52,7 +53,8 @@ describe('search functions', () => {
 
     it('returns error on non-ok HTTP response', async () => {
       fetch.mockResolvedValueOnce({
-        ok: false, status: 500,
+        ok: false,
+        status: 500,
         text: () => Promise.resolve(JSON.stringify({ error: 'Internal error' })),
       });
       const result = await searchAll('user@test.com', 'test');

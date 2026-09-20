@@ -54,7 +54,8 @@ describe('request', () => {
 
   it('throws on non-ok response', async () => {
     getMockFetch().mockResolvedValueOnce({
-      ok: false, status: 404,
+      ok: false,
+      status: 404,
       text: () => Promise.resolve('Not found'),
     });
     await expect(request('https://example.com/api')).rejects.toThrow('API error 404: Not found');

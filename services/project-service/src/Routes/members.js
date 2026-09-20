@@ -35,12 +35,10 @@ router.post('/member', async (req, res) => {
       case 'add': {
         const { project_name, member_email, role } = values || {};
         if (!project_name || !member_email || !role) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: 'Missing required fields: project_name, member_email, role',
-            });
+          return res.status(400).json({
+            success: false,
+            message: 'Missing required fields: project_name, member_email, role',
+          });
         }
         const result = await members.addMember(user_email, project_name, member_email, role);
         return res.json(result);
@@ -49,12 +47,10 @@ router.post('/member', async (req, res) => {
       case 'edit': {
         const { project_name, member_email, new_role } = values || {};
         if (!project_name || !member_email || !new_role) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: 'Missing required fields: project_name, member_email, new_role',
-            });
+          return res.status(400).json({
+            success: false,
+            message: 'Missing required fields: project_name, member_email, new_role',
+          });
         }
         const result = await members.editMember(user_email, project_name, member_email, new_role);
         return res.json(result);
@@ -63,12 +59,10 @@ router.post('/member', async (req, res) => {
       case 'remove': {
         const { project_name, member_email } = values || {};
         if (!project_name || !member_email) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: 'Missing required fields: project_name, member_email',
-            });
+          return res.status(400).json({
+            success: false,
+            message: 'Missing required fields: project_name, member_email',
+          });
         }
         const result = await members.removeMember(user_email, project_name, member_email);
         return res.json(result);

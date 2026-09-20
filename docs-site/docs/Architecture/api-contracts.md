@@ -9,7 +9,6 @@ All backend services follow a consistent API pattern:
 - Request/Response: JSON format
 - Error handling: `{ success: false, message: string }`
 
-
 ## Profile Service (port 5004)
 
 **Production URL:** `https://profile-service-0zk7.onrender.com`

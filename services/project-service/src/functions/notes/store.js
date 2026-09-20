@@ -1,8 +1,14 @@
 import { randomUUID } from 'crypto';
 
-function getSupabaseUrl() { return process.env.SUPABASE_URL; }
-function getSupabaseKey() { return process.env.SUPABASE_SERVICE_ROLE_KEY; }
-function getBucket() { return process.env.SUPABASE_STORAGE_BUCKET || 'Hlulani'; }
+function getSupabaseUrl() {
+  return process.env.SUPABASE_URL;
+}
+function getSupabaseKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+function getBucket() {
+  return process.env.SUPABASE_STORAGE_BUCKET || 'Hlulani';
+}
 
 /**
  * Guess a MIME type from a filename extension.
@@ -46,12 +52,26 @@ function guessContentType(filename) {
  * @returns {Promise<string|null>}  Public URL, or null on failure
  */
 export async function storeFile(file, filename, userEmail) {
-  const buffer = typeof file === 'string'
-    ? Buffer.from(file, 'base64')
-    : file;
+  const buffer = typeof file === 'string' ? Buffer.from(file, 'base64') : file;
 
-  console.log('[storeFile] START, filename=', filename, 'userEmail=', userEmail, 'bufferLen=', buffer.length, 'isBuffer=', Buffer.isBuffer(buffer));
-  console.log('[storeFile] env: SUPABASE_URL=', getSupabaseUrl(), 'hasKey=', !!getSupabaseKey(), 'bucket=', getBucket());
+  console.log(
+    '[storeFile] START, filename=',
+    filename,
+    'userEmail=',
+    userEmail,
+    'bufferLen=',
+    buffer.length,
+    'isBuffer=',
+    Buffer.isBuffer(buffer)
+  );
+  console.log(
+    '[storeFile] env: SUPABASE_URL=',
+    getSupabaseUrl(),
+    'hasKey=',
+    !!getSupabaseKey(),
+    'bucket=',
+    getBucket()
+  );
 
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
     throw new TypeError('file must be a non-empty Buffer or base64 string');
@@ -91,11 +111,15 @@ export async function storeFile(file, filename, userEmail) {
     }
 
     const data = await response.json().catch(() => ({}));
-    console.log('[storeFile] response JSON keys=', Object.keys(data || {}), 'publicUrl=', data?.publicUrl);
+    console.log(
+      '[storeFile] response JSON keys=',
+      Object.keys(data || {}),
+      'publicUrl=',
+      data?.publicUrl
+    );
     // Supabase returns { Key, ... } on success
     const publicUrl =
-      data?.publicUrl ||
-      `${getSupabaseUrl()}/storage/v1/object/public/${getBucket()}/${path}`;
+      data?.publicUrl || `${getSupabaseUrl()}/storage/v1/object/public/${getBucket()}/${path}`;
 
     console.log('[storeFile] Uploaded:', path, '→', publicUrl);
     return publicUrl;

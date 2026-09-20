@@ -83,9 +83,7 @@ describe('GET /service/health-ping', () => {
     const result = await ping();
 
     // Verify INSERT was called with "hello hlulani"
-    const insertCall = pool.query.mock.calls.find(call =>
-      call[0].includes('INSERT INTO')
-    );
+    const insertCall = pool.query.mock.calls.find((call) => call[0].includes('INSERT INTO'));
     expect(insertCall).toBeTruthy();
     expect(insertCall[1]).toEqual(['hello hlulani']);
     expect(result.message).toBe('hello hlulani');
@@ -103,9 +101,7 @@ describe('GET /service/health-ping', () => {
     await ping();
 
     // Verify DELETE was called with the inserted row's id
-    const deleteCall = pool.query.mock.calls.find(call =>
-      call[0].includes('DELETE FROM')
-    );
+    const deleteCall = pool.query.mock.calls.find((call) => call[0].includes('DELETE FROM'));
     expect(deleteCall).toBeTruthy();
     expect(deleteCall[1]).toEqual([42]);
   });

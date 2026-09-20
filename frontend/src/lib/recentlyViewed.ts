@@ -58,11 +58,13 @@ export function trackViewedEntry(input: {
   trackViewed({ ...input, type: 'entry' });
 }
 
-export function trackViewedProject(input: {
-  projectName: string;
-  title: string;
-}): void {
-  trackViewed({ entryId: `project:${input.projectName}`, projectName: input.projectName, title: input.title, type: 'project' });
+export function trackViewedProject(input: { projectName: string; title: string }): void {
+  trackViewed({
+    entryId: `project:${input.projectName}`,
+    projectName: input.projectName,
+    title: input.title,
+    type: 'project',
+  });
 }
 
 function trackViewed(input: {

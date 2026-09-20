@@ -22,12 +22,12 @@ team working in two-week sprints.
 
 ### Scrum Artifacts
 
-| Artifact            | Where it lives                              | Purpose                                                   |
-| ------------------- | ------------------------------------------- | --------------------------------------------------------- |
-| **Product Backlog** | [User Stories](../User_Stories/sprint-one.md)             | All known requirements, prioritised by sprint             |
-| **Sprint Backlog**  | Trello board (team-private)                 | Tasks selected for the current sprint, assigned to owners |
-| **Increment**       | Deployed services on Render + live frontend | Working software at the end of each sprint                |
-| **Sprint Review**   | This documentation site                     | Demonstrable output: docs, tests, deployed URLs           |
+| Artifact            | Where it lives                                | Purpose                                                   |
+| ------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| **Product Backlog** | [User Stories](../User_Stories/sprint-one.md) | All known requirements, prioritised by sprint             |
+| **Sprint Backlog**  | Trello board (team-private)                   | Tasks selected for the current sprint, assigned to owners |
+| **Increment**       | Deployed services on Render + live frontend   | Working software at the end of each sprint                |
+| **Sprint Review**   | This documentation site                       | Demonstrable output: docs, tests, deployed URLs           |
 
 ### Scrum Events
 
@@ -112,14 +112,14 @@ force pushes are blocked by branch protection on Gitea.
 
 **Branch protection rules on `main`:**
 
-| Rule                        | Setting  |
-| --------------------------- | -------- |
-| Direct pushes               | Blocked  |
-| Force pushes                | Blocked  |
-| Required approvals          | 0        |
-| Block on rejected reviews   | Yes      |
-| Block on outdated branch    | Yes      |
-| Dismiss stale approvals     | Yes      |
+| Rule                      | Setting |
+| ------------------------- | ------- |
+| Direct pushes             | Blocked |
+| Force pushes              | Blocked |
+| Required approvals        | 0       |
+| Block on rejected reviews | Yes     |
+| Block on outdated branch  | Yes     |
+| Dismiss stale approvals   | Yes     |
 
 > **Why no direct pushes?** Every change must be visible as a pull request
 > on Gitea so the team has a full audit trail of what changed and when.
@@ -145,9 +145,9 @@ See [Code Quality Tools](../Testing/code-quality.md) for full details.
 The table below shows where a marker can find evidence for each rubric
 criterion that this methodology supports:
 
-| Rubric Criterion          | Evidence                                                                                                                                                                |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Version Control (10%)     | This repo — organised structure, CI pipeline, linting, coverage badges, all members committed                                                                           |
-| Work Tracker (5%)         | [Work Tracker](work-tracker.md) (public sprint backlog with task owners, status, and evidence); private Trello board used for daily coordination                        |
-| Git Methodology (5%)      | This page (branching strategy, commit convention, PR workflow)                                                                                                          |
+| Rubric Criterion          | Evidence                                                                                                                                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Version Control (10%)     | This repo — organised structure, CI pipeline, linting, coverage badges, all members committed                                                                                                                |
+| Work Tracker (5%)         | [Work Tracker](work-tracker.md) (public sprint backlog with task owners, status, and evidence); private Trello board used for daily coordination                                                             |
+| Git Methodology (5%)      | This page (branching strategy, commit convention, PR workflow)                                                                                                                                               |
 | Project Methodology (10%) | This page (Scrum), plus [User Stories](../User_Stories/sprint-one.md), [Meetings](../Meetings/sprint-one-meetings.md), [Development Log](log.md), [Decisions](decisions.md), [Work Tracker](work-tracker.md) |
