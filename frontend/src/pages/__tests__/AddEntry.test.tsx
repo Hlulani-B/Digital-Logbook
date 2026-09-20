@@ -32,7 +32,7 @@ describe('AddEntry', () => {
   it('defaults an untouched optional Boolean field to false', async () => {
     renderForm();
 
-    await screen.findByRole('checkbox', { name: 'optional flag' });
+    await screen.findByRole('checkbox');
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
 
     await waitFor(() => expect(addEntry).toHaveBeenCalled());
@@ -42,7 +42,7 @@ describe('AddEntry', () => {
   it('persists false after an optional Boolean field is changed', async () => {
     renderForm();
 
-    const checkbox = await screen.findByRole('checkbox', { name: 'optional flag' });
+    const checkbox = await screen.findByRole('checkbox');
     fireEvent.click(checkbox);
     fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));

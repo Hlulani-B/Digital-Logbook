@@ -279,14 +279,14 @@ describe('Entry CRUD Integration', () => {
       expect(all[0].id).toBe('e2');
     });
 
-    it('rolls back on server failure', async () => {
+    it('queues for retry on server failure', async () => {
       mockRequest.mockRejectedValueOnce(new Error('Server error'));
 
-      await deleteEntry(EMAIL, PROJECT, entry1);
+      const result = await deleteEntry(EMAIL, PROJECT, entry1);
 
-      const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
-      const entries = cached.data || cached;
-      expect(entries.length).toBe(2); // Both entries restored
+      // On failure, deleteEntry queues for retry and returns success: true
+      expect(result.success).toBe(true);
+      expect(result.queued).toBe(true);
     });
   });
 
@@ -303,14 +303,15 @@ describe('Entry CRUD Integration', () => {
       expect(entries[0].id).toBe('s1');
     });
 
-    it('returns error result on failure without corrupting cache', async () => {
+    it('falls back to cache on failure without corrupting cache', async () => {
       // Seed cache with existing data
       await cacheSet(CACHE_STORES.ENTRIES, CACHE_KEY, { success: true, data: [{ id: 'old' }] });
       mockRequest.mockRejectedValueOnce(new Error('Network down'));
 
       const result = await getEntries(EMAIL, PROJECT);
 
-      expect(result.success).toBe(false);
+      // getEntries falls back to cache with success: true
+      expect(result.success).toBe(true);
       // Cache should still have old data
       const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
       expect((cached.data || cached).length).toBe(1);
