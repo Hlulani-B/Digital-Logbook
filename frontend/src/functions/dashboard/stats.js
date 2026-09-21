@@ -340,7 +340,7 @@ function groupKey(value, data_type) {
 }
 
 /** Day bucket (UTC YYYY-MM-DD) for plotting a field over time. */
-function dayBucket(entry) {
+export function dayBucket(entry) {
   if (!entry || !entry.created_at) return null;
   const t = new Date(entry.created_at).getTime();
   return isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);

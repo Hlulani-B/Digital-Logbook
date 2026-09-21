@@ -5,7 +5,10 @@ import {
   calculateTotalTimeTracked,
   calculateProjectStats,
   computeFieldStats,
+  entryDurationMs,
+  dayBucket,
   formatDuration,
+  formatStatValue,
 } from '@/functions/dashboard/stats.js';
 import { getFields } from '@/functions/project/fields.js';
 import { useNow } from '@/hooks/useNow';
@@ -163,6 +166,112 @@ function Sparkline({ series }: { series: { bucket: string; value: number }[] }) 
   );
 }
 
+/* ---------- Trend Chart (plot over time) ----------
+ * Full daily-series chart with date and value axes — the visible
+ * "plot over time" capability for any series the stats engine computes,
+ * whether a built-in activity metric or an owner-defined field. */
+const TREND_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function formatTrendBucket(bucket: string) {
+  const [, m, d] = bucket.split('-').map(Number);
+  return m >= 1 && m <= 12 ? `${TREND_MONTHS[m - 1]} ${d}` : bucket;
+}
+
+function TrendChart({
+  series,
+  formatValue,
+}: {
+  series: { bucket: string; value: number }[];
+  formatValue: (v: number) => string;
+}) {
+  if (series.length === 0) return null;
+  // Cap the window so long histories stay readable.
+  const shown = series.slice(-60);
+  const max = Math.max(...shown.map((s) => s.value), 1);
+  const W = 640;
+  const H = 190;
+  const padL = 64;
+  const padR = 18;
+  const padT = 14;
+  const padB = 28;
+  const iw = W - padL - padR;
+  const ih = H - padT - padB;
+  const x = (i: number) => padL + (shown.length === 1 ? iw / 2 : (i / (shown.length - 1)) * iw);
+  const y = (v: number) => padT + ih - (v / max) * ih;
+
+  const points = shown.map((s, i) => ({ ...s, cx: x(i), cy: y(s.value) }));
+  const baseline = padT + ih;
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`)
+    .join(' ');
+  const areaPath = [
+    linePath,
+    `L${points[points.length - 1].cx.toFixed(1)},${baseline}`,
+    `L${points[0].cx.toFixed(1)},${baseline}`,
+    'Z',
+  ].join(' ');
+  const tickIdx = [
+    0,
+    Math.floor((shown.length - 1) / 3),
+    Math.floor((2 * (shown.length - 1)) / 3),
+    shown.length - 1,
+  ].filter((v, i, a) => v >= 0 && a.indexOf(v) === i);
+
+  return (
+    <div className="trend-chart-wrapper">
+      <svg viewBox={`0 0 ${W} ${H}`} className="trend-chart-svg" role="img">
+        {[0, 0.5, 1].map((f) => (
+          <g key={f}>
+            <line x1={padL} x2={W - padR} y1={y(max * f)} y2={y(max * f)} className="trend-grid" />
+            <text x={padL - 8} y={y(max * f) + 4} textAnchor="end" className="trend-axis-text">
+              {formatValue(Math.round(max * f * 100) / 100)}
+            </text>
+          </g>
+        ))}
+        {tickIdx.map((i) => (
+          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="trend-axis-text">
+            {formatTrendBucket(shown[i].bucket)}
+          </text>
+        ))}
+        <path d={areaPath} className="trend-area" />
+        <path d={linePath} className="trend-line" />
+        {points.map((p) => (
+          <circle
+            key={p.bucket}
+            cx={p.cx}
+            cy={p.cy}
+            r={shown.length > 30 ? 2.5 : 3.5}
+            className="trend-dot"
+          >
+            <title>{`${p.bucket}: ${formatValue(p.value)}`}</title>
+          </circle>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/* One selectable series in the "Plot over time" panel. */
+interface PlotOption {
+  key: string;
+  label: string;
+  series: { bucket: string; value: number }[];
+  formatValue: (v: number) => string;
+}
+
 /* ---------- Field Stat Panel (generic) ----------
  * Renders the standard FieldStat format: headline totals, a group-by
  * breakdown, a per-project compare, and a daily sparkline. The panel
@@ -252,6 +361,8 @@ export function StatsView() {
   const [dueSoonCount, setDueSoonCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
+  // Selected series in the "Plot over time" panel
+  const [plotKey, setPlotKey] = useState('');
 
   // Guard against overlapping loadData calls (mount effect + two
   // cacheSubscribe listeners firing near-simultaneously during a sync).
@@ -363,6 +474,60 @@ export function StatsView() {
     () => (scopeProject ? computeFieldStats(scopedEntries, fieldDefs, { now, maxGroups: 6 }) : []),
     [scopeProject, scopedEntries, fieldDefs, now]
   );
+
+  // Daily activity series — entries logged per day and time tracked per
+  // day — bucketed the same way the engine buckets field plots so the
+  // plot-over-time panel always has something to draw even without
+  // custom fields.
+  const activitySeries = useMemo(() => {
+    const counts = new Map<string, number>();
+    const ms = new Map<string, number>();
+    scopedEntries.forEach((entry) => {
+      const bucket = dayBucket(entry);
+      if (!bucket) return;
+      counts.set(bucket, (counts.get(bucket) || 0) + 1);
+      const duration = entryDurationMs(entry, now);
+      if (duration > 0) ms.set(bucket, (ms.get(bucket) || 0) + duration);
+    });
+    const toSeries = (map: Map<string, number>) =>
+      Array.from(map.entries())
+        .map(([bucket, value]) => ({ bucket, value }))
+        .sort((a, b) => (a.bucket < b.bucket ? -1 : 1));
+    return { entries: toSeries(counts), time: toSeries(ms) };
+  }, [scopedEntries, now]);
+
+  // Plot-over-time options: the built-in daily activity metrics plus
+  // every scoped custom field, all drawn by the same TrendChart.
+  const plotOptions = useMemo<PlotOption[]>(() => {
+    const options: PlotOption[] = [];
+    if (activitySeries.entries.length > 0) {
+      options.push({
+        key: 'activity:entries',
+        label: 'Entries per day',
+        series: activitySeries.entries,
+        formatValue: (v) => String(v),
+      });
+    }
+    if (activitySeries.time.length > 0) {
+      options.push({
+        key: 'activity:time',
+        label: 'Time tracked per day',
+        series: activitySeries.time,
+        formatValue: (v) => formatDuration(v),
+      });
+    }
+    fieldStats.forEach((fs) => {
+      if (fs.series.length === 0) return;
+      options.push({
+        key: `field:${fs.field}`,
+        label: fs.field,
+        series: fs.series,
+        formatValue: (v) => (fs.capabilities.total ? formatStatValue(v, fs.data_type) : String(v)),
+      });
+    });
+    return options;
+  }, [activitySeries, fieldStats]);
+  const selectedPlot = plotOptions.find((o) => o.key === plotKey) || plotOptions[0];
 
   const totalTimeTracked = useMemo(
     () => calculateTotalTimeTracked(scopedEntries, now),
@@ -505,8 +670,8 @@ export function StatsView() {
               <h2>No stats yet</h2>
               <p>
                 {scopeProject
-                  ? `Log items in ${scopeProject} — with custom fields or a running timer — to see stats here.`
-                  : 'Log items — with custom fields or a running timer — to see stats here.'}
+                  ? `Log entries in ${scopeProject} — with custom fields or a running timer — to see stats here.`
+                  : 'Log entries — with custom fields or a running timer — to see stats here.'}
               </p>
             </div>
           ) : (
@@ -678,6 +843,31 @@ export function StatsView() {
                   </div>
                 </div>
               </div>
+
+              {/* Plot over time — daily series for the built-in activity
+              metrics plus every scoped custom field, selectable from the
+              dropdown: sums per day for total-able fields, counts
+              otherwise. */}
+              {plotOptions.length > 0 && selectedPlot && (
+                <div className="stats-panel glass">
+                  <div className="field-plot-header">
+                    <h3 className="stats-panel-title">Plot over time</h3>
+                    <select
+                      className="field-plot-select"
+                      aria-label="Series to plot over time"
+                      value={selectedPlot.key}
+                      onChange={(e) => setPlotKey(e.target.value)}
+                    >
+                      {plotOptions.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <TrendChart series={selectedPlot.series} formatValue={selectedPlot.formatValue} />
+                </div>
+              )}
 
               {/* Time per Project Bar Chart — cross-project view */}
               {!scopeProject && (
