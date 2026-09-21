@@ -100,7 +100,21 @@ type Project = Record<string, unknown>;
 
 type ProjectFieldDraft = {
   field_name: string;
-  data_type: 'text' | 'number' | 'date' | 'boolean' | 'custom';
+  data_type:
+    | 'text'
+    | 'markdown'
+    | 'integer'
+    | 'float'
+    | 'number'
+    | 'date'
+    | 'timestamp'
+    | 'boolean'
+    | 'geolocation'
+    | 'currency'
+    | 'file'
+    | 'image'
+    | 'entity_link'
+    | 'custom';
   is_required: boolean;
   custom_options?: string[];
 };
@@ -756,7 +770,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const addProjectField = () => {
     setProjectFields((prev) => [
       ...prev,
-      { field_name: '', data_type: 'text', is_required: false, custom_options: [] },
+      { field_name: '', data_type: 'markdown', is_required: false, custom_options: [] },
     ]);
   };
 
@@ -2384,8 +2398,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       <option value="date">Date</option>
                       <option value="timestamp">Timestamp</option>
                       <option value="boolean">Boolean</option>
-                      <option value="select">Select</option>
-                      <option value="multiselect">Multi-Select</option>
                       <option value="geolocation">Geolocation</option>
                       <option value="currency">Currency</option>
                       <option value="file">File</option>
