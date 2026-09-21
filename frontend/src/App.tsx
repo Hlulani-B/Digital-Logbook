@@ -27,14 +27,12 @@ import { StatsView } from '@/pages/StatsView';
 import { StreakView } from '@/pages/StreakView';
 import { CalendarPage } from '@/pages/Calendar';
 import { KanbanPage } from '@/pages/Kanban';
-import { TodayPage } from '@/pages/Today';
 import { TimelinePage } from '@/pages/Timeline';
 import DataPortability from '@/pages/DataPortability';
 import { DataDisclaimer } from '@/pages/DataDisclaimer';
 import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
 import { NotesPage } from '@/pages/NotesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
-import TrackerPage from '@/pages/TrackerPage';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -294,14 +292,7 @@ export function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/today"
-                  element={
-                    <ProtectedRoute>
-                      <TodayPage />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/today" element={<Navigate to="/dashboard" replace />} />
                 <Route
                   path="/timeline"
                   element={
@@ -318,14 +309,7 @@ export function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/tracker"
-                  element={
-                    <ProtectedRoute>
-                      <TrackerPage />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/tracker" element={<Navigate to="/dashboard" replace />} />
                 <Route
                   path="/data-disclaimer"
                   element={

@@ -71,7 +71,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Navigation')).toBeTruthy();
   });
 
-  it('shows navigation items in the drawer', () => {
+  it('shows supported navigation items without Today or Tracker view links', () => {
     render(
       <MemoryRouter>
         <AppShell>
@@ -84,7 +84,10 @@ describe('AppShell', () => {
     expect(screen.getByText('All Items')).toBeTruthy();
     expect(screen.getByText('My Stats')).toBeTruthy();
     expect(screen.getByText('Kanban')).toBeTruthy();
-    expect(screen.getByText('Today')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Today' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tracker' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Tracker' })).toBeNull();
     expect(screen.getByText('Calendar')).toBeTruthy();
     expect(screen.getByText('Streaks')).toBeTruthy();
   });

@@ -65,7 +65,7 @@ describe('NavBar', () => {
     expect(screen.getByText('Projects')).toBeTruthy();
   });
 
-  it('shows navigation items in drawer', () => {
+  it('shows supported navigation items without Today or Tracker view links', () => {
     renderNavBar();
     fireEvent.click(screen.getByLabelText('Toggle menu'));
 
@@ -76,7 +76,11 @@ describe('NavBar', () => {
     expect(screen.getByText('Activity Log')).toBeTruthy();
     expect(screen.getByText('Calendar')).toBeTruthy();
     expect(screen.getByText('Kanban')).toBeTruthy();
-    expect(screen.getByText('Today')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Timeline' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Today' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tracker' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Tracker' })).toBeNull();
   });
 
   it('shows "No projects yet" when no projects provided', () => {
@@ -137,11 +141,13 @@ describe('NavBar', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/kanban');
   });
 
-  it('navigates to /today when Today is clicked', () => {
+  it('navigates to /timeline and closes the drawer when Timeline is clicked', () => {
     renderNavBar();
     fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('Today'));
-    expect(mockNavigate).toHaveBeenCalledWith('/today');
+    expect(screen.getByRole('complementary')).toHaveClass('drawer-open');
+    fireEvent.click(screen.getByRole('button', { name: 'Timeline' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/timeline');
+    expect(screen.getByRole('complementary')).not.toHaveClass('drawer-open');
   });
 
   it('closes drawer after clicking a nav item', () => {

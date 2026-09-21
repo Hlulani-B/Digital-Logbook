@@ -289,16 +289,6 @@ function buildSteps(): DriveStep[] {
       align: 'start',
     }),
     liveStep({
-      path: '/today',
-      element: '[data-tour="page-today"]',
-      title: 'Today',
-      description:
-        'A focused list of what is due today and what deserves attention first — ' +
-        'a good place to start each session.',
-      side: 'top',
-      align: 'start',
-    }),
-    liveStep({
       path: '/kanban',
       element: '[data-tour="page-kanban"]',
       title: 'Kanban',
