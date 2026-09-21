@@ -1,6 +1,36 @@
-import React, { useRef } from 'react';
-import type { FieldDefinition } from '@/lib/fieldSchema';
+import React, { useRef, useState, useMemo } from 'react';
+import type { FieldDefinition, FieldOption } from '@/lib/fieldSchema';
 import { uploadAndFinalize } from '@/lib/attachmentApi';
+import { checkThresholds } from '@/lib/fieldValidation';
+import type { AlertLevel } from '@/lib/fieldVisibility';
+
+/** Small colored dot indicating threshold status */
+function ThresholdIndicator({ level, message }: { level: AlertLevel; message?: string }) {
+  if (level === 'ok') return null;
+  const color = level === 'alert' ? '#dc2626' : '#eab308';
+  return (
+    <span
+      className={`field-threshold-indicator field-threshold-${level}`}
+      title={message || `Threshold ${level}`}
+      style={{
+        display: 'inline-block',
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        backgroundColor: color,
+        marginLeft: 6,
+        cursor: message ? 'help' : 'default',
+      }}
+    />
+  );
+}
+
+/** Apply threshold border color to a field editor wrapper */
+function thresholdBorderClass(level: AlertLevel): string {
+  if (level === 'alert') return 'field-editor--alert';
+  if (level === 'warning') return 'field-editor--warning';
+  return '';
+}
 
 interface FieldEditorProps {
   field: FieldDefinition;
@@ -55,11 +85,13 @@ export function MarkdownFieldEditor({ field, value, onChange, error, disabled }:
 }
 
 export function IntegerFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+  const threshold = checkThresholds(field, value);
   return (
-    <div className="field-editor">
+    <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
+        <ThresholdIndicator level={threshold.level} message={threshold.message} />
       </label>
       <input
         type="number"
@@ -80,11 +112,13 @@ export function IntegerFieldEditor({ field, value, onChange, error, disabled }: 
 }
 
 export function FloatFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+  const threshold = checkThresholds(field, value);
   return (
-    <div className="field-editor">
+    <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
+        <ThresholdIndicator level={threshold.level} message={threshold.message} />
       </label>
       <input
         type="number"
@@ -105,11 +139,13 @@ export function FloatFieldEditor({ field, value, onChange, error, disabled }: Fi
 }
 
 export function DateFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+  const threshold = checkThresholds(field, value);
   return (
-    <div className="field-editor">
+    <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
+        <ThresholdIndicator level={threshold.level} message={threshold.message} />
       </label>
       <input
         type="date"
@@ -131,11 +167,13 @@ export function TimestampFieldEditor({
   disabled,
 }: FieldEditorProps) {
   const datetimeValue = typeof value === 'string' ? value.slice(0, 16) : '';
+  const threshold = checkThresholds(field, value);
   return (
-    <div className="field-editor">
+    <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
+        <ThresholdIndicator level={threshold.level} message={threshold.message} />
       </label>
       <input
         type="datetime-local"
@@ -202,6 +240,27 @@ export function SelectFieldEditor({ field, value, onChange, error, disabled }: F
   );
 }
 
+/** Build a tree from flat options array using parent_id */
+function buildOptionTree(options: FieldOption[]): {
+  roots: FieldOption[];
+  children: Map<string, FieldOption[]>;
+} {
+  const children = new Map<string, FieldOption[]>();
+  const roots: FieldOption[] = [];
+  const idSet = new Set(options.map((o) => o.id));
+
+  for (const option of options) {
+    if (option.parent_id && idSet.has(option.parent_id)) {
+      const list = children.get(option.parent_id) || [];
+      list.push(option);
+      children.set(option.parent_id, list);
+    } else {
+      roots.push(option);
+    }
+  }
+  return { roots, children };
+}
+
 export function MultiSelectFieldEditor({
   field,
   value,
@@ -210,31 +269,96 @@ export function MultiSelectFieldEditor({
   disabled,
 }: FieldEditorProps) {
   const selectedIds = Array.isArray(value) ? value : [];
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const { roots, children } = useMemo(() => buildOptionTree(field.options), [field.options]);
+  const hasTree = children.size > 0;
+
   const toggleOption = (optionId: string) => {
     const newIds = selectedIds.includes(optionId)
       ? selectedIds.filter((id) => id !== optionId)
       : [...selectedIds, optionId];
     onChange(newIds);
   };
+
+  /** Selecting a parent toggles all descendants */
+  const toggleOptionWithChildren = (optionId: string) => {
+    const isSelected = selectedIds.includes(optionId);
+    const descendantIds: string[] = [];
+    const collect = (parentId: string) => {
+      for (const child of children.get(parentId) || []) {
+        descendantIds.push(child.id);
+        collect(child.id);
+      }
+    };
+    collect(optionId);
+
+    if (isSelected) {
+      onChange(selectedIds.filter((id) => id !== optionId && !descendantIds.includes(id)));
+    } else {
+      const newSet = new Set([...selectedIds, optionId, ...descendantIds]);
+      onChange([...newSet]);
+    }
+  };
+
+  const toggleCollapse = (optionId: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(optionId)) next.delete(optionId);
+      else next.add(optionId);
+      return next;
+    });
+  };
+
+  const renderOption = (option: FieldOption, depth: number = 0) => {
+    const kids = children.get(option.id) || [];
+    const isCollapsed = collapsed.has(option.id);
+    const hasKids = kids.length > 0;
+
+    return (
+      <React.Fragment key={option.id}>
+        <label className="field-checkbox-item" style={{ paddingLeft: `${depth * 1.2}em` }}>
+          {hasKids && (
+            <button
+              type="button"
+              className="field-tree-toggle"
+              onClick={(e) => {
+                e.preventDefault();
+                toggleCollapse(option.id);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0 0.2em',
+                fontSize: '0.7em',
+              }}
+            >
+              {isCollapsed ? '\u25B6' : '\u25BC'}
+            </button>
+          )}
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(option.id)}
+            onChange={() =>
+              hasTree ? toggleOptionWithChildren(option.id) : toggleOption(option.id)
+            }
+            disabled={disabled}
+          />
+          <span>{option.label}</span>
+        </label>
+        {!isCollapsed && kids.map((child) => renderOption(child, depth + 1))}
+      </React.Fragment>
+    );
+  };
+
   return (
     <div className="field-editor">
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
       </label>
-      <div className="field-checkbox-group">
-        {field.options.map((option) => (
-          <label key={option.id} className="field-checkbox-item">
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(option.id)}
-              onChange={() => toggleOption(option.id)}
-              disabled={disabled}
-            />
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </div>
+      <div className="field-checkbox-group">{roots.map((option) => renderOption(option))}</div>
       {error && <div className="field-error-message">{error}</div>}
     </div>
   );
@@ -304,11 +428,13 @@ export function CurrencyFieldEditor({ field, value, onChange, error, disabled }:
     typeof value === 'object' && value !== null && 'currency' in value
       ? (value as any).currency
       : 'USD';
+  const threshold = checkThresholds(field, value);
   return (
-    <div className="field-editor">
+    <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
+        <ThresholdIndicator level={threshold.level} message={threshold.message} />
       </label>
       <div className="field-currency">
         <input
@@ -357,7 +483,13 @@ export function FileFieldEditor({
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !projectId || !entryId) return;
+    if (!file) return;
+    // If no entryId yet (creating new entry), store File object for later upload
+    if (!projectId || !entryId) {
+      onChange(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     setUploading(true);
     try {
       const result = await uploadAndFinalize(projectId, field.id || '', entryId, file);
@@ -370,6 +502,9 @@ export function FileFieldEditor({
     }
   };
 
+  // Check if value is a File object (selected during creation, not yet uploaded)
+  const selectedFile = value instanceof File ? value : null;
+
   return (
     <div className="field-editor">
       <label className="field-label">
@@ -380,6 +515,15 @@ export function FileFieldEditor({
         {attachmentId ? (
           <div className="field-file-preview">
             <span>File attached: {attachmentId.slice(0, 8)}...</span>
+            <button type="button" onClick={() => onChange(null)} disabled={disabled}>
+              Remove
+            </button>
+          </div>
+        ) : selectedFile ? (
+          <div className="field-file-preview">
+            <span>
+              {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+            </span>
             <button type="button" onClick={() => onChange(null)} disabled={disabled}>
               Remove
             </button>
@@ -398,7 +542,7 @@ export function FileFieldEditor({
               disabled={disabled || uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? 'Uploading...' : 'Upload File'}
+              {uploading ? 'Uploading...' : entryId ? 'Upload File' : 'Select File'}
             </button>
           </>
         )}
@@ -419,16 +563,35 @@ export function ImageFieldEditor({
 }: FieldEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const attachmentId =
     typeof value === 'object' && value !== null && 'attachmentId' in value
       ? (value as any).attachmentId
       : null;
+  const selectedFile = value instanceof File ? value : null;
+
+  // Update preview when selectedFile changes
+  React.useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedFile]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !projectId || !entryId) return;
+    if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
+      return;
+    }
+    // If no entryId yet (creating new entry), store File object for later upload
+    if (!projectId || !entryId) {
+      onChange(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     setUploading(true);
@@ -457,6 +620,17 @@ export function ImageFieldEditor({
               Remove
             </button>
           </div>
+        ) : previewUrl ? (
+          <div className="field-image-preview">
+            <img
+              src={previewUrl}
+              alt="Selected"
+              style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+            />
+            <button type="button" onClick={() => onChange(null)} disabled={disabled}>
+              Remove
+            </button>
+          </div>
         ) : (
           <>
             <input
@@ -472,7 +646,7 @@ export function ImageFieldEditor({
               disabled={disabled || uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? 'Uploading...' : 'Upload Image'}
+              {uploading ? 'Uploading...' : entryId ? 'Upload Image' : 'Select Image'}
             </button>
           </>
         )}

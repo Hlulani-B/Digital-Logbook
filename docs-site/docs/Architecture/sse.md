@@ -8,12 +8,12 @@ SSE is a type of **web caching and real-time communication** pattern where the s
 
 ## Why SSE?
 
-| Problem | Solution |
-|---|---|
+| Problem                                                      | Solution                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------- |
 | Natural language entry takes 2–5s for AI parsing + DB writes | SSE pushes parsed data immediately after AI returns (~1–2s) |
-| User stares at spinner waiting for full round-trip | UI updates the moment SSE event arrives |
-| IndexedDB cache stays stale until next page load | SSE event triggers immediate cache invalidation |
-| No feedback between backend parsing and frontend display | SSE creates a real-time channel for instant updates |
+| User stares at spinner waiting for full round-trip           | UI updates the moment SSE event arrives                     |
+| IndexedDB cache stays stale until next page load             | SSE event triggers immediate cache invalidation             |
+| No feedback between backend parsing and frontend display     | SSE creates a real-time channel for instant updates         |
 
 ## Architecture
 
@@ -61,13 +61,13 @@ The key insight: **steps 6–7 happen before step 8–9**, so the UI updates bef
 
 Maintains a `Map<userEmail, Set<Response>>` of active SSE connections. Provides:
 
-| Function | Purpose |
-|---|---|
-| `registerConnection(email, res)` | Register a new SSE connection for a user |
-| `removeConnection(email, res)` | Remove a connection when client disconnects |
+| Function                         | Purpose                                         |
+| -------------------------------- | ----------------------------------------------- |
+| `registerConnection(email, res)` | Register a new SSE connection for a user        |
+| `removeConnection(email, res)`   | Remove a connection when client disconnects     |
 | `sendToUser(email, event, data)` | Push an SSE event to all connections for a user |
-| `getConnectionCount(email)` | Get active connections for a user |
-| `getTotalConnections()` | Get total active connections across all users |
+| `getConnectionCount(email)`      | Get active connections for a user               |
+| `getTotalConnections()`          | Get total active connections across all users   |
 
 ### SSE Endpoint
 
@@ -127,7 +127,7 @@ EventSource (the browser's SSE API) doesn't support custom headers. The auth mid
 // In middleware/auth.js
 let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 if (!token && req.query?.token) {
-  token = req.query.token;  // SSE fallback
+  token = req.query.token; // SSE fallback
 }
 ```
 
@@ -143,12 +143,12 @@ Manages the persistent SSE connection with:
 - **Event dispatching** to registered listeners
 - **Connection lifecycle** management (connect, disconnect, status check)
 
-| Export | Purpose |
-|---|---|
-| `connectSSE()` | Open SSE connection (idempotent) |
-| `disconnectSSE()` | Close SSE connection |
+| Export                  | Purpose                                         |
+| ----------------------- | ----------------------------------------------- |
+| `connectSSE()`          | Open SSE connection (idempotent)                |
+| `disconnectSSE()`       | Close SSE connection                            |
 | `onSSEEvent(event, cb)` | Register listener, returns unsubscribe function |
-| `isSSEConnected()` | Check if connection is open |
+| `isSSEConnected()`      | Check if connection is open                     |
 
 ### React Hook: useSSEEntries
 
@@ -165,6 +165,7 @@ useSSEEntries({
 ```
 
 When an `entry_parsed` event arrives:
+
 1. Invalidates relevant IndexedDB cache entries (projects, entries, all-entries)
 2. Calls the `onEntry` callback so the UI can refresh
 
@@ -178,27 +179,27 @@ The SSE connection is properly managed during authentication:
 
 ## SSE Events
 
-| Event | Direction | Description |
-|---|---|---|
-| `connected` | Server → Client | SSE stream established |
+| Event          | Direction       | Description                                |
+| -------------- | --------------- | ------------------------------------------ |
+| `connected`    | Server → Client | SSE stream established                     |
 | `entry_parsed` | Server → Client | AI finished parsing, structured data ready |
-| `entry_error` | Server → Client | Error occurred during parsing |
-| `: ping` | Server → Client | Keep-alive comment (prevents timeout) |
+| `entry_error`  | Server → Client | Error occurred during parsing              |
+| `: ping`       | Server → Client | Keep-alive comment (prevents timeout)      |
 
 ## Performance Impact
 
-| Metric | Without SSE | With SSE |
-|---|---|---|
-| Time to see entry after submit | 3–5s (full round-trip) | 1–2s (immediate push after AI) |
-| UI responsiveness | Blocked until POST completes | Updates as soon as SSE arrives |
-| Cache freshness | Stale until next page load | Invalidated immediately on SSE |
+| Metric                         | Without SSE                  | With SSE                       |
+| ------------------------------ | ---------------------------- | ------------------------------ |
+| Time to see entry after submit | 3–5s (full round-trip)       | 1–2s (immediate push after AI) |
+| UI responsiveness              | Blocked until POST completes | Updates as soon as SSE arrives |
+| Cache freshness                | Stale until next page load   | Invalidated immediately on SSE |
 
 ## Testing
 
-| Test File | Tests | Coverage |
-|---|---|---|
-| `services/project-service/src/__tests__/sseRegistry.test.js` | 14 | Registry: register, remove, send, count |
-| `frontend/src/lib/__tests__/sse.test.js` | 14 | Connection, events, reconnect, disconnect |
+| Test File                                                    | Tests | Coverage                                  |
+| ------------------------------------------------------------ | ----- | ----------------------------------------- |
+| `services/project-service/src/__tests__/sseRegistry.test.js` | 14    | Registry: register, remove, send, count   |
+| `frontend/src/lib/__tests__/sse.test.js`                     | 14    | Connection, events, reconnect, disconnect |
 
 ## Web Caching Context
 

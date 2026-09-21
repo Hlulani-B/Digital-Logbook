@@ -122,7 +122,7 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
       // multi-project) so consumers can populate "Recently created" the same
       // way they do for the QuickEntryBar. Mirrors QuickEntryBar's payload.
       const trimmed = transcript.trim();
-      const fallbackTitle = ((data.summary) || trimmed).slice(0, 100) || 'New entry';
+      const fallbackTitle = (data.summary || trimmed).slice(0, 100) || 'New entry';
       const titleFrom = (fields) => {
         if (fields) {
           const first = Object.values(fields).find((v) => typeof v === 'string' && v.length > 0);

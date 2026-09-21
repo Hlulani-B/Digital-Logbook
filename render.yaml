@@ -2,7 +2,6 @@ services:
   - type: web
     name: digital-logbook
     env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -14,6 +13,14 @@ services:
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_PROJECT_SERVICE_URL
+        sync: false
+      - key: VITE_AUTH_SERVICE_URL
+        sync: false
+      - key: VITE_DASHBOARD_SERVICE_URL
+        sync: false
+      - key: VITE_PROFILE_SERVICE_URL
         sync: false
 
   - type: web
@@ -95,7 +102,6 @@ services:
   - type: web
     name: docs-site
     env: static
-    plan: free
     rootDir: docs-site
     buildCommand: pip install -r requirements.txt && mkdocs build
     staticPublishPath: site

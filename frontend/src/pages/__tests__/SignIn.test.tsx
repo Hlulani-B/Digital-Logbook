@@ -64,6 +64,15 @@ describe('SignIn', () => {
     expect(screen.getByText('Sign in to continue to your logbook')).toBeTruthy();
   });
 
+  it('advertises supported views without Today or Tracker', () => {
+    renderSignIn();
+    expect(screen.queryByRole('heading', { name: 'Today', exact: true })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /^(Project )?Tracker$/ })).toBeNull();
+    for (const name of ['Calendar', 'Kanban', 'Timeline', 'Statistics']) {
+      expect(screen.getByRole('heading', { name, exact: true })).toBeTruthy();
+    }
+  });
+
   it('renders email and password fields', () => {
     renderSignIn();
     expect(screen.getByLabelText('Email address')).toBeTruthy();

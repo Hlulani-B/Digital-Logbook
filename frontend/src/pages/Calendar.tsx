@@ -22,9 +22,11 @@ import {
   addDays,
   addMonths,
   parseDueDate,
+  toISODate,
 } from '@/lib/calendar';
 import './Calendar.css';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
 
 const WEEK_STARTS_ON: 0 | 1 = 0; // Sunday
 const VISIBLE_TASKS_PER_CELL = 4;
@@ -49,16 +51,13 @@ type DragState = {
   sourceDate: Date | null;
 } | null;
 
-function toISODate(date: Date): string {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
-}
-
 function CalendarDayCell({
   date,
   isCurrentMonth,
   entries,
   dragging,
   onDragStart,
+  onDragEnd,
   onDrop,
   onEntryClick,
   onDayClick,
@@ -70,6 +69,7 @@ function CalendarDayCell({
   entries: CalendarEntry[];
   dragging: DragState;
   onDragStart: (entry: CalendarEntry, sourceDate: Date) => void;
+  onDragEnd: () => void;
   onDrop: (date: Date) => void;
   onEntryClick: (entry: CalendarEntry) => void;
   onDayClick: (date: Date) => void;
@@ -77,13 +77,14 @@ function CalendarDayCell({
   colorMap?: Record<string, string | null>;
 }) {
   const isToday = isSameDay(date, new Date());
-  const isDropTarget = dragging !== null;
+  const isDraggingOver = dragging !== null;
   const visibleEntries = entries.slice(0, VISIBLE_TASKS_PER_CELL);
   const hiddenCount = Math.max(0, entries.length - VISIBLE_TASKS_PER_CELL);
   const dayOverdue = isDayOverdue(date);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -97,7 +98,7 @@ function CalendarDayCell({
         'calendar-day',
         !isCurrentMonth && 'calendar-day--outside',
         isToday && 'calendar-day--today',
-        isDropTarget && 'calendar-day--drop-target',
+        isDraggingOver && 'calendar-day--drop-target',
         dayOverdue && 'calendar-day--overdue',
       ]
         .filter(Boolean)
@@ -105,7 +106,7 @@ function CalendarDayCell({
       onClick={() => onDayClick(date)}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      data-date={date.toISOString()}
+      data-date={toISODate(date)}
       style={{ cursor: 'pointer' }}
     >
       <div className="calendar-day-header">
@@ -119,6 +120,7 @@ function CalendarDayCell({
             entry={entry}
             draggable
             onDragStart={() => onDragStart(entry, date)}
+            onDragEnd={onDragEnd}
             onClick={() => onEntryClick(entry)}
             projectColor={
               colorMap ? resolveProjectColor(entry.project_name || '', colorMap) : undefined
@@ -147,12 +149,14 @@ function CalendarEntryPill({
   entry,
   draggable,
   onDragStart,
+  onDragEnd,
   onClick,
   projectColor,
 }: {
   entry: CalendarEntry;
   draggable?: boolean;
   onDragStart?: () => void;
+  onDragEnd?: () => void;
   onClick?: () => void;
   projectColor?: string;
 }) {
@@ -170,16 +174,31 @@ function CalendarEntryPill({
         .filter(Boolean)
         .join(' ')}
       draggable={draggable}
+      data-entry-id={String(entry.id)}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', String(entry.id));
+        // Add a slight delay so the drag image is captured before we add the class
+        requestAnimationFrame(() => {
+          (e.target as HTMLElement).classList.add('calendar-entry--dragging');
+        });
         onDragStart?.();
       }}
-      onClick={onClick}
+      onDragEnd={(e) => {
+        (e.target as HTMLElement).classList.remove('calendar-entry--dragging');
+        onDragEnd?.();
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onClick?.();
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
       }}
       title={`${getEntryTitle(entry)}${entry.project_name ? ` · ${entry.project_name}` : ''}`}
       style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
@@ -216,10 +235,49 @@ export function CalendarPage() {
   const [dragging, setDragging] = useState<DragState>(null);
   const [updating, setUpdating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [focusedDayIndex, setFocusedDayIndex] = useState<number | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Touch drag support for mobile
+  const handleTouchDragStart = useCallback(
+    (entryId: string, sourceDate: Date) => {
+      const entry = entries.find((e) => String(e.id) === entryId);
+      if (entry) {
+        setDragging({ entry, sourceDate });
+      }
+    },
+    [entries]
+  );
+
+  const handleTouchDrop = useCallback((targetDate: Date) => {
+    handleDrop(targetDate);
+  }, []);
+
+  const getEntryIdFromElement = useCallback((el: Element): string | null => {
+    const entryEl = el.closest('.calendar-entry') as HTMLElement | null;
+    return entryEl?.dataset?.entryId || null;
+  }, []);
+
+  const getDateFromElement = useCallback((el: Element): Date | null => {
+    const dateStr = el.getAttribute('data-date');
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  }, []);
+
+  const handleDragEnd = () => {
+    setDragging(null);
+  };
+
+  useTouchDrag({
+    onDragStart: handleTouchDragStart,
+    onDrop: handleTouchDrop,
+    onDragEnd: handleDragEnd,
+    getEntryIdFromElement,
+    getDateFromElement,
+  });
 
   // Load entries — read ONLY from IndexedDB. Mutations update it directly.
-  // Guard against overlapping calls (mount effect + two cacheSubscribe
-  // listeners + visibilitychange can all fire this concurrently).
   const loadSeq = useRef(0);
 
   const loadEntries = useCallback(async () => {
@@ -267,7 +325,7 @@ export function CalendarPage() {
     loadEntries();
   }, [loadEntries]);
 
-  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  // Subscribe to cache changes
   useEffect(() => {
     if (!email) return;
     const unsubs = [
@@ -296,14 +354,17 @@ export function CalendarPage() {
 
   const handlePrev = () => {
     setCurrentDate((prev) => (effectiveView === 'month' ? addMonths(prev, -1) : addDays(prev, -7)));
+    setFocusedDayIndex(null);
   };
 
   const handleNext = () => {
     setCurrentDate((prev) => (effectiveView === 'month' ? addMonths(prev, 1) : addDays(prev, 7)));
+    setFocusedDayIndex(null);
   };
 
   const handleToday = () => {
     setCurrentDate(new Date());
+    setFocusedDayIndex(null);
   };
 
   const handleDragStart = (entry: CalendarEntry, sourceDate: Date) => {
@@ -356,6 +417,65 @@ export function CalendarPage() {
 
   const handleEntryAdded = () => {
     loadEntries();
+  };
+
+  const handleEntryMoved = useCallback((entryId: string | number, newDate: Date) => {
+    const newDueDate = toISODate(newDate);
+    setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, due_date: newDueDate } : e)));
+    // Close the modal after moving
+    setSelectedDate(null);
+  }, []);
+
+  // Keyboard navigation for the calendar grid
+  const handleGridKeyDown = (e: React.KeyboardEvent) => {
+    if (focusedDayIndex === null) {
+      // Find today's index or default to 0
+      const todayIndex = gridDays.findIndex((day) => isSameDay(day, new Date()));
+      setFocusedDayIndex(todayIndex >= 0 ? todayIndex : 0);
+      return;
+    }
+
+    const cols = 7;
+    let newIndex = focusedDayIndex;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        newIndex = Math.min(focusedDayIndex + 1, gridDays.length - 1);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        newIndex = Math.max(focusedDayIndex - 1, 0);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        newIndex = Math.min(focusedDayIndex + cols, gridDays.length - 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        newIndex = Math.max(focusedDayIndex - cols, 0);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (gridDays[focusedDayIndex]) {
+          handleDayClick(gridDays[focusedDayIndex]);
+        }
+        return;
+      case 'Escape':
+        setFocusedDayIndex(null);
+        return;
+      default:
+        return;
+    }
+
+    setFocusedDayIndex(newIndex);
+
+    // Scroll the focused cell into view if needed
+    requestAnimationFrame(() => {
+      const cells = gridRef.current?.querySelectorAll('.calendar-day');
+      cells?.[newIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
   };
 
   // Build colour map from projects
@@ -450,12 +570,17 @@ export function CalendarPage() {
             </div>
           ) : (
             <div
+              ref={gridRef}
               className={['calendar-grid', effectiveView === 'week' && 'calendar-grid--week']
                 .filter(Boolean)
                 .join(' ')}
+              onKeyDown={handleGridKeyDown}
+              role="grid"
+              aria-label="Calendar"
+              tabIndex={0}
             >
               {headerDays.map((day) => (
-                <div key={day.toISOString()} className="calendar-header-cell">
+                <div key={day.toISOString()} className="calendar-header-cell" role="columnheader">
                   {formatShortDay(day)}
                 </div>
               ))}
@@ -470,6 +595,7 @@ export function CalendarPage() {
                     entries={dayEntries}
                     dragging={dragging}
                     onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
                     onDrop={handleDrop}
                     onEntryClick={handleEntryClick}
                     onDayClick={handleDayClick}
@@ -506,6 +632,7 @@ export function CalendarPage() {
             onClose={handleModalClose}
             onEntryAdded={handleEntryAdded}
             onEntryClick={handleEntryClick}
+            onEntryMoved={handleEntryMoved}
             colorMap={colorMap}
           />
         )}

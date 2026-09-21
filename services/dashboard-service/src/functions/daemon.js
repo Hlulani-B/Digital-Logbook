@@ -62,7 +62,9 @@ export async function ping() {
     // Delete the ping immediately
     await pool.query(`DELETE FROM public.health_ping WHERE id = $1`, [row.id]);
 
-    console.log(`[Daemon] Ping successful: id=${row.id}, message="${row.message}", at=${row.pinged_at}`);
+    console.log(
+      `[Daemon] Ping successful: id=${row.id}, message="${row.message}", at=${row.pinged_at}`
+    );
     return { success: true, id: row.id, message: row.message, pinged_at: row.pinged_at };
   } catch (err) {
     console.error('[Daemon] Ping failed:', err.message);

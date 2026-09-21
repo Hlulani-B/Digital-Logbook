@@ -1,6 +1,7 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
-const API_BASE = import.meta.env.VITE_PROJECT_SERVICE_URL || 'http://localhost:5003';
+const API_BASE =
+  import.meta.env.VITE_PROJECT_SERVICE_URL || 'https://project-service-96ml.onrender.com';
 
 export interface Template {
   id: string;
@@ -20,20 +21,52 @@ export async function listTemplates(
 ): Promise<Template[]> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/templates?scope=${scope}`, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
-  if (!response.ok) throw new Error('Failed to list templates');
-  const data = await response.json();
+  } = await getSupabase().auth.getSession();
+  if (!session) throw new Error('Please sign in to load templates.');
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/service/templates?scope=${scope}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+  } catch {
+    throw new Error('Unable to reach the template service. Please try again.');
+  }
+
+  if (response.status === 401) throw new Error('Please sign in to load templates.');
+  if (response.status === 404) {
+    throw new Error('The template endpoint is unavailable (404). Please try again later.');
+  }
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const backendError = data?.error;
+    if (
+      [400, 403, 503].includes(response.status) &&
+      typeof backendError === 'string' &&
+      backendError.trim() &&
+      !/[<>]/.test(backendError)
+    ) {
+      throw new Error(backendError.trim());
+    }
+    if (response.status === 400) throw new Error('Invalid template request.');
+    if (response.status === 403)
+      throw new Error('You do not have permission to load these templates.');
+    if (response.status === 503) {
+      throw new Error('The template service is unavailable. Please try again later.');
+    }
+    throw new Error(`Failed to load templates (HTTP ${response.status}). Please try again.`);
+  }
+  if (!Array.isArray(data?.templates)) {
+    throw new Error('The template service returned an invalid response. Please try again.');
+  }
   return data.templates;
 }
 
 export async function getTemplate(templateId: string): Promise<Template> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
@@ -52,7 +85,7 @@ export async function createTemplate(input: {
 }): Promise<Template> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates`, {
     method: 'POST',
@@ -80,7 +113,7 @@ export async function updateTemplate(
 ): Promise<Template> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
     method: 'PUT',
@@ -101,7 +134,7 @@ export async function updateTemplate(
 export async function deleteTemplate(templateId: string): Promise<void> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
     method: 'DELETE',

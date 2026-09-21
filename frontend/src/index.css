@@ -1073,27 +1073,27 @@
 
 /* ========== DARK PINK THEME ========== */
 [data-theme='darkpink'] {
-  --bg: #3d1525;
-  --surface: #4e1d30;
-  --surface-hover: #5e253a;
-  --surface-solid: #4e1d30;
-  --bg-subtle: #4e1d30;
-  --border: #7a3550;
-  --border-hover: #9a4565;
-  --text: #f8dde6;
-  --text-dim: #d8b0c0;
-  --text-muted: #b08898;
-  --text-secondary: #c8a0b0;
-  --accent: #e06888;
-  --accent-light: #e880a0;
-  --accent-glow: rgba(224, 104, 136, 0.18);
+  --bg: #1a0a10;
+  --surface: #2a1018;
+  --surface-hover: #3a1825;
+  --surface-solid: #2a1018;
+  --bg-subtle: #2a1018;
+  --border: #5a2035;
+  --border-hover: #7a3050;
+  --text: #f0d0da;
+  --text-dim: #c8a0b0;
+  --text-muted: #9a7080;
+  --text-secondary: #b08898;
+  --accent: #d45a7a;
+  --accent-light: #e07090;
+  --accent-glow: rgba(212, 90, 122, 0.15);
   --success: #5a9a6a;
   --danger: #e04050;
   --danger-glow: rgba(224, 64, 80, 0.15);
-  --navbar-bg: rgba(50, 18, 30, 0.94);
-  --toggle-track: #7a3550;
-  --scrollbar-thumb: #7a3550;
-  --scrollbar-thumb-hover: #9a4565;
+  --navbar-bg: rgba(26, 10, 16, 0.94);
+  --toggle-track: #5a2035;
+  --scrollbar-thumb: #5a2035;
+  --scrollbar-thumb-hover: #7a3050;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(212, 90, 122, 0.08);
   --shadow-card-hover: 0 12px 32px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(212, 90, 122, 0.12);
   --shadow-dropdown: 0 16px 48px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(212, 90, 122, 0.1);
@@ -1113,33 +1113,33 @@
   -webkit-backdrop-filter: blur(24px);
 }
 [data-theme='darkpink'] .split-left {
-  background: #2d1020;
+  background: #120610;
 }
 [data-theme='darkpink'] .split-video-overlay {
   background: linear-gradient(
     to bottom,
-    rgba(61, 21, 37, 0.25) 0%,
-    rgba(61, 21, 37, 0.1) 40%,
-    rgba(61, 21, 37, 0.55) 100%
+    rgba(26, 10, 16, 0.25) 0%,
+    rgba(26, 10, 16, 0.1) 40%,
+    rgba(26, 10, 16, 0.55) 100%
   );
 }
 [data-theme='darkpink'] .bg-mesh::before {
-  background: radial-gradient(circle, rgba(224, 104, 136, 0.04) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(212, 90, 122, 0.03) 0%, transparent 70%);
 }
 [data-theme='darkpink'] .bg-mesh::after {
-  background: radial-gradient(circle, rgba(224, 104, 136, 0.03) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(212, 90, 122, 0.02) 0%, transparent 70%);
 }
 [data-theme='darkpink'] .bg-mesh .orb {
-  background: radial-gradient(circle, rgba(224, 104, 136, 0.025) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(212, 90, 122, 0.015) 0%, transparent 70%);
 }
 [data-theme='darkpink'] .auth-title {
-  background: linear-gradient(180deg, #f8dde6 0%, #e06888 100%);
+  background: linear-gradient(180deg, #f0d0da 0%, #d45a7a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 [data-theme='darkpink'] .dash-greeting h1 {
-  background: linear-gradient(135deg, #f8dde6 30%, #e06888);
+  background: linear-gradient(135deg, #f0d0da 30%, #d45a7a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1147,37 +1147,37 @@
 [data-theme='darkpink'] .stat-icon.purple,
 [data-theme='darkpink'] .stat-icon.green,
 [data-theme='darkpink'] .stat-icon.amber {
-  background: #4e1d30;
+  background: #2a1018;
   border: 1px solid var(--border);
   color: var(--accent);
 }
 [data-theme='darkpink'] .profile-avatar-badge {
-  background: rgba(224, 104, 136, 0.1);
-  border: 1px solid rgba(224, 104, 136, 0.2);
+  background: rgba(212, 90, 122, 0.08);
+  border: 1px solid rgba(212, 90, 122, 0.15);
   color: var(--accent);
 }
 [data-theme='darkpink'] ::selection {
-  background: rgba(224, 104, 136, 0.3);
+  background: rgba(212, 90, 122, 0.25);
   color: var(--text);
 }
 [data-theme='darkpink'] .nav-avatar {
-  background: #5e253a;
+  background: #3a1825;
 }
 [data-theme='darkpink'] .avatar-btn .nav-avatar {
-  background: #5e253a;
+  background: #3a1825;
 }
 [data-theme='darkpink'] .avatar-btn:hover .nav-avatar {
   border-color: var(--accent);
 }
 [data-theme='darkpink'] .profile-avatar-lg {
-  background: #5e253a;
+  background: #3a1825;
 }
 [data-theme='darkpink'] .btn-primary {
-  background: #a03058;
-  color: #f8dde6;
+  background: #8a2040;
+  color: #f0d0da;
 }
 [data-theme='darkpink'] .btn-primary:hover {
-  background: #b84068;
+  background: #a03055;
 }
 
 html {
@@ -5025,6 +5025,67 @@ img {
   background: var(--accent);
   opacity: 0.65;
   border-radius: 2px 2px 0 0;
+}
+
+/* --- Plot over time (trend chart) --- */
+.field-plot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.field-plot-header .stats-panel-title {
+  margin: 0;
+}
+.field-plot-select {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+.field-plot-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.trend-chart-wrapper {
+  width: 100%;
+}
+.trend-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.trend-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.trend-axis-text {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--text-secondary, var(--text-muted));
+}
+.trend-area {
+  fill: var(--accent);
+  opacity: 0.12;
+}
+.trend-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.trend-dot {
+  fill: var(--accent);
+  stroke: var(--bg-card, var(--bg));
+  stroke-width: 1.5;
 }
 
 /* --- Status Breakdown --- */

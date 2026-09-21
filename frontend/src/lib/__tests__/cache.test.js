@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 // In-memory mock DB that auto-creates tables on access.
 // We intentionally do NOT clear between tests — the cache.js singleton
 // (dbPromise) persists across the test file, and all tests use unique keys.
+// CI trigger: formatting sync
 const mockTables = new Map();
 
 function ensureTable(name) {

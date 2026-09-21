@@ -13,9 +13,7 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 export async function dueSoon(user_email, project_name) {
   // 1. Try to compute from cached entries (instant, no server call)
   try {
-    const cacheKey = project_name
-      ? `${user_email}:${project_name}`
-      : user_email;
+    const cacheKey = project_name ? `${user_email}:${project_name}` : user_email;
     const store = project_name ? CACHE_STORES.ENTRIES : CACHE_STORES.ALL_ENTRIES;
     const cached = await cacheGet(store, cacheKey);
 

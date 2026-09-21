@@ -142,14 +142,14 @@ describe('Daemon', () => {
       startDaemon(60000); // second call should be ignored
 
       expect(isDaemonRunning()).toBe(true);
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Already running')
-      );
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Already running'));
     });
 
     it('8. should run ping immediately on start, then on interval', async () => {
       // mockResolvedValue persists for ALL calls (unlike mockResolvedValueOnce)
-      pool.query.mockResolvedValue({ rows: [{ id: 1, message: 'hello hlulani', pinged_at: new Date().toISOString() }] });
+      pool.query.mockResolvedValue({
+        rows: [{ id: 1, message: 'hello hlulani', pinged_at: new Date().toISOString() }],
+      });
 
       startDaemon(60000);
 

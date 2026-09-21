@@ -43,8 +43,14 @@ describe('Cache Layer Integration', () => {
     });
 
     it('overwrites previous value on second set', async () => {
-      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', { success: true, data: { username: 'alice' } });
-      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', { success: true, data: { username: 'bob' } });
+      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', {
+        success: true,
+        data: { username: 'alice' },
+      });
+      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', {
+        success: true,
+        data: { username: 'bob' },
+      });
 
       const result = await cacheGet(CACHE_STORES.PROFILE, 'test@test.com');
       expect(result.data.username).toBe('bob');
@@ -62,7 +68,10 @@ describe('Cache Layer Integration', () => {
 
     it('isolates data between different stores for same key', async () => {
       await cacheSet(CACHE_STORES.PROJECTS, 'test@test.com', { success: true, projects: ['X'] });
-      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', { success: true, data: { username: 'Y' } });
+      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', {
+        success: true,
+        data: { username: 'Y' },
+      });
 
       const projects = await cacheGet(CACHE_STORES.PROJECTS, 'test@test.com');
       const profile = await cacheGet(CACHE_STORES.PROFILE, 'test@test.com');
@@ -110,12 +119,18 @@ describe('Cache Layer Integration', () => {
       const cb = vi.fn();
       const unsub = cacheSubscribe(CACHE_STORES.PROFILE, 'test@test.com', cb);
 
-      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', { success: true, data: { username: 'a' } });
+      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', {
+        success: true,
+        data: { username: 'a' },
+      });
       expect(cb).toHaveBeenCalledTimes(1);
 
       unsub();
 
-      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', { success: true, data: { username: 'b' } });
+      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', {
+        success: true,
+        data: { username: 'b' },
+      });
       expect(cb).toHaveBeenCalledTimes(1); // Still 1
     });
   });
@@ -129,7 +144,7 @@ describe('Cache Layer Integration', () => {
       await cacheDelete(CACHE_STORES.PROJECTS, 'test@test.com');
 
       const result = await cacheGet(CACHE_STORES.PROJECTS, 'test@test.com');
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
       expect(cb).toHaveBeenCalledWith(null);
     });
   });
@@ -156,13 +171,16 @@ describe('Cache Layer Integration', () => {
       // Populate all stores
       await cacheSet(CACHE_STORES.PROJECTS, 'test@test.com', { success: true, projects: ['A'] });
       await cacheSet(CACHE_STORES.ALL_ENTRIES, 'test@test.com', { success: true, data: [1, 2] });
-      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', { success: true, data: { username: 'x' } });
+      await cacheSet(CACHE_STORES.PROFILE, 'test@test.com', {
+        success: true,
+        data: { username: 'x' },
+      });
 
       await clearUserCache('test@test.com');
 
-      expect(await cacheGet(CACHE_STORES.PROJECTS, 'test@test.com')).toBeUndefined();
-      expect(await cacheGet(CACHE_STORES.ALL_ENTRIES, 'test@test.com')).toBeUndefined();
-      expect(await cacheGet(CACHE_STORES.PROFILE, 'test@test.com')).toBeUndefined();
+      expect(await cacheGet(CACHE_STORES.PROJECTS, 'test@test.com')).toBeNull();
+      expect(await cacheGet(CACHE_STORES.ALL_ENTRIES, 'test@test.com')).toBeNull();
+      expect(await cacheGet(CACHE_STORES.PROFILE, 'test@test.com')).toBeNull();
     });
 
     it('does not affect other users data', async () => {

@@ -22,7 +22,10 @@ export class Notes {
     try {
       if (!pool) throw new Error('Database pool not initialized');
       if (!VALID_TYPES.includes(entry_type)) {
-        return { success: false, message: `Invalid entry_type "${entry_type}". Must be one of: ${VALID_TYPES.join(', ')}` };
+        return {
+          success: false,
+          message: `Invalid entry_type "${entry_type}". Must be one of: ${VALID_TYPES.join(', ')}`,
+        };
       }
       if (!email || !entry_id) {
         return { success: false, message: 'email and entry_id are required' };
@@ -35,11 +38,21 @@ export class Notes {
 
       // For file types (image/pdf), compress then upload
       if (entry_type === 'image' || entry_type === 'pdf') {
-        const filename = typeof value === 'string' && !Buffer.isBuffer(value)
-          ? `note.${entry_type === 'image' ? 'jpg' : 'pdf'}`
-          : `note.${entry_type === 'image' ? 'jpg' : 'pdf'}`;
+        const filename =
+          typeof value === 'string' && !Buffer.isBuffer(value)
+            ? `note.${entry_type === 'image' ? 'jpg' : 'pdf'}`
+            : `note.${entry_type === 'image' ? 'jpg' : 'pdf'}`;
 
-        console.log('[addNote] FILE TYPE detected, entry_type=', entry_type, 'filename=', filename, 'value type=', typeof value, 'value length=', typeof value === 'string' ? value.length : 'N/A');
+        console.log(
+          '[addNote] FILE TYPE detected, entry_type=',
+          entry_type,
+          'filename=',
+          filename,
+          'value type=',
+          typeof value,
+          'value length=',
+          typeof value === 'string' ? value.length : 'N/A'
+        );
 
         // 1. Compress
         console.log('[addNote] Step 1: compressing...');
@@ -196,10 +209,10 @@ export class Notes {
         return { success: false, message: 'Only text notes can be updated' };
       }
 
-      const { rows } = await pool.query(
-        `UPDATE notes SET value = $1 WHERE id = $2 RETURNING *`,
-        [new_value, note_id]
-      );
+      const { rows } = await pool.query(`UPDATE notes SET value = $1 WHERE id = $2 RETURNING *`, [
+        new_value,
+        note_id,
+      ]);
 
       console.log('[updateNote] Updated:', note_id);
       return { success: true, message: 'Note updated', data: rows[0] };

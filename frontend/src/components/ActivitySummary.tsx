@@ -31,7 +31,15 @@ function parseAIResponse(response: string): string {
       return '';
     }
     if (typeof parsed === 'object' && parsed !== null) {
-      for (const key of ['placeholder', 'message', 'instruction', 'response', 'text', 'content', 'reply']) {
+      for (const key of [
+        'placeholder',
+        'message',
+        'instruction',
+        'response',
+        'text',
+        'content',
+        'reply',
+      ]) {
         if (typeof parsed[key] === 'string' && parsed[key].trim()) return parsed[key];
       }
       for (const val of Object.values(parsed)) {

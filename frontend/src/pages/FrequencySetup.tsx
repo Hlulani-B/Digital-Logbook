@@ -136,7 +136,10 @@ export function FrequencySetup() {
           <div className="toggle-row" style={{ marginTop: '1rem' }}>
             <div className="toggle-info">
               <p className="toggle-label">AI messages</p>
-              <p className="toggle-desc">Show AI-generated greetings and entry comments. You can change this later in Settings.</p>
+              <p className="toggle-desc">
+                Show AI-generated greetings and entry comments. You can change this later in
+                Settings.
+              </p>
             </div>
             <label className="toggle-switch">
               <input

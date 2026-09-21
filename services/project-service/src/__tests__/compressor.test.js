@@ -70,7 +70,11 @@ describe('compressImage', () => {
 
     const mockToBuffer = jest.fn().mockResolvedValue(compressed);
     const mockJpeg = jest.fn().mockReturnValue({ toBuffer: mockToBuffer });
-    const mockResize = jest.fn().mockReturnValue({ jpeg: mockJpeg, webp: jest.fn().mockReturnValue({ toBuffer: mockToBuffer }), resize: jest.fn() });
+    const mockResize = jest.fn().mockReturnValue({
+      jpeg: mockJpeg,
+      webp: jest.fn().mockReturnValue({ toBuffer: mockToBuffer }),
+      resize: jest.fn(),
+    });
     sharp.mockReturnValue({ jpeg: mockJpeg, resize: mockResize });
 
     const result = await compressImage(large, 500 * 1024);
@@ -92,7 +96,11 @@ describe('compressImage', () => {
       return Promise.resolve(callCount === 1 ? tooBig : smallEnough);
     });
     const mockJpeg = jest.fn().mockReturnValue({ toBuffer: mockToBuffer });
-    const mockResize = jest.fn().mockReturnValue({ jpeg: mockJpeg, webp: jest.fn().mockReturnValue({ toBuffer: mockToBuffer }), resize: jest.fn() });
+    const mockResize = jest.fn().mockReturnValue({
+      jpeg: mockJpeg,
+      webp: jest.fn().mockReturnValue({ toBuffer: mockToBuffer }),
+      resize: jest.fn(),
+    });
     sharp.mockReturnValue({ jpeg: mockJpeg, resize: mockResize });
 
     const result = await compressImage(large, 500 * 1024);
@@ -109,7 +117,11 @@ describe('compressImage', () => {
     const mockToBuffer = jest.fn().mockRejectedValue(new Error('sharp fail'));
     const mockJpeg = jest.fn().mockReturnValue({ toBuffer: mockToBuffer });
     const mockWebp = jest.fn().mockReturnValue({ toBuffer: mockToBuffer });
-    const mockResize = jest.fn().mockReturnValue({ jpeg: mockJpeg, webp: mockWebp, resize: jest.fn().mockReturnValue({ jpeg: mockJpeg }) });
+    const mockResize = jest.fn().mockReturnValue({
+      jpeg: mockJpeg,
+      webp: mockWebp,
+      resize: jest.fn().mockReturnValue({ jpeg: mockJpeg }),
+    });
     sharp.mockReturnValue({ jpeg: mockJpeg, webp: mockWebp, resize: mockResize });
 
     const result = await compressImage(large, 500 * 1024);
@@ -146,7 +158,11 @@ describe('compressFile', () => {
 
     const mockToBuffer = jest.fn().mockResolvedValue(compressed);
     const mockJpeg = jest.fn().mockReturnValue({ toBuffer: mockToBuffer });
-    const mockResize = jest.fn().mockReturnValue({ jpeg: mockJpeg, webp: jest.fn().mockReturnValue({ toBuffer: mockToBuffer }), resize: jest.fn() });
+    const mockResize = jest.fn().mockReturnValue({
+      jpeg: mockJpeg,
+      webp: jest.fn().mockReturnValue({ toBuffer: mockToBuffer }),
+      resize: jest.fn(),
+    });
     sharp.mockReturnValue({ jpeg: mockJpeg, resize: mockResize });
 
     const result = await compressFile(large, 'photo.png');

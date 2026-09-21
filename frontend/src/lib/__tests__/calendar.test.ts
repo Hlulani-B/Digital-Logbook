@@ -119,7 +119,18 @@ describe('calendar entry helpers', () => {
     it('parses valid ISO strings', () => {
       const d = parseDueDate('2026-09-03T00:00:00.000Z');
       expect(d).not.toBeNull();
-      expect(d!.getUTCDate()).toBe(3);
+      // parseDueDate now returns local date, so check getDate() not getUTCDate()
+      expect(d!.getDate()).toBe(3);
+      expect(d!.getMonth()).toBe(8); // September (0-indexed)
+      expect(d!.getFullYear()).toBe(2026);
+    });
+
+    it('parses date-only strings (YYYY-MM-DD)', () => {
+      const d = parseDueDate('2026-09-15');
+      expect(d).not.toBeNull();
+      expect(d!.getDate()).toBe(15);
+      expect(d!.getMonth()).toBe(8); // September
+      expect(d!.getFullYear()).toBe(2026);
     });
 
     it('returns null for invalid strings', () => {

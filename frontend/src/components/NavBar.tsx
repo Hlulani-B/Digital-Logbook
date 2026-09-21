@@ -165,27 +165,62 @@ export function NavBar({
               </svg>
             </button>
             <button
+              className="nav-back-btn"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              title="Back"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              className="nav-forward-btn"
+              onClick={() => navigate(1)}
+              aria-label="Go forward"
+              title="Forward"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+            <button
               className="nav-home-btn"
               onClick={() => navigate('/dashboard')}
               aria-label="Go to dashboard"
+              title="Dashboard"
             >
-              <div className="nav-logo">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                  <path d="M8 7h6" />
-                  <path d="M8 11h4" />
-                </svg>
-              </div>
-              <span className="nav-title">Digital Logbook</span>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
             </button>
           </div>
 
@@ -364,27 +399,6 @@ export function NavBar({
               <rect x="3" y="14" width="7" height="7" rx="1" />
             </svg>
             Kanban
-          </button>
-          <button
-            data-tour="drawer-today"
-            className={`drawer-item ${isActive('/today') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/today');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Today
           </button>
           <button
             data-tour="drawer-timeline"

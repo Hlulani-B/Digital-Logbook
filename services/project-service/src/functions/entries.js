@@ -40,6 +40,104 @@ function isNotesPayloadShape(value) {
   );
 }
 
+/**
+ * Get user's role for a project.
+ */
+async function getUserRole(user_email, project_name) {
+  // Check if user is the project owner
+  const { rows: projectRows } = await pool.query(
+    `SELECT user_email FROM projects WHERE user_email = $1 AND project_name = $2`,
+    [user_email, project_name]
+  );
+
+  if (projectRows.length > 0) {
+    return 'owner';
+  }
+
+  // Check membership
+  const { rows: memberRows } = await pool.query(
+    `SELECT role FROM project_members
+     WHERE project_owner = (SELECT user_email FROM projects WHERE project_name = $2 LIMIT 1)
+     AND project_name = $2 AND member_email = $1 AND NOT deleted`,
+    [user_email, project_name]
+  );
+
+  if (memberRows.length > 0) {
+    return memberRows[0].role;
+  }
+
+  return null;
+}
+
+/**
+ * Get field permissions for a project.
+ */
+async function getFieldPermissions(user_email, project_name) {
+  const { rows } = await pool.query(
+    `SELECT field_name, field_permissions FROM fields
+     WHERE user_email = $1 AND table_name = $2 AND (deleted = false OR deleted IS NULL)`,
+    [user_email, project_name]
+  );
+
+  const permissions = {};
+  for (const row of rows) {
+    permissions[row.field_name] = row.field_permissions || {};
+  }
+  return permissions;
+}
+
+/**
+ * Validate entry fields against permissions.
+ * Returns { valid: boolean, error?: string }
+ */
+function validateFieldPermissions(
+  entry_object,
+  field_permissions,
+  user_role,
+  existing_entry = null
+) {
+  // Owner and admin have full access
+  if (user_role === 'owner' || user_role === 'admin') {
+    return { valid: true };
+  }
+
+  for (const [fieldName, value] of Object.entries(entry_object)) {
+    const perms = field_permissions[fieldName] || {};
+    const permission = perms[user_role] || 'edit'; // Default to edit if not specified
+
+    if (permission === 'hidden') {
+      return { valid: false, error: `Field '${fieldName}' is hidden for your role` };
+    }
+
+    if (permission === 'view') {
+      // Check if the value is being modified
+      if (existing_entry && existing_entry[fieldName] !== value) {
+        return { valid: false, error: `Field '${fieldName}' is read-only for your role` };
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Strip hidden fields from entry response based on user role.
+ */
+function stripHiddenFields(entry_object, field_permissions, user_role) {
+  if (user_role === 'owner' || user_role === 'admin') {
+    return entry_object;
+  }
+
+  const stripped = { ...entry_object };
+  for (const [fieldName, perms] of Object.entries(field_permissions)) {
+    const permission = perms[user_role] || 'edit';
+    if (permission === 'hidden' && fieldName in stripped) {
+      delete stripped[fieldName];
+    }
+  }
+  return stripped;
+}
+
 export class Entries {
   async addEntry(
     user_email,
@@ -66,6 +164,18 @@ export class Entries {
       if (summary !== undefined && summary !== null && isNotesPayloadShape(summary)) {
         if (notes === undefined || notes === null) notes = summary;
         summary = null;
+      }
+
+      // Field-level permission enforcement
+      const user_role = await getUserRole(user_email, project_name);
+      if (!user_role) {
+        return { success: false, message: 'Access denied to this project' };
+      }
+
+      const field_permissions = await getFieldPermissions(user_email, project_name);
+      const validation = validateFieldPermissions(entry_object, field_permissions, user_role);
+      if (!validation.valid) {
+        return { success: false, message: validation.error };
       }
 
       const insertData = { user_email, project_name, entries: entry_object };
@@ -139,6 +249,36 @@ export class Entries {
   ) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
+
+      // Field-level permission enforcement
+      const user_role = await getUserRole(user_email, project_name);
+      if (!user_role) {
+        return { success: false, message: 'Access denied to this project' };
+      }
+
+      const field_permissions = await getFieldPermissions(user_email, project_name);
+
+      // If updating entry content, validate permissions against existing entry
+      if (new_entry !== undefined && new_entry !== null) {
+        // Fetch existing entry to compare
+        const { rows: existingRows } = await pool.query(
+          `SELECT entries FROM entries WHERE id = $1 AND user_email = $2 AND project_name = $3`,
+          [entry_id, user_email, project_name]
+        );
+
+        if (existingRows.length > 0) {
+          const existing_entry = existingRows[0].entries || {};
+          const validation = validateFieldPermissions(
+            new_entry,
+            field_permissions,
+            user_role,
+            existing_entry
+          );
+          if (!validation.valid) {
+            return { success: false, message: validation.error };
+          }
+        }
+      }
 
       const updateData = {};
       const hasEntryPatch = new_entry !== undefined && new_entry !== null;
@@ -231,6 +371,17 @@ export class Entries {
          WHERE user_email = $1 AND project_name = $2 AND deleted = false`,
         [user_email, project_name]
       );
+
+      // Apply field-level permissions to strip hidden fields
+      const user_role = await getUserRole(user_email, project_name);
+      if (user_role) {
+        const field_permissions = await getFieldPermissions(user_email, project_name);
+        for (const row of rows) {
+          if (row.entries) {
+            row.entries = stripHiddenFields(row.entries, field_permissions, user_role);
+          }
+        }
+      }
 
       return { success: true, message: 'Entries retrieved successfully', data: rows };
     } catch (error) {
@@ -1488,5 +1639,83 @@ Respond with ONLY this JSON, nothing else:`;
       console.log('[Natural_language.entry] FAILED:', error.message);
       return { success: false, message: error.message };
     }
+  }
+}
+
+/**
+ * Get project progress metrics for a user.
+ * Returns completion %, overdue count, upcoming deadlines, and recent activity.
+ */
+export async function getProjectProgress(user_email) {
+  try {
+    // Get all projects for the user
+    const { rows: projects } = await pool.query(
+      `SELECT project_name, project_status FROM projects WHERE user_email = $1 AND deleted = false`,
+      [user_email]
+    );
+
+    const progressData = [];
+
+    for (const project of projects) {
+      const { project_name, project_status } = project;
+
+      // Get total entries and completed entries
+      const { rows: entryStats } = await pool.query(
+        `SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+          COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue,
+          COUNT(CASE WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE AND status != 'completed' THEN 1 END) as past_due
+        FROM entries 
+        WHERE user_email = $1 AND project_name = $2 AND deleted = false`,
+        [user_email, project_name]
+      );
+
+      const { total, completed, overdue, past_due } = entryStats[0];
+      const completionPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      // Get upcoming deadlines (next 7 days)
+      const { rows: upcomingDeadlines } = await pool.query(
+        `SELECT id, summary, due_date, status, priority
+        FROM entries 
+        WHERE user_email = $1 
+          AND project_name = $2 
+          AND deleted = false
+          AND due_date IS NOT NULL
+          AND due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+          AND status != 'completed'
+        ORDER BY due_date ASC
+        LIMIT 5`,
+        [user_email, project_name]
+      );
+
+      // Get recent activity (last 5 entries)
+      const { rows: recentActivity } = await pool.query(
+        `SELECT id, summary, status, created_at, due_date
+        FROM entries 
+        WHERE user_email = $1 
+          AND project_name = $2 
+          AND deleted = false
+        ORDER BY created_at DESC
+        LIMIT 5`,
+        [user_email, project_name]
+      );
+
+      progressData.push({
+        project_name,
+        project_status,
+        total_entries: parseInt(total),
+        completed_entries: parseInt(completed),
+        overdue_entries: parseInt(past_due),
+        completion_percentage: completionPercentage,
+        upcoming_deadlines: upcomingDeadlines,
+        recent_activity: recentActivity,
+      });
+    }
+
+    return { success: true, data: progressData };
+  } catch (error) {
+    console.log('[getProjectProgress] FAILED:', error.message);
+    return { success: false, message: error.message };
   }
 }

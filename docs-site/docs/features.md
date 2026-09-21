@@ -235,27 +235,9 @@ After the 30-day grace period, a background process permanently removes the acco
 - `frontend/src/lib/kanban.ts` — Status grouping, filtering, and update helpers
 - `frontend/src/pages/Kanban.css` — Kanban styles
 
-### 13. Today View
+### 13. Retired Views
 
-**What it does:** A single focused screen for starting work. It shows overdue entries first, then entries due today, then anything currently in progress.
-
-**Why it was implemented:** Helps users decide what to work on next without browsing the full dashboard or calendar.
-
-**How it works:**
-
-- Fetches all unarchived, incomplete entries using `getAllEntries()`
-- Partitions entries into three sections using `getTodaySections()`
-- **Overdue** appears first because missed deadlines are the most urgent
-- **Due today** appears second because today's commitments must be honoured before loose in-progress work
-- **In progress** appears third so started work remains visible, but does not hide deadlines
-- Sections only render when they have entries
-- When nothing requires attention, a friendly empty state is shown instead of a blank panel
-
-**Key files:**
-
-- `frontend/src/pages/Today.tsx` — Today page
-- `frontend/src/lib/today.ts` — Section partitioning and date helpers
-- `frontend/src/pages/Today.css` — Today styles
+The Today and Tracker views have been removed. Existing `/today` and `/tracker` bookmarks redirect to the dashboard. Calendar, Kanban, Timeline, and Statistics remain available; existing projects and entries are unchanged.
 
 ### 14. Timeline
 
@@ -664,7 +646,7 @@ After the 30-day grace period, a background process permanently removes the acco
 
 ### 36. Guided Tour with Live Navigation & Voice Narration
 
-**What it does:** An interactive walkthrough that shows new users around the real app. The tour opens the navigation drawer, visits every view (Home, Today, Kanban, Timeline, Calendar, My Stats, Import & Export), walks through creating a project, and points out the notification bell, profile menu, and quick-entry bar — with the spotlight following real UI elements. It really navigates: routes change and the drawer opens and closes as the tour describes them. A friendly voice narrates each stop aloud using the browser's built-in speech synthesis, and hands-free auto-advance moves the tour on when the narration finishes (or after a paced reading delay when muted), shown with a draining progress bar. A speaker toggle in the popover mutes or unmutes narration and the preference persists, hovering the popover pauses the countdown, and clicking Back hands control back to the user.
+**What it does:** An interactive walkthrough that shows new users around the real app. The tour opens the navigation drawer, visits every view (Home, Kanban, Timeline, Calendar, My Stats, Import & Export), walks through creating a project, and points out the notification bell, profile menu, and quick-entry bar — with the spotlight following real UI elements. It really navigates: routes change and the drawer opens and closes as the tour describes them. A friendly voice narrates each stop aloud using the browser's built-in speech synthesis, and hands-free auto-advance moves the tour on when the narration finishes (or after a paced reading delay when muted), shown with a draining progress bar. A speaker toggle in the popover mutes or unmutes narration and the preference persists, hovering the popover pauses the countdown, and clicking Back hands control back to the user.
 
 **Why it was implemented:** Sprint 2 user feedback (survey problem 2, [issue #119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119)) found first-time users had no onboarding or in-app guidance. The setup pages and tooltips were only a partial mitigation; the tour closes the remaining gap with a guided, narrated walkthrough of the real UI. The intro _video_ request from testers remains tracked separately in [issue #126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126).
 

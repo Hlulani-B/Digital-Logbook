@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { listTemplates, type Template } from '@/lib/templateApi';
 import './TemplatePicker.css';
 
@@ -11,24 +11,33 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'built_in' | 'personal' | 'global'>('built_in');
+  const [activeTab, setActiveTab] = useState<Template['scope']>('built_in');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    let cancelled = false;
+    setTemplates([]);
+    setError(null);
+    setLoading(true);
 
-  async function loadTemplates() {
-    try {
-      setLoading(true);
-      const all = await listTemplates('all');
-      setTemplates(all);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load templates');
-    } finally {
-      setLoading(false);
+    async function loadTemplates() {
+      try {
+        const results = await listTemplates(activeTab);
+        if (!cancelled) setTemplates(results);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load templates');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }
+
+    void loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, retryCount]);
 
   const filteredTemplates = templates.filter((tpl) => tpl.scope === activeTab);
 
@@ -36,7 +45,12 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
     <div className="template-picker">
       <div className="template-picker-header">
         <h3>Choose a Template</h3>
-        <button type="button" className="template-picker-close" onClick={onCancel}>
+        <button
+          type="button"
+          className="template-picker-close"
+          aria-label="Close template picker"
+          onClick={onCancel}
+        >
           ×
         </button>
       </div>
@@ -44,6 +58,7 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
         <button
           type="button"
           className={`template-picker-tab ${activeTab === 'built_in' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'built_in'}
           onClick={() => setActiveTab('built_in')}
         >
           Built-in
@@ -51,6 +66,7 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
         <button
           type="button"
           className={`template-picker-tab ${activeTab === 'personal' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'personal'}
           onClick={() => setActiveTab('personal')}
         >
           Personal
@@ -58,13 +74,25 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
         <button
           type="button"
           className={`template-picker-tab ${activeTab === 'global' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'global'}
           onClick={() => setActiveTab('global')}
         >
           Global
         </button>
       </div>
-      {loading && <div className="template-picker-loading">Loading templates...</div>}
-      {error && <div className="template-picker-error">{error}</div>}
+      {loading && (
+        <div className="template-picker-loading" role="status">
+          Loading templates...
+        </div>
+      )}
+      {error && (
+        <div className="template-picker-error" role="alert">
+          {error}
+          <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
+            Retry
+          </button>
+        </div>
+      )}
       {!loading && !error && (
         <div className="template-picker-list">
           {filteredTemplates.length === 0 ? (
@@ -80,7 +108,16 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
               <div
                 key={template.id}
                 className="template-picker-item"
+                role="button"
+                tabIndex={0}
+                aria-label={template.name}
                 onClick={() => onSelect(template)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSelect(template);
+                  }
+                }}
               >
                 <div className="template-picker-item-header">
                   <h4>{template.name}</h4>

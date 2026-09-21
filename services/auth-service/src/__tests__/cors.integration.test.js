@@ -42,12 +42,7 @@ describe('Auth Service Integration: CORS + Error Handling', () => {
         status: jest.fn().mockReturnThis(),
       };
 
-      errorHandler(
-        new Error('test'),
-        { headers: { origin: 'https://evil.com' } },
-        res,
-        jest.fn()
-      );
+      errorHandler(new Error('test'), { headers: { origin: 'https://evil.com' } }, res, jest.fn());
 
       expect(res.header).not.toHaveBeenCalledWith(
         'Access-Control-Allow-Origin',
@@ -96,7 +91,9 @@ describe('Auth Service Integration: CORS + Error Handling', () => {
       const app = createApp();
       expect(app).toBeDefined();
       expect(typeof app.listen).toBe('function');
-      expect(app._router).toBeDefined();
+      // Express 5 removed the internal _router property;
+      // verify the app works by checking it handles requests
+      expect(typeof app.handle).toBe('function');
     });
   });
 });

@@ -38,6 +38,7 @@ interface CalendarDayModalProps {
   onClose: () => void;
   onEntryAdded: () => void;
   onEntryClick: (entry: CalendarEntry) => void;
+  onEntryMoved?: (entryId: string | number, newDate: Date) => void;
   colorMap?: Record<string, string | null>;
 }
 
@@ -91,6 +92,7 @@ export function CalendarDayModal({
   onClose,
   onEntryAdded,
   onEntryClick,
+  onEntryMoved: _onEntryMoved,
   colorMap,
 }: CalendarDayModalProps) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -104,6 +106,7 @@ export function CalendarDayModal({
   const [loadingFields, setLoadingFields] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [draggingEntry, setDraggingEntry] = useState<CalendarEntry | null>(null);
 
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +123,15 @@ export function CalendarDayModal({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
+
+  // Drag handlers for entries in the modal
+  const handleEntryDragStart = (entry: CalendarEntry) => {
+    setDraggingEntry(entry);
+  };
+
+  const handleEntryDragEnd = () => {
+    setDraggingEntry(null);
+  };
 
   // Load project fields when project is selected
   useEffect(() => {
@@ -283,9 +295,18 @@ export function CalendarDayModal({
                         'cdm-entry',
                         isCompleted && 'cdm-entry--completed',
                         overdue && 'cdm-entry--overdue',
+                        draggingEntry?.id === entry.id && 'cdm-entry--dragging',
                       ]
                         .filter(Boolean)
                         .join(' ')}
+                      draggable
+                      data-entry-id={String(entry.id)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(entry.id));
+                        handleEntryDragStart(entry);
+                      }}
+                      onDragEnd={handleEntryDragEnd}
                       onClick={() => onEntryClick(entry)}
                       role="button"
                       tabIndex={0}

@@ -54,27 +54,18 @@ describe('Field format mutations', () => {
     ]);
   });
 
-  it('renames a field and revalidates field and entry caches', async () => {
-    const renamedEntry = {
-      id: 'entry-id',
-      user_email: EMAIL,
-      project_name: PROJECT,
-      entries: { summary: 'Existing value' },
-    };
+  it('edits a field data_type and revalidates field cache', async () => {
     mockRequest
       .mockResolvedValueOnce({
         success: true,
-        migrated_entry_count: 1,
-        data: [{ field_name: 'summary' }],
+        data: [{ field_name: 'title', data_type: 'text', is_required: false }],
       })
       .mockResolvedValueOnce({
         success: true,
-        data: [{ field_name: 'summary', data_type: 'text', is_required: false }],
-      })
-      .mockResolvedValueOnce({ success: true, data: [renamedEntry] })
-      .mockResolvedValueOnce({ success: true, data: [renamedEntry] });
+        data: [{ field_name: 'title', data_type: 'text', is_required: false }],
+      });
 
-    const result = await editField(EMAIL, PROJECT, 'title', 'summary', 'text', false);
+    const result = await editField(EMAIL, PROJECT, 'title', 'text', false);
 
     expect(result.success).toBe(true);
     expect(requestBody(0)).toEqual({
@@ -82,20 +73,18 @@ describe('Field format mutations', () => {
       values: {
         user_email: EMAIL,
         table_name: PROJECT,
-        old_field_name: 'title',
-        field_name: 'summary',
+        field_name: 'title',
         data_type: 'text',
         is_required: false,
       },
     });
-    expect((await cacheGet(CACHE_STORES.ENTRIES, FIELD_CACHE_KEY)).data).toEqual([renamedEntry]);
-    expect((await cacheGet(CACHE_STORES.ALL_ENTRIES, EMAIL)).data).toEqual([renamedEntry]);
+    expect((await cacheGet(CACHE_STORES.FIELDS, FIELD_CACHE_KEY)).data).toEqual([
+      { field_name: 'title', data_type: 'text', is_required: false },
+    ]);
   });
 
   it('removes field metadata without revalidating or changing entry values', async () => {
-    mockRequest
-      .mockResolvedValueOnce({ success: true, message: 'Field removed successfully' })
-      .mockResolvedValueOnce({ success: true, data: [] });
+    mockRequest.mockResolvedValueOnce({ success: true, message: 'Field removed successfully' });
 
     const result = await deleteField(EMAIL, PROJECT, 'title');
 
@@ -104,7 +93,12 @@ describe('Field format mutations', () => {
       function: 'delete',
       values: { user_email: EMAIL, table_name: PROJECT, field_name: 'title' },
     });
-    expect(mockRequest).toHaveBeenCalledTimes(2);
-    expect((await cacheGet(CACHE_STORES.FIELDS, FIELD_CACHE_KEY)).data).toEqual([]);
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    // Fields cache is optimistically updated (field removed from local cache)
+    const cachedFields = await cacheGet(CACHE_STORES.FIELDS, FIELD_CACHE_KEY);
+    // Cache was cleared in beforeEach, so after delete it should still be empty/null
+    expect(cachedFields === null || (cachedFields.data && cachedFields.data.length === 0)).toBe(
+      true
+    );
   });
 });

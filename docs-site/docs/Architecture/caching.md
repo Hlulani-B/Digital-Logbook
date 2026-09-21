@@ -11,28 +11,37 @@ The Digital Logbook frontend implements a **local-first architecture** using Ind
 Before the local-first architecture, the app had a **scattered cache-first pattern** that looked like caching but didn't actually work reliably. Here's what was wrong:
 
 ### 1. No Centralized Cache Warm-Up
+
 Each page had its own `loadData` function that independently fetched from the server and wrote to IndexedDB. There was no global "warm-up" on app load. If you visited Dashboard first, only Dashboard's data was cached — AllEntries, Stats, Today, Calendar all had to fetch from scratch. Pages never benefited from each other's cache.
 
 ### 2. Inconsistent Cache Stores
+
 Different pages used different IndexedDB stores for the same data. For example, Dashboard stored entries in `CACHE_STORES.ALL_ENTRIES` while AllEntries stored them in `CACHE_STORES.ENTRIES`. They never shared cached data — visiting one page didn't help the other.
 
 ### 3. `hasCache` Checks Were Incomplete
+
 Dashboard's `hasCache` check only looked at `cachedEntries?.data || cachedProjects?.data` — it ignored `cachedDueSoon?.data`. So even if due-soon data was cached, the page would still show a spinner if entries/projects weren't cached yet.
 
 ### 4. `dueSoon()` Always Hit the Server
+
 The `dueSoon()` function called `getUnarchived()` which made a server API call every single time. Even though all entries were already in IndexedDB, `dueSoon` ignored the cache and fetched from the network. This defeated the entire purpose of caching.
 
 ### 5. `setPriority()` Had No IndexedDB Integration
+
 The `setPriority()` function called the server directly without writing to IndexedDB first. The UI wouldn't update until the next full page reload or `loadData()` call. Users would change a priority and see no change — then wonder if it worked.
 
 ### 6. Pages Still Depended on Server Responses
+
 Even with cache-first reads, every page's `loadData` still called individual server fetch functions (`getProjectsByEmail`, `sortUnarchivedEntries`, `dueSoon`, etc.) in the background. These functions each made their own network requests, so a single page load could trigger 3-5 parallel server calls. If the server was slow, the "fresh data" phase would stall and the UI would flicker between cached and fresh data.
 
 ### 7. No Single Source of Truth
+
 Without a centralized sync service, there was no guarantee that IndexedDB had complete, consistent data. Each page wrote to cache independently, sometimes with different key formats or store names. The result: cached data was often incomplete, stale, or missing entirely for pages the user hadn't visited yet.
 
 ### The Fix
+
 The local-first architecture solves all of these by:
+
 - **One sync service** (`syncAllData`) that fetches ALL data in one call and populates all IndexedDB stores
 - **One trigger point** (`DataSyncInitializer` in App.tsx) that warms up cache on login
 - **Pages read only from IndexedDB** — no direct server calls from pages
@@ -81,6 +90,7 @@ An intermediate approach had pages call `syncAllData` in the background after re
 ```
 
 ### Read Flow (Pages → IndexedDB)
+
 ```
 1. User navigates to a page
 2. Page reads from IndexedDB via cacheGet() in useEffect
@@ -94,6 +104,7 @@ An intermediate approach had pages call `syncAllData` in the background after re
 ```
 
 ### Write Flow (Mutations → IndexedDB → Server)
+
 ```
 1. User triggers action (e.g., add entry, change priority)
 2. Function writes to IndexedDB immediately (optimistic update)
@@ -129,34 +140,34 @@ When the app is offline, mutations are queued in IndexedDB and synced when conne
 
 ### Queue Store Schema
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | auto-increment | Unique identifier |
-| `action` | string | Action name (e.g., 'addEntry') |
-| `module` | string | Module name (e.g., 'entries', 'project') |
-| `payload` | object | Serialized action data |
-| `timestamp` | number | When the action was queued |
-| `attempts` | number | Number of sync attempts (max 3) |
+| Field       | Type           | Description                              |
+| ----------- | -------------- | ---------------------------------------- |
+| `id`        | auto-increment | Unique identifier                        |
+| `action`    | string         | Action name (e.g., 'addEntry')           |
+| `module`    | string         | Module name (e.g., 'entries', 'project') |
+| `payload`   | object         | Serialized action data                   |
+| `timestamp` | number         | When the action was queued               |
+| `attempts`  | number         | Number of sync attempts (max 3)          |
 
 ### Registered Actions
 
-| Action | Module | Description |
-|---|---|---|
-| `addEntry` | entries | Add a new entry |
-| `updateEntry` | entries | Update an existing entry |
-| `deleteEntry` | entries | Delete an entry |
-| `deleteEntryById` | entries | Delete entry by ID |
-| `addProject` | project | Create a new project |
-| `editProjectName` | project | Rename a project |
-| `deleteProject` | project | Delete a project |
-| `archiveProject` | archives | Archive a project |
-| `unarchiveProject` | archives | Unarchive a project |
-| `archiveEntry` | archives | Archive an entry |
-| `unarchiveEntry` | archives | Unarchive an entry |
-| `setPriority` | priority | Set entry priority |
-| `updateUsername` | profile | Update username |
-| `updateName` | profile | Update display name |
-| `updateAvatar` | profile | Update avatar |
+| Action             | Module   | Description              |
+| ------------------ | -------- | ------------------------ |
+| `addEntry`         | entries  | Add a new entry          |
+| `updateEntry`      | entries  | Update an existing entry |
+| `deleteEntry`      | entries  | Delete an entry          |
+| `deleteEntryById`  | entries  | Delete entry by ID       |
+| `addProject`       | project  | Create a new project     |
+| `editProjectName`  | project  | Rename a project         |
+| `deleteProject`    | project  | Delete a project         |
+| `archiveProject`   | archives | Archive a project        |
+| `unarchiveProject` | archives | Unarchive a project      |
+| `archiveEntry`     | archives | Archive an entry         |
+| `unarchiveEntry`   | archives | Unarchive an entry       |
+| `setPriority`      | priority | Set entry priority       |
+| `updateUsername`   | profile  | Update username          |
+| `updateName`       | profile  | Update display name      |
+| `updateAvatar`     | profile  | Update avatar            |
 
 ### Toast Notifications
 
@@ -196,16 +207,17 @@ await syncAllData(email, { force: true });
 
 **What it syncs:**
 
-| Store | Source Function | Cache Key |
-|---|---|---|
-| `projects` | `getProjectsByEmail()` | `email` |
-| `all-entries` | `getAllEntries()` | `email` |
-| `entries` (per-project) | Derived from all-entries | `email:projectName` |
-| `profile` | `getProfile()` | `email` |
-| `archives` | `getArchives()`, `getArchivedProjects()`, `getUnarchivedProjects()` | Various |
-| `due-soon` | Computed from cached entries (no server call) | `email:due-soon` |
+| Store                   | Source Function                                                     | Cache Key           |
+| ----------------------- | ------------------------------------------------------------------- | ------------------- |
+| `projects`              | `getProjectsByEmail()`                                              | `email`             |
+| `all-entries`           | `getAllEntries()`                                                   | `email`             |
+| `entries` (per-project) | Derived from all-entries                                            | `email:projectName` |
+| `profile`               | `getProfile()`                                                      | `email`             |
+| `archives`              | `getArchives()`, `getArchivedProjects()`, `getUnarchivedProjects()` | Various             |
+| `due-soon`              | Computed from cached entries (no server call)                       | `email:due-soon`    |
 
 **Features:**
+
 - Prevents duplicate concurrent syncs
 - Throttles to one sync per 10 seconds (unless forced)
 - Populates per-project entry caches from the all-entries data
@@ -221,16 +233,16 @@ Pure function that filters entries to find those due within 3 days. Used by both
 
 ## IndexedDB Schema (mirrors database tables)
 
-| Store | Key Format | Data |
-|---|---|---|
-| `projects` | `user@email.com` | All user projects |
-| `all-entries` | `user@email.com` | All entries across all projects |
-| `entries` | `user@email.com:project_name` | Entries for a specific project |
-| `profile` | `user@email.com` | User profile (name, avatar, username) |
-| `archives` | Various | Archived projects/entries |
-| `fields` | `user@email.com:table_name` | Custom field definitions |
-| `due-soon` (entries store) | `user@email.com:due-soon` | Entries due within 3 days (computed) |
-| `offline-queue` | auto-increment | Queued offline actions |
+| Store                      | Key Format                    | Data                                  |
+| -------------------------- | ----------------------------- | ------------------------------------- |
+| `projects`                 | `user@email.com`              | All user projects                     |
+| `all-entries`              | `user@email.com`              | All entries across all projects       |
+| `entries`                  | `user@email.com:project_name` | Entries for a specific project        |
+| `profile`                  | `user@email.com`              | User profile (name, avatar, username) |
+| `archives`                 | Various                       | Archived projects/entries             |
+| `fields`                   | `user@email.com:table_name`   | Custom field definitions              |
+| `due-soon` (entries store) | `user@email.com:due-soon`     | Entries due within 3 days (computed)  |
+| `offline-queue`            | auto-increment                | Queued offline actions                |
 
 ## Page Implementation Pattern
 
@@ -249,7 +261,9 @@ const loadData = useCallback(async () => {
     } else {
       setLoading(true); // First visit — show spinner
     }
-  } catch { setLoading(true); }
+  } catch {
+    setLoading(true);
+  }
 
   // 2. Sync from server → IndexedDB (background)
   try {
@@ -265,25 +279,27 @@ const loadData = useCallback(async () => {
   }
 }, [email]);
 
-useEffect(() => { loadData(); }, [loadData]);
+useEffect(() => {
+  loadData();
+}, [loadData]);
 ```
 
 ## Mutation Functions (Optimistic Updates)
 
 All mutation functions write to IndexedDB first, then sync to the server. If offline or server sync fails, the action is queued for retry:
 
-| Function | IndexedDB Behavior |
-|---|---|
-| `addEntry()` | Optimistic write → server sync → queue on failure |
-| `updateEntry()` | Optimistic patch → server sync → queue on failure |
-| `deleteEntry()` | Optimistic remove → server sync → queue on failure |
-| `addProject()` | Optimistic write → server sync → queue on failure |
+| Function            | IndexedDB Behavior                                 |
+| ------------------- | -------------------------------------------------- |
+| `addEntry()`        | Optimistic write → server sync → queue on failure  |
+| `updateEntry()`     | Optimistic patch → server sync → queue on failure  |
+| `deleteEntry()`     | Optimistic remove → server sync → queue on failure |
+| `addProject()`      | Optimistic write → server sync → queue on failure  |
 | `editProjectName()` | Optimistic rename → server sync → queue on failure |
-| `deleteProject()` | Optimistic remove → server sync → queue on failure |
-| `setPriority()` | Optimistic patch → server sync → queue on failure |
-| `updateUsername()` | Optimistic update → server sync → queue on failure |
-| `updateName()` | Optimistic update → server sync → queue on failure |
-| `updateAvatar()` | Optimistic update → server sync → queue on failure |
+| `deleteProject()`   | Optimistic remove → server sync → queue on failure |
+| `setPriority()`     | Optimistic patch → server sync → queue on failure  |
+| `updateUsername()`  | Optimistic update → server sync → queue on failure |
+| `updateName()`      | Optimistic update → server sync → queue on failure |
+| `updateAvatar()`    | Optimistic update → server sync → queue on failure |
 
 ### Example: setPriority (IndexedDB-first)
 
@@ -336,7 +352,7 @@ function DataSyncInitializer({ children }) {
 
   useEffect(() => {
     if (email) {
-      syncAllData(email).catch(err => {
+      syncAllData(email).catch((err) => {
         console.warn('[App] Initial data sync failed:', err);
       });
     }
@@ -348,23 +364,23 @@ function DataSyncInitializer({ children }) {
 
 ## Cache Invalidation
 
-| Event | Action |
-|---|---|
-| Write operation | Optimistic IndexedDB update → server sync → queue on failure |
-| Sign out | `clearUserCache(email)` wipes all IndexedDB data |
-| Delete account | `clearUserCache(email)` wipes all IndexedDB data |
-| SSE push | Invalidate cache → call `loadData()` to re-read from IndexedDB |
-| Back online | `processQueue()` syncs all queued offline actions |
+| Event           | Action                                                         |
+| --------------- | -------------------------------------------------------------- |
+| Write operation | Optimistic IndexedDB update → server sync → queue on failure   |
+| Sign out        | `clearUserCache(email)` wipes all IndexedDB data               |
+| Delete account  | `clearUserCache(email)` wipes all IndexedDB data               |
+| SSE push        | Invalidate cache → call `loadData()` to re-read from IndexedDB |
+| Back online     | `processQueue()` syncs all queued offline actions              |
 
 ## Performance Impact
 
-| Metric | Before (server-first) | After (local-first) |
-|---|---|---|
-| First page load | 500-1000ms (network) | 500-1000ms (first visit only) |
-| Subsequent loads | 500-1000ms (network) | <10ms (IndexedDB read) |
-| Navigation | Full network fetch | Instant from cache |
-| Offline/poor connectivity | App breaks | Shows cached data |
-| Mutations | Wait for server | Instant UI, background sync |
+| Metric                    | Before (server-first) | After (local-first)           |
+| ------------------------- | --------------------- | ----------------------------- |
+| First page load           | 500-1000ms (network)  | 500-1000ms (first visit only) |
+| Subsequent loads          | 500-1000ms (network)  | <10ms (IndexedDB read)        |
+| Navigation                | Full network fetch    | Instant from cache            |
+| Offline/poor connectivity | App breaks            | Shows cached data             |
+| Mutations                 | Wait for server       | Instant UI, background sync   |
 
 ## Dependencies
 
@@ -372,21 +388,21 @@ function DataSyncInitializer({ children }) {
 
 ## File Reference
 
-| File | Purpose |
-|---|---|
-| `src/CacheFunctions/syncService.js` | Central sync — fetches all data → IndexedDB |
-| `src/CacheFunctions/offlineQueue.js` | Offline queue CRUD operations |
-| `src/CacheFunctions/queueProcessor.js` | Queue processing with retry logic |
-| `src/CacheFunctions/actionDispatcher.js` | Maps action strings to function calls |
-| `src/CacheFunctions/index.js` | Barrel export |
-| `src/lib/cache.js` | IndexedDB CRUD + event subscriptions |
-| `src/hooks/useCachedData.js` | React hook for IndexedDB-first loading |
-| `src/hooks/useNetworkStatus.js` | React hook for online/offline detection |
-| `src/components/OfflineSyncToasts.tsx` | Toast notifications for queue sync |
-| `src/functions/project/project.js` | Project mutations (optimistic + queue) |
-| `src/functions/project/entries.js` | Entry mutations (optimistic + queue) |
-| `src/functions/project/priority.js` | Priority mutation (optimistic + queue) |
-| `src/functions/project/archives.js` | Archive mutations (optimistic + queue) |
-| `src/functions/profile/profile.js` | Profile mutations (optimistic + queue) |
-| `src/functions/dashboard.js` | `dueSoon()` — reads from cache |
-| `src/App.tsx` | `DataSyncInitializer` + `OfflineSyncToasts` |
+| File                                     | Purpose                                     |
+| ---------------------------------------- | ------------------------------------------- |
+| `src/CacheFunctions/syncService.js`      | Central sync — fetches all data → IndexedDB |
+| `src/CacheFunctions/offlineQueue.js`     | Offline queue CRUD operations               |
+| `src/CacheFunctions/queueProcessor.js`   | Queue processing with retry logic           |
+| `src/CacheFunctions/actionDispatcher.js` | Maps action strings to function calls       |
+| `src/CacheFunctions/index.js`            | Barrel export                               |
+| `src/lib/cache.js`                       | IndexedDB CRUD + event subscriptions        |
+| `src/hooks/useCachedData.js`             | React hook for IndexedDB-first loading      |
+| `src/hooks/useNetworkStatus.js`          | React hook for online/offline detection     |
+| `src/components/OfflineSyncToasts.tsx`   | Toast notifications for queue sync          |
+| `src/functions/project/project.js`       | Project mutations (optimistic + queue)      |
+| `src/functions/project/entries.js`       | Entry mutations (optimistic + queue)        |
+| `src/functions/project/priority.js`      | Priority mutation (optimistic + queue)      |
+| `src/functions/project/archives.js`      | Archive mutations (optimistic + queue)      |
+| `src/functions/profile/profile.js`       | Profile mutations (optimistic + queue)      |
+| `src/functions/dashboard.js`             | `dueSoon()` — reads from cache              |
+| `src/App.tsx`                            | `DataSyncInitializer` + `OfflineSyncToasts` |
