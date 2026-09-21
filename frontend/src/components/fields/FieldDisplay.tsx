@@ -29,25 +29,6 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       );
     case 'boolean':
       return <div className="field-display field-display-boolean">{value ? '✓ Yes' : '✗ No'}</div>;
-    case 'select': {
-      const option = field.options.find((o) => (o.value ?? o.label) === value);
-      return (
-        <div className="field-display field-display-select">{option?.label ?? String(value)}</div>
-      );
-    }
-    case 'multiselect': {
-      const ids = Array.isArray(value) ? value : [];
-      const labels = ids.map((id) => field.options.find((o) => o.id === id)?.label ?? id);
-      return (
-        <div className="field-display field-display-multiselect">
-          {labels.map((label, i) => (
-            <span key={i} className="field-display-tag">
-              {label}
-            </span>
-          ))}
-        </div>
-      );
-    }
     case 'geolocation': {
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
@@ -86,10 +67,30 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         <div className="field-display field-display-entity-links">
           {links.map((link: string, i: number) => (
             <span key={i} className="field-display-tag">
-              🔗 {link.slice(0, 8)}...
+              {link.slice(0, 8)}...
             </span>
           ))}
         </div>
+      );
+    }
+    case 'tags': {
+      const tags = Array.isArray(value) ? value : [];
+      if (tags.length === 0) return <div className="field-display">—</div>;
+      return (
+        <div className="field-display field-display-tags">
+          {tags.map((tag: string, i: number) => (
+            <span key={i} className="field-display-tag field-tag">
+              {tag}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    case 'custom': {
+      // Legacy custom type — display the selected option label
+      const option = field.options.find((o) => (o.value ?? o.label) === value);
+      return (
+        <div className="field-display field-display-select">{option?.label ?? String(value)}</div>
       );
     }
     default:

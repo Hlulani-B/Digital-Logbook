@@ -164,23 +164,8 @@ export function EntryBox({
         if (!cancelled && result?.data) {
           const defs: Record<string, FieldDefinition> = {};
           for (const f of result.data) {
-            // Use normalizeField to properly handle all schema properties including visibility
+            // normalizeField handles legacy custom:type format
             const fieldDef = normalizeField(f);
-            // Convert legacy custom:type format to proper select field
-            if (f.data_type && f.data_type.startsWith('custom:')) {
-              fieldDef.data_type = 'select';
-              const optionsStr = f.data_type.slice(7);
-              if (optionsStr) {
-                fieldDef.options = optionsStr
-                  .split(',')
-                  .map((o: string, i: number) => ({
-                    id: `opt-${i}`,
-                    label: o.trim(),
-                    value: o.trim(),
-                  }))
-                  .filter((o: { label: string }) => o.label);
-              }
-            }
             defs[f.field_name] = fieldDef;
           }
           setFieldDefs(defs);
