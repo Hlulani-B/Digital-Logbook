@@ -7,13 +7,15 @@ export const FIELD_TYPES = [
   'date',
   'timestamp',
   'boolean',
-  'select',
-  'multiselect',
   'geolocation',
   'currency',
   'file',
   'image',
   'entity_link',
+  'tags',
+  'checklist',
+  'computed',
+  'custom',
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
@@ -88,12 +90,15 @@ export const supportsDefault = (type: FieldType): boolean => !['file', 'image'].
 export const isTextField = (type: FieldType): boolean => type === 'text' || type === 'markdown';
 export const isNumericField = (type: FieldType): boolean =>
   ['integer', 'float', 'number'].includes(type);
+export const isTagsField = (type: FieldType): boolean => type === 'tags';
+export const isChecklistField = (type: FieldType): boolean => type === 'checklist';
+export const isComputedField = (type: FieldType): boolean => type === 'computed';
 
 /** Normalize schema metadata only. Entry strings are deliberately never JSON-parsed. */
 export function normalizeField(input: unknown, index = 0): FieldDefinition {
   const source = isRecord(input) ? input : {};
   const originalType = typeof source.data_type === 'string' ? source.data_type : 'text';
-  const legacySelect = originalType === 'custom' || originalType.startsWith('custom:');
+  const legacyCustom = originalType === 'custom' || originalType.startsWith('custom:');
   let options = Array.isArray(source.options) ? source.options : [];
   if (!options.length && originalType.startsWith('custom:')) {
     options = originalType
@@ -106,7 +111,7 @@ export function normalizeField(input: unknown, index = 0): FieldDefinition {
     ...source,
     ...(typeof source.id === 'string' ? { id: source.id } : {}),
     field_name: typeof source.field_name === 'string' ? source.field_name : '',
-    data_type: (legacySelect ? 'select' : originalType) as FieldType,
+    data_type: (legacyCustom ? 'custom' : originalType) as FieldType,
     is_required: source.is_required === true,
     is_unique: source.is_unique === true,
     rules: isRecord(source.rules) ? { ...source.rules } : {},

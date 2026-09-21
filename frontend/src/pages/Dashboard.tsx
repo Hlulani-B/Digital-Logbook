@@ -114,6 +114,9 @@ type ProjectFieldDraft = {
     | 'file'
     | 'image'
     | 'entity_link'
+    | 'tags'
+    | 'checklist'
+    | 'computed'
     | 'custom';
   is_required: boolean;
   custom_options?: string[];
@@ -2403,6 +2406,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       <option value="file">File</option>
                       <option value="image">Image</option>
                       <option value="entity_link">Entity Link</option>
+                      <option value="tags">Tags</option>
+                      <option value="checklist">Checklist</option>
+                      <option value="computed">Computed</option>
                       <option value="custom">Custom (Legacy)</option>
                     </select>
                     <label

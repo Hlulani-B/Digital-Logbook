@@ -29,25 +29,6 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       );
     case 'boolean':
       return <div className="field-display field-display-boolean">{value ? '✓ Yes' : '✗ No'}</div>;
-    case 'select': {
-      const option = field.options.find((o) => (o.value ?? o.label) === value);
-      return (
-        <div className="field-display field-display-select">{option?.label ?? String(value)}</div>
-      );
-    }
-    case 'multiselect': {
-      const ids = Array.isArray(value) ? value : [];
-      const labels = ids.map((id) => field.options.find((o) => o.id === id)?.label ?? id);
-      return (
-        <div className="field-display field-display-multiselect">
-          {labels.map((label, i) => (
-            <span key={i} className="field-display-tag">
-              {label}
-            </span>
-          ))}
-        </div>
-      );
-    }
     case 'geolocation': {
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
@@ -86,10 +67,79 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         <div className="field-display field-display-entity-links">
           {links.map((link: string, i: number) => (
             <span key={i} className="field-display-tag">
-              🔗 {link.slice(0, 8)}...
+              {link.slice(0, 8)}...
             </span>
           ))}
         </div>
+      );
+    }
+    case 'tags': {
+      const tags = Array.isArray(value) ? value : [];
+      if (tags.length === 0) return <div className="field-display">—</div>;
+      return (
+        <div className="field-display field-display-tags">
+          {tags.map((tag: string, i: number) => (
+            <span key={i} className="field-display-tag field-tag">
+              {tag}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    case 'checklist': {
+      const items = Array.isArray(value) ? value : [];
+      if (items.length === 0) return <div className="field-display">—</div>;
+      const done = items.filter((i: any) => i.done).length;
+      return (
+        <div className="field-display field-display-checklist">
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted, #666)',
+              marginBottom: '0.25rem',
+            }}
+          >
+            {done}/{items.length} done
+          </div>
+          {items.map((item: any, i: number) => (
+            <div
+              key={item.id || i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                fontSize: '0.85rem',
+              }}
+            >
+              <span style={{ color: item.done ? 'green' : '#999' }}>{item.done ? '✓' : '○'}</span>
+              <span
+                style={{
+                  textDecoration: item.done ? 'line-through' : 'none',
+                  color: item.done ? 'var(--text-muted, #999)' : 'var(--text, #333)',
+                }}
+              >
+                {item.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case 'computed': {
+      return (
+        <div
+          className="field-display field-display-computed"
+          style={{ fontWeight: 500, color: 'var(--accent, #2563eb)' }}
+        >
+          {value !== null && value !== undefined ? String(value) : '—'}
+        </div>
+      );
+    }
+    case 'custom': {
+      // Legacy custom type — display the selected option label
+      const option = field.options.find((o) => (o.value ?? o.label) === value);
+      return (
+        <div className="field-display field-display-select">{option?.label ?? String(value)}</div>
       );
     }
     default:
