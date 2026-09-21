@@ -11,6 +11,10 @@ import {
   formatStatValue,
   fieldHeadline,
   entryDurationMs,
+  analysisFieldDefs,
+  fieldAnalysisPolicy,
+  dailyWindow,
+  computeFieldAnalysis,
 } from '../stats';
 
 /* ── fixtures ─────────────────────────────────────────────────
@@ -419,5 +423,666 @@ describe('BUILTIN_FIELD_DEFS', () => {
     const durationStat = stats.find((s) => s.field === 'duration').total;
     expect(durationStat).toBe(entryDurationMs(e));
     expect(durationStat).toBe(40 * 60000);
+  });
+});
+
+const numberDef = { field_name: 'value', data_type: 'number' };
+const selectDef = { field_name: 'value', data_type: 'select' };
+const partnerDef = { field_name: 'partner', data_type: 'select' };
+const rowsFor = (values) => values.map((value) => entry('A', { value }, '2026-03-01'));
+const frequenciesByKey = (items) => Object.fromEntries(items.map((item) => [item.key, item.count]));
+const matrixTotal = (matrix) => matrix.values.flat().reduce((sum, value) => sum + (value ?? 0), 0);
+const matrixCell = (matrix, row, column) =>
+  matrix.values[matrix.rows.findIndex((item) => item.key === row)][
+    matrix.columns.findIndex((item) => item.key === column)
+  ];
+
+// These contracts are consumed by the separate type-aware stats UI.
+describe('fieldAnalysisPolicy', () => {
+  it.each([
+    ['number', 'numeric', ['bars', 'trend', 'grouped']],
+    ['integer', 'numeric', ['bars', 'trend', 'grouped']],
+    ['float', 'numeric', ['bars', 'trend', 'grouped']],
+    ['duration', 'numeric', ['bars', 'trend', 'grouped']],
+    ['select', 'category', ['bars', 'donut', 'grouped']],
+    ['custom', 'category', ['bars', 'donut', 'grouped']],
+    ['custom:One,Two', 'category', ['bars', 'donut', 'grouped']],
+    ['boolean', 'boolean', ['donut', 'bars', 'grouped']],
+    ['multiselect', 'multi', ['bars']],
+    ['multi', 'multi', ['bars']],
+    ['date', 'date', ['trend']],
+    ['timestamp', 'date', ['trend']],
+    ['text', 'text', ['search']],
+    ['markdown', 'text', ['search']],
+    ['file', 'summary', ['summary']],
+    ['currency', 'summary', ['summary']],
+    ['unknown', 'summary', ['summary']],
+    [undefined, 'summary', ['summary']],
+  ])('assigns the exact policy for %s', (type, kind, views) => {
+    expect(fieldAnalysisPolicy(type)).toEqual({ kind, views, defaultView: views[0] });
+  });
+
+  it('does not repurpose legacy capabilities as chart policies', () => {
+    expect(fieldCapabilities('text')).toEqual({
+      total: false,
+      group: true,
+      compare: true,
+      plot: true,
+    });
+    expect(fieldAnalysisPolicy('text').views).toEqual(['search']);
+  });
+});
+
+describe('analysisFieldDefs and metadata', () => {
+  it('preserves declared metadata and normalizes legacy option IDs without mutating the input', () => {
+    const declared = [
+      {
+        field_name: 'value',
+        data_type: 'custom',
+        id: 'field-id',
+        is_required: true,
+        rules: { min: 1 },
+        field_permissions: { guest: 'hidden' },
+        options: [{ id: 'red', label: 'Red', value: 'r', parent_id: 'color', color: '#f00' }],
+      },
+      { field_name: 'empty', data_type: 'integer' },
+    ];
+    const before = JSON.stringify(declared);
+    expect(mergeFieldDefs(declared, [{ field_name: 'value', data_type: 'text' }])[0]).toEqual(
+      declared[0]
+    );
+    const defs = analysisFieldDefs(rowsFor(['r']), declared);
+    expect(defs[0]).toMatchObject({ ...declared[0], data_type: 'select' });
+    expect(defs[1]).toMatchObject({ field_name: 'empty', data_type: 'integer' });
+    expect(JSON.stringify(declared)).toBe(before);
+    expect(analysisFieldDefs(null, declared)).toHaveLength(2);
+  });
+
+  it('never treats low-cardinality text or complex inferred data as categories', () => {
+    const defs = analysisFieldDefs([
+      entry('A', {
+        repeated: 'same',
+        payload: { nested: 1 },
+        list: ['a'],
+        description: 'reserved',
+      }),
+      entry('A', { repeated: 'same', payload: 'mixed', list: ['b'] }),
+    ]);
+    expect(
+      Object.fromEntries(
+        defs.map((def) => [def.field_name, fieldAnalysisPolicy(def.data_type).kind])
+      )
+    ).toEqual({ repeated: 'text', payload: 'summary', list: 'summary' });
+  });
+
+  it('adds a duration for running or legacy completed timers, but never shadows a same-name field', () => {
+    const running = [{ started_at: '2026-01-01' }];
+    expect(analysisFieldDefs(running)).toMatchObject([
+      { field_name: 'duration', data_type: 'duration' },
+    ]);
+    expect(analysisFieldDefs([{ ended_at: '2026-01-01' }])).toHaveLength(1);
+    expect(analysisFieldDefs([{}])).toEqual([]);
+    const custom = { field_name: 'duration', data_type: 'number', rules: { min: 0 } };
+    expect(analysisFieldDefs(running, [custom])).toMatchObject([custom]);
+    const data = [entry('A', { duration: 7 }, '2026-03-01', running[0])];
+    expect(analysisFieldDefs(data)).toMatchObject([
+      { field_name: 'duration', data_type: 'number' },
+    ]);
+    expect(computeFieldAnalysis(data, custom).numeric.total).toBe(7);
+  });
+});
+
+describe('numeric analysis and legacy aliases', () => {
+  it.each(['number', 'integer', 'float'])(
+    'keeps legacy result shapes while fixing %s coercion',
+    (data_type) => {
+      const data = rowsFor([2, '3', false, true, Infinity, '0x10', {}, 'bad']);
+      expect(fieldCapabilities(data_type).total).toBe(true);
+      const stats = computeFieldStats(data, [{ ...numberDef, data_type }])[0];
+      expect(stats).toMatchObject({
+        count: 2,
+        total: 5,
+        min: 2,
+        max: 3,
+        avg: 2.5,
+        displayTotal: '5',
+      });
+      expect(groupFieldBy(data, 'value', 'project_name', { data_type })).toEqual([
+        { key: 'A', count: 2, total: 5, display: '5' },
+      ]);
+    }
+  );
+
+  it('separates missing, present-invalid, and valid values, including zero and negatives', () => {
+    const data = rowsFor([
+      null,
+      undefined,
+      '',
+      ' \t ',
+      [],
+      0,
+      '0',
+      -2,
+      '.5',
+      '2e1',
+      '0x10',
+      true,
+      false,
+      Infinity,
+      -Infinity,
+      NaN,
+      'Infinity',
+      'nope',
+      {},
+      [1],
+    ]);
+    const result = computeFieldAnalysis(data, numberDef);
+    expect(result.coverage).toEqual({ total: 20, filled: 15, missing: 5, invalid: 10 });
+    expect(result.numeric).toEqual({ total: 18.5, average: 3.7, min: -2, max: 20 });
+    expect(result.series.at(-1)).toEqual({ bucket: '2026-03-01', value: 18.5 });
+    expect(result.frequencies).toEqual([]);
+  });
+
+  it('rejects fractional integers but accepts fractional floats', () => {
+    const data = rowsFor([0, '-2', '2.5', 3.25, true, '0b11', ' ', Infinity]);
+    const integer = computeFieldAnalysis(data, { ...numberDef, data_type: 'integer' });
+    expect(integer.coverage).toEqual({ total: 8, filled: 7, missing: 1, invalid: 5 });
+    expect(integer.numeric).toEqual({ total: -2, average: -1, min: -2, max: 0 });
+    expect(computeFieldAnalysis(data, { ...numberDef, data_type: 'float' }).numeric.total).toBe(
+      3.75
+    );
+  });
+
+  it('returns the exact empty API shape and retains all-missing declared fields', () => {
+    const defs = analysisFieldDefs(rowsFor([null]), [numberDef]);
+    expect(computeFieldAnalysis(rowsFor([null]), defs[0])).toEqual({
+      field: 'value',
+      data_type: 'number',
+      kind: 'numeric',
+      coverage: { total: 1, filled: 0, missing: 1, invalid: 0 },
+      numeric: null,
+      frequencies: [],
+      displayFrequencies: [],
+      series: [],
+      range: null,
+      undatedCount: 0,
+      comparison: null,
+    });
+    expect(computeFieldAnalysis(rowsFor(['bad']), numberDef).numeric).toBeNull();
+    expect(computeFieldAnalysis(null, numberDef).coverage.total).toBe(0);
+  });
+
+  it('computes extrema without spreading large arrays', () => {
+    const data = Array.from({ length: 130000 }, (_, index) =>
+      entry('A', { value: index % 2 ? -4 : 6 })
+    );
+    expect(computeFieldAnalysis(data, numberDef).numeric).toEqual({
+      total: 130000,
+      average: 1,
+      min: -4,
+      max: 6,
+    });
+    expect(computeFieldStats(data, [numberDef])[0]).toMatchObject({
+      total: 130000,
+      avg: 1,
+      min: -4,
+      max: 6,
+    });
+  });
+});
+
+describe('categories, booleans, multiselects, and safe summaries', () => {
+  const options = [
+    { id: 'a', label: 'Alpha', value: 'a-value' },
+    { id: 'b', label: 'Beta', value: 'b-value' },
+  ];
+
+  it('resolves IDs, values, and labels to canonical IDs, retaining unmatched scalar labels', () => {
+    const result = computeFieldAnalysis(
+      rowsFor([
+        'a',
+        'Alpha',
+        'a-value',
+        'b',
+        'Beta',
+        'b-value',
+        'Unlisted',
+        0,
+        {},
+        false,
+        [1],
+        null,
+      ]),
+      { ...selectDef, options }
+    );
+    expect(result.coverage).toEqual({ total: 12, filled: 11, missing: 1, invalid: 3 });
+    expect(result.frequencies).toEqual([
+      { key: 'a', label: 'Alpha', count: 3 },
+      { key: 'b', label: 'Beta', count: 3 },
+      { key: '0', label: '0', count: 1 },
+      { key: 'Unlisted', label: 'Unlisted', count: 1 },
+    ]);
+    expect(result.series).toEqual([]);
+    expect(result.numeric).toBeNull();
+  });
+
+  it('sorts tied labels by canonical key', () => {
+    const def = {
+      ...selectDef,
+      options: [
+        { id: 'z', label: 'Same', value: 'a' },
+        { id: 'a', label: 'Same', value: 'z' },
+      ],
+    };
+    expect(computeFieldAnalysis(rowsFor(['z', 'a']), def).frequencies).toEqual([
+      { key: 'a', label: 'Same', count: 1 },
+      { key: 'z', label: 'Same', count: 1 },
+    ]);
+  });
+
+  it('resolves overlapping option values and IDs according to each stored field type', () => {
+    const def = {
+      ...selectDef,
+      options: [
+        { id: 'first', label: 'First option', value: 'second' },
+        { id: 'second', label: 'Second option', value: 'elsewhere' },
+      ],
+    };
+    expect(computeFieldAnalysis(rowsFor(['second', 'second']), def).frequencies).toEqual([
+      { key: 'first', label: 'First option', count: 2 },
+    ]);
+    expect(
+      computeFieldAnalysis(rowsFor([['second']]), { ...def, data_type: 'multiselect' }).frequencies
+    ).toEqual([{ key: 'second', label: 'Second option', count: 1 }]);
+  });
+
+  it('preserves meaningful whitespace in persisted option values', () => {
+    const result = computeFieldAnalysis(rowsFor([' spaced ', 'spaced']), {
+      ...selectDef,
+      options: [{ id: 'space', label: 'With spaces', value: ' spaced ' }],
+    });
+    expect(result.frequencies).toEqual([
+      { key: 'space', label: 'With spaces', count: 1 },
+      { key: 'spaced', label: 'spaced', count: 1 },
+    ]);
+  });
+
+  it.each(['custom:Alpha,Beta', 'custom', 'select'])(
+    'normalizes %s legacy string options',
+    (data_type) => {
+      const def = {
+        ...selectDef,
+        data_type,
+        ...(data_type === 'custom:Alpha,Beta' ? {} : { options: ['Alpha', 'Beta'] }),
+      };
+      const result = computeFieldAnalysis(rowsFor(['Alpha', 'option-1', 'Beta']), def);
+      expect(result.data_type).toBe('select');
+      expect(frequenciesByKey(result.frequencies)).toEqual({ 'option-1': 2, 'option-2': 1 });
+    }
+  );
+
+  it('keeps false valid, rejects non-boolean representations, and always includes both boolean axes', () => {
+    const def = { ...numberDef, data_type: 'boolean' };
+    const result = computeFieldAnalysis(
+      rowsFor([false, 0, 'false', true, ' TRUE ', 'yes', {}, ['true'], null, ' ', []]),
+      def
+    );
+    expect(result.coverage).toEqual({ total: 11, filled: 8, missing: 3, invalid: 4 });
+    expect(result.frequencies).toEqual([
+      { key: 'false', label: 'No', count: 2 },
+      { key: 'true', label: 'Yes', count: 2 },
+    ]);
+    expect(frequenciesByKey(computeFieldAnalysis(rowsFor([true, true]), def).frequencies)).toEqual({
+      true: 2,
+      false: 0,
+    });
+    expect(frequenciesByKey(computeFieldAnalysis([], def).frequencies)).toEqual({
+      false: 0,
+      true: 0,
+    });
+  });
+
+  it('deduplicates multiselect IDs per entry and rejects whole arrays with any unusable member', () => {
+    const data = rowsFor([
+      ['a', 'a', 'Alpha', 'a-value'],
+      ['a', 'b', 'b'],
+      [],
+      null,
+      ['a', {}],
+      ['b', null],
+      'a',
+      [false],
+      [0],
+    ]);
+    const result = computeFieldAnalysis(data, { ...selectDef, data_type: 'multiselect', options });
+    expect(result.coverage).toEqual({ total: 9, filled: 7, missing: 2, invalid: 4 });
+    expect(frequenciesByKey(result.frequencies)).toEqual({ a: 2, b: 1, 0: 1 });
+    expect(result.frequencies.reduce((sum, item) => sum + item.count, 0)).toBe(4);
+    expect(result.series).toEqual([]);
+    expect(fieldAnalysisPolicy('multiselect').views).toEqual(['bars']);
+  });
+
+  it('preserves literal text rather than interpreting JSON or stringifying objects', () => {
+    const result = computeFieldAnalysis(rowsFor(['{"a":1}', 'same', 0, false, {}, ['a'], ' ']), {
+      ...numberDef,
+      data_type: 'markdown',
+    });
+    expect(result.coverage).toEqual({ total: 7, filled: 6, missing: 1, invalid: 2 });
+    expect(result.frequencies.map((item) => item.label)).toEqual(['0', 'false', 'same', '{"a":1}']);
+    expect(result.series).toEqual([]);
+  });
+
+  it.each(['file', 'image', 'geolocation', 'entity_link', 'unknown', 'summary'])(
+    'summarizes %s without fabricating categories',
+    (data_type) => {
+      const result = computeFieldAnalysis(rowsFor([{ nested: 1 }, ['a'], 'opaque', null]), {
+        ...numberDef,
+        data_type,
+      });
+      expect(result.kind).toBe('summary');
+      expect(result.coverage).toEqual({ total: 4, filled: 3, missing: 1, invalid: 0 });
+      expect(result.frequencies).toEqual([]);
+      expect(result.displayFrequencies).toEqual([]);
+      expect(result.series).toEqual([]);
+      expect(result.numeric).toBeNull();
+    }
+  );
+
+  it('caps only above six, preserving totals with collision-safe Other keys and labels', () => {
+    const labels = ['Other', 'Other (remaining)', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const options = labels.map((label, index) => ({
+      id: index ? `id-${index}` : '__other__',
+      label,
+    }));
+    const data = rowsFor(options.flatMap((option, index) => Array(9 - index).fill(option.id)));
+    const result = computeFieldAnalysis(data, { ...selectDef, options });
+    expect(result.frequencies).toHaveLength(8);
+    expect(result.displayFrequencies).toHaveLength(6);
+    expect(result.displayFrequencies.slice(0, 5)).toEqual(result.frequencies.slice(0, 5));
+    const other = result.displayFrequencies.at(-1);
+    expect(other.count).toBe(9);
+    expect(
+      result.frequencies.some((item) => item.key === other.key || item.label === other.label)
+    ).toBe(false);
+    expect(result.displayFrequencies.reduce((sum, item) => sum + item.count, 0)).toBe(data.length);
+    expect(
+      computeFieldAnalysis([...data].reverse(), { ...selectDef, options }).frequencies
+    ).toEqual(result.frequencies);
+    const six = computeFieldAnalysis(rowsFor(labels.slice(0, 6)), selectDef);
+    expect(six.displayFrequencies).toEqual(six.frequencies);
+  });
+});
+
+describe('UTC daily windows and date analysis', () => {
+  it('returns exactly 60 sorted calendar days, keeps the first day, and ignores invalid latest points', () => {
+    const series = dailyWindow([
+      { bucket: '2026-03-01', value: -2 },
+      { bucket: '2025-12-31', value: 500 },
+      { bucket: '2026-01-01', value: 1 },
+      { bucket: '2030-01-01', value: Infinity },
+      { bucket: '2026-02-30', value: 10 },
+      { bucket: '2031-01-01', value: NaN },
+    ]);
+    expect(series).toHaveLength(60);
+    expect(series[0]).toEqual({ bucket: '2026-01-01', value: 1 });
+    expect(series.at(-1)).toEqual({ bucket: '2026-03-01', value: -2 });
+    expect(series[1]).toEqual({ bucket: '2026-01-02', value: 0 });
+    expect(series.map((point) => point.bucket)).toEqual(series.map((point) => point.bucket).sort());
+    expect(series.reduce((sum, point) => sum + point.value, 0)).toBe(-1);
+  });
+
+  it('uses UTC for timestamps, respects null gaps and observed zero, and has no empty-data window', () => {
+    const series = dailyWindow([{ bucket: '2026-02-28T23:30:00-02:00', value: 0 }], null);
+    expect(series.at(-1)).toEqual({ bucket: '2026-03-01', value: 0 });
+    expect(series[0].value).toBeNull();
+    expect(dailyWindow([{ bucket: '2026-03-01', value: null }], null).at(-1).value).toBeNull();
+    expect(dailyWindow([])).toEqual([]);
+    expect(dailyWindow(null)).toEqual([]);
+    expect(
+      dailyWindow([
+        { bucket: 'bad', value: 1 },
+        { bucket: '2026-01-01', value: Infinity },
+      ])
+    ).toEqual([]);
+  });
+
+  it.each(['date', 'timestamp'])(
+    'counts the actual selected %s, not creation dates',
+    (data_type) => {
+      const result = computeFieldAnalysis(
+        rowsFor([
+          '2026-03-01T23:30:00-02:00',
+          '2026-03-02T00:30:00Z',
+          '2026-03-01T01:00:00+02:00',
+          '2026-03-02T01:00',
+        ]),
+        { ...numberDef, data_type }
+      );
+      expect(result.series.at(-1)).toEqual({ bucket: '2026-03-02', value: 3 });
+      expect(result.series.find((point) => point.bucket === '2026-02-28').value).toBe(1);
+      expect(result.series.find((point) => point.bucket === '2026-03-01').value).toBe(0);
+      expect(result.numeric).toBeNull();
+      expect(result.undatedCount).toBe(0);
+    }
+  );
+
+  it('rejects impossible calendar dates, invalid timestamps, and non-string dates', () => {
+    const bad = [
+      '2026-02-29',
+      '2024-02-30',
+      '2026-04-31',
+      '2026-13-01',
+      '2026-00-01',
+      '2026-01-00',
+      '2026-02-30T10:00:00Z',
+      '2026-01-01T24:00:00Z',
+      '2026-01-01T12:60:00Z',
+      '2026-01-01T12:00:60Z',
+      '2026-01-01T12:00:00+24:00',
+      '2026-01-01T12:00:00+01:99',
+      'bad',
+      0,
+      Infinity,
+      false,
+      {},
+    ];
+    const result = computeFieldAnalysis(rowsFor(bad), { ...numberDef, data_type: 'date' });
+    expect(result.coverage).toEqual({
+      total: bad.length,
+      filled: bad.length,
+      missing: 0,
+      invalid: bad.length,
+    });
+    expect(result.series).toEqual([]);
+    expect(result.range).toBeNull();
+    expect(
+      computeFieldAnalysis(rowsFor(['2024-02-29']), { ...numberDef, data_type: 'date' }).series.at(
+        -1
+      ).value
+    ).toBe(1);
+  });
+
+  it('uses valid primary creation dates for numeric sums, counts, weighted daily averages, and gaps', () => {
+    const data = [
+      entry('A', { value: 10 }, '2026-01-01'),
+      entry('A', { value: -10 }, '2026-01-01'),
+      entry('A', { value: 12 }, '2026-03-01'),
+      entry('A', { value: 6 }, '2026-03-01'),
+      entry('A', { value: 99 }, '2026-02-30'),
+      entry('A', { value: 5 }),
+      entry('A', { value: 1000 }, '2025-12-31'),
+      entry('A', { value: Infinity }, '2030-01-01'),
+    ];
+    const sum = computeFieldAnalysis(data, numberDef);
+    expect(sum.numeric.total).toBe(1122);
+    expect(sum.undatedCount).toBe(2);
+    expect(sum.range).toEqual({ start: '2026-01-01', end: '2026-03-01' });
+    expect(sum.series.at(-1).value).toBe(18);
+    const average = computeFieldAnalysis(data, numberDef, { aggregation: 'average' });
+    expect(average.series[0].value).toBe(0);
+    expect(average.series[1].value).toBeNull();
+    expect(average.series.at(-1).value).toBe(9);
+    expect(
+      computeFieldAnalysis(data, numberDef, { aggregation: 'count' }).series.at(-1).value
+    ).toBe(2);
+    const undated = computeFieldAnalysis([entry('A', { value: 0 })], numberDef);
+    expect(undated.series).toEqual([]);
+    expect(undated.undatedCount).toBe(1);
+  });
+});
+
+describe('comparison matrices', () => {
+  it('collapses numeric series using sums and counts, never averages of averages or Other dates', () => {
+    const data = ['a', 'b', 'c', 'd', 'e'].flatMap((partner, index) =>
+      Array.from({ length: 8 - index }, () => entry('A', { value: -2, partner }, '2026-03-01'))
+    );
+    data.push(
+      ...Array.from({ length: 3 }, () => entry('A', { value: 0, partner: 'f' }, '2026-03-01')),
+      entry('A', { value: 100, partner: 'g' }, '2026-03-01')
+    );
+    const { full, display, excluded } = computeFieldAnalysis(data, numberDef, {
+      aggregation: 'average',
+      compareDef: partnerDef,
+    }).comparison;
+    expect(full.rows).toHaveLength(60);
+    expect(display.rows).toEqual(full.rows);
+    expect(full.columns).toHaveLength(7);
+    expect(display.columns).toHaveLength(6);
+    expect(matrixCell(full, '2026-03-01', 'f')).toBe(0);
+    expect(matrixCell(full, '2026-03-01', 'g')).toBe(100);
+    expect(matrixCell(display, '2026-03-01', display.columns.at(-1).key)).toBe(25);
+    expect(display.values[0].every((value) => value === null)).toBe(true);
+    expect(excluded).toBe(0);
+    const sum = computeFieldAnalysis(data, numberDef, { compareDef: partnerDef }).comparison;
+    expect(matrixTotal(sum.full)).toBe(40);
+    expect(matrixTotal(sum.display)).toBe(40);
+    expect(sum.display.values[0].every((value) => value === 0)).toBe(true);
+    const count = computeFieldAnalysis(data, numberDef, {
+      aggregation: 'count',
+      compareDef: partnerDef,
+    }).comparison;
+    expect(matrixTotal(count.display)).toBe(data.length);
+  });
+
+  it('keeps full categorical matrices and independently caps both axes with row-major totals', () => {
+    const data = [];
+    for (let row = 0; row < 8; row++) {
+      for (let column = 0; column < 7; column++) {
+        for (let count = 0; count < (8 - row) * (column + 1); count++) {
+          data.push(entry('A', { value: `A${row}`, partner: `B${column}` }));
+        }
+      }
+    }
+    const { full, display, excluded } = computeFieldAnalysis(data, selectDef, {
+      compareDef: partnerDef,
+    }).comparison;
+    expect(full.rows).toHaveLength(8);
+    expect(full.columns).toHaveLength(7);
+    expect(display.rows).toHaveLength(6);
+    expect(display.columns).toHaveLength(6);
+    expect(full.rows[0]).toEqual({ key: 'A0', label: 'A0' });
+    expect(full.columns[0]).toEqual({ key: 'B6', label: 'B6' });
+    expect(full.values[0][0]).toBe(56);
+    expect(display.values[5][5]).toBe(18);
+    expect(matrixTotal(full)).toBe(data.length);
+    expect(matrixTotal(display)).toBe(data.length);
+    expect(excluded).toBe(0);
+  });
+
+  it('keeps Yes/No axes, including empty boolean comparisons, and counts each incomplete pair once', () => {
+    const def = { ...numberDef, data_type: 'boolean' };
+    const compareDef = { ...partnerDef, data_type: 'boolean' };
+    const data = [
+      [true, true],
+      [false, false],
+      [null, true],
+      ['bad', false],
+      [true, null],
+      [false, 'bad'],
+    ].map(([value, partner]) => entry('A', { value, partner }));
+    const { full, excluded } = computeFieldAnalysis(data, def, { compareDef }).comparison;
+    expect(full.rows.map((item) => item.label).sort()).toEqual(['No', 'Yes']);
+    expect(full.columns.map((item) => item.label).sort()).toEqual(['No', 'Yes']);
+    expect(matrixCell(full, 'true', 'true')).toBe(1);
+    expect(matrixCell(full, 'true', 'false')).toBe(0);
+    expect(excluded).toBe(4);
+    expect(computeFieldAnalysis([], def, { compareDef }).comparison.full.values).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+  });
+
+  it('anchors numeric windows independently of partner validity and separates range from incomplete exclusions', () => {
+    const data = [
+      entry('A', { value: 9, partner: 'a' }, '2025-12-31'),
+      entry('A', { value: 9, partner: null }, '2025-12-31'),
+      entry('A', { value: 2, partner: 'a' }, '2026-01-01'),
+      entry('A', { value: 4, partner: null }, '2026-03-01'),
+      entry('A', { value: Infinity, partner: 'a' }, '2030-01-01'),
+      entry('A', { value: 3, partner: 'a' }, 'bad'),
+      entry('A', { value: 6, partner: {} }, '2026-01-02'),
+      entry('A', { partner: 'a' }, '2026-01-03'),
+      entry('A', { value: 0, partner: false }, '2026-01-04'),
+    ];
+    const result = computeFieldAnalysis(data, numberDef, { compareDef: partnerDef });
+    expect(result.range).toEqual({ start: '2026-01-01', end: '2026-03-01' });
+    expect(result.comparison.full.rows).toHaveLength(60);
+    expect(result.comparison.full.rows.at(-1).key).toBe('2026-03-01');
+    expect(result.comparison.excluded).toBe(6);
+    expect(matrixCell(result.comparison.full, '2026-01-01', 'a')).toBe(2);
+    expect(matrixTotal(result.comparison.full)).toBe(2);
+    expect(result.undatedCount).toBe(1);
+  });
+
+  it('permits only distinct select/boolean partners and numeric/select/boolean primaries', () => {
+    expect(computeFieldAnalysis([], selectDef, { compareDef: selectDef }).comparison).toBeNull();
+    for (const data_type of ['number', 'text', 'multiselect', 'date', 'unknown']) {
+      expect(
+        computeFieldAnalysis([], numberDef, { compareDef: { ...partnerDef, data_type } }).comparison
+      ).toBeNull();
+    }
+    for (const data_type of ['text', 'markdown', 'multiselect', 'date', 'unknown']) {
+      expect(
+        computeFieldAnalysis([], { ...numberDef, data_type }, { compareDef: partnerDef }).comparison
+      ).toBeNull();
+    }
+    expect(
+      computeFieldAnalysis([], numberDef, {
+        compareDef: { ...partnerDef, data_type: 'custom:A,B' },
+      }).comparison
+    ).not.toBeNull();
+  });
+});
+
+describe('analysis virtual duration', () => {
+  it('shares the supplied clock while preserving paused, completed, and legacy timer semantics', () => {
+    const start = '2026-01-01T10:00:00Z';
+    const now = Date.parse('2026-01-01T12:00:00Z');
+    const data = [
+      {
+        created_at: start,
+        started_at: start,
+        paused_at: '2026-01-01T10:30:00Z',
+        paused_ms: '600000',
+      },
+      { created_at: start, started_at: start, paused_ms: 600000 },
+      {
+        created_at: start,
+        started_at: start,
+        ended_at: '2026-01-01T11:00:00Z',
+        paused_ms: 1200000,
+      },
+      { created_at: start, ended_at: '2026-01-01T11:00:00Z' },
+      { created_at: start },
+    ];
+    const def = analysisFieldDefs(data)[0];
+    const result = computeFieldAnalysis(data, def, { now });
+    expect(result.coverage).toEqual({ total: 5, filled: 4, missing: 1, invalid: 0 });
+    expect(result.numeric.total).toBe(230 * 60000);
+    expect(result.series.at(-1).value).toBe(230 * 60000);
+    expect(computeFieldAnalysis(data, def, { now: now + 3600000 }).numeric.total).toBe(290 * 60000);
+    const paused = computeFieldAnalysis([data[0]], def, { now });
+    expect(paused.numeric.total).toBe(20 * 60000);
+    expect(computeFieldAnalysis([data[0]], def, { now: now + 3600000 })).toEqual(paused);
   });
 });
