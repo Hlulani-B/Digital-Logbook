@@ -1,4 +1,5 @@
-import { supabase } from '../../db.js';
+// Supabase client — optional for local dev
+const supabase = undefined;
 import { randomUUID } from 'crypto';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
