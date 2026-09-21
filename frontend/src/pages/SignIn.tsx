@@ -74,7 +74,7 @@ function LandingSections() {
                 </svg>
               </div>
               <h3>Plan visually</h3>
-              <p>Calendar, kanban and a zoomable timeline — the same work seen six ways.</p>
+              <p>Calendar, kanban and a zoomable timeline — different ways to see your work.</p>
             </div>
             <div className="ss-card ss-reveal ss-d2">
               <div className="ss-ic">
@@ -174,22 +174,6 @@ function LandingSections() {
               </svg>
               <h3>Kanban</h3>
               <p>Drag cards between Up Next, In Motion and Done.</p>
-            </div>
-            <div className="ss-card ss-fcard ss-reveal ss-d3">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="4" />
-                <line x1="12" y1="2" x2="12" y2="4" />
-                <line x1="12" y1="20" x2="12" y2="22" />
-              </svg>
-              <h3>Today</h3>
-              <p>Overdue first, then due today, then in progress.</p>
             </div>
             <div className="ss-card ss-fcard ss-reveal ss-d4">
               <svg

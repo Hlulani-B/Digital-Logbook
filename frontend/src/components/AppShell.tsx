@@ -242,26 +242,6 @@ export function AppShell({ children }: AppShellProps) {
             Kanban
           </button>
           <button
-            className={`drawer-item ${isActive('/today') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/today');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Today
-          </button>
-          <button
             className={`drawer-item ${isActive('/calendar') ? 'active' : ''}`}
             onClick={() => {
               navigate('/calendar');
