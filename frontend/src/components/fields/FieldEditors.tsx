@@ -920,6 +920,111 @@ export function EntityLinkFieldEditor({
   );
 }
 
+export function TagFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+  const tags = Array.isArray(value) ? value : [];
+  const [input, setInput] = useState('');
+
+  const addTag = () => {
+    const trimmed = input.trim();
+    if (!trimmed || tags.includes(trimmed) || disabled) return;
+    onChange([...tags, trimmed]);
+    setInput('');
+  };
+
+  const removeTag = (tag: string) => {
+    if (disabled) return;
+    onChange(tags.filter((t) => t !== tag));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === 'Backspace' && !input && tags.length > 0) {
+      removeTag(tags[tags.length - 1]);
+    }
+  };
+
+  return (
+    <div className="field-editor">
+      <label className="field-label">
+        {field.field_name}
+        {field.is_required && <span className="field-required">*</span>}
+      </label>
+      <div
+        className="field-tag-input"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.375rem',
+          alignItems: 'center',
+          padding: '0.375rem 0.5rem',
+          border: '1px solid var(--border, #ccc)',
+          borderRadius: 4,
+          minHeight: 36,
+          background: 'var(--surface, #fff)',
+        }}
+      >
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="field-tag"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.125rem 0.5rem',
+              borderRadius: 12,
+              background: 'var(--accent-bg, #e8f4f8)',
+              color: 'var(--accent, #2563eb)',
+              fontSize: '0.85rem',
+              fontWeight: 500,
+            }}
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              disabled={disabled}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: disabled ? 'default' : 'pointer',
+                color: 'inherit',
+                padding: 0,
+                fontSize: '1rem',
+                lineHeight: 1,
+                opacity: 0.7,
+              }}
+              aria-label={`Remove ${tag}`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={addTag}
+          placeholder={tags.length === 0 ? 'Type and press Enter...' : ''}
+          disabled={disabled}
+          style={{
+            border: 'none',
+            outline: 'none',
+            flex: 1,
+            minWidth: 80,
+            background: 'transparent',
+            fontSize: '0.9rem',
+          }}
+        />
+      </div>
+      {error && <div className="field-error-message">{error}</div>}
+    </div>
+  );
+}
+
 export function FieldEditor(props: FieldEditorProps) {
   const { field } = props;
   switch (field.data_type) {
@@ -938,10 +1043,6 @@ export function FieldEditor(props: FieldEditorProps) {
       return <TimestampFieldEditor {...props} />;
     case 'boolean':
       return <BooleanFieldEditor {...props} />;
-    case 'select':
-      return <SelectFieldEditor {...props} />;
-    case 'multiselect':
-      return <MultiSelectFieldEditor {...props} />;
     case 'geolocation':
       return <GeolocationFieldEditor {...props} />;
     case 'currency':
@@ -952,6 +1053,12 @@ export function FieldEditor(props: FieldEditorProps) {
       return <ImageFieldEditor {...props} />;
     case 'entity_link':
       return <EntityLinkFieldEditor {...props} />;
+    case 'tags':
+      return <TagFieldEditor {...props} />;
+    case 'custom': {
+      // Legacy custom type — render as a simple select from parsed options
+      return <SelectFieldEditor {...props} />;
+    }
     default:
       return <div>Unsupported field type: {field.data_type}</div>;
   }

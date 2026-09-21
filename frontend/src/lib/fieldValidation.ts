@@ -140,23 +140,6 @@ function validateValue(
       else result = timestamp;
       break;
     }
-    case 'select':
-      if (
-        typeof value !== 'string' ||
-        !field.options.some((option) => (option.value ?? option.label) === value)
-      )
-        fail('option', 'Choose an available option.');
-      break;
-    case 'multiselect':
-      if (
-        !Array.isArray(value) ||
-        value.some(
-          (id) => typeof id !== 'string' || !field.options.some((option) => option.id === id)
-        )
-      )
-        fail('option', 'Choose available option IDs.');
-      else result = [...new Set(value)];
-      break;
     case 'geolocation':
       if (
         !isRecord(value) ||
@@ -200,6 +183,18 @@ function validateValue(
       )
         fail('type', 'Entity links must be an array of valid entry IDs.');
       else result = [...new Set(value)];
+      break;
+    case 'tags':
+      if (!Array.isArray(value) || !value.every((t) => typeof t === 'string' && t.trim()))
+        fail('type', 'Tags must be an array of non-empty strings.');
+      else result = [...new Set(value.map((t: string) => t.trim()))];
+      break;
+    case 'custom':
+      if (
+        typeof value !== 'string' ||
+        !field.options.some((option) => (option.value ?? option.label) === value)
+      )
+        fail('option', 'Choose an available option.');
       break;
     default:
       fail('type', 'Unsupported field type.');
@@ -282,51 +277,6 @@ export function validateFieldDefinitions(input: unknown): {
     }
     if (field.is_unique && !supportsUnique(field.data_type))
       fail('unique', 'Uniqueness is only available for scalar fields.');
-    if (field.data_type === 'select' || field.data_type === 'multiselect') {
-      const optionIds = new Set<string>(),
-        values = new Set<string>();
-      if (!field.options.length) fail('options', 'Add at least one option.');
-      for (const option of field.options) {
-        const persisted = option.value ?? option.label;
-        if (
-          !option.id.trim() ||
-          !option.label.trim() ||
-          typeof persisted !== 'string' ||
-          !persisted.trim()
-        )
-          fail('options', 'Options need an ID, label, and nonempty value.');
-        if (optionIds.has(option.id) || (field.data_type === 'select' && values.has(persisted)))
-          fail('options', 'Option IDs and single-select values must be unique.');
-        optionIds.add(option.id);
-        values.add(persisted);
-      }
-      // Dynamic Taxonomy: Validate parent_id references
-      for (const option of field.options) {
-        if (option.parent_id !== undefined) {
-          if (typeof option.parent_id !== 'string' || !option.parent_id.trim()) {
-            fail('options', 'parent_id must be a nonempty string.');
-          } else if (!optionIds.has(option.parent_id)) {
-            fail('options', `parent_id "${option.parent_id}" does not reference a valid option.`);
-          } else if (option.parent_id === option.id) {
-            fail('options', 'Option cannot be its own parent.');
-          }
-        }
-      }
-      // Check for circular parent references
-      const optionMap = new Map(field.options.map((o) => [o.id, o]));
-      for (const option of field.options) {
-        const visited = new Set<string>();
-        let current: string | undefined = option.parent_id;
-        while (current) {
-          if (visited.has(current)) {
-            fail('options', `Circular parent reference detected involving "${current}".`);
-            break;
-          }
-          visited.add(current);
-          current = optionMap.get(current)?.parent_id;
-        }
-      }
-    }
     const rules = field.rules;
     for (const key of ['minLength', 'maxLength'] as const) {
       if (rules[key] === undefined) continue;
