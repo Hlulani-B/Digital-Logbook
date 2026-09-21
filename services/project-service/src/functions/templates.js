@@ -1,6 +1,5 @@
-// Supabase client — optional for local dev (built-in templates work without it)
-const supabase = undefined;
-import { validateFieldDefinitions, normalizeFields } from '../domain/fieldSchema.js';
+import pool from '../db.js';
+import { validateFieldDefinitions, normalizeFields, isRecord } from '../domain/fieldSchema.js';
 
 export const BUILT_IN_TEMPLATES = Object.freeze([
   {
@@ -309,230 +308,220 @@ function resolveBuiltInDefaults(fields) {
     if (resolved.has_default && typeof resolved.default_value === 'function') {
       resolved.default_value = resolved.default_value();
     }
-    return resolved;
+    return structuredClone(resolved);
   });
 }
 
+export class TemplateError extends Error {
+  constructor(status, message, details) {
+    super(message);
+    this.status = status;
+    this.details = details;
+  }
+}
+
+async function queryTemplates(sql, parameters) {
+  try {
+    return await pool.query(sql, parameters);
+  } catch (cause) {
+    const error = new TemplateError(503, 'Template storage is unavailable.');
+    error.cause = cause;
+    throw error;
+  }
+}
+
+function validateSavedId(id) {
+  if (typeof id !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new TemplateError(400, 'Invalid template ID.');
+  }
+}
+
+function validateMutationId(id) {
+  if (BUILT_IN_TEMPLATES.some((tpl) => tpl.id === id)) {
+    throw new TemplateError(403, 'Built-in templates cannot be changed.');
+  }
+  validateSavedId(id);
+}
+
+function validatePayload(payload) {
+  if (!isRecord(payload)) throw new TemplateError(400, 'Template data must be an object.');
+}
+
+function validateName(name) {
+  if (
+    typeof name !== 'string' ||
+    !name.trim() ||
+    [...name.trim()].length > 255 ||
+    name.includes('\0')
+  ) {
+    throw new TemplateError(400, 'Template name must contain 1–255 characters.');
+  }
+  return name.trim();
+}
+
+function validateDescription(description) {
+  if (description == null) return null;
+  if (
+    typeof description !== 'string' ||
+    [...description].length > 2000 ||
+    description.includes('\0')
+  ) {
+    throw new TemplateError(400, 'Template description must contain at most 2000 characters.');
+  }
+  return description.trim() || null;
+}
+
+function validateFields(fields) {
+  let validation;
+  try {
+    validation = validateFieldDefinitions(fields);
+  } catch {
+    throw new TemplateError(400, 'Invalid template fields.');
+  }
+  if (!validation.valid) {
+    throw new TemplateError(400, 'Invalid template fields.', validation.errors);
+  }
+  return validation.fields;
+}
+
+function savedTemplate(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    fields: normalizeFields(row.fields),
+    scope: row.scope,
+    version: row.version,
+    is_fork: row.is_fork,
+    forked_from: row.forked_from,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function builtInTemplate(template) {
+  return {
+    ...template,
+    fields: resolveBuiltInDefaults(template.fields),
+    scope: 'built_in',
+    is_fork: false,
+    version: 1,
+  };
+}
+
 export async function listTemplates(userEmail, { scope = 'all' } = {}) {
-  const templates = [];
-  if (scope === 'all' || scope === 'built_in') {
-    templates.push(
-      ...BUILT_IN_TEMPLATES.map((tpl) => ({
-        ...tpl,
-        fields: resolveBuiltInDefaults(tpl.fields),
-        scope: 'built_in',
-        is_fork: false,
-        version: 1,
-      }))
-    );
+  if (!['all', 'built_in', 'personal', 'global'].includes(scope)) {
+    throw new TemplateError(400, 'Invalid template scope.');
   }
-  if (scope === 'all' || scope === 'personal' || scope === 'global') {
-    try {
-      let query = supabase
-        .from('schema_templates')
-        .select('*')
-        .eq('deleted', false)
-        .order('created_at', { ascending: false });
-      if (scope === 'personal') query = query.eq('user_email', userEmail).eq('scope', 'personal');
-      else if (scope === 'global') query = query.eq('scope', 'global');
-      else query = query.or(`user_email.eq.${userEmail},scope.eq.global`);
-      const { data, error } = await query;
-      if (error) throw error;
-      templates.push(
-        ...(data || []).map((row) => ({
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          fields: normalizeFields(row.fields),
-          scope: row.scope,
-          version: row.version,
-          is_fork: row.is_fork,
-          forked_from: row.forked_from,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-        }))
-      );
-    } catch (err) {
-      // Supabase not available — built-in templates still work
-      console.log('[templates] Personal/global templates unavailable:', err.message);
-    }
-  }
-  return templates;
+  if (scope === 'built_in') return BUILT_IN_TEMPLATES.map(builtInTemplate);
+  const { rows } = await queryTemplates(
+    `SELECT * FROM schema_templates
+     WHERE deleted = false AND scope IN ('personal', 'global')
+       AND (user_email = $1 OR scope = 'global')
+       AND ($2 = 'all' OR scope = $2)
+     ORDER BY created_at DESC`,
+    [userEmail, scope]
+  );
+  const saved = rows.map(savedTemplate);
+  return scope === 'all' ? [...BUILT_IN_TEMPLATES.map(builtInTemplate), ...saved] : saved;
 }
 
 export async function getTemplate(userEmail, templateId) {
   const builtIn = BUILT_IN_TEMPLATES.find((tpl) => tpl.id === templateId);
-  if (builtIn) {
-    return {
-      ...builtIn,
-      fields: resolveBuiltInDefaults(builtIn.fields),
-      scope: 'built_in',
-      is_fork: false,
-      version: 1,
-    };
-  }
-  const { data, error } = await supabase
-    .from('schema_templates')
-    .select('*')
-    .eq('id', templateId)
-    .eq('deleted', false)
-    .single();
-  if (error) {
-    if (error.code === 'PGRST116') return null;
-    throw error;
-  }
-  if (data.scope === 'personal' && data.user_email !== userEmail) return null;
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    fields: normalizeFields(data.fields),
-    scope: data.scope,
-    version: data.version,
-    is_fork: data.is_fork,
-    forked_from: data.forked_from,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
-  };
+  if (builtIn) return builtInTemplate(builtIn);
+  validateSavedId(templateId);
+  const { rows } = await queryTemplates(
+    `SELECT * FROM schema_templates
+     WHERE id = $1 AND deleted = false AND scope IN ('personal', 'global')
+       AND (user_email = $2 OR scope = 'global')`,
+    [templateId, userEmail]
+  );
+  return rows[0] ? savedTemplate(rows[0]) : null;
 }
 
-export async function createTemplate(
-  userEmail,
-  { name, description, fields, scope = 'personal', forked_from = null }
-) {
-  if (!name || typeof name !== 'string' || name.trim().length === 0) {
-    throw new Error('Template name is required.');
-  }
+export async function createTemplate(userEmail, payload, { isAdmin = false } = {}) {
+  validatePayload(payload);
+  const { name, description, fields, scope = 'personal', forked_from = null } = payload;
+  const validName = validateName(name);
+  const validDescription = validateDescription(description);
+  const validFields = validateFields(fields);
   if (!['personal', 'global'].includes(scope)) {
-    throw new Error('Templates must be personal or global.');
+    throw new TemplateError(400, 'Templates must be personal or global.');
   }
-  if (scope === 'global') {
-    const { data: user } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('email', userEmail)
-      .single();
-    if (!user?.is_admin) throw new Error('Only administrators can create global templates.');
+  if (scope === 'global' && isAdmin !== true) {
+    throw new TemplateError(403, 'Only administrators can create global templates.');
   }
-  const validation = validateFieldDefinitions(fields);
-  if (!validation.valid) {
-    const error = new Error('Invalid template fields.');
-    error.details = validation.errors;
-    throw error;
+  const savedParent =
+    forked_from !== null && !BUILT_IN_TEMPLATES.some((tpl) => tpl.id === forked_from);
+  if (savedParent) validateSavedId(forked_from);
+  // Validate saved parents in the insert itself so an unreadable source never creates a fork.
+  const source = savedParent
+    ? `FROM schema_templates AS source
+       WHERE source.id = $7::uuid AND source.deleted = false
+         AND source.scope IN ('personal', 'global')
+         AND (source.user_email = $1 OR source.scope = 'global')`
+    : '';
+  const { rows } = await queryTemplates(
+    `INSERT INTO schema_templates
+       (user_email, scope, name, description, fields, version, is_fork, forked_from)
+     SELECT $1::text, $2, $3, $4, $5::jsonb, 1, $6, $7::text
+     ${source}
+     RETURNING *`,
+    [
+      userEmail,
+      scope,
+      validName,
+      validDescription,
+      JSON.stringify(validFields),
+      forked_from !== null,
+      forked_from,
+    ]
+  );
+  if (!rows[0]) {
+    throw new TemplateError(
+      savedParent ? 404 : 503,
+      savedParent ? 'Fork source not found or access denied.' : 'Template storage is unavailable.'
+    );
   }
-  const insertData = {
-    user_email: scope === 'personal' ? userEmail : null,
-    scope,
-    name: name.trim(),
-    description: description?.trim() || null,
-    fields: validation.fields,
-    version: 1,
-    is_fork: !!forked_from,
-    forked_from: forked_from || null,
-  };
-  const { data, error } = await supabase
-    .from('schema_templates')
-    .insert(insertData)
-    .select()
-    .single();
-  if (error) throw error;
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    fields: normalizeFields(data.fields),
-    scope: data.scope,
-    version: data.version,
-    is_fork: data.is_fork,
-    forked_from: data.forked_from,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
-  };
+  return savedTemplate(rows[0]);
 }
 
-export async function updateTemplate(userEmail, templateId, { name, description, fields }) {
-  const { data: existing, error: fetchError } = await supabase
-    .from('schema_templates')
-    .select('*')
-    .eq('id', templateId)
-    .eq('deleted', false)
-    .single();
-  if (fetchError) {
-    if (fetchError.code === 'PGRST116') return null;
-    throw fetchError;
-  }
-  if (existing.scope === 'personal' && existing.user_email !== userEmail) return null;
-  if (existing.scope === 'global') {
-    const { data: user } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('email', userEmail)
-      .single();
-    if (!user?.is_admin) return null;
-  }
-  const updates = { updated_at: new Date().toISOString() };
+export async function updateTemplate(userEmail, templateId, payload, { isAdmin = false } = {}) {
+  validateMutationId(templateId);
+  validatePayload(payload);
+  const { name, description, fields } = payload;
+  const parameters = [templateId, userEmail, isAdmin === true];
+  const updates = ['updated_at = now()'];
   if (name !== undefined) {
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      throw new Error('Template name is required.');
-    }
-    updates.name = name.trim();
+    parameters.push(validateName(name));
+    updates.push(`name = $${parameters.length}`);
   }
-  if (description !== undefined) updates.description = description?.trim() || null;
+  if (description !== undefined) {
+    parameters.push(validateDescription(description));
+    updates.push(`description = $${parameters.length}`);
+  }
   if (fields !== undefined) {
-    const validation = validateFieldDefinitions(fields);
-    if (!validation.valid) {
-      const error = new Error('Invalid template fields.');
-      error.details = validation.errors;
-      throw error;
-    }
-    updates.fields = validation.fields;
-    updates.version = existing.version + 1;
+    parameters.push(JSON.stringify(validateFields(fields)));
+    updates.push(`fields = $${parameters.length}::jsonb`, 'version = version + 1');
   }
-  const { data, error } = await supabase
-    .from('schema_templates')
-    .update(updates)
-    .eq('id', templateId)
-    .select()
-    .single();
-  if (error) throw error;
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    fields: normalizeFields(data.fields),
-    scope: data.scope,
-    version: data.version,
-    is_fork: data.is_fork,
-    forked_from: data.forked_from,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
-  };
+  const { rows } = await queryTemplates(
+    `UPDATE schema_templates SET ${updates.join(', ')}
+     WHERE id = $1 AND deleted = false
+       AND ((scope = 'personal' AND user_email = $2) OR (scope = 'global' AND $3::boolean = true))
+     RETURNING *`,
+    parameters
+  );
+  return rows[0] ? savedTemplate(rows[0]) : null;
 }
 
-export async function deleteTemplate(userEmail, templateId) {
-  const { data: existing, error: fetchError } = await supabase
-    .from('schema_templates')
-    .select('*')
-    .eq('id', templateId)
-    .eq('deleted', false)
-    .single();
-  if (fetchError) {
-    if (fetchError.code === 'PGRST116') return false;
-    throw fetchError;
-  }
-  if (existing.scope === 'personal' && existing.user_email !== userEmail) return false;
-  if (existing.scope === 'global') {
-    const { data: user } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('email', userEmail)
-      .single();
-    if (!user?.is_admin) return false;
-  }
-  const { error } = await supabase
-    .from('schema_templates')
-    .update({ deleted: true, deleted_at: new Date().toISOString() })
-    .eq('id', templateId);
-  if (error) throw error;
-  return true;
+export async function deleteTemplate(userEmail, templateId, { isAdmin = false } = {}) {
+  validateMutationId(templateId);
+  const { rows } = await queryTemplates(
+    `UPDATE schema_templates SET deleted = true, deleted_at = now(), updated_at = now()
+     WHERE id = $1 AND deleted = false
+       AND ((scope = 'personal' AND user_email = $2) OR (scope = 'global' AND $3::boolean = true))
+     RETURNING id`,
+    [templateId, userEmail, isAdmin === true]
+  );
+  return rows.length > 0;
 }

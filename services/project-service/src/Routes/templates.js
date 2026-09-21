@@ -6,13 +6,14 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
+  TemplateError,
 } from '../functions/templates.js';
 
 const router = express.Router();
 
 router.get('/', requireAuth, async (req, res, next) => {
   try {
-    const scope = req.query.scope || 'all';
+    const scope = req.query.scope ?? 'all';
     const templates = await listTemplates(req.user.email, { scope });
     res.json({ templates });
   } catch (error) {
@@ -32,55 +33,48 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 
 router.post('/', requireAuth, async (req, res, next) => {
   try {
-    const { name, description, fields, scope, forked_from } = req.body;
-    const template = await createTemplate(req.user.email, {
-      name,
-      description,
-      fields,
-      scope,
-      forked_from,
+    const template = await createTemplate(req.user.email, req.body, {
+      isAdmin: req.user.app_metadata?.is_admin === true,
     });
     res.status(201).json({ template });
   } catch (error) {
-    if (error.message?.includes('required') || error.message?.includes('must be')) {
-      return res.status(400).json({ error: error.message });
-    }
-    if (error.details) {
-      return res.status(400).json({ error: error.message, details: error.details });
-    }
     next(error);
   }
 });
 
 router.put('/:id', requireAuth, async (req, res, next) => {
   try {
-    const { name, description, fields } = req.body;
-    const template = await updateTemplate(req.user.email, req.params.id, {
-      name,
-      description,
-      fields,
+    const template = await updateTemplate(req.user.email, req.params.id, req.body, {
+      isAdmin: req.user.app_metadata?.is_admin === true,
     });
     if (!template) return res.status(404).json({ error: 'Template not found or access denied.' });
     res.json({ template });
   } catch (error) {
-    if (error.message?.includes('required')) {
-      return res.status(400).json({ error: error.message });
-    }
-    if (error.details) {
-      return res.status(400).json({ error: error.message, details: error.details });
-    }
     next(error);
   }
 });
 
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
-    const deleted = await deleteTemplate(req.user.email, req.params.id);
+    const deleted = await deleteTemplate(req.user.email, req.params.id, {
+      isAdmin: req.user.app_metadata?.is_admin === true,
+    });
     if (!deleted) return res.status(404).json({ error: 'Template not found or access denied.' });
     res.json({ success: true });
   } catch (error) {
     next(error);
   }
+});
+
+router.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  if (error instanceof TemplateError && [400, 403, 404, 503].includes(error.status)) {
+    return res.status(error.status).json({
+      error: error.message,
+      ...(error.status === 400 && error.details ? { details: error.details } : {}),
+    });
+  }
+  return res.status(503).json({ error: 'Template storage is unavailable.' });
 });
 
 export default router;

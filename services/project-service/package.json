@@ -4,6 +4,7 @@
   "description": "Project Service microservice",
   "main": "src/index.js",
   "scripts": {
+    "prestart": "node scripts/migrate-templates.js",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest",
