@@ -5412,7 +5412,7 @@ img {
 }
 .modal-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 560px;
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
   padding: 1.5rem;
@@ -7723,6 +7723,8 @@ img {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(2px);
+  overflow-y: auto;
+  padding: 1rem;
 }
 
 /* ========== ENTRY REFERENCES ========== */
