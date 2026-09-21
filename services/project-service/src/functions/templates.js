@@ -1,4 +1,5 @@
-import { supabase } from '../../db.js';
+// Supabase client — optional for local dev (built-in templates work without it)
+const supabase = undefined;
 import { validateFieldDefinitions, normalizeFields } from '../domain/fieldSchema.js';
 
 export const BUILT_IN_TEMPLATES = Object.freeze([
@@ -326,30 +327,35 @@ export async function listTemplates(userEmail, { scope = 'all' } = {}) {
     );
   }
   if (scope === 'all' || scope === 'personal' || scope === 'global') {
-    let query = supabase
-      .from('schema_templates')
-      .select('*')
-      .eq('deleted', false)
-      .order('created_at', { ascending: false });
-    if (scope === 'personal') query = query.eq('user_email', userEmail).eq('scope', 'personal');
-    else if (scope === 'global') query = query.eq('scope', 'global');
-    else query = query.or(`user_email.eq.${userEmail},scope.eq.global`);
-    const { data, error } = await query;
-    if (error) throw error;
-    templates.push(
-      ...(data || []).map((row) => ({
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        fields: normalizeFields(row.fields),
-        scope: row.scope,
-        version: row.version,
-        is_fork: row.is_fork,
-        forked_from: row.forked_from,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-      }))
-    );
+    try {
+      let query = supabase
+        .from('schema_templates')
+        .select('*')
+        .eq('deleted', false)
+        .order('created_at', { ascending: false });
+      if (scope === 'personal') query = query.eq('user_email', userEmail).eq('scope', 'personal');
+      else if (scope === 'global') query = query.eq('scope', 'global');
+      else query = query.or(`user_email.eq.${userEmail},scope.eq.global`);
+      const { data, error } = await query;
+      if (error) throw error;
+      templates.push(
+        ...(data || []).map((row) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          fields: normalizeFields(row.fields),
+          scope: row.scope,
+          version: row.version,
+          is_fork: row.is_fork,
+          forked_from: row.forked_from,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+        }))
+      );
+    } catch (err) {
+      // Supabase not available — built-in templates still work
+      console.log('[templates] Personal/global templates unavailable:', err.message);
+    }
   }
   return templates;
 }
