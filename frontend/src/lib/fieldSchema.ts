@@ -13,6 +13,8 @@ export const FIELD_TYPES = [
   'image',
   'entity_link',
   'tags',
+  'checklist',
+  'computed',
   'custom',
 ] as const;
 
@@ -89,6 +91,8 @@ export const isTextField = (type: FieldType): boolean => type === 'text' || type
 export const isNumericField = (type: FieldType): boolean =>
   ['integer', 'float', 'number'].includes(type);
 export const isTagsField = (type: FieldType): boolean => type === 'tags';
+export const isChecklistField = (type: FieldType): boolean => type === 'checklist';
+export const isComputedField = (type: FieldType): boolean => type === 'computed';
 
 /** Normalize schema metadata only. Entry strings are deliberately never JSON-parsed. */
 export function normalizeField(input: unknown, index = 0): FieldDefinition {

@@ -196,6 +196,30 @@ function validateValue(
       )
         fail('option', 'Choose an available option.');
       break;
+    case 'checklist': {
+      if (!Array.isArray(value)) {
+        fail('type', 'Checklist must be an array of items.');
+      } else {
+        const valid = value.every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.text === 'string' &&
+            item.text.trim() &&
+            typeof item.done === 'boolean'
+        );
+        if (!valid) fail('type', 'Each checklist item must have text (string) and done (boolean).');
+        else
+          result = value.map((item) => ({
+            text: item.text.trim(),
+            done: item.done,
+            id: item.id || crypto.randomUUID(),
+          }));
+      }
+      break;
+    }
+    case 'computed':
+      // Computed fields are read-only; value is set by the computation engine
+      break;
     default:
       fail('type', 'Unsupported field type.');
   }
