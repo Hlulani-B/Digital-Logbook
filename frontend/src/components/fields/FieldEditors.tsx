@@ -701,6 +701,7 @@ export function EntityLinkFieldEditor({
   >([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   const [pendingSelection, setPendingSelection] = useState<string[]>([]);
 
   const openPicker = useCallback(() => {
@@ -754,12 +755,23 @@ export function EntityLinkFieldEditor({
   };
 
   const filteredEntries = useMemo(() => {
-    if (!pickerSearch.trim()) return availableEntries;
-    const q = pickerSearch.toLowerCase();
-    return availableEntries.filter(
-      (e) => e.title.toLowerCase().includes(q) || e.project.toLowerCase().includes(q)
-    );
-  }, [availableEntries, pickerSearch]);
+    let entries = availableEntries;
+    if (projectFilter !== 'all') {
+      entries = entries.filter((e) => e.project === projectFilter);
+    }
+    if (pickerSearch.trim()) {
+      const q = pickerSearch.toLowerCase();
+      entries = entries.filter(
+        (e) => e.title.toLowerCase().includes(q) || e.project.toLowerCase().includes(q)
+      );
+    }
+    return entries;
+  }, [availableEntries, pickerSearch, projectFilter]);
+
+  const availableProjects = useMemo(() => {
+    const projects = new Set(availableEntries.map((e) => e.project).filter(Boolean));
+    return Array.from(projects).sort();
+  }, [availableEntries]);
 
   return (
     <div className="field-editor">
@@ -820,14 +832,29 @@ export function EntityLinkFieldEditor({
             }}
           >
             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Link Entries</h3>
-            <input
-              type="text"
-              placeholder="Search entries..."
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-              className="field-input"
-              style={{ width: '100%' }}
-            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Search entries..."
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                className="field-input"
+                style={{ flex: 1 }}
+              />
+              <select
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                className="field-input"
+                style={{ width: 'auto', minWidth: 120 }}
+              >
+                <option value="all">All Projects</option>
+                {availableProjects.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
             {pickerLoading ? (
               <p style={{ color: 'var(--text-muted, #666)', textAlign: 'center' }}>
                 Loading entries...
@@ -1025,6 +1052,157 @@ export function TagFieldEditor({ field, value, onChange, error, disabled }: Fiel
   );
 }
 
+export function ChecklistFieldEditor({
+  field,
+  value,
+  onChange,
+  error,
+  disabled,
+}: FieldEditorProps) {
+  const items: Array<{ id: string; text: string; done: boolean }> = Array.isArray(value)
+    ? value
+    : [];
+  const [newText, setNewText] = useState('');
+
+  const addItem = () => {
+    const text = newText.trim();
+    if (!text || disabled) return;
+    onChange([...items, { id: crypto.randomUUID(), text, done: false }]);
+    setNewText('');
+  };
+
+  const toggleItem = (id: string) => {
+    if (disabled) return;
+    onChange(items.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
+  };
+
+  const updateItemText = (id: string, text: string) => {
+    if (disabled) return;
+    onChange(items.map((item) => (item.id === id ? { ...item, text } : item)));
+  };
+
+  const removeItem = (id: string) => {
+    if (disabled) return;
+    onChange(items.filter((item) => item.id !== id));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addItem();
+    }
+  };
+
+  return (
+    <div className="field-editor">
+      <label className="field-label">
+        {field.field_name}
+        {field.is_required && <span className="field-required">*</span>}
+      </label>
+      <div
+        className="field-checklist"
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+      >
+        {items.map((item) => (
+          <div
+            key={item.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.25rem 0',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={item.done}
+              onChange={() => toggleItem(item.id)}
+              disabled={disabled}
+            />
+            <input
+              type="text"
+              value={item.text}
+              onChange={(e) => updateItemText(item.id, e.target.value)}
+              disabled={disabled}
+              style={{
+                flex: 1,
+                border: 'none',
+                borderBottom: '1px solid var(--border, #ccc)',
+                background: 'transparent',
+                outline: 'none',
+                textDecoration: item.done ? 'line-through' : 'none',
+                color: item.done ? 'var(--text-muted, #999)' : 'var(--text, #333)',
+                fontSize: '0.9rem',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => removeItem(item.id)}
+              disabled={disabled}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: disabled ? 'default' : 'pointer',
+                color: 'var(--text-muted, #999)',
+                fontSize: '1.1rem',
+                padding: '0 0.25rem',
+              }}
+              aria-label={`Remove ${item.text}`}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+          <input
+            type="text"
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={addItem}
+            placeholder="Add item..."
+            disabled={disabled}
+            className="field-input"
+            style={{ flex: 1 }}
+          />
+        </div>
+      </div>
+      {error && <div className="field-error-message">{error}</div>}
+    </div>
+  );
+}
+
+export function ComputedFieldEditor({ field, value, error }: FieldEditorProps) {
+  // Computed fields are read-only — display the formula and current value
+  const formula = (field.rules as any)?.formula || '';
+  return (
+    <div className="field-editor">
+      <label className="field-label">
+        {field.field_name}
+        {field.is_required && <span className="field-required">*</span>}
+      </label>
+      <div
+        style={{
+          padding: '0.5rem 0.75rem',
+          background: 'var(--surface-alt, #f5f5f5)',
+          borderRadius: 4,
+          border: '1px solid var(--border, #ddd)',
+          fontSize: '0.9rem',
+          color: 'var(--text-muted, #666)',
+        }}
+      >
+        <div style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+          Formula: {formula || 'none'}
+        </div>
+        <div style={{ fontWeight: 500, color: 'var(--text, #333)' }}>
+          {value !== null && value !== undefined ? String(value) : '—'}
+        </div>
+      </div>
+      {error && <div className="field-error-message">{error}</div>}
+    </div>
+  );
+}
+
 export function FieldEditor(props: FieldEditorProps) {
   const { field } = props;
   switch (field.data_type) {
@@ -1055,6 +1233,10 @@ export function FieldEditor(props: FieldEditorProps) {
       return <EntityLinkFieldEditor {...props} />;
     case 'tags':
       return <TagFieldEditor {...props} />;
+    case 'checklist':
+      return <ChecklistFieldEditor {...props} />;
+    case 'computed':
+      return <ComputedFieldEditor {...props} />;
     case 'custom': {
       // Legacy custom type — render as a simple select from parsed options
       return <SelectFieldEditor {...props} />;

@@ -105,7 +105,7 @@ export function AddEntry({
           for (const f of defs) {
             if (f.data_type === 'boolean') {
               initial[f.field_name] = false;
-            } else if (f.data_type === 'tags') {
+            } else if (f.data_type === 'tags' || f.data_type === 'checklist') {
               initial[f.field_name] = [];
             } else if (f.data_type === 'geolocation') {
               initial[f.field_name] = { latitude: 0, longitude: 0 };
@@ -143,7 +143,7 @@ export function AddEntry({
       const val = fieldValues[f.field_name];
       if (f.data_type === 'boolean') {
         // boolean is always valid (true or false)
-      } else if (f.data_type === 'tags') {
+      } else if (f.data_type === 'tags' || f.data_type === 'checklist') {
         if (!Array.isArray(val) || val.length === 0) {
           setError(`"${f.field_name}" is required`);
           return;

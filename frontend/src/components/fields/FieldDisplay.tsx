@@ -86,6 +86,55 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         </div>
       );
     }
+    case 'checklist': {
+      const items = Array.isArray(value) ? value : [];
+      if (items.length === 0) return <div className="field-display">—</div>;
+      const done = items.filter((i: any) => i.done).length;
+      return (
+        <div className="field-display field-display-checklist">
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted, #666)',
+              marginBottom: '0.25rem',
+            }}
+          >
+            {done}/{items.length} done
+          </div>
+          {items.map((item: any, i: number) => (
+            <div
+              key={item.id || i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                fontSize: '0.85rem',
+              }}
+            >
+              <span style={{ color: item.done ? 'green' : '#999' }}>{item.done ? '✓' : '○'}</span>
+              <span
+                style={{
+                  textDecoration: item.done ? 'line-through' : 'none',
+                  color: item.done ? 'var(--text-muted, #999)' : 'var(--text, #333)',
+                }}
+              >
+                {item.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case 'computed': {
+      return (
+        <div
+          className="field-display field-display-computed"
+          style={{ fontWeight: 500, color: 'var(--accent, #2563eb)' }}
+        >
+          {value !== null && value !== undefined ? String(value) : '—'}
+        </div>
+      );
+    }
     case 'custom': {
       // Legacy custom type — display the selected option label
       const option = field.options.find((o) => (o.value ?? o.label) === value);
