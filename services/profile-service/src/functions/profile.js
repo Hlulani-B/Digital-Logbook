@@ -173,6 +173,27 @@ export class NotificationLeadTime {
 }
 
 /**
+ * Persists the user's timer abandonment notification preference.
+ * Controls whether email notifications are sent when a timer is left
+ * running for >2 hours or paused for >30 minutes.
+ */
+export class TimerAbandonmentNotifications {
+  async set(email, enabled) {
+    try {
+      if (!pool) return { success: false, message: 'Database not connected' };
+      await pool.query(`UPDATE users SET timer_abandonment_notifications = $1 WHERE email = $2`, [
+        Boolean(enabled),
+        email,
+      ]);
+      return { success: true, message: 'Timer abandonment notification preference updated' };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: error.message };
+    }
+  }
+}
+
+/**
  * Aggregates read/delete operations for a user profile.
  */
 export class Profile {

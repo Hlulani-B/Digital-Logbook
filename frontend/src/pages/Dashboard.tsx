@@ -46,6 +46,7 @@ import {
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
 import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
 import {
   getRecentlyCreated,
   trackCreatedEntry,
@@ -1491,6 +1492,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* Timer abandonment banner — shows when entries have active timers past thresholds */}
+        <AbandonedTimerBanner
+          entries={entries as any}
+          onNavigate={(projectName) => navigate(`/project/${encodeURIComponent(projectName)}`)}
+        />
+
         {/* One-time guided-tour offer for new users */}
         {showTourOffer && (
           <div className="tour-offer" role="status">
