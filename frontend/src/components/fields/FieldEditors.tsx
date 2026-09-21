@@ -701,6 +701,7 @@ export function EntityLinkFieldEditor({
   >([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   const [pendingSelection, setPendingSelection] = useState<string[]>([]);
 
   const openPicker = useCallback(() => {
@@ -754,12 +755,23 @@ export function EntityLinkFieldEditor({
   };
 
   const filteredEntries = useMemo(() => {
-    if (!pickerSearch.trim()) return availableEntries;
-    const q = pickerSearch.toLowerCase();
-    return availableEntries.filter(
-      (e) => e.title.toLowerCase().includes(q) || e.project.toLowerCase().includes(q)
-    );
-  }, [availableEntries, pickerSearch]);
+    let entries = availableEntries;
+    if (projectFilter !== 'all') {
+      entries = entries.filter((e) => e.project === projectFilter);
+    }
+    if (pickerSearch.trim()) {
+      const q = pickerSearch.toLowerCase();
+      entries = entries.filter(
+        (e) => e.title.toLowerCase().includes(q) || e.project.toLowerCase().includes(q)
+      );
+    }
+    return entries;
+  }, [availableEntries, pickerSearch, projectFilter]);
+
+  const availableProjects = useMemo(() => {
+    const projects = new Set(availableEntries.map((e) => e.project).filter(Boolean));
+    return Array.from(projects).sort();
+  }, [availableEntries]);
 
   return (
     <div className="field-editor">
@@ -820,14 +832,29 @@ export function EntityLinkFieldEditor({
             }}
           >
             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Link Entries</h3>
-            <input
-              type="text"
-              placeholder="Search entries..."
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-              className="field-input"
-              style={{ width: '100%' }}
-            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Search entries..."
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                className="field-input"
+                style={{ flex: 1 }}
+              />
+              <select
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                className="field-input"
+                style={{ width: 'auto', minWidth: 120 }}
+              >
+                <option value="all">All Projects</option>
+                {availableProjects.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
             {pickerLoading ? (
               <p style={{ color: 'var(--text-muted, #666)', textAlign: 'center' }}>
                 Loading entries...
