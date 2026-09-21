@@ -3,7 +3,7 @@
  * Handles adding, editing, removing, and querying project members.
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
 // Lazy-load Members class to avoid circular dependencies
@@ -93,4 +93,4 @@ router.post('/member', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

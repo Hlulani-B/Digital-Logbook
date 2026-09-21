@@ -6,7 +6,7 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
-} from '../templates.js';
+} from '../functions/templates.js';
 
 const router = express.Router();
 
