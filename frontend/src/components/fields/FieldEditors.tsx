@@ -198,20 +198,47 @@ export function TimestampFieldEditor({
 }
 
 export function BooleanFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+  const isTrue = value === true;
+  const isFalse = value === false;
   return (
     <div className="field-editor">
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
       </label>
-      <div className="field-checkbox">
-        <input
-          type="checkbox"
-          checked={value === true}
-          onChange={(e) => onChange(e.target.checked)}
-          disabled={disabled}
-        />
-        <span>{value === true ? 'Yes' : 'No'}</span>
+      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            cursor: disabled ? 'default' : 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isTrue}
+            onChange={() => !disabled && onChange(true)}
+            disabled={disabled}
+          />
+          <span>True</span>
+        </label>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            cursor: disabled ? 'default' : 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isFalse}
+            onChange={() => !disabled && onChange(false)}
+            disabled={disabled}
+          />
+          <span>False</span>
+        </label>
       </div>
       {error && <div className="field-error-message">{error}</div>}
     </div>
