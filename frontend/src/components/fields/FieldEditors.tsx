@@ -1,8 +1,11 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 import type { FieldDefinition, FieldOption } from '@/lib/fieldSchema';
 import { uploadAndFinalize } from '@/lib/attachmentApi';
 import { checkThresholds } from '@/lib/fieldValidation';
 import type { AlertLevel } from '@/lib/fieldVisibility';
+import { useAuth } from '@/context/AuthContext';
+import { getAllEntries } from '@/functions/project/entries';
+import { getEntryTitle } from '@/lib/calendar';
 
 /** Small colored dot indicating threshold status */
 function ThresholdIndicator({ level, message }: { level: AlertLevel; message?: string }) {
@@ -195,20 +198,47 @@ export function TimestampFieldEditor({
 }
 
 export function BooleanFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+  const isTrue = value === true;
+  const isFalse = value === false;
   return (
     <div className="field-editor">
       <label className="field-label">
         {field.field_name}
         {field.is_required && <span className="field-required">*</span>}
       </label>
-      <div className="field-checkbox">
-        <input
-          type="checkbox"
-          checked={value === true}
-          onChange={(e) => onChange(e.target.checked)}
-          disabled={disabled}
-        />
-        <span>{value === true ? 'Yes' : 'No'}</span>
+      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            cursor: disabled ? 'default' : 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isTrue}
+            onChange={() => !disabled && onChange(true)}
+            disabled={disabled}
+          />
+          <span>True</span>
+        </label>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            cursor: disabled ? 'default' : 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isFalse}
+            onChange={() => !disabled && onChange(false)}
+            disabled={disabled}
+          />
+          <span>False</span>
+        </label>
       </div>
       {error && <div className="field-error-message">{error}</div>}
     </div>
@@ -663,7 +693,74 @@ export function EntityLinkFieldEditor({
   error,
   disabled,
 }: FieldEditorProps) {
+  const { user } = useAuth();
   const links = Array.isArray(value) ? value : [];
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [availableEntries, setAvailableEntries] = useState<
+    Array<{ id: string | number; title: string; project: string }>
+  >([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pendingSelection, setPendingSelection] = useState<string[]>([]);
+
+  const openPicker = useCallback(() => {
+    setPendingSelection(links.map(String));
+    setPickerSearch('');
+    setPickerOpen(true);
+  }, [links]);
+
+  useEffect(() => {
+    if (!pickerOpen || !user?.email) return;
+    let cancelled = false;
+    setPickerLoading(true);
+    getAllEntries(user.email)
+      .then((result) => {
+        if (cancelled) return;
+        setPickerLoading(false);
+        if (result?.success && Array.isArray(result.data)) {
+          setAvailableEntries(
+            result.data
+              .filter((e: any) => !e.archived && e.id != null)
+              .map((e: any) => ({
+                id: String(e.id),
+                title: getEntryTitle(e as any) || `Entry ${e.id}`,
+                project: e.project_name || '',
+              }))
+          );
+        } else {
+          setAvailableEntries([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPickerLoading(false);
+          setAvailableEntries([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pickerOpen, user?.email]);
+
+  const toggleEntry = (entryId: string) => {
+    setPendingSelection((prev) =>
+      prev.includes(entryId) ? prev.filter((id) => id !== entryId) : [...prev, entryId]
+    );
+  };
+
+  const confirmSelection = () => {
+    onChange(pendingSelection);
+    setPickerOpen(false);
+  };
+
+  const filteredEntries = useMemo(() => {
+    if (!pickerSearch.trim()) return availableEntries;
+    const q = pickerSearch.toLowerCase();
+    return availableEntries.filter(
+      (e) => e.title.toLowerCase().includes(q) || e.project.toLowerCase().includes(q)
+    );
+  }, [availableEntries, pickerSearch]);
+
   return (
     <div className="field-editor">
       <label className="field-label">
@@ -674,7 +771,7 @@ export function EntityLinkFieldEditor({
         <div className="field-entity-link-list">
           {links.map((link: string, index: number) => (
             <div key={index} className="field-entity-link-item">
-              <span>Entry: {link.slice(0, 8)}...</span>
+              <span>Entry: {String(link).slice(0, 8)}...</span>
               <button
                 type="button"
                 onClick={() => onChange(links.filter((_: string, i: number) => i !== index))}
@@ -685,11 +782,140 @@ export function EntityLinkFieldEditor({
             </div>
           ))}
         </div>
-        <button type="button" disabled={disabled}>
+        <button type="button" onClick={openPicker} disabled={disabled}>
           Link Entry
         </button>
       </div>
       {error && <div className="field-error-message">{error}</div>}
+
+      {pickerOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPickerOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              background: 'var(--surface, #fff)',
+              borderRadius: 8,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Link Entries</h3>
+            <input
+              type="text"
+              placeholder="Search entries..."
+              value={pickerSearch}
+              onChange={(e) => setPickerSearch(e.target.value)}
+              className="field-input"
+              style={{ width: '100%' }}
+            />
+            {pickerLoading ? (
+              <p style={{ color: 'var(--text-muted, #666)', textAlign: 'center' }}>
+                Loading entries...
+              </p>
+            ) : filteredEntries.length === 0 ? (
+              <p style={{ color: 'var(--text-muted, #666)', textAlign: 'center' }}>
+                No entries found.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  maxHeight: 300,
+                  overflowY: 'auto',
+                }}
+              >
+                {filteredEntries.map((entry) => {
+                  const isSelected = pendingSelection.includes(String(entry.id));
+                  return (
+                    <label
+                      key={entry.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        background: isSelected ? 'var(--accent-bg, #e8f4f8)' : 'transparent',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleEntry(String(entry.id))}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 500,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {entry.title}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #666)' }}>
+                          {entry.project}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.5rem',
+                justifyContent: 'flex-end',
+                marginTop: '0.5rem',
+              }}
+            >
+              <button type="button" className="btn-secondary" onClick={() => setPickerOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={confirmSelection}
+                style={{
+                  background: 'var(--accent, #2563eb)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Link {pendingSelection.length} {pendingSelection.length === 1 ? 'entry' : 'entries'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
