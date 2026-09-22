@@ -6,6 +6,7 @@ import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { FieldEditor } from '@/components/fields/FieldEditors';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import { normalizeField } from '@/lib/fieldSchema';
+import { validateEntryDates, localDateTimeToISO, earliestEntryDateTime } from '@/lib/newEntryDates';
 
 type NoteType = 'text' | 'link' | 'image';
 
@@ -81,11 +82,13 @@ export function AddEntry({
 }: AddEntryProps) {
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
-  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 16));
+  const [dueDate, setDueDate] = useState('');
   const [priorityValue, setPriorityValue] = useState('3');
   const [statusValue, setStatusValue] = useState('up_next');
   const [saving, setSaving] = useState(false);
   const [loadingFields, setLoadingFields] = useState(true);
+  const [fieldsReady, setFieldsReady] = useState(false);
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<NoteDraft[]>([]);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -96,10 +99,15 @@ export function AddEntry({
     let cancelled = false;
     (async () => {
       setLoadingFields(true);
+      setFieldsReady(false);
+      setError(null);
       try {
         const result = await getFields(user_email, project_name);
+        if (result?.success !== true || !Array.isArray(result.data))
+          throw new Error('Fields unavailable');
         if (!cancelled) {
-          const defs: FieldDefinition[] = (result?.data || []).map((f: any) => normalizeField(f));
+          const defs: FieldDefinition[] = result.data.map((f: any) => normalizeField(f));
+          setFieldsReady(true);
           setFields(defs);
           const initial: Record<string, unknown> = {};
           for (const f of defs) {
@@ -134,7 +142,7 @@ export function AddEntry({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user_email || !project_name || saving || loadingFields) return;
+    if (!user_email || !project_name || saving || loadingFields || !fieldsReady) return;
 
     // Validate required fields (skip hidden fields)
     for (const f of fields) {
@@ -154,6 +162,18 @@ export function AddEntry({
       }
     }
 
+    const dateValidation = validateEntryDates({
+      dates: { due_date: localDateTimeToISO(dueDate) },
+      values: fieldValues,
+      fields,
+    });
+    setDateErrors(
+      Object.fromEntries(dateValidation.errors.map((issue) => [issue.path, issue.message]))
+    );
+    if (!dateValidation.success) {
+      setError(dateValidation.message || 'Check the entry dates.');
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -198,10 +218,10 @@ export function AddEntry({
         user_email,
         project_name,
         entryObject,
-        dueDate ? new Date(dueDate).toISOString() : null,
+        localDateTimeToISO(dueDate),
         priorityLabel,
         statusValue,
-        null, // started_at - set automatically when status becomes in_motion
+        null, // started_at - recorded by a later timer/status action
         null, // ended_at - set via End Task button
         null, // duration - calculated in Supabase
         null, // summary - AI-generated in the background on the server
@@ -256,6 +276,7 @@ export function AddEntry({
                         <FieldEditor
                           field={field}
                           value={fieldValues[field.field_name]}
+                          error={dateErrors[`entries.${field.field_name}`]}
                           onChange={(newValue) => handleValueChange(field.field_name, newValue)}
                           disabled={saving || isReadOnly}
                           projectId={projectId}
@@ -279,6 +300,10 @@ export function AddEntry({
                 <input
                   id="due-date"
                   type="datetime-local"
+                  min={earliestEntryDateTime()}
+                  onFocus={(e) => {
+                    e.currentTarget.min = earliestEntryDateTime();
+                  }}
                   className="add-entry__input"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
@@ -453,7 +478,7 @@ export function AddEntry({
         <button
           type="submit"
           className="add-entry__btn add-entry__btn--submit"
-          disabled={saving || loadingFields}
+          disabled={saving || loadingFields || !fieldsReady}
         >
           {saving ? 'Adding...' : 'Add Item'}
         </button>

@@ -6,6 +6,13 @@ import type { AlertLevel } from '@/lib/fieldVisibility';
 import { useAuth } from '@/context/AuthContext';
 import { getAllEntries } from '@/functions/project/entries';
 import { getEntryTitle } from '@/lib/calendar';
+import {
+  earliestEntryDate,
+  earliestEntryDateTime,
+  toLocalDateTime,
+  localDateTimeToISO,
+  sameEntryDate,
+} from '@/lib/newEntryDates';
 
 /** Small colored dot indicating threshold status */
 function ThresholdIndicator({ level, message }: { level: AlertLevel; message?: string }) {
@@ -43,6 +50,7 @@ interface FieldEditorProps {
   disabled?: boolean;
   projectId?: number;
   entryId?: string;
+  originalValue?: unknown;
 }
 
 export function TextFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
@@ -141,7 +149,14 @@ export function FloatFieldEditor({ field, value, onChange, error, disabled }: Fi
   );
 }
 
-export function DateFieldEditor({ field, value, onChange, error, disabled }: FieldEditorProps) {
+export function DateFieldEditor({
+  field,
+  value,
+  onChange,
+  error,
+  disabled,
+  originalValue,
+}: FieldEditorProps) {
   const threshold = checkThresholds(field, value);
   return (
     <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
@@ -152,6 +167,15 @@ export function DateFieldEditor({ field, value, onChange, error, disabled }: Fie
       </label>
       <input
         type="date"
+        aria-label={`${field.field_name} (UTC date)`}
+        title="Today or later, using the UTC calendar date"
+        min={
+          originalValue !== undefined && value === originalValue ? undefined : earliestEntryDate()
+        }
+        onFocus={(e) => {
+          e.currentTarget.min =
+            originalValue !== undefined && value === originalValue ? '' : earliestEntryDate();
+        }}
         className={`field-input ${error ? 'field-error' : ''}`}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value || null)}
@@ -168,8 +192,13 @@ export function TimestampFieldEditor({
   onChange,
   error,
   disabled,
+  originalValue,
 }: FieldEditorProps) {
-  const datetimeValue = typeof value === 'string' ? value.slice(0, 16) : '';
+  const datetimeValue =
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
+      ? value
+      : toLocalDateTime(value);
+  const unchanged = originalValue !== undefined && sameEntryDate(value, originalValue);
   const threshold = checkThresholds(field, value);
   return (
     <div className={`field-editor ${thresholdBorderClass(threshold.level)}`}>
@@ -180,15 +209,19 @@ export function TimestampFieldEditor({
       </label>
       <input
         type="datetime-local"
+        aria-label={field.field_name}
+        min={unchanged ? undefined : earliestEntryDateTime()}
+        onFocus={(e) => {
+          e.currentTarget.min = unchanged ? '' : earliestEntryDateTime();
+        }}
         className={`field-input ${error ? 'field-error' : ''}`}
         value={datetimeValue}
         onChange={(e) => {
-          if (!e.target.value) {
-            onChange(null);
-            return;
-          }
-          const date = new Date(e.target.value);
-          onChange(date.toISOString());
+          onChange(
+            originalValue !== undefined && e.target.value === toLocalDateTime(originalValue)
+              ? originalValue
+              : localDateTimeToISO(e.target.value)
+          );
         }}
         disabled={disabled}
       />

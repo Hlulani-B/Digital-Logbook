@@ -9,6 +9,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { processQueue, getPendingCount } from '../CacheFunctions/queueProcessor';
 import { syncAllData } from '../CacheFunctions/syncService';
+import { getRejectedChanges } from '../CacheFunctions/offlineQueue';
+import { useAuth } from '@/context/AuthContext';
 
 interface Toast {
   id: number;
@@ -17,7 +19,8 @@ interface Toast {
 }
 
 interface ProgressUpdate {
-  type: 'start' | 'success' | 'failed' | 'retry' | 'complete';
+  type: 'start' | 'success' | 'failed' | 'retry' | 'rejected' | 'complete';
+  pending?: number;
   total?: number;
   action?: string;
   message?: string;
@@ -27,6 +30,24 @@ interface ProgressUpdate {
 
 export function OfflineSyncToasts() {
   const isOnline = useNetworkStatus();
+  const { user } = useAuth();
+  const [rejected, setRejected] = useState<any[]>([]);
+  const refreshRejected = useCallback(async () => {
+    const changes = await getRejectedChanges();
+    setRejected(changes.filter((change: any) => change.payload?.user_email === user?.email));
+  }, [user?.email]);
+  useEffect(() => {
+    void refreshRejected();
+  }, [refreshRejected]);
+  const downloadRejected = () => {
+    const blob = new Blob([JSON.stringify(rejected, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'rejected-entry-changes.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
@@ -68,6 +89,9 @@ export function OfflineSyncToasts() {
               case 'success':
                 addToast(progress.message || 'Action synced', 'success');
                 break;
+              case 'rejected':
+                void refreshRejected();
+                break;
               case 'failed':
                 addToast(progress.message || 'Action failed', 'error');
                 break;
@@ -75,17 +99,21 @@ export function OfflineSyncToasts() {
                 addToast(progress.message || 'Retrying action...', 'warning');
                 break;
               case 'complete':
-                const { succeeded = 0, failed = 0 } = progress;
-                if (failed === 0) {
+                const { succeeded = 0, failed = 0, pending = 0 } = progress;
+                void refreshRejected();
+                if (failed === 0 && pending === 0) {
                   addToast(
                     `All ${succeeded} action${succeeded !== 1 ? 's' : ''} synced successfully!`,
                     'success'
                   );
                 } else {
-                  addToast(`Sync complete: ${succeeded} succeeded, ${failed} failed`, 'warning');
+                  addToast(
+                    `Sync complete: ${succeeded} succeeded, ${failed} failed, ${pending} pending`,
+                    'warning'
+                  );
                 }
                 // Refresh all cached data from server after successful sync
-                if (succeeded > 0) {
+                if (succeeded > 0 && failed === 0 && pending === 0) {
                   (async () => {
                     try {
                       const { getSupabase } = await import('../lib/supabase');
@@ -93,7 +121,11 @@ export function OfflineSyncToasts() {
                         data: { session },
                       } = await getSupabase().auth.getSession();
                       const userEmail = session?.user?.email;
-                      if (userEmail) {
+                      if (
+                        userEmail &&
+                        (await getPendingCount()) === 0 &&
+                        (await getRejectedChanges()).length === 0
+                      ) {
                         syncAllData(userEmail, { force: true }).catch((err) => {
                           console.warn('[OfflineSyncToasts] Post-sync refresh failed:', err);
                         });
@@ -110,6 +142,10 @@ export function OfflineSyncToasts() {
                 setWasOffline(false);
                 break;
             }
+          }).catch((err: Error) => {
+            addToast(err.message || 'Synchronization failed', 'error');
+            setIsProcessing(false);
+            setWasOffline(false);
           });
         } else {
           // No pending actions, reset the flag
@@ -117,9 +153,9 @@ export function OfflineSyncToasts() {
         }
       });
     }
-  }, [isOnline, isProcessing, wasOffline, addToast]);
+  }, [isOnline, isProcessing, wasOffline, addToast, refreshRejected]);
 
-  if (toasts.length === 0) return null;
+  if (toasts.length === 0 && rejected.length === 0) return null;
 
   return (
     <div
@@ -134,6 +170,23 @@ export function OfflineSyncToasts() {
         maxWidth: '400px',
       }}
     >
+      {rejected.length > 0 && (
+        <div
+          role="alert"
+          style={{ padding: 16, background: '#991b1b', color: 'white', borderRadius: 8 }}
+        >
+          <strong>{rejected.length} entry change(s) were not saved.</strong>
+          <ul>
+            {rejected.map((change) => (
+              <li key={change.id}>{change.error?.message || 'Entry rejected'}</li>
+            ))}
+          </ul>
+          <p>These changes are retained locally and will not retry automatically.</p>
+          <button type="button" onClick={downloadRejected}>
+            Download rejected changes
+          </button>
+        </div>
+      )}
       {toasts.map((toast) => (
         <div
           key={toast.id}
