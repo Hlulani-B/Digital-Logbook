@@ -3,7 +3,7 @@ import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/da
 import { useNow } from '@/hooks/useNow';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -22,11 +22,18 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
   // Defensive: ensure entries/projects are always arrays
   const safeEntries = Array.isArray(entries) ? entries : [];
   const safeProjects = Array.isArray(projects) ? projects : [];
+  // Reactive preference — drops an AI reflection that is already on screen
+  // the moment the user flips "AI messages" off in Settings.
+  const aiMessagesOn = useAiMessagesEnabled();
+
+  useEffect(() => {
+    if (!aiMessagesOn) setReflection('');
+  }, [aiMessagesOn]);
 
   // Generate AI reflection when stats panel is opened
   useEffect(() => {
     if (!statsOpen || reflection || activeProject) return;
-    if (!getAiMessagesEnabled()) return;
+    if (!aiMessagesOn) return;
 
     const generateReflection = async () => {
       try {
@@ -112,7 +119,7 @@ Make it insightful and encouraging. ${tone}`;
     };
 
     generateReflection();
-  }, [statsOpen, reflection, activeProject, entries, projects]);
+  }, [statsOpen, reflection, activeProject, entries, projects, aiMessagesOn]);
 
   // Detect in-progress entries so the live timer only ticks when needed.
   const hasInProgress = useMemo(

@@ -23,7 +23,7 @@ import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiSettings } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -249,6 +249,15 @@ export function ProjectDetailPage() {
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
     'No items to show yet. Add your first item above!'
   );
+  // Reactive preference — swaps an already-shown AI empty message back to the
+  // static line the instant "AI messages" is toggled off in Settings.
+  const aiMessagesOn = useAiMessagesEnabled();
+
+  useEffect(() => {
+    if (!aiMessagesOn) {
+      setAiEmptyMessage('No items to show yet. Add your first item above!');
+    }
+  }, [aiMessagesOn]);
 
   // Refresh entries from server (called after add/update/delete)
   const loadEntries = useCallback(async () => {
@@ -259,7 +268,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
+    if (!aiMessagesOn) return;
     if (!loading && filteredEntries.length === 0 && !searchQuery) {
       let cancelled = false;
       (async () => {
@@ -276,7 +285,7 @@ export function ProjectDetailPage() {
         cancelled = true;
       };
     }
-  }, [loading, projectName, searchQuery]);
+  }, [loading, projectName, searchQuery, aiMessagesOn]);
 
   // Search within this project only
   useEffect(() => {

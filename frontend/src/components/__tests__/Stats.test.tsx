@@ -17,6 +17,7 @@ vi.mock('@/functions/tone', () => ({
 
 vi.mock('@/functions/aiMessages', () => ({
   getAiMessagesEnabled: vi.fn().mockReturnValue(false),
+  useAiMessagesEnabled: vi.fn().mockReturnValue(false),
 }));
 
 describe('Stats', () => {

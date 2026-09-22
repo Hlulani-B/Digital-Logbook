@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 import { FiMic } from 'react-icons/fi';
 import { addNaturalLanguageEntry } from '../functions/project/natural_language.js';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface QuickEntryBarProps {
@@ -40,6 +40,13 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
   const [messageType, setMessageType] = useState(''); // "success" | "error"
   const inputRef = useRef(null);
   const isOnline = useNetworkStatus();
+  // Reactive preference — dismisses an already-visible AI comment toast the
+  // moment the user flips "AI messages" off in Settings, without a reload.
+  const aiMessagesOn = useAiMessagesEnabled();
+
+  useEffect(() => {
+    if (!aiMessagesOn) setToast('');
+  }, [aiMessagesOn]);
 
   useEffect(() => {
     if (message) {

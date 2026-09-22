@@ -4,7 +4,7 @@ import { getProjectsByEmail } from '@/functions/project/project.js';
 import { sortUnarchivedEntries } from '@/functions/project/entries.js';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
@@ -60,10 +60,13 @@ export function StatsReflection() {
   const email = user?.email || '';
   const [reflection, setReflection] = useState('');
   const [loading, setLoading] = useState(true);
+  // Reactive preference — the old getter-only check ran once at mount, so
+  // turning AI messages off left this banner showing AI text until a reload.
+  const aiMessagesOn = useAiMessagesEnabled();
 
   useEffect(() => {
     if (!email) return;
-    if (!getAiMessagesEnabled()) {
+    if (!aiMessagesOn) {
       setReflection("Here's a quick look at your progress.");
       setLoading(false);
       return;
@@ -118,7 +121,9 @@ ${topProject ? `- Most active project this week: ${topProject[0]} (${topProject[
 Make it insightful and encouraging. ${tone}`;
 
         const aiResult = await askAI(prompt);
-        if (!cancelled) {
+        // Re-check on resolve: the user may have flipped the Settings toggle
+        // off while this request was in flight.
+        if (!cancelled && getAiMessagesEnabled()) {
           const msg =
             aiResult.success && aiResult.response ? parseAIResponse(aiResult.response) : '';
           setReflection(msg || "Here's a quick look at your progress.");
@@ -134,7 +139,7 @@ Make it insightful and encouraging. ${tone}`;
     return () => {
       cancelled = true;
     };
-  }, [email]);
+  }, [email, aiMessagesOn]);
 
   if (loading || !reflection) return null;
 
