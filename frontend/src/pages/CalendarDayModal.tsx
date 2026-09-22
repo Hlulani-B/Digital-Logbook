@@ -245,9 +245,11 @@ export function CalendarDayModal({
     setFieldValues((prev) => ({ ...prev, [fieldName]: value }));
   };
 
+  const ContentContainer = showAddForm ? 'form' : 'div';
+
   return (
     <div className="cdm-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
-      <div className="cdm-modal">
+      <div className={`cdm-modal${showAddForm ? ' cdm-modal--adding' : ''}`}>
         {/* Header */}
         <div className="cdm-header">
           <div>
@@ -274,225 +276,237 @@ export function CalendarDayModal({
           </div>
         )}
 
-        {/* Scrollable content */}
-        <div className="cdm-body">
-          {/* Existing entries */}
-          {entries.length > 0 && (
-            <div className="cdm-entries-section">
-              <div className="cdm-entries-list">
-                {entries.map((entry) => {
-                  const entryStatus = entry.status ?? 'up_next';
-                  const overdue = isOverdue(entry.due_date ?? null, entryStatus);
-                  const isCompleted = entryStatus === 'done_and_dusted';
-                  const statusColor = STATUS_COLORS[entryStatus] || '#6366f1';
+        <ContentContainer
+          className={showAddForm ? 'cdm-form' : 'cdm-content'}
+          onSubmit={showAddForm ? handleSubmit : undefined}
+          aria-labelledby={showAddForm ? 'cdm-form-title' : undefined}
+        >
+          {/* Scrollable content */}
+          <div className="cdm-body">
+            {/* Existing entries */}
+            {entries.length > 0 && (
+              <div className="cdm-entries-section">
+                <div className="cdm-entries-list">
+                  {entries.map((entry) => {
+                    const entryStatus = entry.status ?? 'up_next';
+                    const overdue = isOverdue(entry.due_date ?? null, entryStatus);
+                    const isCompleted = entryStatus === 'done_and_dusted';
+                    const statusColor = STATUS_COLORS[entryStatus] || '#6366f1';
 
-                  const entryColor = colorMap ? colorMap[entry.project_name] || null : null;
+                    const entryColor = colorMap ? colorMap[entry.project_name] || null : null;
 
-                  return (
-                    <div
-                      key={entry.id}
-                      className={[
-                        'cdm-entry',
-                        isCompleted && 'cdm-entry--completed',
-                        overdue && 'cdm-entry--overdue',
-                        draggingEntry?.id === entry.id && 'cdm-entry--dragging',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      draggable
-                      data-entry-id={String(entry.id)}
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = 'move';
-                        e.dataTransfer.setData('text/plain', String(entry.id));
-                        handleEntryDragStart(entry);
-                      }}
-                      onDragEnd={handleEntryDragEnd}
-                      onClick={() => onEntryClick(entry)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onEntryClick(entry);
-                      }}
-                      style={entryColor ? { borderLeft: `3px solid ${entryColor}` } : undefined}
-                    >
+                    return (
                       <div
-                        className="cdm-entry-indicator"
-                        style={{ backgroundColor: statusColor }}
-                      />
-                      <div className="cdm-entry-content">
-                        <span className="cdm-entry-title">{getEntryTitle(entry)}</span>
-                        <span className="cdm-entry-meta">
-                          <span className="cdm-entry-project">{entry.project_name}</span>
-                          <span className="cdm-entry-status" style={{ color: statusColor }}>
-                            {STATUS_LABELS[entryStatus] || entryStatus}
+                        key={entry.id}
+                        className={[
+                          'cdm-entry',
+                          isCompleted && 'cdm-entry--completed',
+                          overdue && 'cdm-entry--overdue',
+                          draggingEntry?.id === entry.id && 'cdm-entry--dragging',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        draggable
+                        data-entry-id={String(entry.id)}
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', String(entry.id));
+                          handleEntryDragStart(entry);
+                        }}
+                        onDragEnd={handleEntryDragEnd}
+                        onClick={() => onEntryClick(entry)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') onEntryClick(entry);
+                        }}
+                        style={entryColor ? { borderLeft: `3px solid ${entryColor}` } : undefined}
+                      >
+                        <div
+                          className="cdm-entry-indicator"
+                          style={{ backgroundColor: statusColor }}
+                        />
+                        <div className="cdm-entry-content">
+                          <span className="cdm-entry-title">{getEntryTitle(entry)}</span>
+                          <span className="cdm-entry-meta">
+                            <span className="cdm-entry-project">{entry.project_name}</span>
+                            <span className="cdm-entry-status" style={{ color: statusColor }}>
+                              {STATUS_LABELS[entryStatus] || entryStatus}
+                            </span>
+                            {entry.priority && (
+                              <span className="cdm-entry-priority">{entry.priority}</span>
+                            )}
                           </span>
-                          {entry.priority && (
-                            <span className="cdm-entry-priority">{entry.priority}</span>
-                          )}
-                        </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
+            )}
+
+            {entries.length === 0 && !showAddForm && (
+              <p className="cdm-empty">No items for this day.</p>
+            )}
+
+            {/* Add entry form */}
+            {showAddForm ? (
+              <div className="cdm-form-fields">
+                <h3 className="cdm-form-title" id="cdm-form-title">
+                  New Item
+                </h3>
+
+                {/* Project selector */}
+                <div className="cdm-form-field">
+                  <label className="cdm-label" htmlFor="cdm-project">
+                    Project
+                  </label>
+                  <select
+                    id="cdm-project"
+                    className="cdm-select"
+                    value={selectedProject}
+                    onChange={(e) => setSelectedProject(e.target.value)}
+                    disabled={saving}
+                    required
+                  >
+                    <option value="">Select a project...</option>
+                    {projects.map((p) => (
+                      <option key={p.project_name as string} value={p.project_name as string}>
+                        {p.project_name as string}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dynamic fields */}
+                {loadingFields && <p className="cdm-loading">Loading fields...</p>}
+                {fields.map((field) => (
+                  <div
+                    className={`cdm-form-field${field.data_type === 'boolean' ? ' cdm-form-field--boolean' : ''}`}
+                    key={field.field_name}
+                  >
+                    <label className="cdm-label" htmlFor={`cdm-field-${field.field_name}`}>
+                      {field.field_name.replace(/_/g, ' ')}
+                      {field.is_required && <span className="cdm-required">*</span>}
+                    </label>
+                    {field.data_type === 'boolean' ? (
+                      <input
+                        id={`cdm-field-${field.field_name}`}
+                        type="checkbox"
+                        className="cdm-checkbox"
+                        checked={fieldValues[field.field_name] === 'true'}
+                        onChange={(e) =>
+                          handleFieldChange(field.field_name, e.target.checked ? 'true' : 'false')
+                        }
+                        disabled={saving}
+                      />
+                    ) : (
+                      <input
+                        id={`cdm-field-${field.field_name}`}
+                        type={inputTypeForDataType(field.data_type)}
+                        className="cdm-input"
+                        placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
+                        value={fieldValues[field.field_name] || ''}
+                        onChange={(e) => handleFieldChange(field.field_name, e.target.value)}
+                        disabled={saving}
+                        required={field.is_required}
+                      />
+                    )}
+                  </div>
+                ))}
+
+                {/* Due date */}
+                <div className="cdm-form-field">
+                  <label className="cdm-label" htmlFor="cdm-due-date">
+                    Due Date
+                  </label>
+                  <input
+                    id="cdm-due-date"
+                    type="datetime-local"
+                    className="cdm-input"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+
+                {/* Priority + Status row */}
+                <div className="cdm-form-row">
+                  <div className="cdm-form-field">
+                    <label className="cdm-label" htmlFor="cdm-priority">
+                      Priority
+                    </label>
+                    <select
+                      id="cdm-priority"
+                      className="cdm-select"
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                      disabled={saving}
+                    >
+                      {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="cdm-form-field">
+                    <label className="cdm-label" htmlFor="cdm-status">
+                      Status
+                    </label>
+                    <select
+                      id="cdm-status"
+                      className="cdm-select"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      disabled={saving}
+                    >
+                      {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="cdm-add-btn"
+                onClick={() => {
+                  setShowAddForm(true);
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
+              >
+                + Add Task
+              </button>
+            )}
+          </div>
+          {showAddForm && (
+            <div className="cdm-form-actions">
+              <button
+                type="button"
+                className="cdm-btn cdm-btn--cancel"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setError(null);
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="cdm-btn cdm-btn--submit"
+                disabled={saving || !selectedProject}
+              >
+                {saving ? 'Adding...' : 'Add Item'}
+              </button>
             </div>
           )}
-
-          {entries.length === 0 && !showAddForm && (
-            <p className="cdm-empty">No items for this day.</p>
-          )}
-
-          {/* Add entry form */}
-          {showAddForm ? (
-            <form className="cdm-form" onSubmit={handleSubmit}>
-              <h3 className="cdm-form-title">New Item</h3>
-
-              {/* Project selector */}
-              <div className="cdm-form-field">
-                <label className="cdm-label" htmlFor="cdm-project">
-                  Project
-                </label>
-                <select
-                  id="cdm-project"
-                  className="cdm-select"
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  disabled={saving}
-                  required
-                >
-                  <option value="">Select a project...</option>
-                  {projects.map((p) => (
-                    <option key={p.project_name as string} value={p.project_name as string}>
-                      {p.project_name as string}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Dynamic fields */}
-              {loadingFields && <p className="cdm-loading">Loading fields...</p>}
-              {fields.map((field) => (
-                <div className="cdm-form-field" key={field.field_name}>
-                  <label className="cdm-label" htmlFor={`cdm-field-${field.field_name}`}>
-                    {field.field_name.replace(/_/g, ' ')}
-                    {field.is_required && <span className="cdm-required">*</span>}
-                  </label>
-                  {field.data_type === 'boolean' ? (
-                    <input
-                      id={`cdm-field-${field.field_name}`}
-                      type="checkbox"
-                      className="cdm-checkbox"
-                      checked={fieldValues[field.field_name] === 'true'}
-                      onChange={(e) =>
-                        handleFieldChange(field.field_name, e.target.checked ? 'true' : 'false')
-                      }
-                      disabled={saving}
-                    />
-                  ) : (
-                    <input
-                      id={`cdm-field-${field.field_name}`}
-                      type={inputTypeForDataType(field.data_type)}
-                      className="cdm-input"
-                      placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
-                      value={fieldValues[field.field_name] || ''}
-                      onChange={(e) => handleFieldChange(field.field_name, e.target.value)}
-                      disabled={saving}
-                      required={field.is_required}
-                    />
-                  )}
-                </div>
-              ))}
-
-              {/* Due date */}
-              <div className="cdm-form-field">
-                <label className="cdm-label" htmlFor="cdm-due-date">
-                  Due Date
-                </label>
-                <input
-                  id="cdm-due-date"
-                  type="datetime-local"
-                  className="cdm-input"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-
-              {/* Priority + Status row */}
-              <div className="cdm-form-row">
-                <div className="cdm-form-field">
-                  <label className="cdm-label" htmlFor="cdm-priority">
-                    Priority
-                  </label>
-                  <select
-                    id="cdm-priority"
-                    className="cdm-select"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    disabled={saving}
-                  >
-                    {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="cdm-form-field">
-                  <label className="cdm-label" htmlFor="cdm-status">
-                    Status
-                  </label>
-                  <select
-                    id="cdm-status"
-                    className="cdm-select"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    disabled={saving}
-                  >
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="cdm-form-actions">
-                <button
-                  type="button"
-                  className="cdm-btn cdm-btn--cancel"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setError(null);
-                  }}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="cdm-btn cdm-btn--submit"
-                  disabled={saving || !selectedProject}
-                >
-                  {saving ? 'Adding...' : 'Add Item'}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              className="cdm-add-btn"
-              onClick={() => {
-                setShowAddForm(true);
-                setError(null);
-                setSuccessMsg(null);
-              }}
-            >
-              + Add Task
-            </button>
-          )}
-        </div>
+        </ContentContainer>
       </div>
     </div>
   );

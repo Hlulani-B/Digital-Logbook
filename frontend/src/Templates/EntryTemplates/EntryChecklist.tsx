@@ -253,30 +253,36 @@ export default function ChecklistEntryCard({
       {/* Edit Dialog */}
       {editOpen && (
         <div className="checklist-dialog-overlay" onClick={() => setEditOpen(false)}>
-          <div className="checklist-dialog" ref={editRef} onClick={(e) => e.stopPropagation()}>
-            <h3 className="checklist-dialog-title">Edit Entry</h3>
-            {error && <p className="checklist-dialog-error">{error}</p>}
+          <div
+            className="checklist-dialog entry-form checklist-dialog--editing"
+            ref={editRef}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="entry-form__body">
+              <h3 className="checklist-dialog-title">Edit Entry</h3>
+              {error && <p className="checklist-dialog-error">{error}</p>}
 
-            <div className="checklist-dialog-field">
-              <label>Summary</label>
-              <textarea
-                value={draftSummary}
-                onChange={(e) => setDraftSummary(e.target.value)}
-                rows={3}
-                placeholder="Enter summary..."
-              />
+              <div className="checklist-dialog-field">
+                <label>Summary</label>
+                <textarea
+                  value={draftSummary}
+                  onChange={(e) => setDraftSummary(e.target.value)}
+                  rows={3}
+                  placeholder="Enter summary..."
+                />
+              </div>
+
+              <div className="checklist-dialog-field">
+                <label>Due Date</label>
+                <input
+                  type="date"
+                  value={draftDueDate}
+                  onChange={(e) => setDraftDueDate(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="checklist-dialog-field">
-              <label>Due Date</label>
-              <input
-                type="date"
-                value={draftDueDate}
-                onChange={(e) => setDraftDueDate(e.target.value)}
-              />
-            </div>
-
-            <div className="checklist-dialog-actions">
+            <div className="checklist-dialog-actions entry-form__footer">
               <button
                 className="checklist-dialog-btn checklist-dialog-btn--cancel"
                 onClick={() => setEditOpen(false)}

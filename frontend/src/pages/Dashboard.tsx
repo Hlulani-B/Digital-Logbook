@@ -2569,7 +2569,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             setNewEntryProject('');
           }}
         >
-          <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`modal-card glass modal-card-wide${newEntryProject ? ' modal-card--entry' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             {!newEntryProject ? (
               <>
                 <h2 className="modal-title">New Item</h2>

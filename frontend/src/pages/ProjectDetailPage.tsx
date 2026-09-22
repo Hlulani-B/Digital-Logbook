@@ -974,7 +974,10 @@ export function ProjectDetailPage() {
         {/* New Entry Modal — project is pre-set */}
         {newEntryOpen && (
           <div className="modal-overlay" onClick={() => setNewEntryOpen(false)}>
-            <div className="modal-card glass modal-card-wide" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="modal-card glass modal-card-wide modal-card--entry"
+              onClick={(e) => e.stopPropagation()}
+            >
               <AddEntry
                 user_email={email}
                 project_name={projectName!}
