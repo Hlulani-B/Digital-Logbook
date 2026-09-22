@@ -46,6 +46,7 @@ import {
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
 import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
 import {
   getRecentlyCreated,
   trackCreatedEntry,
@@ -869,19 +870,23 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       });
 
       // Save any non-empty project fields (best-effort after project is created)
+      // Fields must be added sequentially to avoid cache race conditions
       if (nonEmptyFields.length > 0) {
-        const results = await Promise.allSettled(
-          nonEmptyFields.map((f) => {
-            const dataType =
-              f.data_type === 'custom'
-                ? `custom:${(f.custom_options || []).join(',')}`
-                : f.data_type;
-            return addField(email, projectName, f.field_name.trim(), dataType, f.is_required);
-          })
-        );
-        const failures = results
-          .map((r, i) => (r.status === 'rejected' ? nonEmptyFields[i].field_name : null))
-          .filter((name): name is string => Boolean(name));
+        const failures: string[] = [];
+        for (const f of nonEmptyFields) {
+          const dataType =
+            f.data_type === 'custom' ? `custom:${(f.custom_options || []).join(',')}` : f.data_type;
+          const result = await addField(
+            email,
+            projectName,
+            f.field_name.trim(),
+            dataType,
+            f.is_required
+          );
+          if (result?.success === false) {
+            failures.push(f.field_name);
+          }
+        }
         if (failures.length > 0) {
           setNewProjectError(
             `Project created, but these fields could not be saved: ${failures.join(', ')}`
@@ -1491,6 +1496,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* Timer abandonment banner — shows when entries have active timers past thresholds */}
+        <AbandonedTimerBanner
+          entries={entries as any}
+          onNavigate={(projectName) => navigate(`/project/${encodeURIComponent(projectName)}`)}
+        />
+
         {/* One-time guided-tour offer for new users */}
         {showTourOffer && (
           <div className="tour-offer" role="status">
