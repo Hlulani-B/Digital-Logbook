@@ -46,6 +46,7 @@ import {
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
 import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
+import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
 import {
   getRecentlyCreated,
   trackCreatedEntry,
@@ -100,7 +101,24 @@ type Project = Record<string, unknown>;
 
 type ProjectFieldDraft = {
   field_name: string;
-  data_type: 'text' | 'number' | 'date' | 'boolean' | 'custom';
+  data_type:
+    | 'text'
+    | 'markdown'
+    | 'integer'
+    | 'float'
+    | 'number'
+    | 'date'
+    | 'timestamp'
+    | 'boolean'
+    | 'geolocation'
+    | 'currency'
+    | 'file'
+    | 'image'
+    | 'entity_link'
+    | 'tags'
+    | 'checklist'
+    | 'computed'
+    | 'custom';
   is_required: boolean;
   custom_options?: string[];
 };
@@ -756,7 +774,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const addProjectField = () => {
     setProjectFields((prev) => [
       ...prev,
-      { field_name: '', data_type: 'text', is_required: false, custom_options: [] },
+      { field_name: '', data_type: 'markdown', is_required: false, custom_options: [] },
     ]);
   };
 
@@ -852,19 +870,23 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       });
 
       // Save any non-empty project fields (best-effort after project is created)
+      // Fields must be added sequentially to avoid cache race conditions
       if (nonEmptyFields.length > 0) {
-        const results = await Promise.allSettled(
-          nonEmptyFields.map((f) => {
-            const dataType =
-              f.data_type === 'custom'
-                ? `custom:${(f.custom_options || []).join(',')}`
-                : f.data_type;
-            return addField(email, projectName, f.field_name.trim(), dataType, f.is_required);
-          })
-        );
-        const failures = results
-          .map((r, i) => (r.status === 'rejected' ? nonEmptyFields[i].field_name : null))
-          .filter((name): name is string => Boolean(name));
+        const failures: string[] = [];
+        for (const f of nonEmptyFields) {
+          const dataType =
+            f.data_type === 'custom' ? `custom:${(f.custom_options || []).join(',')}` : f.data_type;
+          const result = await addField(
+            email,
+            projectName,
+            f.field_name.trim(),
+            dataType,
+            f.is_required
+          );
+          if (result?.success === false) {
+            failures.push(f.field_name);
+          }
+        }
         if (failures.length > 0) {
           setNewProjectError(
             `Project created, but these fields could not be saved: ${failures.join(', ')}`
@@ -1474,6 +1496,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       {/* Main Content */}
       <main className="dash-main">
+        {/* Timer abandonment banner — shows when entries have active timers past thresholds */}
+        <AbandonedTimerBanner
+          entries={entries as any}
+          onNavigate={(projectName) => navigate(`/project/${encodeURIComponent(projectName)}`)}
+        />
+
         {/* One-time guided-tour offer for new users */}
         {showTourOffer && (
           <div className="tour-offer" role="status">
@@ -2384,13 +2412,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       <option value="date">Date</option>
                       <option value="timestamp">Timestamp</option>
                       <option value="boolean">Boolean</option>
-                      <option value="select">Select</option>
-                      <option value="multiselect">Multi-Select</option>
                       <option value="geolocation">Geolocation</option>
                       <option value="currency">Currency</option>
                       <option value="file">File</option>
                       <option value="image">Image</option>
                       <option value="entity_link">Entity Link</option>
+                      <option value="tags">Tags</option>
+                      <option value="checklist">Checklist</option>
+                      <option value="computed">Computed</option>
                       <option value="custom">Custom (Legacy)</option>
                     </select>
                     <label

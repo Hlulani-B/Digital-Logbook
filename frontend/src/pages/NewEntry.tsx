@@ -164,23 +164,8 @@ export function EntryBox({
         if (!cancelled && result?.data) {
           const defs: Record<string, FieldDefinition> = {};
           for (const f of result.data) {
-            // Use normalizeField to properly handle all schema properties including visibility
+            // normalizeField handles legacy custom:type format
             const fieldDef = normalizeField(f);
-            // Convert legacy custom:type format to proper select field
-            if (f.data_type && f.data_type.startsWith('custom:')) {
-              fieldDef.data_type = 'select';
-              const optionsStr = f.data_type.slice(7);
-              if (optionsStr) {
-                fieldDef.options = optionsStr
-                  .split(',')
-                  .map((o: string, i: number) => ({
-                    id: `opt-${i}`,
-                    label: o.trim(),
-                    value: o.trim(),
-                  }))
-                  .filter((o: { label: string }) => o.label);
-              }
-            }
             defs[f.field_name] = fieldDef;
           }
           setFieldDefs(defs);
@@ -717,35 +702,18 @@ export function EntryBox({
               <span>{formatEntryValue(payloadState.value)}</span>
             </div>
           ) : (
-            Object.entries(draftFields).map(([key, value]) => {
-              const fieldDef = fieldDefs[key];
+            Object.entries(fieldDefs).map(([key, fieldDef]) => {
+              const value = draftFields[key] ?? null;
               // Visibility: skip fields that are hidden by visibility rules
-              if (fieldDef && !evaluateVisibility(fieldDef, draftFields)) {
+              if (!evaluateVisibility(fieldDef, draftFields)) {
                 return null;
               }
               // Field-Level Permissions: skip hidden fields
               // Note: userRole should be fetched from backend; defaulting to 'owner' for now
               const userRole = 'owner'; // TODO: Fetch actual user role
-              if (fieldDef) {
-                const permission = resolveFieldPermission(fieldDef, userRole);
-                if (permission === 'hidden') {
-                  return null;
-                }
-              }
-              if (!fieldDef) {
-                // Fallback for fields without definitions
-                return (
-                  <div className="entry-box__field--editing" key={key}>
-                    <label className="entry-box__field-key">{formatFieldKey(key)}</label>
-                    <input
-                      className="entry-box__field-input"
-                      type="text"
-                      value={typeof value === 'string' ? value : JSON.stringify(value)}
-                      onChange={(e) => handleFieldChange(key, e.target.value)}
-                      disabled={saving}
-                    />
-                  </div>
-                );
+              const permission = resolveFieldPermission(fieldDef, userRole);
+              if (permission === 'hidden') {
+                return null;
               }
               return (
                 <div className="entry-box__field--editing" key={key}>
@@ -753,7 +721,7 @@ export function EntryBox({
                     field={fieldDef}
                     value={value}
                     onChange={(newValue) => handleFieldChange(key, newValue)}
-                    disabled={saving || resolveFieldPermission(fieldDef, userRole) === 'view'}
+                    disabled={saving || permission === 'view'}
                     projectId={project_id}
                     entryId={id}
                   />

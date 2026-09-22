@@ -249,7 +249,8 @@ export class Notifications {
       // notification.
       const { rows: pending } = await pool.query(
         `SELECT n.id, n.user_email, n.project_name, n.entry_title, n.type, n.due_at,
-                COALESCE(u.email_notifications, true) AS email_enabled
+                COALESCE(u.email_notifications, true) AS email_enabled,
+                COALESCE(u.timer_abandonment_notifications, true) AS timer_email_enabled
            FROM public.notifications n
            LEFT JOIN public.users u ON u.email = n.user_email
           WHERE n.emailed = false
@@ -262,9 +263,12 @@ export class Notifications {
       let skipped = 0;
 
       for (const row of pending) {
+        const isTimerType = row.type === 'timer_running_long' || row.type === 'timer_paused_long';
+        const emailEnabled = isTimerType ? row.timer_email_enabled : row.email_enabled;
+
         // email_enabled is COALESCE'd to true in SQL; only an explicit
         // false (user opted out) skips sending.
-        if (row.email_enabled === false) {
+        if (emailEnabled === false) {
           await pool.query(`UPDATE public.notifications SET emailed = true WHERE id = $1`, [
             row.id,
           ]);
@@ -369,16 +373,45 @@ export class Notifications {
    */
   async _sendBrevoEmail(apiKey, senderEmail, row) {
     const isOverdue = row.type === 'overdue';
+    const isTimerRunning = row.type === 'timer_running_long';
+    const isTimerPaused = row.type === 'timer_paused_long';
+    const isTimerType = isTimerRunning || isTimerPaused;
     const title = row.entry_title || `${row.project_name || 'An'} entry`;
     const dueLabel = formatDueAt(row.due_at);
-    const subject = isOverdue ? `Overdue: ${title}` : `Due soon: ${title}`;
-    const accentColor = isOverdue ? '#dc2626' : '#d97706';
-    const accentBg = isOverdue ? '#fef2f2' : '#fffbeb';
-    const heading = isOverdue ? 'Deadline passed' : 'Deadline approaching';
-    const statusLabel = isOverdue ? 'OVERDUE' : 'DUE SOON';
+
+    let subject, accentColor, accentBg, heading, statusLabel;
+
+    if (isTimerRunning) {
+      subject = `Timer still running: ${title}`;
+      accentColor = '#ea580c';
+      accentBg = '#fff7ed';
+      heading = 'Timer left running';
+      statusLabel = 'TIMER ACTIVE';
+    } else if (isTimerPaused) {
+      subject = `Timer paused too long: ${title}`;
+      accentColor = '#7c3aed';
+      accentBg = '#f5f3ff';
+      heading = 'Timer paused';
+      statusLabel = 'TIMER PAUSED';
+    } else {
+      subject = isOverdue ? `Overdue: ${title}` : `Due soon: ${title}`;
+      accentColor = isOverdue ? '#dc2626' : '#d97706';
+      accentBg = isOverdue ? '#fef2f2' : '#fffbeb';
+      heading = isOverdue ? 'Deadline passed' : 'Deadline approaching';
+      statusLabel = isOverdue ? 'OVERDUE' : 'DUE SOON';
+    }
+
     const deepLink = row.project_name
       ? `${APP_URL}/project/${encodeURIComponent(row.project_name)}`
       : APP_URL;
+
+    const timerDetail = isTimerRunning
+      ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Running for over 2 hours — you may have forgotten to stop it.</p>`
+      : isTimerPaused
+        ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Paused for over 30 minutes — did you mean to resume?</p>`
+        : dueLabel
+          ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Due: ${escapeHtml(dueLabel)}</p>`
+          : '';
 
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f9fafb; padding: 32px 24px;">
@@ -391,7 +424,7 @@ export class Notifications {
             <div style="background: ${accentBg}; border-radius: 8px; padding: 16px; margin: 0 0 16px;">
               <p style="color: #111827; font-size: 15px; margin: 0 0 4px; font-weight: 500;">${escapeHtml(title)}</p>
               ${row.project_name ? `<p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Project: ${escapeHtml(row.project_name)}</p>` : ''}
-              ${dueLabel ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Due: ${escapeHtml(dueLabel)}</p>` : ''}
+              ${timerDetail}
             </div>
             <a href="${escapeHtml(deepLink)}" style="display: inline-block; background: #111827; color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open in Digital Logbook</a>
           </div>
