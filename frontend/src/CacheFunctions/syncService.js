@@ -73,6 +73,13 @@ let syncInProgress = null;
 let lastSyncTime = 0;
 const MIN_SYNC_INTERVAL = 10_000; // 10 seconds between full syncs
 
+// Monotonically increasing id for every _doSync we launch. A running sync
+// captures its epoch and refuses to write to IndexedDB once a NEWER sync has
+// been requested — that is what stops a slower, earlier fetch (started before
+// an SSE-created row existed) from finishing last and clobbering the fresh
+// cache with an older/incomplete snapshot.
+let syncEpoch = 0;
+
 /**
  * Sync ALL user data from server → IndexedDB.
  *
@@ -94,10 +101,24 @@ export async function syncAllData(email, { force = false, onProgress } = {}) {
     !!syncInProgress
   );
 
-  // Prevent duplicate concurrent syncs
-  if (syncInProgress) {
+  // A non-forced caller can safely share whatever sync is already running.
+  if (syncInProgress && !force) {
     console.log('[syncService] Sync already in progress, waiting...');
     return syncInProgress;
+  }
+
+  // A FORCED caller must NOT be satisfied by an in-flight sync that started
+  // before the change it is trying to pick up (e.g. the SSE reload after a
+  // quick-add): that response is stale by definition. Let the running sync
+  // settle — its writes are already guarded by its own epoch — then launch a
+  // fresh one whose results reflect the new server state.
+  if (syncInProgress && force) {
+    console.log('[syncService] Force sync while one in flight — awaiting then refetching');
+    try {
+      await syncInProgress;
+    } catch {
+      /* the in-flight sync logs its own errors */
+    }
   }
 
   // Throttle: skip if we synced recently (unless forced)
@@ -106,22 +127,34 @@ export async function syncAllData(email, { force = false, onProgress } = {}) {
     return { success: true, message: 'Recently synced, skipping', skipped: true };
   }
 
-  console.log('[syncService] Starting _doSync...');
-  syncInProgress = _doSync(email, onProgress);
+  const epoch = ++syncEpoch;
+  console.log('[syncService] Starting _doSync...', { epoch });
+  const run = _doSync(email, onProgress, epoch);
+  syncInProgress = run;
   try {
-    const result = await syncInProgress;
+    const result = await run;
     console.log('[syncService] _doSync complete. summary=', JSON.stringify(result));
     lastSyncTime = Date.now();
     return result;
   } finally {
-    syncInProgress = null;
+    // Only clear the shared handle if no newer sync has taken over.
+    if (epoch === syncEpoch) syncInProgress = null;
   }
 }
 
 /**
  * Internal: perform the actual sync.
+ *
+ * @param {string} email
+ * @param {Function} [onProgress]
+ * @param {number} [epoch] - this sync's id; writes are skipped once a newer
+ *   sync has been launched (see `syncEpoch`) so a stale fetch can't clobber it.
  */
-async function _doSync(email, onProgress) {
+async function _doSync(email, onProgress, epoch = syncEpoch) {
+  // True once a newer sync has been launched — this one is stale and must stop
+  // writing to IndexedDB so it can't overwrite fresher data.
+  const isStale = () => epoch !== syncEpoch;
+
   const summary = {
     success: true,
     synced: [],
@@ -238,6 +271,21 @@ async function _doSync(email, onProgress) {
       'activity=' + activityResult.status,
     ].join(', ')
   );
+
+  // Staleness guard: if a newer sync was requested while these fetches were in
+  // flight, this response is already out of date — abandon it BEFORE writing so
+  // we never clobber fresher data. Under the await-then-relaunch serialization a
+  // newer epoch can't normally start mid-run, but this makes the invariant
+  // explicit and protects the actual "slower fetch finishes last" ordering bug.
+  if (isStale()) {
+    console.log('[syncService] Sync superseded by a newer one — abandoning stale fetch', {
+      epoch,
+      latest: syncEpoch,
+    });
+    summary.aborted = true;
+    summary.success = false;
+    return summary;
+  }
 
   // ── Process results ──────────────────────────────────────────
 

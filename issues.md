@@ -308,6 +308,43 @@ const dbPriority = toFriendlyPriority(mappedPatch.priority ?? row.priority);
 
 ---
 
+## 9. Dashboard Entries Disappear Until Refresh (SSE Fan-Out + IndexedDB Race)
+
+### Problem
+
+When an entry finished parsing on the server, the Dashboard's entry feed would briefly go empty (or an entire project's entries would vanish) until a manual refresh. Voice-saved entries in particular showed "Entry saved. Waiting for AI to finish processing…" forever.
+
+### Root Cause
+
+Two independent races, both triggered by the single `entry_parsed` SSE listener registered in `useSSEEntries.ts`:
+
+1. **Event fan-out → concurrent `loadData()`.** The listener did three separate `cacheDelete` calls (`all-entries`, the `search` key, and every `by-project` key). Because `cacheDelete` synchronously emits a change event per call, each page's `entries:all-entries` subscriber fired up to **three times**, and `ProjectDetailPage`'s per-project subscribers fired once per key. Every one of those events called `loadData()` with no `await`, so on the Dashboard alone 3 concurrent fetches launched (plus any per-project reloads).
+2. **Un-ordered read-modify-write on IndexedDB.** Each concurrent `loadData()` does `fetchFromApi` → `cacheSet` → read-back. Interleaved, a slower-but-stale response (e.g. the search-triggered reload, whose server-side `entry_parsed` hook hadn't yet committed the new row) could `cacheSet` an empty result *over* the fresher data a sibling call had just written — so the UI rendered nothing until the next natural reload.
+3. **`syncAllData` clobbering mid-cycle.** The SSE handler also fired a fire-and-forget `syncAllData({ force: true })`, which `deleteFromDb`'d every local `pending-*` row and then wrote all stores to IndexedDB *before* any page had done its seq check — the by-project store could be overwritten by an older server response while pages were reloading around it.
+
+### Fix
+
+1. **Coalesced notification** — added `cacheDeleteMany(pairs)` to the cache layer: it deletes all rows, persists to IndexedDB once, and notifies each *unique subscriber callback* exactly once (deduped by callback identity, not per-store — a single-page subscriber on both `all-entries` and `search` must fire once, not twice). `useSSEEntries.ts` now invalidates all keys through one batched call.
+2. **Empty-over-non-empty guards** — every page's cache-apply path (`applyRows` / `applyCacheRows` / Dashboard & ProjectDetailPage inline) now ignores a reload that would wipe already-displayed non-empty data, logging a warn. This is safe because no legitimate server response for these keys is ever empty.
+3. **Sync staleness token + serialization** — `syncAllData` now tracks a module-level epoch: a forced sync never races an in-flight one (it waits then relaunches with current data), and a sync writes nothing / notifies nothing if a newer sync was requested while it was running.
+
+### Files Modified
+
+- `frontend/src/lib/cache.js`
+- `frontend/src/hooks/useSSEEntries.ts`
+- `frontend/src/CacheFunctions/syncService.js`
+- `frontend/src/pages/Dashboard.tsx`
+- `frontend/src/pages/AllEntries.tsx`
+- `frontend/src/pages/StatsView.tsx`
+- `frontend/src/pages/Calendar.tsx`
+- `frontend/src/pages/StreakView.tsx`
+- `frontend/src/pages/DataDisclaimer2.tsx`
+- `frontend/src/pages/Kanban.tsx`
+- `frontend/src/pages/Timeline.tsx`
+- `frontend/src/pages/ProjectDetailPage.tsx`
+
+---
+
 ## Summary
 
 All issues have been fixed and pushed to the `hlulani` branch. The key fixes were:

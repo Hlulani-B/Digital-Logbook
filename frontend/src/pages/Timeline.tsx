@@ -152,15 +152,19 @@ export function TimelinePage() {
     loadData();
   }, [loadData]);
 
-  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows.
+  // Shared callback so a batched invalidation reloads exactly once, not per store.
+  const reload = useCallback(() => {
+    void loadData();
+  }, [loadData]);
   useEffect(() => {
     if (!email) return;
     const unsubs = [
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
     ];
     return () => unsubs.forEach((u) => u());
-  }, [email, loadData]);
+  }, [email, reload]);
 
   const dayWidth = ZOOM_LEVELS[zoomIndex] * 80;
 

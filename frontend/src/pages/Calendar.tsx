@@ -312,7 +312,8 @@ export function CalendarPage() {
         const projs = (Array.isArray(cachedProjects.data) ? cachedProjects.data : []).filter(
           (p: Record<string, unknown>) => !p.archived
         );
-        setProjects(projs);
+        // Don't blank a populated dropdown with an empty mid-invalidation read.
+        setProjects((prev) => (projs.length === 0 && prev.length > 0 ? prev : projs));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load entries');
@@ -326,14 +327,18 @@ export function CalendarPage() {
   }, [loadEntries]);
 
   // Subscribe to cache changes
+  // Shared callback so a batched invalidation reloads exactly once, not per store.
+  const reload = useCallback(() => {
+    void loadEntries();
+  }, [loadEntries]);
   useEffect(() => {
     if (!email) return;
     const unsubs = [
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadEntries()),
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadEntries()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
     ];
     return () => unsubs.forEach((u) => u());
-  }, [email, loadEntries]);
+  }, [email, reload]);
 
   const gridDays = useMemo(() => {
     return effectiveView === 'month'

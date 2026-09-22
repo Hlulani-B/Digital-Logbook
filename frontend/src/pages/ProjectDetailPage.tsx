@@ -154,12 +154,24 @@ export function ProjectDetailPage() {
     })();
 
     // 2. Subscribe to cache changes
-    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[]) => {
-      if (!cancelled) {
-        setEntries(newData || []);
-        setLoading(false); // Data arrived, stop loading
-      }
-    }) as (data: any) => void);
+    const unsubscribe = cacheSubscribe(
+      cacheStore,
+      cacheKey,
+      ((newData: Entry[] | null) => {
+        if (cancelled) return;
+        if (Array.isArray(newData)) {
+          setEntries(newData);
+          setLoading(false); // Real data arrived — stop the spinner.
+        } else {
+          // A null payload means the row was DELETED (cacheDelete emits null on
+          // invalidation — e.g. SSE after a quick-add, or a project rename). The
+          // old code did setEntries(newData || []) here, blanking the list with
+          // nothing to refill it, so the project looked empty until a refresh.
+          // Pull fresh data instead; the write re-emits with a real array.
+          sortUnarchivedEntries(email, projectName, sortType);
+        }
+      }) as (data: unknown) => void
+    );
 
     return () => {
       cancelled = true;

@@ -373,6 +373,54 @@ export async function cacheDelete(store, key) {
 }
 
 /**
+ * Delete several cached entries in one batch and notify each affected
+ * subscriber EXACTLY ONCE, no matter how many of the deleted keys it watches.
+ *
+ * Why this exists: `cacheDelete` emits synchronously on every call, so a single
+ * SSE `entry_parsed` event that invalidates ENTRIES + ALL_ENTRIES + PROJECTS
+ * fans out into 2-4 independent `loadData()` runs in any page subscribed to
+ * more than one of those stores. Those overlapping reloads each bump their own
+ * sequence and each fire a force-sync, and it is precisely that concurrency that
+ * lets a slower, earlier fetch land in IndexedDB after a newer one and clobber
+ * fresh data with a stale snapshot (the "data disappears randomly" symptom).
+ *
+ * Here every row is deleted first and the DB persisted once, THEN we resolve the
+ * UNIQUE set of subscriber callbacks across all keys and invoke each a single
+ * time. The dedup key is the callback identity, not the store — so a page that
+ * registers the SAME reload function on several stores is reloaded once per
+ * batch, which is what collapses the fan-out.
+ *
+ * @param {Array<{store: string, key: string}>} pairs - store/key rows to delete
+ * @returns {Promise<void>}
+ */
+export async function cacheDeleteMany(pairs) {
+  if (!Array.isArray(pairs) || pairs.length === 0) return;
+  const notify = new Set(); // unique subscriber callbacks across every key
+  try {
+    const db = await getDB();
+    for (const { store, key } of pairs) {
+      if (!store || !key) continue;
+      db.run(`DELETE FROM ${store} WHERE key = ?`, [key]);
+      db.run(`DELETE FROM cache_meta WHERE key = ?`, [key]);
+      const subs = listeners.get(`${store}:${key}`);
+      if (subs) subs.forEach((cb) => notify.add(cb));
+    }
+    persistDB(db);
+  } catch (err) {
+    console.warn('[Cache] Failed to batch-delete:', err);
+    return;
+  }
+  // One notification per unique subscriber, mirroring cacheDelete's null payload.
+  notify.forEach((cb) => {
+    try {
+      cb(null);
+    } catch (e) {
+      console.warn('[Cache] Subscriber error:', e);
+    }
+  });
+}
+
+/**
  * Clear all cached data for a specific user.
  * Useful for logout or data refresh.
  * @param {string} email - User's email
