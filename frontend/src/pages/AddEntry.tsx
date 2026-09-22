@@ -134,7 +134,7 @@ export function AddEntry({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user_email || !project_name || saving) return;
+    if (!user_email || !project_name || saving || loadingFields) return;
 
     // Validate required fields (skip hidden fields)
     for (const f of fields) {
@@ -220,224 +220,226 @@ export function AddEntry({
     }
   };
 
-  if (loadingFields) {
-    return (
-      <div className="add-entry">
+  return (
+    <form className="add-entry entry-form" onSubmit={handleSubmit} aria-label="New Item">
+      <div className="entry-form__body">
         <div className="add-entry__header">
           <h2 className="add-entry__title">New Item</h2>
           <span className="add-entry__project">{project_name}</span>
         </div>
-        <div className="add-entry__loading">Loading columns...</div>
-      </div>
-    );
-  }
 
-  return (
-    <form className="add-entry" onSubmit={handleSubmit}>
-      <div className="add-entry__header">
-        <h2 className="add-entry__title">New Item</h2>
-        <span className="add-entry__project">{project_name}</span>
-      </div>
+        {loadingFields ? (
+          <div className="add-entry__loading">Loading columns...</div>
+        ) : (
+          <>
+            {error && <div className="add-entry__error">{error}</div>}
 
-      {error && <div className="add-entry__error">{error}</div>}
+            {fields.length > 0 && (
+              <div className="add-entry__fields">
+                <span className="add-entry__section-label">Columns</span>
+                {fields
+                  .filter((field) => {
+                    if (field.visibility) {
+                      return evaluateVisibility(field, fieldValues);
+                    }
+                    const userRole = 'owner'; // TODO: Fetch actual user role
+                    const permission = resolveFieldPermission(field, userRole);
+                    return permission !== 'hidden';
+                  })
+                  .map((field) => {
+                    const userRole = 'owner'; // TODO: Fetch actual user role
+                    const permission = resolveFieldPermission(field, userRole);
+                    const isReadOnly = permission === 'view';
 
-      {fields.length > 0 && (
-        <div className="add-entry__fields">
-          <span className="add-entry__section-label">Columns</span>
-          {fields
-            .filter((field) => {
-              if (field.visibility) {
-                return evaluateVisibility(field, fieldValues);
-              }
-              const userRole = 'owner'; // TODO: Fetch actual user role
-              const permission = resolveFieldPermission(field, userRole);
-              return permission !== 'hidden';
-            })
-            .map((field) => {
-              const userRole = 'owner'; // TODO: Fetch actual user role
-              const permission = resolveFieldPermission(field, userRole);
-              const isReadOnly = permission === 'view';
+                    return (
+                      <div className="add-entry__field-row" key={field.field_name}>
+                        <FieldEditor
+                          field={field}
+                          value={fieldValues[field.field_name]}
+                          onChange={(newValue) => handleValueChange(field.field_name, newValue)}
+                          disabled={saving || isReadOnly}
+                          projectId={projectId}
+                          entryId={undefined}
+                        />
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
 
-              return (
-                <div className="add-entry__field-row" key={field.field_name}>
-                  <FieldEditor
-                    field={field}
-                    value={fieldValues[field.field_name]}
-                    onChange={(newValue) => handleValueChange(field.field_name, newValue)}
-                    disabled={saving || isReadOnly}
-                    projectId={projectId}
-                    entryId={undefined}
-                  />
-                </div>
-              );
-            })}
-        </div>
-      )}
+            {fields.length === 0 && (
+              <p className="add-entry__no-fields">No columns defined for this project yet.</p>
+            )}
 
-      {fields.length === 0 && (
-        <p className="add-entry__no-fields">No columns defined for this project yet.</p>
-      )}
+            <div className="add-entry__row">
+              <div className="add-entry__group">
+                <label className="add-entry__label" htmlFor="due-date">
+                  Due Date
+                </label>
+                <input
+                  id="due-date"
+                  type="datetime-local"
+                  className="add-entry__input"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+            </div>
 
-      <div className="add-entry__row">
-        <div className="add-entry__group">
-          <label className="add-entry__label" htmlFor="due-date">
-            Due Date
-          </label>
-          <input
-            id="due-date"
-            type="datetime-local"
-            className="add-entry__input"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-      </div>
-
-      <div className="add-entry__row">
-        <div className="add-entry__group">
-          <label className="add-entry__label" htmlFor="priority">
-            Priority
-          </label>
-          <select
-            id="priority"
-            className="add-entry__input"
-            value={priorityValue}
-            onChange={(e) => setPriorityValue(e.target.value)}
-            disabled={saving}
-          >
-            {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="add-entry__group">
-          <label className="add-entry__label" htmlFor="status">
-            Status
-          </label>
-          <select
-            id="status"
-            className="add-entry__input"
-            value={statusValue}
-            onChange={(e) => setStatusValue(e.target.value)}
-            disabled={saving}
-          >
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Notes Section */}
-      <div className="add-entry__notes-section">
-        <button
-          type="button"
-          className="add-entry__notes-toggle"
-          onClick={() => setNotesOpen((v) => !v)}
-          disabled={saving}
-        >
-          <span>Notes</span>
-          <span className="add-entry__notes-count">
-            {notes.length > 0 ? `(${notes.length})` : ''}
-          </span>
-          <span
-            className={`add-entry__notes-arrow ${notesOpen ? 'add-entry__notes-arrow--open' : ''}`}
-          >
-            &#9662;
-          </span>
-        </button>
-
-        {notesOpen && (
-          <div className="add-entry__notes-body">
-            {notes.map((note, idx) => (
-              <div className="add-entry__note-row" key={idx}>
+            <div className="add-entry__row">
+              <div className="add-entry__group">
+                <label className="add-entry__label" htmlFor="priority">
+                  Priority
+                </label>
                 <select
-                  className="add-entry__note-type"
-                  value={note.entry_type}
-                  onChange={(e) => {
-                    const updated = [...notes];
-                    updated[idx] = { ...note, entry_type: e.target.value as NoteType, value: '' };
-                    setNotes(updated);
-                  }}
+                  id="priority"
+                  className="add-entry__input"
+                  value={priorityValue}
+                  onChange={(e) => setPriorityValue(e.target.value)}
                   disabled={saving}
                 >
-                  <option value="text">Text</option>
-                  <option value="link">Link</option>
-                  <option value="image">Image</option>
+                  {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
+              </div>
 
-                {note.entry_type === 'text' || note.entry_type === 'link' ? (
-                  <input
-                    type={note.entry_type === 'link' ? 'url' : 'text'}
-                    className="add-entry__note-input"
-                    placeholder={note.entry_type === 'link' ? 'https://...' : 'Type a note...'}
-                    value={typeof note.value === 'string' ? note.value : ''}
-                    onChange={(e) => {
-                      const updated = [...notes];
-                      updated[idx] = { ...note, value: e.target.value };
-                      setNotes(updated);
+              <div className="add-entry__group">
+                <label className="add-entry__label" htmlFor="status">
+                  Status
+                </label>
+                <select
+                  id="status"
+                  className="add-entry__input"
+                  value={statusValue}
+                  onChange={(e) => setStatusValue(e.target.value)}
+                  disabled={saving}
+                >
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="add-entry__notes-section">
+              <button
+                type="button"
+                className="add-entry__notes-toggle"
+                onClick={() => setNotesOpen((v) => !v)}
+                disabled={saving}
+              >
+                <span>Notes</span>
+                <span className="add-entry__notes-count">
+                  {notes.length > 0 ? `(${notes.length})` : ''}
+                </span>
+                <span
+                  className={`add-entry__notes-arrow ${notesOpen ? 'add-entry__notes-arrow--open' : ''}`}
+                >
+                  &#9662;
+                </span>
+              </button>
+
+              {notesOpen && (
+                <div className="add-entry__notes-body">
+                  {notes.map((note, idx) => (
+                    <div className="add-entry__note-row" key={idx}>
+                      <select
+                        className="add-entry__note-type"
+                        value={note.entry_type}
+                        onChange={(e) => {
+                          const updated = [...notes];
+                          updated[idx] = {
+                            ...note,
+                            entry_type: e.target.value as NoteType,
+                            value: '',
+                          };
+                          setNotes(updated);
+                        }}
+                        disabled={saving}
+                      >
+                        <option value="text">Text</option>
+                        <option value="link">Link</option>
+                        <option value="image">Image</option>
+                      </select>
+
+                      {note.entry_type === 'text' || note.entry_type === 'link' ? (
+                        <input
+                          type={note.entry_type === 'link' ? 'url' : 'text'}
+                          className="add-entry__note-input"
+                          placeholder={
+                            note.entry_type === 'link' ? 'https://...' : 'Type a note...'
+                          }
+                          value={typeof note.value === 'string' ? note.value : ''}
+                          onChange={(e) => {
+                            const updated = [...notes];
+                            updated[idx] = { ...note, value: e.target.value };
+                            setNotes(updated);
+                          }}
+                          disabled={saving}
+                        />
+                      ) : (
+                        <>
+                          <input
+                            ref={(el) => {
+                              fileInputRefs.current[idx] = el;
+                            }}
+                            type="file"
+                            className="add-entry__note-file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const updated = [...notes];
+                                updated[idx] = { ...note, value: file };
+                                setNotes(updated);
+                              }
+                            }}
+                            disabled={saving}
+                          />
+                          {note.value instanceof File && (
+                            <span className="add-entry__note-filename">{note.value.name}</span>
+                          )}
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        className="add-entry__note-remove"
+                        onClick={() => setNotes(notes.filter((_, i) => i !== idx))}
+                        disabled={saving}
+                        title="Remove note"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    className="add-entry__note-add"
+                    onClick={() => {
+                      setNotes([...notes, { entry_type: 'text', value: '' }]);
+                      if (!notesOpen) setNotesOpen(true);
                     }}
                     disabled={saving}
-                  />
-                ) : (
-                  <>
-                    <input
-                      ref={(el) => {
-                        fileInputRefs.current[idx] = el;
-                      }}
-                      type="file"
-                      className="add-entry__note-file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const updated = [...notes];
-                          updated[idx] = { ...note, value: file };
-                          setNotes(updated);
-                        }
-                      }}
-                      disabled={saving}
-                    />
-                    {note.value instanceof File && (
-                      <span className="add-entry__note-filename">{note.value.name}</span>
-                    )}
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  className="add-entry__note-remove"
-                  onClick={() => setNotes(notes.filter((_, i) => i !== idx))}
-                  disabled={saving}
-                  title="Remove note"
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-
-            <button
-              type="button"
-              className="add-entry__note-add"
-              onClick={() => {
-                setNotes([...notes, { entry_type: 'text', value: '' }]);
-                if (!notesOpen) setNotesOpen(true);
-              }}
-              disabled={saving}
-            >
-              + Add Note
-            </button>
-          </div>
+                  >
+                    + Add Note
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
-      <div className="add-entry__actions">
+      <div className="add-entry__actions entry-form__footer">
         {onCancel && (
           <button
             type="button"

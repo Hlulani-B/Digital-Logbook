@@ -652,108 +652,110 @@ export function EntryBox({
 
   if (isEditing) {
     return (
-      <div className="entry-box entry-box--editing">
-        <div className="entry-box__header">
-          <div className="entry-box__tags">
-            <select
-              className="entry-box__priority-select"
-              value={draftPriorityValue}
-              onChange={(e) => setDraftPriorityValue(e.target.value)}
-              disabled={saving}
-            >
-              {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="entry-box__status-select"
-              value={draftStatus}
-              onChange={(e) => setDraftStatus(e.target.value as EntryStatus)}
-              disabled={saving}
-            >
-              {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            className="entry-box__project entry-box__project--link"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/project/${encodeURIComponent(project_name)}`);
-            }}
-            title={`Go to ${project_name} page`}
-          >
-            {project_name}
-          </button>
-        </div>
-
-        {error && <div className="entry-box__error">{error}</div>}
-
-        <div className="entry-box__fields--editing">
-          {payloadState.kind !== 'object' ? (
-            <div className="entry-box__field--editing">
-              <label className="entry-box__field-key">Item content</label>
-              <span>{formatEntryValue(payloadState.value)}</span>
+      <div className="entry-box entry-box--editing entry-form">
+        <div className="entry-form__body">
+          <div className="entry-box__header">
+            <div className="entry-box__tags">
+              <select
+                className="entry-box__priority-select"
+                value={draftPriorityValue}
+                onChange={(e) => setDraftPriorityValue(e.target.value)}
+                disabled={saving}
+              >
+                {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="entry-box__status-select"
+                value={draftStatus}
+                onChange={(e) => setDraftStatus(e.target.value as EntryStatus)}
+                disabled={saving}
+              >
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
-          ) : (
-            Object.entries(fieldDefs).map(([key, fieldDef]) => {
-              const value = draftFields[key] ?? null;
-              // Visibility: skip fields that are hidden by visibility rules
-              if (!evaluateVisibility(fieldDef, draftFields)) {
-                return null;
-              }
-              // Field-Level Permissions: skip hidden fields
-              // Note: userRole should be fetched from backend; defaulting to 'owner' for now
-              const userRole = 'owner'; // TODO: Fetch actual user role
-              const permission = resolveFieldPermission(fieldDef, userRole);
-              if (permission === 'hidden') {
-                return null;
-              }
-              return (
-                <div className="entry-box__field--editing" key={key}>
-                  <FieldEditor
-                    field={fieldDef}
-                    value={value}
-                    onChange={(newValue) => handleFieldChange(key, newValue)}
-                    disabled={saving || permission === 'view'}
-                    projectId={project_id}
-                    entryId={id}
-                  />
-                </div>
-              );
-            })
-          )}
+            <button
+              type="button"
+              className="entry-box__project entry-box__project--link"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/project/${encodeURIComponent(project_name)}`);
+              }}
+              title={`Go to ${project_name} page`}
+            >
+              {project_name}
+            </button>
+          </div>
+
+          {error && <div className="entry-box__error">{error}</div>}
+
+          <div className="entry-box__fields--editing">
+            {payloadState.kind !== 'object' ? (
+              <div className="entry-box__field--editing">
+                <label className="entry-box__field-key">Item content</label>
+                <span>{formatEntryValue(payloadState.value)}</span>
+              </div>
+            ) : (
+              Object.entries(fieldDefs).map(([key, fieldDef]) => {
+                const value = draftFields[key] ?? null;
+                // Visibility: skip fields that are hidden by visibility rules
+                if (!evaluateVisibility(fieldDef, draftFields)) {
+                  return null;
+                }
+                // Field-Level Permissions: skip hidden fields
+                // Note: userRole should be fetched from backend; defaulting to 'owner' for now
+                const userRole = 'owner'; // TODO: Fetch actual user role
+                const permission = resolveFieldPermission(fieldDef, userRole);
+                if (permission === 'hidden') {
+                  return null;
+                }
+                return (
+                  <div className="entry-box__field--editing" key={key}>
+                    <FieldEditor
+                      field={fieldDef}
+                      value={value}
+                      onChange={(newValue) => handleFieldChange(key, newValue)}
+                      disabled={saving || permission === 'view'}
+                      projectId={project_id}
+                      entryId={id}
+                    />
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="entry-box__field--editing">
+            <label className="entry-box__field-key">Due Date</label>
+            <input
+              className="entry-box__field-input"
+              type="datetime-local"
+              value={draftDueDate}
+              onChange={(e) => setDraftDueDate(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+
+          <div className="entry-box__field--editing">
+            <label className="entry-box__field-key">Started At</label>
+            <input
+              className="entry-box__field-input"
+              type="datetime-local"
+              value={draftStartedAt}
+              onChange={(e) => setDraftStartedAt(e.target.value)}
+              disabled={saving}
+            />
+          </div>
         </div>
 
-        <div className="entry-box__field--editing">
-          <label className="entry-box__field-key">Due Date</label>
-          <input
-            className="entry-box__field-input"
-            type="datetime-local"
-            value={draftDueDate}
-            onChange={(e) => setDraftDueDate(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
-        <div className="entry-box__field--editing">
-          <label className="entry-box__field-key">Started At</label>
-          <input
-            className="entry-box__field-input"
-            type="datetime-local"
-            value={draftStartedAt}
-            onChange={(e) => setDraftStartedAt(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-
-        <div className="entry-box__edit-actions">
+        <div className="entry-box__edit-actions entry-form__footer">
           <button
             type="button"
             className="entry-box__btn entry-box__btn--cancel"
@@ -994,7 +996,8 @@ export function EntryBox({
                 const fieldDef = fieldDefs[key];
                 const calcKey = `_calc_${key}`;
                 const calcResult = parsedEntries[calcKey] as
-                  { type: string; value: number } | undefined;
+                  | { type: string; value: number }
+                  | undefined;
                 return (
                   <React.Fragment key={key}>
                     <tr className="entry-box__row">
