@@ -12,6 +12,7 @@ import {
   addEmail,
   setEmailNotifications,
   setNotificationLeadTime,
+  setTimerAbandonmentNotifications,
 } from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
@@ -36,6 +37,7 @@ interface Preferences {
   notifications: boolean;
   notificationLeadTime: string;
   weeklyReminder: boolean;
+  timerAbandonmentNotifications: boolean;
   nudgeFrequency: string;
 }
 
@@ -203,6 +205,7 @@ export function SettingsPanel({
     notifications: true,
     notificationLeadTime: '24 hours',
     weeklyReminder: false,
+    timerAbandonmentNotifications: true,
     nudgeFrequency: getNudgeFrequency(),
   };
 
@@ -857,6 +860,31 @@ export function SettingsPanel({
                           weeklyReminder: e.target.checked,
                         }))
                       }
+                    />
+                    <span className="toggle-track" />
+                  </label>
+                </div>
+
+                <div className="toggle-row">
+                  <div className="toggle-info">
+                    <p className="toggle-label">Timer abandonment alerts</p>
+                    <p className="toggle-desc">
+                      Get notified when a timer runs for over 2 hours or is paused for over 30
+                      minutes.
+                    </p>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={prefs.timerAbandonmentNotifications ?? true}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setPrefs((p) => ({
+                          ...p,
+                          timerAbandonmentNotifications: enabled,
+                        }));
+                        setTimerAbandonmentNotifications(email, enabled);
+                      }}
                     />
                     <span className="toggle-track" />
                   </label>

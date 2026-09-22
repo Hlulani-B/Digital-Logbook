@@ -290,6 +290,31 @@ export async function getNotificationLeadTime(email) {
 }
 
 /**
+ * Persist the "Timer abandonment notifications" preference server-side.
+ * Controls whether email notifications are sent when a timer is left
+ * running for >2 hours or paused for >30 minutes.
+ */
+export async function setTimerAbandonmentNotifications(email, enabled) {
+  if (!navigator.onLine) {
+    console.log('[setTimerAbandonmentNotifications] Offline, skipping server sync');
+    return { success: true, skipped: true };
+  }
+
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'timerAbandonmentNotifications',
+        values: { email, enabled: Boolean(enabled) },
+      }),
+    });
+  } catch (err) {
+    console.error('[setTimerAbandonmentNotifications] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
  * Delete profile.
  * Clears all caches, then syncs to server.
  */

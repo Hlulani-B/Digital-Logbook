@@ -7,12 +7,20 @@ import {
   Profile,
   EmailNotifications,
   NotificationLeadTime,
+  TimerAbandonmentNotifications,
 } from '../functions/profile.js';
 
 const router = express.Router();
 
 // Instantiate classes safely
-let username, email, name, avatar, profile, emailNotifications, notificationLeadTime;
+let username,
+  email,
+  name,
+  avatar,
+  profile,
+  emailNotifications,
+  notificationLeadTime,
+  timerAbandonmentNotifications;
 try {
   username = new Username();
   email = new Email();
@@ -21,6 +29,7 @@ try {
   profile = new Profile();
   emailNotifications = new EmailNotifications();
   notificationLeadTime = new NotificationLeadTime();
+  timerAbandonmentNotifications = new TimerAbandonmentNotifications();
 } catch (err) {
   console.error('Failed to instantiate profile handlers:', err);
 }
@@ -98,6 +107,14 @@ router.post('/profile', async (req, res) => {
         const { email: userEmail } = values;
         if (!userEmail) return res.status(400).json({ error: 'Missing email parameter' });
         const result = await notificationLeadTime.get(userEmail);
+        return res.json(result);
+      }
+      case 'timerAbandonmentNotifications': {
+        const { email: userEmail, enabled } = values;
+        if (!userEmail || typeof enabled !== 'boolean') {
+          return res.status(400).json({ error: 'Missing email parameter or enabled flag' });
+        }
+        const result = await timerAbandonmentNotifications.set(userEmail, enabled);
         return res.json(result);
       }
       case 'deleteProfile': {

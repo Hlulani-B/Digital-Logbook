@@ -4,7 +4,10 @@ import { useAuth } from '@/context/AuthContext';
 import {
   calculateTotalTimeTracked,
   calculateProjectStats,
-  computeFieldStats,
+  analysisFieldDefs,
+  computeFieldAnalysis,
+  fieldAnalysisPolicy,
+  dailyWindow,
   entryDurationMs,
   dayBucket,
   formatDuration,
@@ -19,7 +22,14 @@ import { syncAllData, computeDueSoon } from '@/CacheFunctions';
 
 type Entry = Record<string, unknown>;
 type Project = Record<string, unknown>;
-type FieldDef = { field_name: string; data_type: string };
+type FieldDef = { field_name: string; data_type: string; [key: string]: unknown };
+type FieldAnalysis = ReturnType<typeof computeFieldAnalysis>;
+type DailyPoint = { bucket: string; value: number | null };
+type Matrix = {
+  rows: { key: string; label: string }[];
+  columns: { key: string; label: string }[];
+  values: (number | null)[][];
+};
 
 /* Opacity levels for monochrome chart segments — uses var(--text) so it adapts to theme */
 const CHART_OPACITIES = [1, 0.7, 0.5, 0.35, 0.85, 0.6, 0.4, 0.25, 0.75, 0.55, 0.45, 0.3];
@@ -39,9 +49,11 @@ interface DonutSegment {
 function DonutChart({
   segments,
   totalDisplay,
+  label = 'Total Tracked',
 }: {
   segments: DonutSegment[];
   totalDisplay: string;
+  label?: string;
 }) {
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   const radius = 60;
@@ -50,7 +62,7 @@ function DonutChart({
 
   return (
     <div className="donut-wrapper">
-      <svg viewBox="0 0 160 160" className="donut-svg">
+      <svg viewBox="0 0 160 160" className="donut-svg" role="img" aria-label={label}>
         <circle cx="80" cy="80" r={radius} fill="none" stroke="var(--border)" strokeWidth="14" />
         {total > 0 &&
           segments.map((seg, i) => {
@@ -77,7 +89,7 @@ function DonutChart({
       </svg>
       <div className="donut-center">
         <span className="donut-center-value">{totalDisplay}</span>
-        <span className="donut-center-label">Total Tracked</span>
+        <span className="donut-center-label">{label}</span>
       </div>
     </div>
   );
@@ -93,7 +105,10 @@ interface BarDatum {
 }
 
 function BarChart({ data }: { data: BarDatum[] }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
+  const min = Math.min(0, ...data.map((d) => d.value));
+  const max = Math.max(0, ...data.map((d) => d.value));
+  const span = max - min || 1;
+  const zero = (-min / span) * 100;
 
   return (
     <div className="bar-chart">
@@ -105,10 +120,12 @@ function BarChart({ data }: { data: BarDatum[] }) {
             {d.extra && <span className="bar-chart-extra">{d.extra}</span>}
           </div>
           <div className="bar-chart-track">
+            <span className="bar-chart-zero" style={{ left: `${zero}%` }} />
             <div
               className="bar-chart-fill"
               style={{
-                width: `${Math.max((d.value / max) * 100, 3)}%`,
+                left: `${((Math.min(0, d.value) - min) / span) * 100}%`,
+                width: `${(Math.abs(d.value) / span) * 100}%`,
                 background: d.color,
                 opacity: 0.85,
               }}
@@ -145,27 +162,6 @@ function StatCard({
   );
 }
 
-/* ---------- Sparkline (daily series) ---------- */
-function Sparkline({ series }: { series: { bucket: string; value: number }[] }) {
-  if (series.length === 0) return null;
-  const max = Math.max(...series.map((s) => s.value), 1);
-  const shown = series.slice(-30);
-  return (
-    <div
-      className="field-sparkline"
-      title={`${shown[0].bucket} → ${shown[shown.length - 1].bucket}`}
-    >
-      {shown.map((s) => (
-        <span
-          key={s.bucket}
-          className="field-spark-bar"
-          style={{ height: `${Math.max((s.value / max) * 100, 8)}%` }}
-        />
-      ))}
-    </div>
-  );
-}
-
 /* ---------- Trend Chart (plot over time) ----------
  * Full daily-series chart with date and value axes — the visible
  * "plot over time" capability for any series the stats engine computes,
@@ -193,14 +189,18 @@ function formatTrendBucket(bucket: string) {
 function TrendChart({
   series,
   formatValue,
+  label = 'Daily activity trend',
 }: {
-  series: { bucket: string; value: number }[];
+  series: DailyPoint[];
   formatValue: (v: number) => string;
+  label?: string;
 }) {
-  if (series.length === 0) return null;
-  // Cap the window so long histories stay readable.
-  const shown = series.slice(-60);
-  const max = Math.max(...shown.map((s) => s.value), 1);
+  if (series.length === 0) return <p>No dated values to plot.</p>;
+  const shown = series;
+  const values = shown.flatMap((s) => (s.value === null ? [] : [s.value]));
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = max - min || 1;
   const W = 640;
   const H = 190;
   const padL = 64;
@@ -209,20 +209,24 @@ function TrendChart({
   const padB = 28;
   const iw = W - padL - padR;
   const ih = H - padT - padB;
-  const x = (i: number) => padL + (shown.length === 1 ? iw / 2 : (i / (shown.length - 1)) * iw);
-  const y = (v: number) => padT + ih - (v / max) * ih;
+  const start = Date.parse(shown[0].bucket);
+  const elapsed = Date.parse(shown[shown.length - 1].bucket) - start;
+  const x = (i: number) =>
+    padL + (elapsed ? ((Date.parse(shown[i].bucket) - start) / elapsed) * iw : iw / 2);
+  const y = (v: number) => padT + ih - ((v - min) / span) * ih;
 
-  const points = shown.map((s, i) => ({ ...s, cx: x(i), cy: y(s.value) }));
-  const baseline = padT + ih;
+  const points = shown.map((s, i) => ({
+    ...s,
+    cx: x(i),
+    cy: s.value === null ? null : y(s.value),
+  }));
   const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`)
+    .map((p, i) =>
+      p.cy === null
+        ? ''
+        : `${i === 0 || points[i - 1].cy === null ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`
+    )
     .join(' ');
-  const areaPath = [
-    linePath,
-    `L${points[points.length - 1].cx.toFixed(1)},${baseline}`,
-    `L${points[0].cx.toFixed(1)},${baseline}`,
-    'Z',
-  ].join(' ');
   const tickIdx = [
     0,
     Math.floor((shown.length - 1) / 3),
@@ -232,12 +236,23 @@ function TrendChart({
 
   return (
     <div className="trend-chart-wrapper">
-      <svg viewBox={`0 0 ${W} ${H}`} className="trend-chart-svg" role="img">
+      <svg viewBox={`0 0 ${W} ${H}`} className="trend-chart-svg" role="img" aria-label={label}>
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
-            <line x1={padL} x2={W - padR} y1={y(max * f)} y2={y(max * f)} className="trend-grid" />
-            <text x={padL - 8} y={y(max * f) + 4} textAnchor="end" className="trend-axis-text">
-              {formatValue(Math.round(max * f * 100) / 100)}
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={y(min + span * f)}
+              y2={y(min + span * f)}
+              className="trend-grid"
+            />
+            <text
+              x={padL - 8}
+              y={y(min + span * f) + 4}
+              textAnchor="end"
+              className="trend-axis-text"
+            >
+              {formatValue(min + span * f)}
             </text>
           </g>
         ))}
@@ -246,19 +261,21 @@ function TrendChart({
             {formatTrendBucket(shown[i].bucket)}
           </text>
         ))}
-        <path d={areaPath} className="trend-area" />
+        <line x1={padL} x2={W - padR} y1={y(0)} y2={y(0)} className="analysis-zero" />
         <path d={linePath} className="trend-line" />
-        {points.map((p) => (
-          <circle
-            key={p.bucket}
-            cx={p.cx}
-            cy={p.cy}
-            r={shown.length > 30 ? 2.5 : 3.5}
-            className="trend-dot"
-          >
-            <title>{`${p.bucket}: ${formatValue(p.value)}`}</title>
-          </circle>
-        ))}
+        {points.map((p) =>
+          p.cy === null || p.value === null ? null : (
+            <circle
+              key={p.bucket}
+              cx={p.cx}
+              cy={p.cy}
+              r={shown.length > 30 ? 2.5 : 3.5}
+              className="trend-dot"
+            >
+              <title>{`${p.bucket}: ${formatValue(p.value)}`}</title>
+            </circle>
+          )
+        )}
       </svg>
     </div>
   );
@@ -268,82 +285,516 @@ function TrendChart({
 interface PlotOption {
   key: string;
   label: string;
-  series: { bucket: string; value: number }[];
+  series: DailyPoint[];
   formatValue: (v: number) => string;
 }
 
-/* ---------- Field Stat Panel (generic) ----------
- * Renders the standard FieldStat format: headline totals, a group-by
- * breakdown, a per-project compare, and a daily sparkline. The panel
- * knows nothing about any specific field — it renders whatever the
- * engine computed from the owner's field definitions. */
-interface FieldStat {
-  field: string;
-  data_type: string;
-  capabilities: { total: boolean; group: boolean; compare: boolean; plot: boolean };
-  entryCount: number;
-  count: number;
-  displayTotal: string | null;
-  displayAvg: string | null;
-  groups: { value: string; count: number }[];
-  series: { bucket: string; value: number }[];
-  byProject: { key: string; count: number; total: number; display: string }[];
+/* ---------- Type-aware field analysis ---------- */
+function Coverage({ stat }: { stat: FieldAnalysis }) {
+  return (
+    <p className="analysis-note">
+      Full project: {stat.coverage.filled} filled of {stat.coverage.total} entries
+      {' · '}
+      {stat.coverage.missing} missing · {stat.coverage.invalid} invalid (excluded)
+    </p>
+  );
 }
 
-function FieldStatPanel({ stat, showCompare }: { stat: FieldStat; showCompare: boolean }) {
-  const groupData = stat.groups.slice(0, 6).map((g, i) => ({
-    label: g.value,
-    value: g.count,
-    display: String(g.count),
-    color: colorForIndex(i),
-  }));
-  const compareData = stat.byProject.map((p, i) => ({
-    label: p.key,
-    value: stat.capabilities.total ? p.total : p.count,
-    display: p.display,
-    color: colorForIndex(i),
-  }));
-
+function FieldStatPanel({ stat }: { stat: FieldAnalysis }) {
   return (
     <div className="stats-panel glass">
       <div className="field-stat-header">
         <h3 className="stats-panel-title">{stat.field}</h3>
         <span className="field-type-chip">{stat.data_type}</span>
       </div>
-      <div className="field-stat-headline">
-        {stat.capabilities.total && stat.displayTotal && (
-          <>
-            <div className="field-stat-main">
-              <span className="field-stat-value">{stat.displayTotal}</span>
-              <span className="field-stat-label">Total</span>
+      {stat.numeric && (
+        <div className="field-stat-headline">
+          {Object.entries(stat.numeric).map(([key, value]) => (
+            <div className="field-stat-main" key={key}>
+              <span className="field-stat-value">{formatStatValue(value, stat.data_type)}</span>
+              <span className="field-stat-label">{key}</span>
             </div>
-            {stat.displayAvg && (
-              <div className="field-stat-main">
-                <span className="field-stat-value">{stat.displayAvg}</span>
-                <span className="field-stat-label">Avg</span>
-              </div>
-            )}
-          </>
-        )}
-        <div className="field-stat-main">
-          <span className="field-stat-value">{stat.count}</span>
-          <span className="field-stat-label">Filled</span>
-        </div>
-      </div>
-      {stat.series.length > 1 && <Sparkline series={stat.series} />}
-      {groupData.length > 0 && (
-        <div className="field-stat-groups">
-          <span className="field-stat-subtitle">By value</span>
-          <BarChart data={groupData} />
+          ))}
         </div>
       )}
-      {showCompare && stat.byProject.length > 1 && compareData.length > 0 && (
-        <div className="field-stat-groups">
-          <span className="field-stat-subtitle">By project</span>
-          <BarChart data={compareData} />
-        </div>
+      <Coverage stat={stat} />
+    </div>
+  );
+}
+
+function DataTable({
+  matrix,
+  caption,
+  formatValue,
+  rowHeading = 'Value',
+}: {
+  matrix: Matrix;
+  caption: string;
+  formatValue: (value: number) => string;
+  rowHeading?: string;
+}) {
+  return (
+    <details className="analysis-data">
+      <summary>View complete data</summary>
+      <div className="analysis-scroll" role="region" aria-label={`${caption} data`} tabIndex={0}>
+        <table>
+          <caption>{caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{rowHeading}</th>
+              {matrix.columns.map((column) => (
+                <th scope="col" key={column.key}>
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.rows.map((row, i) => (
+              <tr key={row.key}>
+                <th scope="row">{row.label}</th>
+                {matrix.columns.map((column, j) => (
+                  <td key={column.key}>
+                    {matrix.values[i][j] === null
+                      ? 'No observations'
+                      : formatValue(matrix.values[i][j] as number)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
+
+function seriesMatrix(series: DailyPoint[], label: string): Matrix {
+  return {
+    rows: series.map(({ bucket }) => ({ key: bucket, label: bucket })),
+    columns: [{ key: 'value', label }],
+    values: series.map(({ value }) => [value]),
+  };
+}
+
+function MatrixChart({
+  matrix,
+  formatValue,
+  label,
+  daily = false,
+}: {
+  matrix: Matrix;
+  formatValue: (value: number) => string;
+  label: string;
+  daily?: boolean;
+}) {
+  if (!matrix.rows.length || !matrix.columns.length) return <p>No comparable values to plot.</p>;
+  const values = matrix.values.flat().filter((v): v is number => v !== null);
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = max - min || 1;
+  const width = Math.max(640, matrix.rows.length * (matrix.columns.length * 12 + 16));
+  const height = 240;
+  const left = 72;
+  const bottom = 195;
+  const y = (v: number) => bottom - ((v - min) / span) * 175;
+  const step = (width - left - 16) / matrix.rows.length;
+  const barWidth = (step * 0.8) / matrix.columns.length;
+  return (
+    <>
+      <div className="analysis-scroll" role="region" aria-label={`${label} chart`} tabIndex={0}>
+        <svg width={width} height={height} role="img" aria-label={label} className="analysis-bars">
+          {[0, 0.5, 1].map((f) => (
+            <g key={f}>
+              <line
+                x1={left}
+                x2={width - 16}
+                y1={y(min + span * f)}
+                y2={y(min + span * f)}
+                className="trend-grid"
+              />
+              <text
+                x={left - 8}
+                y={y(min + span * f) + 4}
+                textAnchor="end"
+                className="trend-axis-text"
+              >
+                {formatValue(min + span * f)}
+              </text>
+            </g>
+          ))}
+          <line x1={left} x2={width - 16} y1={y(0)} y2={y(0)} className="analysis-zero" />
+          {matrix.rows.map((row, i) => (
+            <g key={row.key}>
+              {matrix.columns.map((column, j) => {
+                const value = matrix.values[i][j];
+                if (value === null) return null;
+                return (
+                  <rect
+                    key={column.key}
+                    x={left + i * step + step * 0.1 + j * barWidth}
+                    y={Math.min(y(0), y(value))}
+                    width={Math.max(0, barWidth - 1)}
+                    height={Math.abs(y(value) - y(0))}
+                    fill={colorForIndex(j)}
+                  >
+                    <title>
+                      {row.label} · {column.label}: {formatValue(value)}
+                    </title>
+                  </rect>
+                );
+              })}
+              {(!daily ||
+                i % Math.ceil(matrix.rows.length / 8) === 0 ||
+                i === matrix.rows.length - 1) && (
+                <text
+                  x={left + (i + 0.5) * step}
+                  y={bottom + 22}
+                  textAnchor="middle"
+                  className="trend-axis-text"
+                >
+                  <title>{row.label}</title>
+                  {daily
+                    ? formatTrendBucket(row.label)
+                    : row.label.length > 14
+                      ? `${row.label.slice(0, 12)}…`
+                      : row.label}
+                </text>
+              )}
+            </g>
+          ))}
+        </svg>
+      </div>
+      <ul className="analysis-legend" aria-label="Chart legend">
+        {matrix.columns.map((column, j) => (
+          <li key={column.key}>
+            <span className="donut-legend-dot" style={{ background: colorForIndex(j) }} />
+            {column.label}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+const VIEW_LABELS: Record<string, string> = {
+  bars: 'Bar chart',
+  donut: 'Composition donut',
+  trend: 'Trend',
+  grouped: 'Grouped comparison',
+  search: 'Search values',
+  summary: 'Coverage summary',
+};
+
+function FieldAnalysisDetail({
+  entries,
+  defs,
+  def,
+  now,
+}: {
+  entries: Entry[];
+  defs: FieldDef[];
+  def: FieldDef;
+  now: number;
+}) {
+  const policy = fieldAnalysisPolicy(def.data_type);
+  const [chosenView, setView] = useState(policy.defaultView);
+  const [aggregation, setAggregation] = useState('sum');
+  const [compareKey, setCompareKey] = useState('');
+  const [search, setSearch] = useState('');
+  const partners = defs.filter(
+    (d) =>
+      d.field_name !== def.field_name &&
+      ['category', 'boolean'].includes(fieldAnalysisPolicy(d.data_type).kind)
+  );
+  const eligibleViews = policy.views.filter((v) => v !== 'grouped' || partners.length > 0);
+  const view = eligibleViews.includes(chosenView) ? chosenView : policy.defaultView;
+  const compareDef = partners.find((d) => d.field_name === compareKey);
+  useEffect(() => {
+    if (!compareDef) {
+      setCompareKey('');
+      if (chosenView === 'grouped') setView(policy.defaultView);
+    }
+  }, [compareDef, chosenView, policy.defaultView]);
+  const stat = useMemo(
+    () =>
+      computeFieldAnalysis(entries, def, {
+        now,
+        aggregation,
+        compareDef: view === 'grouped' ? compareDef : null,
+      }),
+    [entries, def, now, aggregation, view, compareDef]
+  );
+  const numeric = policy.kind === 'numeric';
+  const dated = numeric || policy.kind === 'date';
+  const formatValue = (value: number) => formatStatValue(value, numeric ? def.data_type : 'number');
+  const metricLabel = numeric
+    ? `${aggregation === 'sum' ? 'Total' : 'Average'} ${def.field_name}${def.data_type === 'duration' ? ' (duration)' : ''}`
+    : 'Entry count';
+  const dailyMatrix = seriesMatrix(stat.series, metricLabel);
+  const categoryMatrix: Matrix = {
+    rows: stat.frequencies.map((f) => ({ key: f.key, label: f.label })),
+    columns: [{ key: 'count', label: 'Entry count' }],
+    values: stat.frequencies.map((f) => [f.count]),
+  };
+  const validCount = stat.coverage.filled - stat.coverage.invalid;
+  const searchRows = stat.frequencies.filter((f) =>
+    f.label.toLocaleLowerCase('en-US').includes(search.toLocaleLowerCase('en-US'))
+  );
+  const chartLabel = `${def.field_name} — ${VIEW_LABELS[view]}`;
+
+  return (
+    <div className="analysis-detail">
+      <div className="analysis-controls">
+        <label>
+          View
+          <select
+            className="field-plot-select"
+            value={view}
+            onChange={(e) => {
+              setView(e.target.value);
+              if (e.target.value === 'grouped')
+                setCompareKey(compareDef?.field_name || partners[0].field_name);
+            }}
+          >
+            {eligibleViews.map((v) => (
+              <option value={v} key={v}>
+                {VIEW_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {numeric && (
+          <label>
+            Aggregation
+            <select
+              className="field-plot-select"
+              value={aggregation}
+              onChange={(e) => setAggregation(e.target.value)}
+            >
+              <option value="sum">Sum</option>
+              <option value="average">Average</option>
+            </select>
+          </label>
+        )}
+        {view === 'grouped' && (
+          <label>
+            Compare by
+            <select
+              className="field-plot-select"
+              value={compareKey}
+              onChange={(e) => setCompareKey(e.target.value)}
+            >
+              {partners.map((d) => (
+                <option key={d.field_name} value={d.field_name}>
+                  {d.field_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <Coverage stat={stat} />
+      <p className="analysis-note">
+        {numeric
+          ? `${metricLabel} by entry creation day (UTC).`
+          : policy.kind === 'date'
+            ? `Entry counts by ${def.field_name} value (UTC), not entry creation date.`
+            : policy.kind === 'multi'
+              ? 'Entries selecting each option; selections overlap, so counts are not composition percentages.'
+              : policy.kind === 'text'
+                ? 'Plain-text values across the full project. Search matches literal text.'
+                : policy.kind === 'summary'
+                  ? 'Coverage only: this field type does not have a meaningful numeric or category chart.'
+                  : `${validCount} valid entries across the full project; missing and invalid values are excluded from percentages.`}
+      </p>
+      {stat.range && (
+        <p className="analysis-note">
+          60-day window: {stat.range.start} – {stat.range.end} (UTC).
+          {aggregation === 'average' && numeric
+            ? ' Gaps mean no observations, not zero.'
+            : ' Days without observations are zero.'}
+        </p>
+      )}
+      {stat.undatedCount > 0 && (
+        <p className="analysis-note">
+          {stat.undatedCount} valid values excluded from daily charts: no valid entry creation date.
+        </p>
+      )}
+      {view === 'grouped' && stat.comparison ? (
+        <>
+          <p className="analysis-note">
+            {stat.comparison.excluded} entries excluded for missing or invalid comparison values or
+            dates. Each legend item is a {compareDef?.field_name} category.
+          </p>
+          <MatrixChart
+            matrix={stat.comparison.display}
+            formatValue={formatValue}
+            label={chartLabel}
+            daily={numeric}
+          />
+          <DataTable
+            matrix={stat.comparison.full}
+            caption={`${def.field_name} by ${compareDef?.field_name}`}
+            formatValue={formatValue}
+            rowHeading={numeric ? 'Creation day (UTC)' : def.field_name}
+          />
+        </>
+      ) : view === 'trend' ? (
+        <>
+          <TrendChart series={stat.series} formatValue={formatValue} label={chartLabel} />
+          <DataTable
+            matrix={dailyMatrix}
+            caption={`${def.field_name} daily values`}
+            formatValue={formatValue}
+            rowHeading={numeric ? 'Creation day (UTC)' : 'Field date (UTC)'}
+          />
+        </>
+      ) : view === 'bars' && dated ? (
+        <>
+          <MatrixChart matrix={dailyMatrix} formatValue={formatValue} label={chartLabel} daily />
+          <DataTable
+            matrix={dailyMatrix}
+            caption={`${def.field_name} daily values`}
+            formatValue={formatValue}
+            rowHeading="Creation day (UTC)"
+          />
+        </>
+      ) : view === 'bars' || view === 'donut' ? (
+        <>
+          {validCount === 0 ? (
+            <p>No valid values to plot.</p>
+          ) : view === 'donut' ? (
+            <>
+              <DonutChart
+                segments={stat.displayFrequencies.map((f, i) => ({
+                  label: f.label,
+                  value: f.count,
+                  color: colorForIndex(i),
+                }))}
+                totalDisplay={String(validCount)}
+                label={`${def.field_name} composition`}
+              />
+              <ul className="analysis-legend" aria-label="Chart legend">
+                {stat.displayFrequencies.map((f, i) => (
+                  <li key={f.key}>
+                    <span className="donut-legend-dot" style={{ background: colorForIndex(i) }} />
+                    {f.label}: {f.count} ({((f.count / validCount) * 100).toFixed(1)}%)
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div role="group" aria-label={chartLabel}>
+              <BarChart
+                data={stat.displayFrequencies.map((f, i) => ({
+                  label: f.label,
+                  value: f.count,
+                  display: String(f.count),
+                  color: colorForIndex(i),
+                }))}
+              />
+            </div>
+          )}
+          <DataTable
+            matrix={categoryMatrix}
+            caption={`${def.field_name} frequencies`}
+            formatValue={String}
+          />
+        </>
+      ) : view === 'search' ? (
+        <>
+          <label className="analysis-search">
+            Search values
+            <input
+              className="field-plot-select"
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <p className="analysis-note" role="status">
+            {searchRows.length} matching values
+          </p>
+          <div
+            className="analysis-scroll analysis-text-results"
+            tabIndex={0}
+            role="region"
+            aria-label={`${def.field_name} search results`}
+          >
+            <table>
+              <caption>{def.field_name} values</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Value</th>
+                  <th scope="col">Entries</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchRows.map((row) => (
+                  <tr key={row.key}>
+                    <th scope="row">{row.label}</th>
+                    <td>{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {searchRows.length === 0 && <p>No matching values.</p>}
+          </div>
+        </>
+      ) : null}
+      {stat.frequencies.length > 6 && view !== 'search' && (
+        <p className="analysis-note">
+          Category charts show the top five plus Other; the complete data table retains every
+          category.
+        </p>
       )}
     </div>
+  );
+}
+
+function FieldExplorer({
+  entries,
+  defs,
+  now,
+}: {
+  entries: Entry[];
+  defs: FieldDef[];
+  now: number;
+}) {
+  const [field, setField] = useState(defs[0]?.field_name || '');
+  const selected = defs.find((d) => d.field_name === field) || defs[0];
+  useEffect(() => {
+    if (selected && selected.field_name !== field) setField(selected.field_name);
+  }, [selected, field]);
+  if (!selected) return null;
+  return (
+    <section className="stats-panel glass" aria-labelledby="field-analysis-title">
+      <h3 className="stats-panel-title" id="field-analysis-title">
+        Field analysis
+      </h3>
+      <label className="analysis-field-label">
+        Field
+        <select
+          className="field-plot-select"
+          value={selected.field_name}
+          onChange={(e) => setField(e.target.value)}
+        >
+          {defs.map((d) => (
+            <option key={d.field_name} value={d.field_name}>
+              {d.field_name} ({d.data_type})
+            </option>
+          ))}
+        </select>
+      </label>
+      <FieldAnalysisDetail
+        key={`${selected.field_name}:${selected.data_type}`}
+        entries={entries}
+        defs={defs}
+        def={selected}
+        now={now}
+      />
+    </section>
   );
 }
 
@@ -360,7 +811,15 @@ export function StatsView() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [dueSoonCount, setDueSoonCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
+  const fieldsKey = `${email}:${scopeProject}`;
+  const [fieldState, setFieldState] = useState<{
+    key: string;
+    defs: FieldDef[];
+    ready: boolean;
+    error?: boolean;
+  }>({ key: '', defs: [], ready: false });
+  const fieldDefs = fieldState.key === fieldsKey ? fieldState.defs : [];
+  const fieldsReady = fieldState.key === fieldsKey && fieldState.ready;
   // Selected series in the "Plot over time" panel
   const [plotKey, setPlotKey] = useState('');
 
@@ -407,8 +866,14 @@ export function StatsView() {
   }, [email]);
 
   useEffect(() => {
+    setEntries([]);
+    setProjects([]);
+    setLoading(!!email);
     loadData();
-  }, [loadData]);
+    return () => {
+      loadSeq.current++;
+    };
+  }, [email, loadData]);
 
   // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
   useEffect(() => {
@@ -438,31 +903,35 @@ export function StatsView() {
   // are read from the cache; anything missing is fetched (which also warms
   // the cache).
   useEffect(() => {
+    setFieldState({ key: fieldsKey, defs: [], ready: false });
     if (!email || !scopeProject) return;
     let cancelled = false;
-
-    (async () => {
-      let result = await cacheGet(CACHE_STORES.FIELDS, `${email}:${scopeProject}`);
-      if (!result?.data) {
-        result = await getFields(email, scopeProject);
+    let sequence = 0;
+    const loadFields = async () => {
+      const seq = ++sequence;
+      try {
+        let result = await cacheGet(CACHE_STORES.FIELDS, fieldsKey);
+        if (!result?.data) result = await getFields(email, scopeProject);
+        if (cancelled || seq !== sequence) return;
+        const rows = Array.isArray(result?.data) ? result.data : [];
+        setFieldState({
+          key: fieldsKey,
+          ready: true,
+          defs: rows.filter((r: FieldDef) => r?.field_name),
+        });
+      } catch (err) {
+        if (cancelled || seq !== sequence) return;
+        console.error('[StatsView] Failed to load field definitions:', err);
+        setFieldState({ key: fieldsKey, defs: [], ready: true, error: true });
       }
-      const rows = (result?.data || []) as Array<Record<string, unknown>>;
-      if (!cancelled) {
-        setFieldDefs(
-          rows
-            .filter((r) => r?.field_name)
-            .map((r) => ({
-              field_name: String(r.field_name),
-              data_type: r.data_type ? String(r.data_type) : 'text',
-            }))
-        );
-      }
-    })();
-
+    };
+    const unsubscribe = cacheSubscribe(CACHE_STORES.FIELDS, fieldsKey, loadFields);
+    loadFields();
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [email, scopeProject]);
+  }, [email, scopeProject, fieldsKey]);
 
   // Generic field statistics — one standard format per field: total,
   // group-by, and a daily series. Shown only on the project stats
@@ -470,9 +939,13 @@ export function StatsView() {
   // field insights. Definitions the owner declared come from the fields
   // table; anything present in the data but never declared is derived, so
   // no field is missed.
-  const fieldStats = useMemo<FieldStat[]>(
-    () => (scopeProject ? computeFieldStats(scopedEntries, fieldDefs, { now, maxGroups: 6 }) : []),
-    [scopeProject, scopedEntries, fieldDefs, now]
+  const analysisDefs = useMemo(
+    () => (scopeProject && fieldsReady ? analysisFieldDefs(scopedEntries, fieldDefs) : []),
+    [scopeProject, fieldsReady, scopedEntries, fieldDefs]
+  );
+  const fieldStats = useMemo(
+    () => analysisDefs.map((def) => computeFieldAnalysis(scopedEntries, def, { now })),
+    [analysisDefs, scopedEntries, now]
   );
 
   // Daily activity series — entries logged per day and time tracked per
@@ -493,11 +966,10 @@ export function StatsView() {
       Array.from(map.entries())
         .map(([bucket, value]) => ({ bucket, value }))
         .sort((a, b) => (a.bucket < b.bucket ? -1 : 1));
-    return { entries: toSeries(counts), time: toSeries(ms) };
+    return { entries: dailyWindow(toSeries(counts)), time: dailyWindow(toSeries(ms)) };
   }, [scopedEntries, now]);
 
-  // Plot-over-time options: the built-in daily activity metrics plus
-  // every scoped custom field, all drawn by the same TrendChart.
+  // Activity stays separate from the type-aware custom-field explorer.
   const plotOptions = useMemo<PlotOption[]>(() => {
     const options: PlotOption[] = [];
     if (activitySeries.entries.length > 0) {
@@ -516,17 +988,8 @@ export function StatsView() {
         formatValue: (v) => formatDuration(v),
       });
     }
-    fieldStats.forEach((fs) => {
-      if (fs.series.length === 0) return;
-      options.push({
-        key: `field:${fs.field}`,
-        label: fs.field,
-        series: fs.series,
-        formatValue: (v) => (fs.capabilities.total ? formatStatValue(v, fs.data_type) : String(v)),
-      });
-    });
     return options;
-  }, [activitySeries, fieldStats]);
+  }, [activitySeries]);
   const selectedPlot = plotOptions.find((o) => o.key === plotKey) || plotOptions[0];
 
   const totalTimeTracked = useMemo(
@@ -650,7 +1113,9 @@ export function StatsView() {
               </button>
             </div>
           )}
-          {projectStats.length === 0 && fieldStats.length === 0 ? (
+          {scopeProject && !fieldsReady ? (
+            <p role="status">Loading field definitions...</p>
+          ) : projectStats.length === 0 && fieldStats.length === 0 ? (
             <div className="stats-empty glass">
               <svg
                 width="64"
@@ -844,10 +1309,7 @@ export function StatsView() {
                 </div>
               </div>
 
-              {/* Plot over time — daily series for the built-in activity
-              metrics plus every scoped custom field, selectable from the
-              dropdown: sums per day for total-able fields, counts
-              otherwise. */}
+              {/* Built-in activity uses entry creation dates, independently of field analysis. */}
               {plotOptions.length > 0 && selectedPlot && (
                 <div className="stats-panel glass">
                   <div className="field-plot-header">
@@ -865,7 +1327,19 @@ export function StatsView() {
                       ))}
                     </select>
                   </div>
+                  <p className="analysis-note">
+                    {selectedPlot.label} by entry creation day (UTC). 60-day window:{' '}
+                    {selectedPlot.series[0].bucket} –{' '}
+                    {selectedPlot.series[selectedPlot.series.length - 1].bucket}. Days without
+                    observations are zero.
+                  </p>
                   <TrendChart series={selectedPlot.series} formatValue={selectedPlot.formatValue} />
+                  <DataTable
+                    matrix={seriesMatrix(selectedPlot.series, selectedPlot.label)}
+                    caption={selectedPlot.label}
+                    formatValue={selectedPlot.formatValue}
+                    rowHeading="Creation day (UTC)"
+                  />
                 </div>
               )}
 
@@ -893,9 +1367,20 @@ export function StatsView() {
                   <div className="stats-view-section-title" style={{ marginTop: '0.5rem' }}>
                     Field Insights
                   </div>
+                  {fieldState.error && (
+                    <p className="analysis-note">
+                      Field definitions are unavailable; showing inferred field types.
+                    </p>
+                  )}
+                  <FieldExplorer
+                    key={fieldsKey}
+                    entries={scopedEntries}
+                    defs={analysisDefs}
+                    now={now}
+                  />
                   <div className="field-insights-grid">
                     {fieldStats.map((fs) => (
-                      <FieldStatPanel key={fs.field} stat={fs} showCompare={false} />
+                      <FieldStatPanel key={fs.field} stat={fs} />
                     ))}
                   </div>
                 </>
