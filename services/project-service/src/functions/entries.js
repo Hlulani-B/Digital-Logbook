@@ -3,8 +3,8 @@ import { AI } from './ai.js';
 import { Project } from './project.js';
 import { Fields } from './field.js';
 import { Notes } from './notes/notes_crud.js';
-import { format, addDays, nextDay, endOfMonth, startOfDay } from 'date-fns';
 import leven from 'leven';
+import { validateEntryDates } from '../domain/newEntryDates.js';
 
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -138,6 +138,70 @@ function stripHiddenFields(entry_object, field_permissions, user_role) {
   return stripped;
 }
 
+// Resolve the schema through the authenticated project association, never a
+// client-supplied schema or an arbitrary same-name project.
+async function resolveEntrySchema(userEmail, projectName, db = pool) {
+  const { rows: owned } = await db.query(
+    'SELECT user_email FROM projects WHERE user_email = $1 AND project_name = $2',
+    [userEmail, projectName]
+  );
+  let owner = userEmail;
+  let role = 'owner';
+  if (!owned.length) {
+    const { rows: memberships } = await db.query(
+      `SELECT pm.project_owner, pm.role FROM project_members pm
+       JOIN projects p ON p.user_email = pm.project_owner AND p.project_name = pm.project_name
+       WHERE pm.member_email = $1 AND pm.project_name = $2 AND NOT pm.deleted`,
+      [userEmail, projectName]
+    );
+    if (!memberships.length) return null;
+    if (memberships.length !== 1) {
+      const error = new Error('Ambiguous project name: the entry schema cannot be resolved.');
+      error.code = 'ENTRY_PROJECT_AMBIGUOUS';
+      throw error;
+    }
+    owner = memberships[0].project_owner;
+    role = memberships[0].role;
+  }
+  const { rows: fields } = await db.query(
+    `SELECT field_name, data_type, field_permissions FROM fields
+     WHERE user_email = $1 AND table_name = $2 AND (deleted = false OR deleted IS NULL)`,
+    [owner, projectName]
+  );
+  return {
+    role,
+    fields,
+    permissions: Object.fromEntries(
+      fields.map((field) => [field.field_name, field.field_permissions || {}])
+    ),
+  };
+}
+
+function timerPatch(previous, action, now) {
+  const patch = {};
+  const closePause = () => {
+    patch.paused_ms =
+      (Number(previous.paused_ms) || 0) +
+      (previous.paused_at
+        ? Math.max(0, now.getTime() - new Date(previous.paused_at).getTime())
+        : 0);
+    patch.paused_at = null;
+  };
+  if (action === 'start' && !previous.started_at && !previous.ended_at) {
+    patch.started_at = now.toISOString();
+    patch.status = 'in_motion';
+  } else if (action === 'end' && !previous.ended_at) {
+    patch.ended_at = now.toISOString();
+    patch.status = 'done_and_dusted';
+    closePause();
+  } else if (action === 'pause' && !previous.paused_at) {
+    patch.paused_at = now.toISOString();
+  } else if (action === 'resume' && previous.paused_at) {
+    closePause();
+  }
+  return patch;
+}
+
 export class Entries {
   async addEntry(
     user_email,
@@ -167,17 +231,22 @@ export class Entries {
       }
 
       // Field-level permission enforcement
-      const user_role = await getUserRole(user_email, project_name);
-      if (!user_role) {
-        return { success: false, message: 'Access denied to this project' };
-      }
-
-      const field_permissions = await getFieldPermissions(user_email, project_name);
-      const validation = validateFieldPermissions(entry_object, field_permissions, user_role);
+      const schema = await resolveEntrySchema(user_email, project_name);
+      if (!schema) return { success: false, message: 'Access denied to this project' };
+      const validation = validateFieldPermissions(entry_object, schema.permissions, schema.role);
       if (!validation.valid) {
         return { success: false, message: validation.error };
       }
 
+      const dateValidation = validateEntryDates({
+        dates: { due_date, started_at, ended_at, paused_at },
+        values: entry_object,
+        fields: schema.fields,
+        now: new Date(),
+      });
+      if (!dateValidation.success) return dateValidation;
+      ({ due_date, started_at, ended_at, paused_at } = dateValidation.dates);
+      entry_object = dateValidation.values;
       const insertData = { user_email, project_name, entries: entry_object };
       if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;
       if (priority !== undefined && priority !== null) insertData.priority = priority;
@@ -227,7 +296,12 @@ export class Entries {
       return { success: true, message: 'Entry added successfully', data: rows, notes: addedNotes };
     } catch (error) {
       console.error('[addEntry] FAILED:', error.message);
-      return { success: false, message: error.message };
+      return {
+        success: false,
+        message: error.message,
+        code: error.code || 'ENTRY_WRITE_FAILED',
+        retryable: error.code !== 'ENTRY_PROJECT_AMBIGUOUS',
+      };
     }
   }
 
@@ -245,41 +319,72 @@ export class Entries {
     summary,
     target_duration_ms,
     paused_ms,
-    paused_at
+    paused_at,
+    timer_action
   ) {
+    let client;
+    let committed = false;
     try {
       if (!pool) throw new Error('Database pool not initialized');
-
-      // Field-level permission enforcement
-      const user_role = await getUserRole(user_email, project_name);
-      if (!user_role) {
-        return { success: false, message: 'Access denied to this project' };
-      }
-
-      const field_permissions = await getFieldPermissions(user_email, project_name);
-
-      // If updating entry content, validate permissions against existing entry
+      client = await pool.connect();
+      await client.query('BEGIN');
+      const schema = await resolveEntrySchema(user_email, project_name, client);
+      if (!schema) return { success: false, message: 'Access denied to this project' };
+      const { rows: existingRows } = await client.query(
+        `SELECT * FROM entries WHERE id = $1 AND user_email = $2 AND project_name = $3 FOR UPDATE`,
+        [entry_id, user_email, project_name]
+      );
+      const previous = existingRows[0];
+      if (!previous) return { success: false, message: 'Entry not found.' };
       if (new_entry !== undefined && new_entry !== null) {
-        // Fetch existing entry to compare
-        const { rows: existingRows } = await pool.query(
-          `SELECT entries FROM entries WHERE id = $1 AND user_email = $2 AND project_name = $3`,
-          [entry_id, user_email, project_name]
+        const validation = validateFieldPermissions(
+          new_entry,
+          schema.permissions,
+          schema.role,
+          previous.entries || {}
         );
-
-        if (existingRows.length > 0) {
-          const existing_entry = existingRows[0].entries || {};
-          const validation = validateFieldPermissions(
-            new_entry,
-            field_permissions,
-            user_role,
-            existing_entry
-          );
-          if (!validation.valid) {
-            return { success: false, message: validation.error };
-          }
-        }
+        if (!validation.valid) return { success: false, message: validation.error };
       }
-
+      const timerError = (message) => ({
+        success: false,
+        code: 'ENTRY_TIMER_VALIDATION',
+        message,
+        retryable: false,
+      });
+      if (timer_action !== undefined) {
+        if (!['start', 'end', 'pause', 'resume'].includes(timer_action))
+          return timerError('Unknown timer action.');
+        if ([started_at, ended_at, paused_at, paused_ms].some((value) => value !== undefined))
+          return timerError('Timer actions cannot supply timestamps or pause totals.');
+        const expectedStatus = { start: 'in_motion', end: 'done_and_dusted' }[timer_action];
+        if (status !== undefined && status !== (expectedStatus || previous.status))
+          return timerError('The status conflicts with the timer action.');
+        if (
+          ['pause', 'resume'].includes(timer_action) &&
+          (!previous.started_at || previous.ended_at)
+        )
+          return timerError('Only an active task can be paused or resumed.');
+      }
+      const now = new Date();
+      const dateValidation = validateEntryDates({
+        dates: { due_date, started_at, ended_at, paused_at },
+        values: new_entry,
+        fields: schema.fields,
+        previous,
+        now,
+      });
+      if (!dateValidation.success) return dateValidation;
+      ({ due_date, started_at, ended_at, paused_at } = dateValidation.dates);
+      new_entry = dateValidation.values;
+      const statusAction =
+        status !== previous.status
+          ? status === 'in_motion' && !previous.started_at && started_at == null
+            ? 'start'
+            : status === 'done_and_dusted' && !previous.ended_at && ended_at == null
+              ? 'end'
+              : undefined
+          : undefined;
+      const systemPatch = timerPatch(previous, timer_action || statusAction, now);
       const updateData = {};
       const hasEntryPatch = new_entry !== undefined && new_entry !== null;
 
@@ -304,8 +409,9 @@ export class Entries {
       if (paused_at !== undefined) updateData.paused_at = paused_at;
       if (summary !== undefined && summary !== null) updateData.summary = summary;
 
+      Object.assign(updateData, systemPatch);
       if (Object.keys(updateData).length === 0) {
-        return { success: true, message: 'No changes to update' };
+        return { success: true, message: 'No changes to update', data: [previous] };
       }
 
       console.log(
@@ -333,7 +439,7 @@ export class Entries {
       params.push(entry_id, user_email, project_name);
       const entryPatchCondition = hasEntryPatch ? " AND jsonb_typeof(entries) = 'object'" : '';
 
-      const { rows } = await pool.query(
+      const { rows } = await client.query(
         `UPDATE entries SET ${setClauses.join(', ')}
          WHERE id = $${entryIdIndex} AND user_email = $${userEmailIndex} AND project_name = $${projectNameIndex}${entryPatchCondition}
          RETURNING *`,
@@ -355,11 +461,23 @@ export class Entries {
         };
       }
 
+      await client.query('COMMIT');
+      committed = true;
       console.log('[updateEntry] Success, id:', rows[0].id);
       return { success: true, message: 'Entry updated successfully', data: rows };
     } catch (error) {
       console.error('[updateEntry] FAILED:', error.message);
-      return { success: false, message: error.message };
+      return {
+        success: false,
+        message: error.message,
+        code: error.code || 'ENTRY_WRITE_FAILED',
+        retryable: error.code !== 'ENTRY_PROJECT_AMBIGUOUS',
+      };
+    } finally {
+      if (client) {
+        if (!committed) await client.query('ROLLBACK').catch(() => {});
+        client.release();
+      }
     }
   }
 
@@ -642,7 +760,17 @@ function correctDateKeywords(text) {
 }
 
 function toISODate(date) {
-  return format(date, 'yyyy-MM-dd');
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+function nextDay(date, day) {
+  return addDays(date, (day - date.getUTCDay() + 7) % 7 || 7);
 }
 
 /**
@@ -657,7 +785,7 @@ export function getDate(text) {
     return { dueDate: null, cleanedText: text || '' };
   }
 
-  const today = startOfDay(new Date());
+  const today = new Date(`${toISODate(new Date())}T00:00:00.000Z`);
   const lower = text.toLowerCase();
   // Fuzzy-correct misspelled date keywords before matching
   let cleaned = correctDateKeywords(lower);
@@ -754,7 +882,7 @@ export function getDate(text) {
 
   // ── 8. "end of the month" / "end of month" / "end of this month" ──
   if (/\bend\s+of\s+(the\s+)?month\b/.test(cleaned)) {
-    dueDate = toISODate(endOfMonth(today));
+    dueDate = toISODate(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)));
     cleaned = cleaned.replace(/\bend\s+of\s+(the\s+)?month\b/, '');
     return { dueDate, cleanedText: cleaned.trim() };
   }
@@ -779,9 +907,9 @@ export function getDate(text) {
     let mdMatch = cleaned.match(new RegExp(mdRegex.source + yearSuffix));
     if (mdMatch) {
       const day = parseInt(mdMatch[1], 10);
-      const year = mdMatch[2] ? parseInt(mdMatch[2], 10) : today.getFullYear();
-      const parsed = new Date(year, i, day);
-      if (parsed.getMonth() === i && parsed.getDate() === day) {
+      const year = mdMatch[2] ? parseInt(mdMatch[2], 10) : today.getUTCFullYear();
+      const parsed = new Date(Date.UTC(year, i, day));
+      if (parsed.getUTCMonth() === i && parsed.getUTCDate() === day) {
         dueDate = toISODate(parsed);
         cleaned = cleaned.replace(mdMatch[0], '');
         return { dueDate, cleanedText: cleaned.trim() };
@@ -791,9 +919,9 @@ export function getDate(text) {
     let dmMatch = cleaned.match(new RegExp(dmRegex.source + yearSuffix));
     if (dmMatch) {
       const day = parseInt(dmMatch[1], 10);
-      const year = dmMatch[2] ? parseInt(dmMatch[2], 10) : today.getFullYear();
-      const parsed = new Date(year, i, day);
-      if (parsed.getMonth() === i && parsed.getDate() === day) {
+      const year = dmMatch[2] ? parseInt(dmMatch[2], 10) : today.getUTCFullYear();
+      const parsed = new Date(Date.UTC(year, i, day));
+      if (parsed.getUTCMonth() === i && parsed.getUTCDate() === day) {
         dueDate = toISODate(parsed);
         cleaned = cleaned.replace(dmMatch[0], '');
         return { dueDate, cleanedText: cleaned.trim() };
@@ -1243,13 +1371,16 @@ Respond with ONLY this JSON, nothing else:`;
         return {
           success: addResult.success,
           message: addResult.message,
+          code: addResult.code,
+          errors: addResult.errors,
+          retryable: addResult.retryable,
           entry_id: addResult.data?.[0]?.id || null,
           project: parsed.project,
           fields: parsed.fields,
           priority: priorityLabel,
-          due_date: calculatedDate || null,
+          due_date: addResult.data?.[0]?.due_date || null,
           summary: null,
-          comment: parsed.comment || null,
+          comment: addResult.success ? parsed.comment || null : null,
           created_new_project: false,
         };
       }
@@ -1311,7 +1442,15 @@ Respond with ONLY this JSON, nothing else:`;
 
         const oldEntries = Array.isArray(parsed.old) ? parsed.old : [];
         const newEntries = Array.isArray(parsed.new) ? parsed.new : [];
-        const results = { old: [], new: [], errors: [] };
+        const results = { old: [], new: [], errors: [], failures: [] };
+        const recordFailure = (project_name, result) =>
+          results.failures.push({
+            project_name,
+            code: result.code,
+            message: result.message,
+            errors: result.errors,
+            retryable: result.retryable,
+          });
 
         // Process entries for existing projects
         for (const item of oldEntries) {
@@ -1381,6 +1520,7 @@ Respond with ONLY this JSON, nothing else:`;
                   .catch(() => {});
               }
             } else {
+              recordFailure(projName, addResult);
               results.errors.push(`Failed to add entry to "${projName}": ${addResult.message}`);
             }
           } catch (err) {
@@ -1446,6 +1586,7 @@ Respond with ONLY this JSON, nothing else:`;
                     .catch(() => {});
                 }
               } else {
+                recordFailure(projName, addResult);
                 results.errors.push(
                   `Project "${projName}" already exists but failed to add entry: ${addResult.message}`
                 );
@@ -1519,6 +1660,7 @@ Respond with ONLY this JSON, nothing else:`;
                   .catch(() => {});
               }
             } else {
+              recordFailure(projName, addResult);
               results.errors.push(
                 `Created project "${projName}" but failed to add entry: ${addResult.message}`
               );
@@ -1533,7 +1675,15 @@ Respond with ONLY this JSON, nothing else:`;
         const successCount = totalOld + totalNew;
 
         if (successCount === 0 && results.errors.length > 0) {
-          return { success: false, message: results.errors.join('; ') };
+          return {
+            success: false,
+            message: results.errors.join('; '),
+            results,
+            code: results.failures[0]?.code,
+            errors: results.failures.flatMap((failure) => failure.errors || []),
+            retryable: false,
+            comment: null,
+          };
         }
 
         return {
@@ -1542,8 +1692,12 @@ Respond with ONLY this JSON, nothing else:`;
           multi: true,
           results,
           priority: priorityLabel,
-          due_date: calculatedDate || null,
-          comment: parsed.comment || null,
+          due_date: calculatedDate ? `${calculatedDate}T23:59:59.999Z` : null,
+          partial: results.errors.length > 0,
+          comment:
+            results.errors.length > 0
+              ? `Saved ${successCount} entries. Not saved: ${results.errors.join('; ')}`
+              : parsed.comment || null,
           created_new_project: totalNew > 0,
         };
       }
@@ -1625,13 +1779,16 @@ Respond with ONLY this JSON, nothing else:`;
       return {
         success: addResult.success,
         message: addResult.message,
+        code: addResult.code,
+        errors: addResult.errors,
+        retryable: addResult.retryable,
         entry_id: addResult.data?.[0]?.id || null,
         project: newProjectName,
         fields: parsed.fields,
         priority: priorityLabel,
-        due_date: calculatedDate || null,
+        due_date: addResult.data?.[0]?.due_date || null,
         summary: null,
-        comment: parsed.comment || null,
+        comment: addResult.success ? parsed.comment || null : null,
         created_new_project: true,
         new_fields: newFields,
       };

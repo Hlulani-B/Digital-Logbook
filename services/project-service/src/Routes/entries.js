@@ -99,6 +99,7 @@ router.post('/entry', async (req, res) => {
           target_duration_ms,
           paused_ms,
           paused_at,
+          timer_action,
         } = values;
         if (!project_name || !entry_id)
           return res.status(400).json({ error: 'Missing required parameters' });
@@ -118,7 +119,8 @@ router.post('/entry', async (req, res) => {
           providedSummary, // preserve user-edited summary; undefined lets AI regeneration handle it
           target_duration_ms,
           paused_ms,
-          paused_at
+          paused_at,
+          timer_action
         );
 
         // Regenerate summary in background if entry content changed and no explicit summary was provided
@@ -291,6 +293,14 @@ router.post('/natural-language-entry', async (req, res) => {
     }
 
     const result = await nlEntry.entry(user_email, text);
+    if (!result.success) {
+      sendToUser(user_email, 'entry_error', {
+        success: false,
+        error: result.message || result.error || 'Entry could not be saved.',
+        code: result.code,
+        errors: result.errors,
+      });
+    }
 
     // ── SSE: Push parsed data immediately so frontend can update UI ──
     // This happens BEFORE activity logging and the POST response,

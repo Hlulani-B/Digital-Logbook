@@ -50,21 +50,28 @@ export async function addToQueue(action, module, payload) {
  * Get all pending actions from the queue, ordered by timestamp (FIFO).
  * @returns {Promise<Array>} Array of queue entries
  */
-export async function getQueue() {
+export async function getQueue({ includeRejected = false } = {}) {
   try {
     const db = await getSharedDB();
     const result = db.exec(
       `SELECT id, data FROM ${CACHE_STORES.OFFLINE_QUEUE} ORDER BY created_at ASC`
     );
     if (result.length === 0) return [];
-    return result[0].values.map(([id, data]) => ({
-      id,
-      ...JSON.parse(data),
-    }));
+    return result[0].values
+      .map(([id, data]) => ({
+        id,
+        ...JSON.parse(data),
+      }))
+      .filter((entry) => includeRejected || entry.state !== 'rejected');
   } catch (err) {
     console.error('[OfflineQueue] Failed to get queue:', err);
     return [];
   }
+}
+
+/** @returns {Promise<Array>} Retained changes that must not be retried automatically. */
+export async function getRejectedChanges() {
+  return (await getQueue({ includeRejected: true })).filter((entry) => entry.state === 'rejected');
 }
 
 /**
@@ -115,6 +122,7 @@ export async function updateQueueEntry(entry) {
     persistDB(db);
   } catch (err) {
     console.error('[OfflineQueue] Failed to update queue entry:', err);
+    throw err;
   }
 }
 
@@ -139,9 +147,7 @@ export async function clearQueue() {
  */
 export async function getQueueLength() {
   try {
-    const db = await getSharedDB();
-    const result = db.exec(`SELECT COUNT(*) FROM ${CACHE_STORES.OFFLINE_QUEUE}`);
-    return result[0]?.values[0][0] || 0;
+    return (await getQueue()).length;
   } catch (err) {
     console.error('[OfflineQueue] Failed to get queue length:', err);
     return 0;

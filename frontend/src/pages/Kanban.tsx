@@ -8,7 +8,6 @@ import {
   type EntryStatus,
   STATUS_LABELS,
   STATUS_ORDER,
-  buildUpdatedEntry,
   filterEntries,
   getEntryStatus,
   groupEntriesByStatus,
@@ -67,6 +66,9 @@ function KanbanCard({
       }}
       style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
+      {(entry as CalendarEntry & { _timerPending?: boolean })._timerPending && (
+        <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
+      )}
       <div className="kanban-card-title">{getEntryTitle(entry)}</div>
       <div className="kanban-card-meta">
         <span className="kanban-card-project">{entry.project_name}</span>
@@ -255,8 +257,7 @@ export function KanbanPage() {
 
     if (sourceStatus === targetStatus) return;
 
-    const previousEntries = [...entries];
-    const updatedEntry = buildUpdatedEntry(entry, targetStatus, new Date().toISOString());
+    const updatedEntry = { ...entry, status: targetStatus };
 
     setEntries((prev) => prev.map((e) => (e.id === entry.id ? updatedEntry : e)));
     setUpdatingId(entry.id);
@@ -269,17 +270,17 @@ export function KanbanPage() {
         undefined,
         undefined,
         undefined,
-        targetStatus,
-        updatedEntry.started_at,
-        updatedEntry.ended_at
+        targetStatus
       );
 
-      if (result?.success === false || result?.error) {
+      if (result?.success !== true || result?.error) {
         throw new Error(result?.message || result?.error || 'Failed to update status');
       }
+      const confirmed = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (confirmed) setEntries((prev) => prev.map((e) => (e.id === entry.id ? confirmed : e)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
-      setEntries(previousEntries);
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
     } finally {
       setUpdatingId(null);
     }
