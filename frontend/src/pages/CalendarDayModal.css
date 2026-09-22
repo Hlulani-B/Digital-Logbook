@@ -295,11 +295,67 @@
 }
 
 /* ── Add entry form ── */
+.cdm-content {
+  display: contents;
+}
+
+.cdm-modal--adding {
+  box-sizing: border-box;
+  height: 85vh;
+  max-height: 85vh;
+  height: 85dvh;
+  max-height: 85dvh;
+  min-height: 0;
+}
+
+.cdm-modal--adding .cdm-header,
+.cdm-modal--adding .cdm-success {
+  flex-shrink: 0;
+}
+
+.cdm-modal--adding .cdm-error {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-height: 0;
+  max-height: 20%;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.cdm-modal--adding .cdm-close,
+.cdm-modal--adding .cdm-error-close {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .cdm-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+}
+
+.cdm-form > .cdm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior-y: contain;
+}
+
+.cdm-form > .cdm-body > * {
+  flex-shrink: 0;
+}
+
+.cdm-form-fields {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding-top: 0.25rem;
+  min-width: 0;
 }
 
 .cdm-form-title {
@@ -312,17 +368,32 @@
 .cdm-form-field {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
+  min-width: 0;
   gap: 0.3rem;
+}
+
+.cdm-form-field--boolean {
+  position: relative;
+}
+
+.cdm-form-field--boolean .cdm-label {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-left: 2rem;
+  cursor: pointer;
 }
 
 .cdm-form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  flex-shrink: 0;
   gap: 0.75rem;
 }
 
 .cdm-label {
-  font-size: 0.8rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-dim, #9ca3af);
   text-transform: uppercase;
@@ -336,12 +407,17 @@
 
 .cdm-input,
 .cdm-select {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
   padding: 0.5rem 0.65rem;
   border-radius: 0.5rem;
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   background: var(--bg-subtle, rgba(0, 0, 0, 0.15));
   color: var(--text, #e5e7eb);
-  font-size: 0.875rem;
+  font-size: 1rem;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -357,14 +433,22 @@
 }
 
 .cdm-checkbox {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  flex-shrink: 0;
   width: 1.15rem;
   height: 1.15rem;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
   accent-color: var(--accent, #6366f1);
   cursor: pointer;
 }
 
 .cdm-loading {
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--text-dim, #9ca3af);
   text-align: center;
   padding: 0.5rem 0;
@@ -372,16 +456,26 @@
 }
 
 .cdm-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
+  flex-shrink: 0;
   gap: 0.75rem;
   justify-content: flex-end;
-  padding-top: 0.25rem;
+  padding: 0.75rem 1.25rem;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  background: var(--surface-solid, #141414);
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
 }
 
 .cdm-btn {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0.5rem 1.15rem;
   border-radius: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -427,6 +521,18 @@
     right: 0;
   }
 
+  .cdm-modal--adding {
+    height: 92vh;
+    max-height: 92vh;
+    height: 92dvh;
+    max-height: 92dvh;
+  }
+
+  .cdm-form-actions {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+
   .cdm-backdrop {
     align-items: flex-end;
   }
@@ -449,5 +555,19 @@
 
   .cdm-entries-list {
     max-height: 30vh;
+  }
+}
+
+@media (max-height: 480px) {
+  .cdm-modal--adding {
+    height: calc(100vh - 1rem);
+    max-height: calc(100vh - 1rem);
+    height: calc(100dvh - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .cdm-modal--adding .cdm-header {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
   }
 }
