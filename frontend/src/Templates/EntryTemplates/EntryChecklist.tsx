@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
+import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
@@ -15,6 +16,7 @@ interface ChecklistEntry {
   status?: EntryStatus;
   entries?: EntryPayload;
   started_at?: string | null;
+  _timerPending?: boolean;
 }
 
 interface ChecklistEntryCardProps {
@@ -61,9 +63,7 @@ export default function ChecklistEntryCard({
 
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
-  const [draftDueDate, setDraftDueDate] = useState(
-    entry.due_date ? entry.due_date.slice(0, 10) : ''
-  );
+  const [draftDueDate, setDraftDueDate] = useState(toLocalDateTime(entry.due_date).slice(0, 10));
 
   const editRef = useRef<HTMLDivElement>(null);
   const deleteRef = useRef<HTMLDivElement>(null);
@@ -90,26 +90,27 @@ export default function ChecklistEntryCard({
     setChecking(true);
     try {
       const newStatus = isDone ? 'up_next' : DONE_STATUS;
-      await updateEntry(
+      const result = await updateEntry(
         entry.user_email,
         entry.project_name,
         entry.id,
         undefined,
         undefined,
         undefined,
-        newStatus,
-        entry.status === 'in_motion' ? entry.started_at : undefined,
-        newStatus === DONE_STATUS ? new Date().toISOString() : undefined
+        newStatus
       );
+      if (result?.success !== true) throw new Error(result?.message || 'Failed to update status');
       onUpdated?.();
     } catch (err) {
-      console.error('[ChecklistEntryCard] Failed to update status:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setChecking(false);
     }
   };
 
   const handleCardClick = () => {
+    setDraftSummary(getSummary(entry));
+    setDraftDueDate(toLocalDateTime(entry.due_date).slice(0, 10));
     setEditOpen(true);
   };
 
@@ -119,12 +120,14 @@ export default function ChecklistEntryCard({
     setError(null);
 
     try {
-      await updateEntry(
+      const result = await updateEntry(
         entry.user_email,
         entry.project_name,
         entry.id,
         undefined,
-        draftDueDate || null,
+        draftDueDate === toLocalDateTime(entry.due_date).slice(0, 10)
+          ? undefined
+          : dateOnlyDueToISO(draftDueDate),
         undefined,
         undefined,
         undefined,
@@ -132,6 +135,7 @@ export default function ChecklistEntryCard({
         undefined,
         draftSummary
       );
+      if (result?.success !== true) throw new Error(result?.message || 'Failed to save');
 
       setEditOpen(false);
       onUpdated?.();
@@ -169,6 +173,10 @@ export default function ChecklistEntryCard({
             : undefined
         }
       >
+        {!editOpen && error && <p role="alert">{error}</p>}
+        {entry._timerPending && (
+          <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
+        )}
         <span className="checklist-project">{entry.project_name}</span>
         <div className="checklist-card-row">
           <button
@@ -178,7 +186,7 @@ export default function ChecklistEntryCard({
             aria-checked={isDone}
             aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
             onClick={handleCheckboxClick}
-            disabled={checking}
+            disabled={checking || entry._timerPending}
           >
             {isDone && (
               <span className="checklist-check" aria-hidden="true">
@@ -211,7 +219,7 @@ export default function ChecklistEntryCard({
             className="checklist-card-menu-btn"
             onClick={(e) => {
               e.stopPropagation();
-              setEditOpen(true);
+              handleCardClick();
             }}
             title="Edit"
           >
@@ -276,6 +284,8 @@ export default function ChecklistEntryCard({
                 <label>Due Date</label>
                 <input
                   type="date"
+                  aria-label="Due Date (end of local day)"
+                  title="Changed dates are due at the end of the selected local day"
                   value={draftDueDate}
                   onChange={(e) => setDraftDueDate(e.target.value)}
                 />

@@ -4,6 +4,12 @@ import { getFields } from '@/functions/project/fields.js';
 import { getEntryTitle, type CalendarEntry } from '@/lib/calendar';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import './CalendarDayModal.css';
+import {
+  validateEntryDates,
+  localDateTimeToISO,
+  earliestEntryDate,
+  earliestEntryDateTime,
+} from '@/lib/newEntryDates';
 
 const PRIORITY_LABELS: Record<string, string> = {
   '0': 'Urgent and important',
@@ -48,6 +54,8 @@ function parseFieldValue(value: string, dataType: string): unknown {
     return isNaN(num) ? value : num;
   }
   if (dataType === 'boolean') return value === 'true';
+  if (dataType === 'date') return value;
+  if (dataType === 'timestamp') return localDateTimeToISO(value);
   try {
     return JSON.parse(value);
   } catch {
@@ -63,6 +71,8 @@ function inputTypeForDataType(dataType: string): string {
       return 'number';
     case 'date':
       return 'date';
+    case 'timestamp':
+      return 'datetime-local';
     default:
       return 'text';
   }
@@ -81,7 +91,10 @@ function formatDueDateForInput(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}T09:00`;
+  const suggestion = `${y}-${m}-${d}T09:00`;
+  return validateEntryDates({ dates: { due_date: localDateTimeToISO(suggestion) } }).success
+    ? suggestion
+    : '';
 }
 
 export function CalendarDayModal({
@@ -104,6 +117,7 @@ export function CalendarDayModal({
   const [status, setStatus] = useState('up_next');
   const [saving, setSaving] = useState(false);
   const [loadingFields, setLoadingFields] = useState(false);
+  const [fieldsReady, setFieldsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [draggingEntry, setDraggingEntry] = useState<CalendarEntry | null>(null);
@@ -143,8 +157,12 @@ export function CalendarDayModal({
     let cancelled = false;
     (async () => {
       setLoadingFields(true);
+      setFieldsReady(false);
+      setError(null);
       try {
         const result = await getFields(userEmail, selectedProject);
+        if (result?.success !== true || !Array.isArray(result.data))
+          throw new Error('Fields unavailable');
         if (!cancelled) {
           const defs: FieldDef[] = (result?.data || []).map((f: any) => ({
             field_name: f.field_name,
@@ -152,6 +170,7 @@ export function CalendarDayModal({
             is_required: !!f.is_required,
           }));
           setFields(defs);
+          setFieldsReady(true);
           const initial: Record<string, string> = {};
           for (const f of defs) {
             initial[f.field_name] = '';
@@ -172,7 +191,7 @@ export function CalendarDayModal({
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!selectedProject || !userEmail || saving) return;
+      if (!selectedProject || !userEmail || saving || loadingFields || !fieldsReady) return;
 
       // Validate required fields
       for (const f of fields) {
@@ -200,13 +219,19 @@ export function CalendarDayModal({
             entryObject[f.field_name] = parseFieldValue(val, f.data_type);
           }
         }
+        const dateValidation = validateEntryDates({
+          dates: { due_date: localDateTimeToISO(dueDate) },
+          values: entryObject,
+          fields,
+        });
+        if (!dateValidation.success) throw new Error(dateValidation.message);
         const priorityLabel = priority === '3' ? null : PRIORITY_LABELS[priority];
 
-        await addEntry(
+        const result = await addEntry(
           userEmail,
           selectedProject,
           entryObject,
-          dueDate ? new Date(dueDate).toISOString() : null,
+          localDateTimeToISO(dueDate),
           priorityLabel,
           status,
           null,
@@ -214,7 +239,8 @@ export function CalendarDayModal({
           null
         );
 
-        setSuccessMsg('Entry added!');
+        if (result?.success !== true) throw new Error(result?.message || 'Failed to add entry');
+        setSuccessMsg(result.queued ? 'Saved locally; pending server validation.' : 'Entry added!');
         // Reset form
         setFieldValues({});
         setSelectedProject('');
@@ -237,6 +263,8 @@ export function CalendarDayModal({
       priority,
       status,
       saving,
+      loadingFields,
+      fieldsReady,
       onEntryAdded,
     ]
   );
@@ -387,6 +415,7 @@ export function CalendarDayModal({
                   >
                     <label className="cdm-label" htmlFor={`cdm-field-${field.field_name}`}>
                       {field.field_name.replace(/_/g, ' ')}
+                      {field.data_type === 'date' && ' (UTC date)'}
                       {field.is_required && <span className="cdm-required">*</span>}
                     </label>
                     {field.data_type === 'boolean' ? (
@@ -404,6 +433,18 @@ export function CalendarDayModal({
                       <input
                         id={`cdm-field-${field.field_name}`}
                         type={inputTypeForDataType(field.data_type)}
+                        min={
+                          field.data_type === 'date'
+                            ? earliestEntryDate()
+                            : field.data_type === 'timestamp'
+                              ? earliestEntryDateTime()
+                              : undefined
+                        }
+                        onFocus={(e) => {
+                          if (field.data_type === 'date') e.currentTarget.min = earliestEntryDate();
+                          if (field.data_type === 'timestamp')
+                            e.currentTarget.min = earliestEntryDateTime();
+                        }}
                         className="cdm-input"
                         placeholder={`Enter ${field.field_name.replace(/_/g, ' ')}`}
                         value={fieldValues[field.field_name] || ''}
@@ -423,11 +464,16 @@ export function CalendarDayModal({
                   <input
                     id="cdm-due-date"
                     type="datetime-local"
+                    min={earliestEntryDateTime()}
+                    onFocus={(e) => {
+                      e.currentTarget.min = earliestEntryDateTime();
+                    }}
                     className="cdm-input"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                     disabled={saving}
                   />
+                  <small>Optional. Choose the present moment or a future time.</small>
                 </div>
 
                 {/* Priority + Status row */}
@@ -500,7 +546,7 @@ export function CalendarDayModal({
               <button
                 type="submit"
                 className="cdm-btn cdm-btn--submit"
-                disabled={saving || !selectedProject}
+                disabled={saving || !selectedProject || loadingFields || !fieldsReady}
               >
                 {saving ? 'Adding...' : 'Add Item'}
               </button>

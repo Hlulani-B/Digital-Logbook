@@ -12,8 +12,15 @@ import { FieldEditor } from '@/components/fields/FieldEditors';
 import { FieldDisplay } from '@/components/fields/FieldDisplay';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import { normalizeField } from '@/lib/fieldSchema';
+import {
+  toLocalDateTime as toInputDate,
+  editedDateTime,
+  earliestEntryDateTime,
+  validateEntryDates,
+} from '@/lib/newEntryDates';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
+import { useTimerActions } from '@/hooks/useTimerActions';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -65,15 +72,6 @@ function formatDate(value?: string | null): string | null {
   });
 }
 
-function toInputDate(value?: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return '';
-  // Return YYYY-MM-DDTHH:MM for datetime-local inputs
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -96,6 +94,7 @@ interface EntryRow {
   paused_at?: string | null;
   status?: EntryStatus;
   summary?: string | null;
+  _timerPending?: boolean;
 }
 
 interface EntryBoxProps {
@@ -155,13 +154,22 @@ export function EntryBox({
   const [calcField, setCalcField] = useState<string | null>(null);
 
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
+  const [fieldsReady, setFieldsReady] = useState(false);
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
+  const applyResult = (result: any) => {
+    if (result?.success !== true)
+      throw new Error(result?.message || result?.error || 'Failed to save changes');
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (row) onUpdated?.(row);
+  };
   useEffect(() => {
     if (!user_email || !project_name) return;
     let cancelled = false;
+    setFieldsReady(false);
     (async () => {
       try {
         const result = await getFields(user_email, project_name);
-        if (!cancelled && result?.data) {
+        if (!cancelled && result?.success === true && Array.isArray(result.data)) {
           const defs: Record<string, FieldDefinition> = {};
           for (const f of result.data) {
             // normalizeField handles legacy custom:type format
@@ -169,8 +177,11 @@ export function EntryBox({
             defs[f.field_name] = fieldDef;
           }
           setFieldDefs(defs);
-        }
-      } catch {}
+          setFieldsReady(true);
+        } else if (!cancelled) setError('Cannot edit until project fields are loaded.');
+      } catch {
+        if (!cancelled) setError('Cannot edit until project fields are loaded.');
+      }
     })();
     return () => {
       cancelled = true;
@@ -211,6 +222,19 @@ export function EntryBox({
     priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
   );
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
+
+  // Timer actions (start/pause/resume/stop) with in-flight and failure state
+  const {
+    timerAction,
+    timerError,
+    timerErrorAction,
+    isActionInFlight,
+    start: startTimer,
+    pause: pauseTimer,
+    resume: resumeTimer,
+    stop: stopTimer,
+    clearError: clearTimerError,
+  } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -259,12 +283,14 @@ export function EntryBox({
   };
 
   const handleEnterEdit = () => {
+    handleCancel();
+    setDateErrors({});
     setMenuOpen(false);
     setIsEditing(true);
   };
 
   const handleSave = async () => {
-    if (!user_email || !project_name || saving) return;
+    if (!user_email || !project_name || saving || !fieldsReady) return;
     setSaving(true);
     setError(null);
 
@@ -276,19 +302,17 @@ export function EntryBox({
       const newPriorityLabel =
         draftPriorityValue === '3' ? null : PRIORITY_LABELS[draftPriorityValue];
 
-      const newDueDate = draftDueDate ? new Date(draftDueDate).toISOString() : null;
-      const newStartedAt = draftStartedAt ? new Date(draftStartedAt).toISOString() : null;
-      const newEndedAt = draftEndedAt ? new Date(draftEndedAt).toISOString() : null;
-
-      const updatedEntry: EntryRow = {
-        ...entry,
-        entries: newEntryObject ?? entries,
-        due_date: newDueDate,
-        priority: newPriorityLabel,
-        status: draftStatus,
-        started_at: newStartedAt,
-        ended_at: newEndedAt,
-      };
+      const newDueDate = editedDateTime(draftDueDate, due_date);
+      const newStartedAt = editedDateTime(draftStartedAt, started_at);
+      const newEndedAt = editedDateTime(draftEndedAt, ended_at);
+      const checked = validateEntryDates({
+        dates: { due_date: newDueDate, started_at: newStartedAt, ended_at: newEndedAt },
+        values: newEntryObject,
+        fields: Object.values(fieldDefs),
+        previous: { ...entry },
+      });
+      setDateErrors(Object.fromEntries(checked.errors.map((issue) => [issue.path, issue.message])));
+      if (!checked.success) throw new Error(checked.message);
 
       // Single update call with all schema columns
       const result = await updateEntry(
@@ -312,8 +336,7 @@ export function EntryBox({
         return;
       }
 
-      // Always reload from database to show actual state
-      onUpdated?.(updatedEntry);
+      applyResult(result);
       setIsEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
@@ -365,12 +388,6 @@ export function EntryBox({
     setSaving(true);
     setError(null);
     try {
-      // If moving to done_and_dusted, auto-set ended_at
-      const newEndedAt =
-        newStatus === 'done_and_dusted' && !ended_at ? new Date().toISOString() : ended_at;
-      // If moving to in_motion and not started yet, auto-set started_at
-      const newStartedAt =
-        newStatus === 'in_motion' && !started_at ? new Date().toISOString() : started_at;
       const result = await updateEntry(
         user_email,
         project_name,
@@ -378,9 +395,7 @@ export function EntryBox({
         undefined,
         undefined,
         undefined,
-        newStatus,
-        newStartedAt,
-        newEndedAt
+        newStatus
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to update status');
@@ -390,7 +405,7 @@ export function EntryBox({
         setError(result.error);
         return;
       }
-      onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt });
+      applyResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
@@ -398,171 +413,22 @@ export function EntryBox({
     }
   };
 
-  const handleEndTask = async () => {
-    if (!user_email || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const now = new Date().toISOString();
-      // If ending while paused, fold the open pause into paused_ms and clear
-      // paused_at so entryDurationMs nets out all paused time.
-      const openPauseMs =
-        paused_at && started_at
-          ? Math.max(0, new Date(now).getTime() - new Date(paused_at).getTime())
-          : 0;
-      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        'done_and_dusted',
-        undefined,
-        now,
-        undefined,
-        undefined,
-        undefined,
-        newPausedMs,
-        null // clear any open pause
-      );
-      if (result?.success === false) {
-        setError(result.message || 'Failed to end item');
-        return;
-      }
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      // Always reload from database to show actual state
-      onUpdated?.({
-        ...entry,
-        ended_at: now,
-        status: 'done_and_dusted',
-        paused_ms: newPausedMs,
-        paused_at: null,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to end item');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePauseTask = async () => {
-    if (!user_email || saving || isPaused) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const now = new Date().toISOString();
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        now // paused_at opens the pause
-      );
-      if (result?.success === false || result?.error) {
-        setError(result.message || result.error || 'Failed to pause');
-        return;
-      }
-      onUpdated?.({ ...entry, paused_at: now });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to pause');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleResumeTask = async () => {
-    if (!user_email || saving || !isPaused) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const now = new Date();
-      // Fold the open pause into the accumulated paused_ms and clear paused_at.
-      const openPauseMs = paused_at
-        ? Math.max(0, now.getTime() - new Date(paused_at).getTime())
-        : 0;
-      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        newPausedMs,
-        null // paused_at cleared → timer runs again
-      );
-      if (result?.success === false || result?.error) {
-        setError(result.message || result.error || 'Failed to resume');
-        return;
-      }
-      onUpdated?.({ ...entry, paused_ms: newPausedMs, paused_at: null });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to resume');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Start a task that hasn't been started yet — sets started_at to now,
-  // moves status to in_motion, and makes the timer controls appear.
-  const handleStartTask = async () => {
-    if (!user_email || saving || started_at) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const now = new Date().toISOString();
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        'in_motion',
-        now,
-        undefined
-      );
-      if (result?.success === false || result?.error) {
-        setError(result.message || result.error || 'Failed to start task');
-        return;
-      }
-      onUpdated?.({ ...entry, started_at: now, status: 'in_motion' });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start task');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Timer actions are now handled by useTimerActions hook (startTimer, pauseTimer, resumeTimer, stopTimer)
 
   // Adds a deadline target to a running task that has none (count-up → countdown)
+  const [targetDays, setTargetDays] = useState<string>('');
+  const [targetHours, setTargetHours] = useState<string>('');
   const [targetMinutes, setTargetMinutes] = useState<string>('');
   const handleSetTarget = async () => {
-    const minutes = Number(targetMinutes);
-    if (!user_email || saving || !Number.isFinite(minutes) || minutes <= 0) return;
+    const days = Number(targetDays) || 0;
+    const hours = Number(targetHours) || 0;
+    const minutes = Number(targetMinutes) || 0;
+    const totalMinutes = days * 1440 + hours * 60 + minutes;
+    if (!user_email || saving || !Number.isFinite(totalMinutes) || totalMinutes <= 0) return;
     setSaving(true);
     setError(null);
     try {
-      const targetMs = Math.round(minutes * 60000);
+      const targetMs = Math.round(totalMinutes * 60000);
       const result = await updateEntry(
         user_email,
         project_name,
@@ -575,15 +441,15 @@ export function EntryBox({
         undefined,
         undefined,
         undefined,
-        targetMs,
-        paused_ms === undefined || paused_ms === null ? undefined : Number(paused_ms),
-        paused_at === undefined ? undefined : paused_at
+        targetMs
       );
       if (result?.success === false || result?.error) {
         setError(result.message || result.error || 'Failed to set target');
         return;
       }
-      onUpdated?.({ ...entry, target_duration_ms: targetMs });
+      applyResult(result);
+      setTargetDays('');
+      setTargetHours('');
       setTargetMinutes('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set target');
@@ -721,6 +587,8 @@ export function EntryBox({
                     <FieldEditor
                       field={fieldDef}
                       value={value}
+                      originalValue={parsedEntries[key]}
+                      error={dateErrors[`entries.${key}`]}
                       onChange={(newValue) => handleFieldChange(key, newValue)}
                       disabled={saving || permission === 'view'}
                       projectId={project_id}
@@ -737,6 +605,12 @@ export function EntryBox({
             <input
               className="entry-box__field-input"
               type="datetime-local"
+              aria-label="Due Date"
+              min={draftDueDate === toInputDate(due_date) ? undefined : earliestEntryDateTime()}
+              onFocus={(e) => {
+                e.currentTarget.min =
+                  draftDueDate === toInputDate(due_date) ? '' : earliestEntryDateTime();
+              }}
               value={draftDueDate}
               onChange={(e) => setDraftDueDate(e.target.value)}
               disabled={saving}
@@ -748,6 +622,12 @@ export function EntryBox({
             <input
               className="entry-box__field-input"
               type="datetime-local"
+              aria-label="Started At"
+              min={draftStartedAt === toInputDate(started_at) ? undefined : earliestEntryDateTime()}
+              onFocus={(e) => {
+                e.currentTarget.min =
+                  draftStartedAt === toInputDate(started_at) ? '' : earliestEntryDateTime();
+              }}
               value={draftStartedAt}
               onChange={(e) => setDraftStartedAt(e.target.value)}
               disabled={saving}
@@ -768,7 +648,7 @@ export function EntryBox({
             type="button"
             className="entry-box__btn entry-box__btn--save"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !fieldsReady}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
@@ -790,6 +670,9 @@ export function EntryBox({
             : undefined
         }
       >
+        {entry._timerPending && (
+          <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
+        )}
         <div className="entry-box__top-row">
           <div className="entry-box__menu-wrap" ref={menuRef}>
             <button
@@ -996,8 +879,7 @@ export function EntryBox({
                 const fieldDef = fieldDefs[key];
                 const calcKey = `_calc_${key}`;
                 const calcResult = parsedEntries[calcKey] as
-                  | { type: string; value: number }
-                  | undefined;
+                  { type: string; value: number } | undefined;
                 return (
                   <React.Fragment key={key}>
                     <tr className="entry-box__row">
@@ -1054,15 +936,24 @@ export function EntryBox({
               <button
                 type="button"
                 className="entry-box__task-btn entry-box__task-btn--start"
-                onClick={handleStartTask}
-                disabled={saving}
+                onClick={startTimer}
+                disabled={saving || isActionInFlight}
               >
-                ▶ Start
+                {timerAction === 'starting'
+                  ? 'Starting…'
+                  : timerErrorAction === 'starting'
+                    ? 'Failed to start — tap to retry'
+                    : '▶ Start'}
               </button>
             )}
             {started_at && !ended_at && (
               <div className="entry-box__task-active">
-                {isPaused && <span className="entry-box__task-paused">Paused</span>}
+                {timerAction === 'pending-sync' && (
+                  <span className="entry-box__task-pending">Pending sync</span>
+                )}
+                {isPaused && timerAction !== 'pending-sync' && (
+                  <span className="entry-box__task-paused">Paused</span>
+                )}
                 {timerText && (
                   <span className="entry-box__task-elapsed">
                     {target_duration_ms != null ? `${timerText} left` : timerText}
@@ -1072,45 +963,77 @@ export function EntryBox({
                   <button
                     type="button"
                     className="entry-box__task-btn entry-box__task-btn--resume"
-                    onClick={handleResumeTask}
-                    disabled={saving}
+                    onClick={resumeTimer}
+                    disabled={saving || (isActionInFlight && timerAction !== 'resuming')}
                   >
-                    ▶ Resume
+                    {timerAction === 'resuming'
+                      ? 'Resuming…'
+                      : timerErrorAction === 'resuming'
+                        ? 'Failed to resume — tap to retry'
+                        : '▶ Resume'}
                   </button>
                 ) : (
                   <button
                     type="button"
                     className="entry-box__task-btn entry-box__task-btn--pause"
-                    onClick={handlePauseTask}
-                    disabled={saving}
+                    onClick={pauseTimer}
+                    disabled={saving || (isActionInFlight && timerAction !== 'pausing')}
                   >
-                    ❚❚ Pause
+                    {timerAction === 'pausing'
+                      ? 'Pausing…'
+                      : timerErrorAction === 'pausing'
+                        ? 'Failed to pause — tap to retry'
+                        : '❚❚ Pause'}
                   </button>
                 )}
                 <button
                   type="button"
                   className="entry-box__task-btn entry-box__task-btn--end"
-                  onClick={handleEndTask}
-                  disabled={saving}
+                  onClick={stopTimer}
+                  disabled={saving || (isActionInFlight && timerAction !== 'stopping')}
                 >
-                  ■ End Task
+                  {timerAction === 'stopping'
+                    ? 'Stopping…'
+                    : timerErrorAction === 'stopping'
+                      ? 'Failed to stop — tap to retry'
+                      : '■ End Task'}
                 </button>
                 {target_duration_ms == null && (
                   <span className="entry-box__target-set">
                     <input
                       type="number"
-                      min="1"
-                      placeholder="min"
+                      min="0"
+                      placeholder="d"
+                      aria-label="Target days"
+                      value={targetDays}
+                      onChange={(e) => setTargetDays(e.target.value)}
+                      className="entry-box__target-input entry-box__target-input--small"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="23"
+                      placeholder="h"
+                      aria-label="Target hours"
+                      value={targetHours}
+                      onChange={(e) => setTargetHours(e.target.value)}
+                      className="entry-box__target-input entry-box__target-input--small"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="m"
                       aria-label="Target minutes"
                       value={targetMinutes}
                       onChange={(e) => setTargetMinutes(e.target.value)}
-                      className="entry-box__target-input"
+                      className="entry-box__target-input entry-box__target-input--small"
                     />
                     <button
                       type="button"
                       className="entry-box__task-btn entry-box__task-btn--target"
                       onClick={handleSetTarget}
-                      disabled={saving || !targetMinutes}
+                      disabled={saving || (!targetDays && !targetHours && !targetMinutes)}
                     >
                       Set Target
                     </button>
@@ -1132,6 +1055,19 @@ export function EntryBox({
           View Notes
         </button>
 
+        {timerErrorAction !== null && (
+          <div className="entry-box__error entry-box__error--timer">
+            {timerError}
+            <button
+              type="button"
+              className="entry-box__error-dismiss"
+              onClick={clearTimerError}
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {error && <div className="entry-box__error">{error}</div>}
       </div>
 

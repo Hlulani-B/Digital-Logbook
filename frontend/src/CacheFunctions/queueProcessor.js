@@ -7,6 +7,7 @@
 
 import { getQueue, removeFromQueue, updateQueueEntry } from './offlineQueue';
 import { dispatchAction } from './actionDispatcher';
+import { rollbackEntryMutation } from '../functions/project/entries';
 
 const MAX_ATTEMPTS = 3;
 
@@ -18,7 +19,27 @@ const MAX_ATTEMPTS = 3;
  * @param {object} onProgress.progress - Progress object with type, action, message
  * @returns {Promise<object>} Summary of processing results
  */
-export async function processQueue(onProgress) {
+let processing;
+export function processQueue(onProgress) {
+  if (!processing)
+    processing = runQueue(onProgress).finally(() => {
+      processing = null;
+    });
+  return processing;
+}
+
+async function rejectEntry(entry, error, onProgress) {
+  await updateQueueEntry({
+    ...entry,
+    state: 'rejected',
+    rejectedAt: new Date().toISOString(),
+    error,
+  });
+  await rollbackEntryMutation(entry.payload);
+  onProgress?.({ type: 'rejected', action: entry.action, message: error.message });
+}
+
+async function runQueue(onProgress) {
   // Don't process if offline
   if (!navigator.onLine) {
     console.log('[QueueProcessor] Offline, skipping queue processing');
@@ -42,8 +63,22 @@ export async function processQueue(onProgress) {
       // Execute the action
       const result = await dispatchAction(entry);
 
-      // Check if the action succeeded
-      if (result?.success !== false) {
+      const entryMutation = ['addEntry', 'updateEntry'].includes(entry.action);
+      if (entryMutation && result?.success === false && result.retryable !== true) {
+        await rejectEntry(
+          entry,
+          {
+            code: result.code,
+            message: result.message || 'Entry rejected',
+            errors: result.errors,
+          },
+          onProgress
+        );
+        failed++;
+        continue;
+      }
+      // Entry writes require explicit confirmation, never a queued result.
+      if (entryMutation ? result?.success === true && !result.queued : result?.success !== false) {
         // Success: remove from queue
         await removeFromQueue(entry.id);
         succeeded++;
@@ -63,8 +98,14 @@ export async function processQueue(onProgress) {
       entry.attempts = (entry.attempts || 0) + 1;
 
       if (entry.attempts >= MAX_ATTEMPTS) {
-        // Max retries reached: remove from queue
-        await removeFromQueue(entry.id);
+        // Preserve exhausted entry writes for recovery as well as date rejections.
+        if (['addEntry', 'updateEntry'].includes(entry.action)) {
+          await rejectEntry(
+            entry,
+            { message: error.message || 'Entry synchronization failed' },
+            onProgress
+          );
+        } else await removeFromQueue(entry.id);
         failed++;
         onProgress?.({
           type: 'failed',
@@ -83,7 +124,8 @@ export async function processQueue(onProgress) {
     }
   }
 
-  onProgress?.({ type: 'complete', succeeded, failed });
+  const pending = (await getQueue()).length;
+  onProgress?.({ type: 'complete', succeeded, failed, pending });
 
   console.log(`[QueueProcessor] Done: ${succeeded} succeeded, ${failed} failed`);
   return { processed: queue.length, succeeded, failed };

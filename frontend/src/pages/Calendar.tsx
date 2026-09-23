@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
+import { dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache.js';
 import { syncAllData } from '@/CacheFunctions';
@@ -386,7 +387,7 @@ export function CalendarPage() {
 
     setUpdating(true);
     try {
-      const newDueDate = toISODate(date);
+      const newDueDate = dateOnlyDueToISO(toISODate(date));
       const result = await updateEntry(email, entry.project_name, entry.id, undefined, newDueDate);
 
       if (result?.success === false) {
@@ -398,9 +399,9 @@ export function CalendarPage() {
         return;
       }
 
-      setEntries((prev) =>
-        prev.map((e) => (e.id === entry.id ? { ...e, due_date: newDueDate } : e))
-      );
+      if (result?.success !== true) throw new Error('Failed to reschedule entry');
+      const confirmed = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (confirmed) setEntries((prev) => prev.map((e) => (e.id === entry.id ? confirmed : e)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reschedule entry');
     } finally {
@@ -425,7 +426,7 @@ export function CalendarPage() {
   };
 
   const handleEntryMoved = useCallback((entryId: string | number, newDate: Date) => {
-    const newDueDate = toISODate(newDate);
+    const newDueDate = dateOnlyDueToISO(toISODate(newDate));
     setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, due_date: newDueDate } : e)));
     // Close the modal after moving
     setSelectedDate(null);
@@ -545,6 +546,9 @@ export function CalendarPage() {
             </div>
           </div>
 
+          <p className="calendar-date-help">
+            Rescheduled deadlines use the end of the selected local day.
+          </p>
           {error && (
             <div className="calendar-error" role="alert">
               {error}

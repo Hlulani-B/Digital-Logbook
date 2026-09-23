@@ -23,20 +23,7 @@ const actionMap = {
   // one and return before the POST had been retried.
   addEntry: (payload) => entries.addEntrySync(payload),
 
-  updateEntry: (payload) =>
-    entries.updateEntry(
-      payload.user_email,
-      payload.project_name,
-      payload.entry_id,
-      payload.new_entry,
-      payload.due_date,
-      payload.priority,
-      payload.status,
-      payload.started_at,
-      payload.ended_at,
-      payload.duration,
-      payload.summary
-    ),
+  updateEntry: (payload) => entries.updateEntrySync(payload),
 
   deleteEntry: (payload) =>
     entries.deleteEntry(payload.user_email, payload.project_name, payload.entry),

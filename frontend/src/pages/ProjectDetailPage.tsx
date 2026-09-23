@@ -235,6 +235,7 @@ export function ProjectDetailPage() {
 
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
 
   // View mode: table, cards, or checklist — persist in localStorage, default to cards on mobile
   const [viewMode, setViewModeState] = useState<'table' | 'cards' | 'checklist' | 'board'>(() => {
@@ -816,6 +817,7 @@ export function ProjectDetailPage() {
           </>
         )}
 
+        {entryError && <p role="alert">{entryError}</p>}
         {/* All entries */}
         {!searchQuery && (
           <div className="project-content">
@@ -852,6 +854,7 @@ export function ProjectDetailPage() {
                     console.log('[onUpdate] Missing row or email:', { row: !!row, email: !!email });
                     return;
                   }
+                  setEntryError(null);
                   // Map priority from raw value to friendly label for database
                   const mappedPatch = { ...patch };
                   if (patch.priority !== undefined) {
@@ -884,17 +887,15 @@ export function ProjectDetailPage() {
                       mappedPatch.ended_at
                     );
                     console.log('[onUpdate] updateEntry result:', result);
-                    // If server returned failure, rollback local state
-                    if (result && !result.success) {
-                      console.warn(
-                        '[onUpdate] Server returned failure, rolling back UI:',
-                        (result as any).message
-                      );
-                      setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
-                    }
+                    if (result?.success !== true)
+                      throw new Error(result?.message || 'Failed to save entry');
+                    const confirmed = Array.isArray(result.data) ? result.data[0] : result.data;
+                    if (confirmed)
+                      setEntries((prev) => prev.map((r) => (r.id === id ? confirmed : r)));
                     // No need to call loadEntries() - updateEntry already updated the cache
                   } catch (err) {
                     console.error('[onUpdate] Update failed:', err);
+                    setEntryError(err instanceof Error ? err.message : 'Failed to save entry');
                     // Rollback local state on failure
                     setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
                   }

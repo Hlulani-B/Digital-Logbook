@@ -2,6 +2,8 @@ import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
 import { addToQueue } from '@/CacheFunctions/offlineQueue';
 import { isNotesPayload } from '@/lib/entryPayload';
+import { getFields } from './fields';
+import { validateEntryDates, ENTRY_DATE_COLUMNS } from '@/lib/newEntryDates';
 
 function withoutUndefined(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined));
@@ -202,12 +204,279 @@ export async function sortArchivedEntries(user_email, project_name, sort_type) {
   }
 }
 
-// ── POST/PUT functions — write to IndexedDB FIRST, then sync ──
+// Entry writes share US54 prevalidation and an awaited server result. Queue
+// replay uses the server-only functions below and cannot recursively requeue.
+const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const rowsOf = (cached) =>
+  Array.isArray(cached?.data) ? cached.data : Array.isArray(cached) ? cached : [];
+const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const cacheLocations = (payload) => [
+  [CACHE_STORES.ENTRIES, `${payload.user_email}:${payload.project_name}`],
+  [CACHE_STORES.ALL_ENTRIES, payload.user_email],
+];
 
-/**
- * Add a new entry.
- * Writes optimistic data to IndexedDB immediately, then syncs to server.
- */
+const cacheWrites = new Map();
+async function changeEntryCaches(payload, transform) {
+  for (const [store, key] of cacheLocations(payload)) {
+    const lock = `${store}:${key}`;
+    const write = (cacheWrites.get(lock) || Promise.resolve())
+      .catch(() => {})
+      .then(async () => {
+        const cached = await cacheGet(store, key);
+        await cacheSet(store, key, { success: true, data: transform(rowsOf(cached)) });
+      });
+    cacheWrites.set(lock, write);
+    try {
+      await write;
+    } finally {
+      if (cacheWrites.get(lock) === write) cacheWrites.delete(lock);
+    }
+  }
+}
+
+function reconcileEntry(row, current, local) {
+  if (!local) return row;
+  const expected = { ...local.before, ...local.patch };
+  if (record(local.patch.entries) && record(local.before.entries))
+    expected.entries = { ...local.before.entries, ...local.patch.entries };
+  const merged = { ...row };
+  for (const [key, value] of Object.entries(current)) {
+    if (['id', 'created_at', '_optimistic'].includes(key)) continue;
+    if (key === 'entries' && record(value) && record(expected.entries) && record(row.entries)) {
+      merged.entries = { ...row.entries };
+      for (const [field, assigned] of Object.entries(value)) {
+        if (!sameValue(assigned, expected.entries[field])) merged.entries[field] = assigned;
+      }
+    } else if (!sameValue(value, expected[key])) merged[key] = value;
+  }
+  return merged;
+}
+
+// Roll back only values still owned by this optimistic operation, preserving
+// unrelated entries and subsequent edits. Metadata remains local, never in RPC.
+export async function rollbackEntryMutation(payload) {
+  const local = payload._local;
+  if (!local) return;
+  await changeEntryCaches(payload, (rows) => {
+    if (local.created) return rows.filter((row) => String(row.id) !== String(local.id));
+    return rows.map((row) => {
+      if (String(row.id) !== String(local.id)) return row;
+      const restored = { ...row };
+      for (const [key, value] of Object.entries(local.patch)) {
+        if (key === 'entries' && record(value) && record(row.entries)) {
+          restored.entries = { ...row.entries };
+          for (const [field, assigned] of Object.entries(value)) {
+            if (!sameValue(row.entries[field], assigned)) continue;
+            if (Object.prototype.hasOwnProperty.call(local.before.entries || {}, field))
+              restored.entries[field] = local.before.entries[field];
+            else delete restored.entries[field];
+          }
+        } else if (sameValue(row[key], value)) {
+          if (Object.prototype.hasOwnProperty.call(local.before, key))
+            restored[key] = local.before[key];
+          else delete restored[key];
+        }
+      }
+      return restored;
+    });
+  });
+}
+
+async function syncEntryMutation(action, payload) {
+  const { _local, ...values } = payload;
+  let result = await request(`${PROJECT_URL}/service/entry`, {
+    method: 'POST',
+    body: JSON.stringify({ function: action, values: withoutUndefined(values) }),
+  });
+  const confirmed = Array.isArray(result?.data) ? result.data[0] : result?.data;
+  if (result?.success !== false && (result?.success !== true || !confirmed?.id)) {
+    result = {
+      success: false,
+      code: 'ENTRY_RESPONSE_INVALID',
+      retryable: false,
+      message: 'The server did not confirm the saved entry. Reload before trying again.',
+    };
+  }
+  if (result?.success && result.data) {
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (row) {
+      await changeEntryCaches(payload, (rows) => {
+        const id = _local?.id ?? payload.entry_id;
+        const present = rows.some(
+          (item) => String(item.id) === String(id) || String(item.id) === String(row.id)
+        );
+        return present
+          ? rows.map((item) =>
+              String(item.id) === String(id) || String(item.id) === String(row.id)
+                ? reconcileEntry(row, item, _local)
+                : item
+            )
+          : action === 'add'
+            ? [...rows, row]
+            : rows;
+      });
+      // Move notes cached under the optimistic id (creation-time notes) onto the
+      // real server id so the notes panel keeps showing them without a refetch.
+      if (action === 'add' && _local?.id && row.id && String(_local.id) !== String(row.id)) {
+        const optimisticNotesKey = `notes:${_local.id}`;
+        const optimisticNotes = await cacheGet(CACHE_STORES.NOTES, optimisticNotesKey);
+        if (optimisticNotes) {
+          const noteRows = Array.isArray(optimisticNotes.data) ? optimisticNotes.data : [];
+          await cacheSet(CACHE_STORES.NOTES, `notes:${row.id}`, {
+            success: true,
+            data: noteRows.map((n) => ({ ...n, entry_id: row.id, _optimistic: undefined })),
+          });
+          await cacheDelete(CACHE_STORES.NOTES, optimisticNotesKey);
+        }
+      }
+    }
+  } else if (result?.success === false && result.retryable !== true) {
+    await rollbackEntryMutation(payload);
+  }
+  return result;
+}
+
+export const addEntrySync = (payload) => syncEntryMutation('add', payload);
+export const updateEntrySync = (payload) => syncEntryMutation('update', payload);
+
+async function mutateEntry(action, input, options = { requireServer: false }) {
+  if (options.requireServer && !navigator.onLine)
+    return { success: false, message: 'Connect to the internet to import entries.' };
+  const payload = withoutUndefined(input);
+  const cached = await cacheGet(
+    CACHE_STORES.ENTRIES,
+    `${payload.user_email}:${payload.project_name}`
+  );
+  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, payload.user_email);
+  let before = [...rowsOf(cached), ...rowsOf(cachedAll)].find(
+    (row) => String(row.id) === String(payload.entry_id)
+  );
+  if (action === 'update' && !before && navigator.onLine) {
+    before = rowsOf(await getEntries(payload.user_email, payload.project_name)).find(
+      (row) => String(row.id) === String(payload.entry_id)
+    );
+  }
+  if (action === 'update' && !before)
+    return { success: false, message: 'Load the entry before editing its dates.' };
+  const schema = await getFields(payload.user_email, payload.project_name);
+  if (schema?.success !== true || !Array.isArray(schema.data))
+    return {
+      success: false,
+      code: 'ENTRY_SCHEMA_UNAVAILABLE',
+      message: 'Cannot validate entry dates until project fields are loaded.',
+    };
+  const checked = validateEntryDates({
+    dates: payload,
+    values: action === 'add' ? payload.entry_object : payload.new_entry,
+    fields: schema.data,
+    previous: action === 'update' ? before : undefined,
+  });
+  if (!checked.success) return checked;
+  for (const key of ENTRY_DATE_COLUMNS) delete payload[key];
+  Object.assign(payload, checked.dates);
+  payload[action === 'add' ? 'entry_object' : 'new_entry'] = checked.values;
+  // Match the existing backend's null-as-no-change start/end semantics.
+  if (action === 'update') {
+    for (const key of ['started_at', 'ended_at']) if (payload[key] === null) delete payload[key];
+  }
+  const id = action === 'add' ? `optimistic-${crypto.randomUUID()}` : payload.entry_id;
+  const patch = withoutUndefined(
+    Object.fromEntries(
+      Object.entries(payload).filter(
+        ([key]) =>
+          !['entry_id', 'entry_object', 'new_entry', 'notes', 'timer_action', 'duration'].includes(
+            key
+          )
+      )
+    )
+  );
+  if (checked.values !== undefined) patch.entries = checked.values;
+  const timerPending =
+    action === 'update' &&
+    (payload.timer_action ||
+      (payload.status !== before?.status &&
+        ['in_motion', 'done_and_dusted'].includes(payload.status)));
+  if (timerPending) patch._timerPending = true;
+  const optimistic =
+    action === 'add'
+      ? { ...patch, id, created_at: new Date().toISOString(), _optimistic: true }
+      : {
+          ...before,
+          ...patch,
+          entries:
+            record(patch.entries) && record(before.entries)
+              ? { ...before.entries, ...patch.entries }
+              : (patch.entries ?? before.entries),
+        };
+  payload._local = { id, created: action === 'add', before: before || {}, patch };
+  await changeEntryCaches(payload, (rows) =>
+    action === 'add'
+      ? [...rows, optimistic]
+      : rows.map((row) =>
+          String(row.id) === String(id)
+            ? {
+                ...row,
+                ...patch,
+                entries:
+                  record(patch.entries) && record(row.entries)
+                    ? { ...row.entries, ...patch.entries }
+                    : (patch.entries ?? row.entries),
+              }
+            : row
+        )
+  );
+  // Offline notes-at-creation: persist notes attached when the entry was created
+  // into the notes cache under the optimistic id so the notes panel renders them
+  // before the server round-trip (images keep an "(uploading...)" placeholder).
+  if (action === 'add' && Array.isArray(payload.notes) && payload.notes.length > 0) {
+    const noteRows = payload.notes
+      .filter((n) => n && n.entry_type && n.value != null && n.value !== '')
+      .map((n, i) => ({
+        id: `optimistic-note-${id}-${i}`,
+        email: payload.user_email,
+        entry_id: id,
+        entry_type: n.entry_type,
+        value: n.entry_type === 'text' || n.entry_type === 'link' ? n.value : '(uploading...)',
+        created_at: new Date().toISOString(),
+        deleted: false,
+        _optimistic: true,
+      }));
+    if (noteRows.length > 0)
+      await cacheSet(CACHE_STORES.NOTES, `notes:${id}`, { success: true, data: noteRows });
+  }
+  const queue = async () => {
+    try {
+      await addToQueue(action === 'add' ? 'addEntry' : 'updateEntry', 'entries', payload);
+    } catch (error) {
+      await rollbackEntryMutation(payload);
+      return { success: false, message: error.message || 'Could not store the pending change.' };
+    }
+    return {
+      success: true,
+      queued: true,
+      data: optimistic,
+      message: timerPending
+        ? 'Pending sync — timer timing takes effect on synchronization.'
+        : 'Saved locally; pending server validation.',
+    };
+  };
+  if (!navigator.onLine) return queue();
+  try {
+    const result = await syncEntryMutation(action, payload);
+    if (result?.success === false && result.retryable === true && !options.requireServer)
+      return queue();
+    if (result?.success === false) await rollbackEntryMutation(payload);
+    return result;
+  } catch (error) {
+    // Only transport failures are queued. Known HTTP failures remain failures.
+    if (options.requireServer || /^API error \d+:/.test(error.message || '')) {
+      await rollbackEntryMutation(payload);
+      return { success: false, message: error.message || 'Entry could not be saved.' };
+    }
+    return queue();
+  }
+}
+
 export async function addEntry(
   user_email,
   project_name,
@@ -219,93 +488,16 @@ export async function addEntry(
   ended_at,
   duration,
   summary,
-  notes
+  notes,
+  options = { requireServer: false }
 ) {
-  // Defensive: historically a caller passed the notes payload into the
-  // `summary` slot (positional-args slip-up). Detect the notes shape in
-  // `summary` and swap it into `notes` so neither the DB write nor the UI
-  // ever sees a JSON-stringified notes array as an entry summary.
   if (summary != null && (Array.isArray(summary) || isNotesPayload(summary))) {
     if (notes == null) notes = summary;
     summary = null;
   }
-  const cacheKey = `${user_email}:${project_name}`;
-
-  // 1. Optimistic update: read current cache, add optimistic entry, write back.
-  //    The write is UNCONDITIONAL — it creates the list when the store key is
-  //    still cold. Previously it was guarded by `if (cached)`, so the very
-  //    first entry added while offline (or in a project whose entries were
-  //    never cached) was queued but never rendered: the optimistic row simply
-  //    wasn't written, so no cacheSubscribe fired and the page stayed empty.
-  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
-  const optimisticEntry = {
-    id: `optimistic-${Date.now()}`,
-    user_email,
-    project_name,
-    entries: entry_object,
-    due_date,
-    priority,
-    status,
-    started_at,
-    ended_at,
-    duration,
-    summary,
-    created_at: new Date().toISOString(),
-    _optimistic: true,
-  };
-
-  // Write optimistic entry to per-project cache (create the list if missing)
-  {
-    const currentData = cached ? (cached.data !== undefined ? cached.data : cached) : [];
-    const optimisticData = Array.isArray(currentData)
-      ? [...currentData, optimisticEntry]
-      : [optimisticEntry];
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: optimisticData });
-  }
-
-  // Write optimistic entry to all-entries cache (create the list if missing)
-  {
-    const currentAll = cachedAll
-      ? (cachedAll.data !== undefined ? cachedAll.data : cachedAll)
-      : [];
-    const optimisticAll = Array.isArray(currentAll)
-      ? [...currentAll, optimisticEntry]
-      : [optimisticEntry];
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: optimisticAll });
-  }
-
-  // Persist any notes attached at creation time into the notes cache, keyed by
-  // the optimistic entry id, so the notes panel renders them offline too.
-  // (Images are the accepted offline exception — store a placeholder for them.)
-  if (Array.isArray(notes) && notes.length > 0) {
-    const noteRows = notes
-      .filter((n) => n && n.entry_type && n.value != null && n.value !== '')
-      .map((n, i) => ({
-        id: `optimistic-note-${optimisticEntry.id}-${i}`,
-        email: user_email,
-        entry_id: optimisticEntry.id,
-        entry_type: n.entry_type,
-        value: n.entry_type === 'text' || n.entry_type === 'link' ? n.value : '(uploading...)',
-        created_at: new Date().toISOString(),
-        deleted: false,
-        _optimistic: true,
-      }));
-    if (noteRows.length > 0) {
-      await cacheSet(CACHE_STORES.NOTES, `notes:${optimisticEntry.id}`, {
-        success: true,
-        data: noteRows,
-      });
-    }
-  }
-
-  // 2. Check online status
-  if (!navigator.onLine) {
-    // Offline: queue for later sync. `optimistic_id` travels with the payload so
-    // the replay can recognise the row already on screen and swap it for the
-    // server row instead of appending a second one.
-    console.log('[addEntry] Offline, queuing action');
-    await addToQueue('addEntry', 'entries', buildAddEntryPayload({
+  return mutateEntry(
+    'add',
+    {
       user_email,
       project_name,
       entry_object,
@@ -317,171 +509,9 @@ export async function addEntry(
       duration,
       summary,
       notes,
-      optimistic_id: optimisticEntry.id,
-    }));
-    return { success: true, queued: true, data: optimisticEntry, message: undefined };
-  }
-
-  // 3. Sync to server in background (don't block the UI)
-  _syncAddEntryToServer(
-    buildAddEntryPayload({
-      user_email,
-      project_name,
-      entry_object,
-      due_date,
-      priority,
-      status,
-      started_at,
-      ended_at,
-      duration,
-      summary,
-      notes,
-      optimistic_id: optimisticEntry.id,
-    })
+    },
+    options
   );
-
-  // Return immediately — optimistic entry is already in IndexedDB
-  return { success: true, optimistic: true, data: optimisticEntry, message: undefined };
-}
-
-/**
- * The canonical addEntry payload. Kept in one place so the queued action, the
- * background sync and the replay can never drift apart in field names — and so
- * the payload only ever holds JSON-serialisable values (the queue writes it to
- * SQLite, a live File or a DOM node would break it there).
- */
-function buildAddEntryPayload(args) {
-  const { user_email, project_name, entry_object, due_date, priority, status, started_at, ended_at, duration, summary, notes, optimistic_id } = args;
-  return {
-    user_email,
-    project_name,
-    entry_object,
-    due_date,
-    priority,
-    status,
-    started_at,
-    ended_at,
-    duration,
-    summary,
-    notes,
-    optimistic_id,
-  };
-}
-
-/**
- * Swap the optimistic row for the authoritative server row in both entry caches.
- *
- * Always re-reads the cache (the old snapshot taken before the POST may have
- * been replaced by a background refresh in the meantime) and matches on the
- * optimistic ID. Matching on the entry *object* never worked: the cache is
- * JSON, so the row read back is a different object than the one passed in.
- * When the optimistic row has already gone, the server row is appended rather
- * than dropped, so a successful POST is never lost from the UI.
- */
-async function reconcileOptimisticEntry(payload, newEntry) {
-  const { user_email, project_name, optimistic_id: optimisticId } = payload;
-  const cacheKey = `${user_email}:${project_name}`;
-
-  const merge = (rows) => {
-    if (!Array.isArray(rows)) return rows;
-    const sameId = (e, id) => id != null && String(e?.id) === String(id);
-    // Collapse the pending row and any copy of the server row (a retried POST
-    // can create two) into the single authoritative row, keeping its position.
-    const merged = [];
-    let placed = false;
-    for (const e of rows) {
-      if (sameId(e, optimisticId) || sameId(e, newEntry.id)) {
-        if (!placed) {
-          merged.push(newEntry);
-          placed = true;
-        }
-        continue;
-      }
-      merged.push(e);
-    }
-    // The optimistic row is gone (cleared by a refresh, or the list was rebuilt
-    // while the POST was in flight) — the entry still has to appear.
-    if (!placed) merged.push(newEntry);
-    return merged;
-  };
-
-  const cached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-  if (cached) {
-    const currentData = cached.data !== undefined ? cached.data : cached;
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: merge(currentData) });
-  }
-
-  const cachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
-  if (cachedAll) {
-    const currentAll = cachedAll.data !== undefined ? cachedAll.data : cachedAll;
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: merge(currentAll) });
-  }
-
-  // Notes typed alongside the new entry were cached under the optimistic entry
-  // id. Move them under the real id so the notes panel keeps showing them
-  // without a server round-trip (the server stored them with the entry).
-  if (optimisticId && newEntry?.id) {
-    const optimisticNotesKey = `notes:${optimisticId}`;
-    const realNotesKey = `notes:${newEntry.id}`;
-    const optimisticNotes = await cacheGet(CACHE_STORES.NOTES, optimisticNotesKey);
-    if (optimisticNotes) {
-      const rows = Array.isArray(optimisticNotes.data) ? optimisticNotes.data : [];
-      await cacheSet(CACHE_STORES.NOTES, realNotesKey, {
-        success: true,
-        data: rows.map((n) => ({ ...n, entry_id: newEntry.id })),
-      });
-      await cacheDelete(CACHE_STORES.NOTES, optimisticNotesKey);
-    }
-  }
-}
-
-/**
- * Server-only add — no optimistic write, no re-queueing.
- * Used to replay a queued addEntry: the on-screen optimistic row already
- * exists, so calling the public addEntry again would append a duplicate.
- * Throws (or returns success:false) on failure so the queue keeps retrying.
- */
-export async function addEntrySync(payload) {
-  const result = await request(`${PROJECT_URL}/service/entry`, {
-    method: 'POST',
-    body: JSON.stringify({
-      function: 'add',
-      values: withoutUndefined({
-        user_email: payload.user_email,
-        project_name: payload.project_name,
-        entry_object: payload.entry_object,
-        due_date: payload.due_date,
-        priority: payload.priority,
-        status: payload.status,
-        started_at: payload.started_at,
-        ended_at: payload.ended_at,
-        duration: payload.duration,
-        summary: payload.summary,
-        notes: payload.notes,
-      }),
-    }),
-  });
-
-  if (result?.success && result.data) {
-    const newEntry = Array.isArray(result.data) ? result.data[0] : result.data;
-    await reconcileOptimisticEntry(payload, newEntry);
-  }
-  return result;
-}
-
-/**
- * Internal: sync an addEntry action to the server in the background.
- * Fires after the optimistic write; replaces optimistic data with real server data on success,
- * or queues for retry on failure.
- */
-async function _syncAddEntryToServer(payload) {
-  try {
-    await addEntrySync(payload);
-  } catch (err) {
-    // On failure, queue for retry (optimistic entry stays in cache)
-    console.error('[addEntry] Server sync failed, queuing for retry:', err);
-    await addToQueue('addEntry', 'entries', payload);
-  }
 }
 
 /**
@@ -502,174 +532,26 @@ export async function updateEntry(
   summary,
   target_duration_ms,
   paused_ms,
-  paused_at
+  paused_at,
+  timer_action
 ) {
-  const cacheKey = `${user_email}:${project_name}`;
-
-  // 1. Save pre-update cache state for rollback
-  const cachedBefore = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-  const cachedAllBefore = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
-
-  function patchEntry(arr) {
-    if (!Array.isArray(arr)) return arr;
-    return arr.map((e) => {
-      if (e.id === entry_id || e.id?.toString() === entry_id?.toString()) {
-        return {
-          ...e,
-          entries: new_entry ?? e.entries,
-          due_date: due_date !== undefined ? due_date : e.due_date,
-          priority: priority !== undefined ? priority : e.priority,
-          status: status !== undefined ? status : e.status,
-          started_at: started_at !== undefined ? started_at : e.started_at,
-          ended_at: ended_at !== undefined ? ended_at : e.ended_at,
-          duration: duration !== undefined ? duration : e.duration,
-          summary: summary !== undefined ? summary : e.summary,
-          target_duration_ms:
-            target_duration_ms !== undefined ? target_duration_ms : e.target_duration_ms,
-          paused_ms: paused_ms !== undefined ? paused_ms : e.paused_ms,
-          paused_at: paused_at !== undefined ? paused_at : e.paused_at,
-        };
-      }
-      return e;
-    });
-  }
-
-  // 2. Optimistic update: patch the entry in cache
-  if (cachedBefore) {
-    const currentData = cachedBefore.data || cachedBefore;
-    await cacheSet(CACHE_STORES.ENTRIES, cacheKey, {
-      success: true,
-      data: patchEntry(currentData),
-    });
-  }
-  if (cachedAllBefore) {
-    const currentAll = cachedAllBefore.data || cachedAllBefore;
-    await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, {
-      success: true,
-      data: patchEntry(currentAll),
-    });
-  }
-
-  // 3. Check online status
-  if (!navigator.onLine) {
-    // Offline: queue for later sync
-    console.log('[updateEntry] Offline, queuing action');
-    await addToQueue('updateEntry', 'entries', {
-      user_email,
-      project_name,
-      entry_id,
-      new_entry,
-      due_date,
-      priority,
-      status,
-      started_at,
-      ended_at,
-      duration,
-      summary,
-      target_duration_ms,
-      paused_ms,
-      paused_at,
-    });
-    return { success: true, queued: true };
-  }
-
-  // 4. Sync to server
-  try {
-    console.log('[updateEntry] Sending to server:', { entry_id, priority, status, project_name });
-    const result = await request(`${PROJECT_URL}/service/entry`, {
-      method: 'POST',
-      body: JSON.stringify({
-        function: 'update',
-        values: withoutUndefined({
-          user_email,
-          project_name,
-          entry_id,
-          new_entry,
-          due_date,
-          priority,
-          status,
-          started_at,
-          ended_at,
-          summary,
-          target_duration_ms,
-          paused_ms,
-          // paused_at may be explicitly null (Resume / End Task clear the pause)
-          // so it must be sent even though withoutUndefined strips undefined keys.
-          paused_at,
-        }),
-      }),
-    });
-
-    console.log('[updateEntry] Server response:', JSON.stringify(result));
-
-    // 5a. Server returned success — update cache with authoritative server data
-    if (result?.success && result.data) {
-      const updatedEntry = Array.isArray(result.data) ? result.data[0] : result.data;
-      // Re-read current cache (not stale reference) and replace the entry
-      const currentCached = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
-      if (currentCached) {
-        const currentData = currentCached.data || currentCached;
-        const newData = Array.isArray(currentData)
-          ? currentData.map((e) =>
-              e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e
-            )
-          : currentData;
-        await cacheSet(CACHE_STORES.ENTRIES, cacheKey, { success: true, data: newData });
-      }
-      const currentCachedAll = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
-      if (currentCachedAll) {
-        const currentAll = currentCachedAll.data || currentCachedAll;
-        const newAll = Array.isArray(currentAll)
-          ? currentAll.map((e) =>
-              e.id === entry_id || e.id?.toString() === entry_id?.toString() ? updatedEntry : e
-            )
-          : currentAll;
-        await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { success: true, data: newAll });
-      }
-    }
-    // 5b. Server returned failure — queue for retry
-    else if (result && !result.success) {
-      console.warn('[updateEntry] Server returned failure, queuing for retry:', result.message);
-      await addToQueue('updateEntry', 'entries', {
-        user_email,
-        project_name,
-        entry_id,
-        new_entry,
-        due_date,
-        priority,
-        status,
-        started_at,
-        ended_at,
-        duration,
-        summary,
-        target_duration_ms,
-        paused_ms,
-        paused_at,
-      });
-    }
-
-    return result;
-  } catch (err) {
-    // 6. On network error, queue for retry (don't rollback)
-    console.error('[updateEntry] Server sync failed, queuing for retry:', err);
-    await addToQueue('updateEntry', 'entries', {
-      user_email,
-      project_name,
-      entry_id,
-      new_entry,
-      due_date,
-      priority,
-      status,
-      started_at,
-      ended_at,
-      duration,
-      summary,
-      target_duration_ms,
-      paused_ms,
-      paused_at,
-    });
-    return { success: true, queued: true };
-  }
+  return mutateEntry('update', {
+    user_email,
+    project_name,
+    entry_id,
+    new_entry,
+    due_date,
+    priority,
+    status,
+    started_at,
+    ended_at,
+    duration,
+    summary,
+    target_duration_ms,
+    paused_ms,
+    paused_at,
+    timer_action,
+  });
 }
 
 /**

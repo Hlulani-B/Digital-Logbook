@@ -226,6 +226,7 @@ export default function DataPortability() {
       setExportSuccess(null);
 
       try {
+        if (!navigator.onLine) throw new Error('Connect to the internet to import entries.');
         const text = await file.text();
         const result = parseImport(text, file.name);
         setImportResult(result);
@@ -290,12 +291,19 @@ export default function DataPortability() {
             entry.started_at,
             entry.ended_at,
             undefined,
-            entry.summary
+            entry.summary,
+            undefined,
+            { requireServer: true }
           );
           const created = Array.isArray((response as any)?.data)
             ? (response as any).data[0]
             : (response as any)?.data;
-          if (response?.success && created?.id) {
+          if (
+            response?.success &&
+            !response?.queued &&
+            created?.id &&
+            !String(created.id).startsWith('optimistic-')
+          ) {
             createdEntries.push({
               projectName: entry.project_name,
               entryId: created.id,
