@@ -2350,7 +2350,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       <option value="entity_link">Entity Link</option>
                       <option value="tags">Tags</option>
                       <option value="checklist">Checklist</option>
-                      <option value="computed">Computed</option>
                       <option value="custom">Custom (Legacy)</option>
                     </select>
                     <label
