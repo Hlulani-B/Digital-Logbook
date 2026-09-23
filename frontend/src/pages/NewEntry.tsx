@@ -20,6 +20,7 @@ import {
 } from '@/lib/newEntryDates';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
+import { useTimerActions } from '@/hooks/useTimerActions';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -222,6 +223,19 @@ export function EntryBox({
   );
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
 
+  // Timer actions (start/pause/resume/stop) with in-flight and failure state
+  const {
+    timerAction,
+    timerError,
+    timerErrorAction,
+    isActionInFlight,
+    start: startTimer,
+    pause: pauseTimer,
+    resume: resumeTimer,
+    stop: stopTimer,
+    clearError: clearTimerError,
+  } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
+
   useEffect(() => {
     if (!menuOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -399,49 +413,22 @@ export function EntryBox({
     }
   };
 
-  const handleTimerAction = async (action: 'start' | 'end' | 'pause' | 'resume') => {
-    if (!user_email || saving || entry._timerPending) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        action
-      );
-      applyResult(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update timer');
-    } finally {
-      setSaving(false);
-    }
-  };
-  const handleStartTask = () => handleTimerAction('start');
-  const handleEndTask = () => handleTimerAction('end');
-  const handlePauseTask = () => handleTimerAction('pause');
-  const handleResumeTask = () => handleTimerAction('resume');
+  // Timer actions are now handled by useTimerActions hook (startTimer, pauseTimer, resumeTimer, stopTimer)
 
   // Adds a deadline target to a running task that has none (count-up → countdown)
+  const [targetDays, setTargetDays] = useState<string>('');
+  const [targetHours, setTargetHours] = useState<string>('');
   const [targetMinutes, setTargetMinutes] = useState<string>('');
   const handleSetTarget = async () => {
-    const minutes = Number(targetMinutes);
-    if (!user_email || saving || !Number.isFinite(minutes) || minutes <= 0) return;
+    const days = Number(targetDays) || 0;
+    const hours = Number(targetHours) || 0;
+    const minutes = Number(targetMinutes) || 0;
+    const totalMinutes = days * 1440 + hours * 60 + minutes;
+    if (!user_email || saving || !Number.isFinite(totalMinutes) || totalMinutes <= 0) return;
     setSaving(true);
     setError(null);
     try {
-      const targetMs = Math.round(minutes * 60000);
+      const targetMs = Math.round(totalMinutes * 60000);
       const result = await updateEntry(
         user_email,
         project_name,
@@ -461,6 +448,8 @@ export function EntryBox({
         return;
       }
       applyResult(result);
+      setTargetDays('');
+      setTargetHours('');
       setTargetMinutes('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set target');
@@ -947,15 +936,24 @@ export function EntryBox({
               <button
                 type="button"
                 className="entry-box__task-btn entry-box__task-btn--start"
-                onClick={handleStartTask}
-                disabled={saving}
+                onClick={startTimer}
+                disabled={saving || isActionInFlight}
               >
-                ▶ Start
+                {timerAction === 'starting'
+                  ? 'Starting…'
+                  : timerErrorAction === 'starting'
+                    ? 'Failed to start — tap to retry'
+                    : '▶ Start'}
               </button>
             )}
             {started_at && !ended_at && (
               <div className="entry-box__task-active">
-                {isPaused && <span className="entry-box__task-paused">Paused</span>}
+                {timerAction === 'pending-sync' && (
+                  <span className="entry-box__task-pending">Pending sync</span>
+                )}
+                {isPaused && timerAction !== 'pending-sync' && (
+                  <span className="entry-box__task-paused">Paused</span>
+                )}
                 {timerText && (
                   <span className="entry-box__task-elapsed">
                     {target_duration_ms != null ? `${timerText} left` : timerText}
@@ -965,45 +963,77 @@ export function EntryBox({
                   <button
                     type="button"
                     className="entry-box__task-btn entry-box__task-btn--resume"
-                    onClick={handleResumeTask}
-                    disabled={saving}
+                    onClick={resumeTimer}
+                    disabled={saving || (isActionInFlight && timerAction !== 'resuming')}
                   >
-                    ▶ Resume
+                    {timerAction === 'resuming'
+                      ? 'Resuming…'
+                      : timerErrorAction === 'resuming'
+                        ? 'Failed to resume — tap to retry'
+                        : '▶ Resume'}
                   </button>
                 ) : (
                   <button
                     type="button"
                     className="entry-box__task-btn entry-box__task-btn--pause"
-                    onClick={handlePauseTask}
-                    disabled={saving}
+                    onClick={pauseTimer}
+                    disabled={saving || (isActionInFlight && timerAction !== 'pausing')}
                   >
-                    ❚❚ Pause
+                    {timerAction === 'pausing'
+                      ? 'Pausing…'
+                      : timerErrorAction === 'pausing'
+                        ? 'Failed to pause — tap to retry'
+                        : '❚❚ Pause'}
                   </button>
                 )}
                 <button
                   type="button"
                   className="entry-box__task-btn entry-box__task-btn--end"
-                  onClick={handleEndTask}
-                  disabled={saving}
+                  onClick={stopTimer}
+                  disabled={saving || (isActionInFlight && timerAction !== 'stopping')}
                 >
-                  ■ End Task
+                  {timerAction === 'stopping'
+                    ? 'Stopping…'
+                    : timerErrorAction === 'stopping'
+                      ? 'Failed to stop — tap to retry'
+                      : '■ End Task'}
                 </button>
                 {target_duration_ms == null && (
                   <span className="entry-box__target-set">
                     <input
                       type="number"
-                      min="1"
-                      placeholder="min"
+                      min="0"
+                      placeholder="d"
+                      aria-label="Target days"
+                      value={targetDays}
+                      onChange={(e) => setTargetDays(e.target.value)}
+                      className="entry-box__target-input entry-box__target-input--small"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="23"
+                      placeholder="h"
+                      aria-label="Target hours"
+                      value={targetHours}
+                      onChange={(e) => setTargetHours(e.target.value)}
+                      className="entry-box__target-input entry-box__target-input--small"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="m"
                       aria-label="Target minutes"
                       value={targetMinutes}
                       onChange={(e) => setTargetMinutes(e.target.value)}
-                      className="entry-box__target-input"
+                      className="entry-box__target-input entry-box__target-input--small"
                     />
                     <button
                       type="button"
                       className="entry-box__task-btn entry-box__task-btn--target"
                       onClick={handleSetTarget}
-                      disabled={saving || !targetMinutes}
+                      disabled={saving || (!targetDays && !targetHours && !targetMinutes)}
                     >
                       Set Target
                     </button>
@@ -1025,6 +1055,19 @@ export function EntryBox({
           View Notes
         </button>
 
+        {timerErrorAction !== null && (
+          <div className="entry-box__error entry-box__error--timer">
+            {timerError}
+            <button
+              type="button"
+              className="entry-box__error-dismiss"
+              onClick={clearTimerError}
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {error && <div className="entry-box__error">{error}</div>}
       </div>
 

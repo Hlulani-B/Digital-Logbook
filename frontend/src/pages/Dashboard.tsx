@@ -27,6 +27,7 @@ import { getToneInstruction } from '@/functions/tone';
 import { useAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
+import { useTimerActions } from '@/hooks/useTimerActions';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { TemplatePicker } from '@/components/fields/TemplatePicker';
 import type { Template } from '@/lib/templateApi';
@@ -53,6 +54,48 @@ import {
   type RecentlyCreatedEntry,
 } from '@/lib/recentlyCreated';
 import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
+
+// ── Timer Banner Component ────────────────────────────────────────────────────
+// Small component for the Home page timer banner with pause/resume controls.
+// Uses the shared useTimerActions hook for consistent state management.
+interface TimerBannerProps {
+  entry: any;
+  projectName: string;
+  elapsed: string;
+  extraCount: number;
+  onUpdated: (entry: any) => void;
+}
+
+function TimerBanner({ entry, projectName, elapsed, extraCount, onUpdated }: TimerBannerProps) {
+  const { timerAction, isActionInFlight, pause, resume } = useTimerActions({ entry, onUpdated });
+  const isPaused = Boolean(entry.started_at && !entry.ended_at && entry.paused_at);
+
+  return (
+    <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
+      <span className="dash-timer-dot" />
+      <span className="dash-timer-label">
+        {timerAction === 'pending-sync'
+          ? 'Pending sync'
+          : isPaused
+            ? 'Timer paused'
+            : 'Timer running'}
+      </span>
+      <span className="dash-timer-project">{projectName}</span>
+      <span className="dash-timer-elapsed">{elapsed}</span>
+      {extraCount > 0 && <span className="dash-timer-extra">+{extraCount} more</span>}
+      <button
+        type="button"
+        className="dash-timer-control"
+        onClick={isPaused ? resume : pause}
+        disabled={isActionInFlight}
+        aria-label={isPaused ? 'Resume timer' : 'Pause timer'}
+        title={isPaused ? 'Resume' : 'Pause'}
+      >
+        {timerAction === 'pausing' ? '…' : timerAction === 'resuming' ? '…' : isPaused ? '▶' : '❚❚'}
+      </button>
+    </div>
+  );
+}
 
 /** Parse AI response ΓÇö handles JSON {"message":"..."}, {"instruction":"..."}, etc. or plain text */
 function parseAIResponse(response: string): string {
@@ -668,6 +711,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     if (inProgressEntries.length === 0) return null;
     const first = inProgressEntries[0];
     return {
+      entry: first,
       projectName: (first.project_name as string) || 'Unknown',
       elapsed: formatTimer(entryDurationMs(first, liveNow)),
       extraCount: inProgressEntries.length - 1,
@@ -1640,17 +1684,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         </div>
 
-        {/* Live running-timer banner ΓÇö shows when a task is in progress */}
+        {/* Live running-timer banner — shows when a task is in progress */}
         {primaryTimer && activeView !== 'activity' && activeView !== 'archives' && (
-          <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
-            <span className="dash-timer-dot" />
-            <span className="dash-timer-label">Timer running</span>
-            <span className="dash-timer-project">{primaryTimer.projectName}</span>
-            <span className="dash-timer-elapsed">{primaryTimer.elapsed}</span>
-            {primaryTimer.extraCount > 0 && (
-              <span className="dash-timer-extra">+{primaryTimer.extraCount} more</span>
-            )}
-          </div>
+          <TimerBanner
+            entry={primaryTimer.entry}
+            projectName={primaryTimer.projectName}
+            elapsed={primaryTimer.elapsed}
+            extraCount={primaryTimer.extraCount}
+            onUpdated={() => loadData()}
+          />
         )}
 
         {/* Search bar inline for mobile */}
