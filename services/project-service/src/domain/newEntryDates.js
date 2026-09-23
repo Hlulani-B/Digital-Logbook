@@ -2,12 +2,13 @@ import { validDate, validTimestamp, isRecord } from './fieldSchema.js';
 
 // US54: keep this contract in sync with frontend/src/lib/newEntryDates.ts.
 // Both implementations are exercised by test-fixtures/us54-entry-dates.json.
-export const ENTRY_DATE_COLUMNS = ['due_date', 'started_at', 'ended_at', 'paused_at'];
+// Only user-controlled date columns are validated here. System-generated timer
+// timestamps (started_at, ended_at, paused_at) are excluded — they are produced
+// by timerPatch on the server or computed client-side for timer actions, and
+// must not be subject to the no-past-date restriction.
+export const ENTRY_DATE_COLUMNS = ['due_date'];
 const labels = {
   due_date: 'Due Date',
-  started_at: 'Started At',
-  ended_at: 'Ended At',
-  paused_at: 'Paused At',
 };
 
 function timestamp(value, dueDate = false) {
@@ -63,7 +64,11 @@ export function validateEntryDates({
       fail(path, label, 'invalid');
       return value;
     }
-    if (type === 'date' ? normalized < today : Date.parse(normalized) < now.getTime())
+    // Allow a small tolerance window for clock skew / network latency.
+    // A strictly zero-tolerance comparison (value < now) rejects timestamps
+    // that are valid but arrive a few hundred ms late over the network.
+    const pastThreshold = now.getTime() - 5000;
+    if (type === 'date' ? normalized < today : Date.parse(normalized) < pastThreshold)
       fail(path, label, 'past');
     return normalized;
   };

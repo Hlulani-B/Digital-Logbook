@@ -2,12 +2,13 @@ import { isCalendarDate, normalizeTimestamp } from './fieldValidation';
 import { isRecord } from './fieldSchema';
 
 // US54: keep the policy in sync with project-service/src/domain/newEntryDates.js.
-export const ENTRY_DATE_COLUMNS = ['due_date', 'started_at', 'ended_at', 'paused_at'] as const;
+// Only user-controlled date columns are validated here. System-generated timer
+// timestamps (started_at, ended_at, paused_at) are excluded — they are produced
+// by timerPatch on the server or computed client-side for timer actions, and
+// must not be subject to the no-past-date restriction.
+export const ENTRY_DATE_COLUMNS = ['due_date'] as const;
 const labels: Record<string, string> = {
   due_date: 'Due Date',
-  started_at: 'Started At',
-  ended_at: 'Ended At',
-  paused_at: 'Paused At',
 };
 export interface EntryDateField {
   field_name: string;
@@ -90,7 +91,11 @@ export function validateEntryDates({
       fail(path, label, 'invalid');
       return value;
     }
-    if (type === 'date' ? normalized < today : Date.parse(normalized) < now.getTime())
+    // Allow a small tolerance window for clock skew / network latency.
+    // A strictly zero-tolerance comparison (value < now) rejects timestamps
+    // that are valid but arrive a few hundred ms late over the network.
+    const pastThreshold = now.getTime() - 5000;
+    if (type === 'date' ? normalized < today : Date.parse(normalized) < pastThreshold)
       fail(path, label, 'past');
     return normalized;
   };
