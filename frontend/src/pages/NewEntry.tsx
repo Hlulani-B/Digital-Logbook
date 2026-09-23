@@ -12,6 +12,12 @@ import { FieldEditor } from '@/components/fields/FieldEditors';
 import { FieldDisplay } from '@/components/fields/FieldDisplay';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import { normalizeField } from '@/lib/fieldSchema';
+import {
+  toLocalDateTime as toInputDate,
+  editedDateTime,
+  earliestEntryDateTime,
+  validateEntryDates,
+} from '@/lib/newEntryDates';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
@@ -66,15 +72,6 @@ function formatDate(value?: string | null): string | null {
   });
 }
 
-function toInputDate(value?: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return '';
-  // Return YYYY-MM-DDTHH:MM for datetime-local inputs
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -97,6 +94,7 @@ interface EntryRow {
   paused_at?: string | null;
   status?: EntryStatus;
   summary?: string | null;
+  _timerPending?: boolean;
 }
 
 interface EntryBoxProps {
@@ -156,13 +154,22 @@ export function EntryBox({
   const [calcField, setCalcField] = useState<string | null>(null);
 
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
+  const [fieldsReady, setFieldsReady] = useState(false);
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
+  const applyResult = (result: any) => {
+    if (result?.success !== true)
+      throw new Error(result?.message || result?.error || 'Failed to save changes');
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (row) onUpdated?.(row);
+  };
   useEffect(() => {
     if (!user_email || !project_name) return;
     let cancelled = false;
+    setFieldsReady(false);
     (async () => {
       try {
         const result = await getFields(user_email, project_name);
-        if (!cancelled && result?.data) {
+        if (!cancelled && result?.success === true && Array.isArray(result.data)) {
           const defs: Record<string, FieldDefinition> = {};
           for (const f of result.data) {
             // normalizeField handles legacy custom:type format
@@ -170,8 +177,11 @@ export function EntryBox({
             defs[f.field_name] = fieldDef;
           }
           setFieldDefs(defs);
-        }
-      } catch {}
+          setFieldsReady(true);
+        } else if (!cancelled) setError('Cannot edit until project fields are loaded.');
+      } catch {
+        if (!cancelled) setError('Cannot edit until project fields are loaded.');
+      }
     })();
     return () => {
       cancelled = true;
@@ -273,12 +283,14 @@ export function EntryBox({
   };
 
   const handleEnterEdit = () => {
+    handleCancel();
+    setDateErrors({});
     setMenuOpen(false);
     setIsEditing(true);
   };
 
   const handleSave = async () => {
-    if (!user_email || !project_name || saving) return;
+    if (!user_email || !project_name || saving || !fieldsReady) return;
     setSaving(true);
     setError(null);
 
@@ -290,19 +302,17 @@ export function EntryBox({
       const newPriorityLabel =
         draftPriorityValue === '3' ? null : PRIORITY_LABELS[draftPriorityValue];
 
-      const newDueDate = draftDueDate ? new Date(draftDueDate).toISOString() : null;
-      const newStartedAt = draftStartedAt ? new Date(draftStartedAt).toISOString() : null;
-      const newEndedAt = draftEndedAt ? new Date(draftEndedAt).toISOString() : null;
-
-      const updatedEntry: EntryRow = {
-        ...entry,
-        entries: newEntryObject ?? entries,
-        due_date: newDueDate,
-        priority: newPriorityLabel,
-        status: draftStatus,
-        started_at: newStartedAt,
-        ended_at: newEndedAt,
-      };
+      const newDueDate = editedDateTime(draftDueDate, due_date);
+      const newStartedAt = editedDateTime(draftStartedAt, started_at);
+      const newEndedAt = editedDateTime(draftEndedAt, ended_at);
+      const checked = validateEntryDates({
+        dates: { due_date: newDueDate, started_at: newStartedAt, ended_at: newEndedAt },
+        values: newEntryObject,
+        fields: Object.values(fieldDefs),
+        previous: { ...entry },
+      });
+      setDateErrors(Object.fromEntries(checked.errors.map((issue) => [issue.path, issue.message])));
+      if (!checked.success) throw new Error(checked.message);
 
       // Single update call with all schema columns
       const result = await updateEntry(
@@ -326,8 +336,7 @@ export function EntryBox({
         return;
       }
 
-      // Always reload from database to show actual state
-      onUpdated?.(updatedEntry);
+      applyResult(result);
       setIsEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
@@ -379,12 +388,6 @@ export function EntryBox({
     setSaving(true);
     setError(null);
     try {
-      // If moving to done_and_dusted, auto-set ended_at
-      const newEndedAt =
-        newStatus === 'done_and_dusted' && !ended_at ? new Date().toISOString() : ended_at;
-      // If moving to in_motion and not started yet, auto-set started_at
-      const newStartedAt =
-        newStatus === 'in_motion' && !started_at ? new Date().toISOString() : started_at;
       const result = await updateEntry(
         user_email,
         project_name,
@@ -392,9 +395,7 @@ export function EntryBox({
         undefined,
         undefined,
         undefined,
-        newStatus,
-        newStartedAt,
-        newEndedAt
+        newStatus
       );
       if (result?.success === false) {
         setError(result.message || 'Failed to update status');
@@ -404,7 +405,7 @@ export function EntryBox({
         setError(result.error);
         return;
       }
-      onUpdated?.({ ...entry, status: newStatus, started_at: newStartedAt, ended_at: newEndedAt });
+      applyResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
@@ -440,15 +441,13 @@ export function EntryBox({
         undefined,
         undefined,
         undefined,
-        targetMs,
-        paused_ms === undefined || paused_ms === null ? undefined : Number(paused_ms),
-        paused_at === undefined ? undefined : paused_at
+        targetMs
       );
       if (result?.success === false || result?.error) {
         setError(result.message || result.error || 'Failed to set target');
         return;
       }
-      onUpdated?.({ ...entry, target_duration_ms: targetMs });
+      applyResult(result);
       setTargetDays('');
       setTargetHours('');
       setTargetMinutes('');
@@ -588,6 +587,8 @@ export function EntryBox({
                     <FieldEditor
                       field={fieldDef}
                       value={value}
+                      originalValue={parsedEntries[key]}
+                      error={dateErrors[`entries.${key}`]}
                       onChange={(newValue) => handleFieldChange(key, newValue)}
                       disabled={saving || permission === 'view'}
                       projectId={project_id}
@@ -604,6 +605,12 @@ export function EntryBox({
             <input
               className="entry-box__field-input"
               type="datetime-local"
+              aria-label="Due Date"
+              min={draftDueDate === toInputDate(due_date) ? undefined : earliestEntryDateTime()}
+              onFocus={(e) => {
+                e.currentTarget.min =
+                  draftDueDate === toInputDate(due_date) ? '' : earliestEntryDateTime();
+              }}
               value={draftDueDate}
               onChange={(e) => setDraftDueDate(e.target.value)}
               disabled={saving}
@@ -615,6 +622,12 @@ export function EntryBox({
             <input
               className="entry-box__field-input"
               type="datetime-local"
+              aria-label="Started At"
+              min={draftStartedAt === toInputDate(started_at) ? undefined : earliestEntryDateTime()}
+              onFocus={(e) => {
+                e.currentTarget.min =
+                  draftStartedAt === toInputDate(started_at) ? '' : earliestEntryDateTime();
+              }}
               value={draftStartedAt}
               onChange={(e) => setDraftStartedAt(e.target.value)}
               disabled={saving}
@@ -635,7 +648,7 @@ export function EntryBox({
             type="button"
             className="entry-box__btn entry-box__btn--save"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !fieldsReady}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
@@ -657,6 +670,9 @@ export function EntryBox({
             : undefined
         }
       >
+        {entry._timerPending && (
+          <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
+        )}
         <div className="entry-box__top-row">
           <div className="entry-box__menu-wrap" ref={menuRef}>
             <button

@@ -3,6 +3,7 @@ import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { classifyEntryPayload, formatEntryValue, cleanSummaryText } from '@/lib/entryPayload';
 import './ProjectTable.css';
+import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 
 /* Hook to detect mobile width (< 600px) */
 function useIsMobile() {
@@ -254,17 +255,11 @@ function EditableDate({
     if (editing && inputRef.current) inputRef.current.focus();
   }, [editing]);
 
-  const toDateInput = (iso: string | null) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toISOString().slice(0, 10);
-  };
+  const toDateInput = (iso: string | null) => toLocalDateTime(iso).slice(0, 10);
 
   const commit = (raw: string) => {
     setEditing(false);
-    const newVal = raw ? new Date(raw).toISOString() : null;
-    if (newVal !== value) onSave(newVal);
+    if (raw !== toDateInput(value)) onSave(dateOnlyDueToISO(raw));
   };
 
   if (editing) {
@@ -273,6 +268,8 @@ function EditableDate({
         ref={inputRef}
         className="ptt-inline-input ptt-inline-date"
         type="date"
+        aria-label="Due Date (end of local day)"
+        title="Changed dates are due at the end of the selected local day"
         defaultValue={toDateInput(value)}
         onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => {
