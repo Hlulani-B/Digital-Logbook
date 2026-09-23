@@ -485,7 +485,6 @@ export async function updateEntry(
 
   // 4. Sync to server
   try {
-    console.log('[updateEntry] Sending to server:', { entry_id, priority, status, project_name });
     const result = await request(`${PROJECT_URL}/service/entry`, {
       method: 'POST',
       body: JSON.stringify({
@@ -509,8 +508,6 @@ export async function updateEntry(
         }),
       }),
     });
-
-    console.log('[updateEntry] Server response:', JSON.stringify(result));
 
     // 5a. Server returned success — update cache with authoritative server data
     if (result?.success && result.data) {
@@ -560,7 +557,7 @@ export async function updateEntry(
 
     return result;
   } catch (err) {
-    // 6. On network error, queue for retry (don't rollback)
+    // On network error, queue for retry (don't rollback)
     console.error('[updateEntry] Server sync failed, queuing for retry:', err);
     await addToQueue('updateEntry', 'entries', {
       user_email,
