@@ -227,7 +227,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // The 10 most recently created (unarchived) entries, newest first. Derived
+  // The 3 most recently created (unarchived) entries, newest first. Derived
   // straight from the live entries cache so the list survives reloads and works
   // offline — unlike the old in-session tracker, which was empty on a fresh load.
   const recentlyCreatedEntries = useMemo(() => {
@@ -239,7 +239,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         const bt = new Date((b.created_at as string) || 0).getTime();
         return bt - at;
       })
-      .slice(0, 10);
+      .slice(0, 3);
   }, [entries]);
 
 
@@ -1952,7 +1952,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Recently created — the 10 newest entries, listed under Due soon. */}
+            {/* Recently created — the 3 newest entries, listed under Due soon. */}
             {!loading && recentlyCreatedEntries.length > 0 && (
               <div className="recent-section">
                 <div className="due-soon-section-label">
