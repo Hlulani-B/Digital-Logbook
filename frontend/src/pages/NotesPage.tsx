@@ -386,7 +386,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     setSaving(true);
     setError(null);
     try {
-      const result = await updateNote(editingNoteId, editValue.trim());
+      const result = await updateNote(editingNoteId, editValue.trim(), entryId);
       if (result?.success) {
         setNotes((prev) =>
           prev.map((n) => (n.id === editingNoteId ? { ...n, value: editValue.trim() } : n))

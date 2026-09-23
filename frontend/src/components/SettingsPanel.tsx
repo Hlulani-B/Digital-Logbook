@@ -4,7 +4,7 @@ import type { Theme } from '@/hooks/useTheme';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { getTone, setTone, TONE_OPTIONS, type Tone } from '@/functions/tone';
 import { getNudgeFrequency, setNudgeFrequency, type NudgeFrequency } from '@/pages/FrequencySetup';
-import { getAiMessagesEnabled, setAiMessagesEnabled } from '@/functions/aiMessages';
+import { useAiMessagesEnabled, setAiMessagesEnabled } from '@/functions/aiMessages';
 import {
   getProfile,
   updateName,
@@ -39,7 +39,6 @@ interface Preferences {
   weeklyReminder: boolean;
   timerAbandonmentNotifications: boolean;
   nudgeFrequency: string;
-  aiMessages: boolean;
 }
 
 interface SettingsPanelProps {
@@ -208,11 +207,15 @@ export function SettingsPanel({
     weeklyReminder: false,
     timerAbandonmentNotifications: true,
     nudgeFrequency: getNudgeFrequency(),
-    aiMessages: getAiMessagesEnabled(),
   };
 
   const [profile] = useState<ProfileSettings>(() => loadSettings(profileKey, defaultProfile));
   const [prefs, setPrefs] = useState<Preferences>(() => loadSettings(prefsKey, defaultPrefs));
+
+  // AI messages lives in its own storage key (dl_ai_messages), not in the
+  // saved prefs snapshot — a stale snapshot used to make the toggle snap back
+  // to "on" each time the panel reopened, looking like a broken setting.
+  const aiMessagesOn = useAiMessagesEnabled();
 
   // Reset tab when panel opens
   useEffect(() => {
@@ -895,11 +898,11 @@ export function SettingsPanel({
                   <label className="toggle-switch">
                     <input
                       type="checkbox"
-                      checked={prefs.aiMessages}
+                      checked={aiMessagesOn}
                       onChange={(e) => {
-                        const enabled = e.target.checked;
-                        setPrefs((p) => ({ ...p, aiMessages: enabled }));
-                        setAiMessagesEnabled(enabled);
+                        // Single source of truth: dl_ai_messages. Applies
+                        // immediately — no Save click required.
+                        setAiMessagesEnabled(e.target.checked);
                       }}
                     />
                     <span className="toggle-track" />

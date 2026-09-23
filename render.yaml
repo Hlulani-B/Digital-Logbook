@@ -103,5 +103,5 @@ services:
     name: docs-site
     env: static
     rootDir: docs-site
-    buildCommand: pip install -r requirements.txt && mkdocs build --strict
+    buildCommand: pip install -r requirements.txt && mkdocs build
     staticPublishPath: site

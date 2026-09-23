@@ -46,13 +46,7 @@ import {
   addMonths,
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
-import { getRecentlyViewed, type RecentlyViewedEntry } from '@/lib/recentlyViewed';
 import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
-import {
-  getRecentlyCreated,
-  trackCreatedEntry,
-  type RecentlyCreatedEntry,
-} from '@/lib/recentlyCreated';
 import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
 
 // ── Timer Banner Component ────────────────────────────────────────────────────
@@ -276,78 +270,21 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // Recently viewed and created entries
-  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedEntry[]>(() =>
-    getRecentlyViewed()
-  );
-  const [recentlyCreated, setRecentlyCreated] = useState<RecentlyCreatedEntry[]>(() =>
-    getRecentlyCreated()
-  );
+  // The 3 most recently created (unarchived) entries, newest first. Derived
+  // straight from the live entries cache so the list survives reloads and works
+  // offline — unlike the old in-session tracker, which was empty on a fresh load.
+  const recentlyCreatedEntries = useMemo(() => {
+    return entries
+      .filter((e) => !e.archived)
+      .slice()
+      .sort((a, b) => {
+        const at = new Date((a.created_at as string) || 0).getTime();
+        const bt = new Date((b.created_at as string) || 0).getTime();
+        return bt - at;
+      })
+      .slice(0, 3);
+  }, [entries]);
 
-  // Listen for changes to recently viewed/created (from other components)
-  useEffect(() => {
-    const handleViewedChange = () => setRecentlyViewed(getRecentlyViewed());
-    const handleCreatedChange = () => setRecentlyCreated(getRecentlyCreated());
-    window.addEventListener('recentlyViewedChanged', handleViewedChange);
-    window.addEventListener('recentlyCreatedChanged', handleCreatedChange);
-    return () => {
-      window.removeEventListener('recentlyViewedChanged', handleViewedChange);
-      window.removeEventListener('recentlyCreatedChanged', handleCreatedChange);
-    };
-  }, []);
-
-  // A recently viewed/created shortcut is only useful if the thing it points
-  // at still exists. If the user deletes or archives a project or a task, the
-  // matching quick-jump line must disappear rather than navigate to a dead
-  // target. We decide this against the live cache (source of truth) instead of
-  // hooking every delete/archive call site, so it also catches project→entry
-  // archive cascades, cross-page deletes and offline-queue replays for free.
-  const isRecentItemLive = useCallback(
-    (item: { projectName: string; entryId: string; createdAt?: string; viewedAt?: string }) => {
-      // Grace period: items created/viewed within the last 60 seconds are always
-      // considered live. This avoids a race where trackCreatedEntry fires
-      // before loadData() has updated the projects/entries state.
-      const ts = item.createdAt || item.viewedAt;
-      if (ts) {
-        const age = Date.now() - new Date(ts).getTime();
-        if (age < 60_000) return true;
-      }
-
-      // Don't evaluate until projects have actually loaded — a momentary empty
-      // cache during first paint would otherwise blank both lists.
-      if (projects.length === 0 && loading) return true;
-
-      // Owning project must exist and not be archived. This single check kills
-      // every shortcut under a deleted or archived project (both sections).
-      const projectActive = projects.some(
-        (p) => p.project_name === item.projectName && !p.archived
-      );
-      if (!projectActive) return false;
-
-      // For real tasks, also verify the specific task still exists and isn't
-      // archived. getAllEntries returns rows with deleted=false, so a deleted
-      // task is absent and an archived task carries archived=true. Synthetic
-      // ids (optimistic-/local-/project:) can't be resolved, so skip the entry
-      // check for those — the project-active check above already passed.
-      const isSyntheticId = /^(project:|optimistic-|local-)/.test(item.entryId);
-      if (!isSyntheticId && entries.length > 0) {
-        const match = entries.find((e) => String(e.id) === String(item.entryId));
-        if (!match) return false; // deleted
-        if (match.archived) return false; // archived
-      }
-      return true;
-    },
-    [projects, entries, loading]
-  );
-
-  const visibleRecentlyViewed = useMemo(
-    () => recentlyViewed.filter(isRecentItemLive),
-    [recentlyViewed, isRecentItemLive]
-  );
-  const visibleRecentlyCreated = useMemo(
-    () => recentlyCreated.filter(isRecentItemLive),
-    [recentlyCreated, isRecentItemLive]
-  );
 
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
@@ -446,51 +383,67 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         'dueSoon:',
         !!cachedDueSoon?.data
       );
-      const hasCache =
-        cachedEntries?.data ||
-        cachedProjects?.data ||
-        cachedProjects?.projects ||
-        cachedDueSoon?.data;
-      if (hasCache) {
-        console.log('[Dashboard] Using cached data');
-        if (cachedEntries?.data)
-          setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-        if (cachedProjects?.data || cachedProjects?.projects) {
-          const rawProjects = cachedProjects.data || cachedProjects.projects || [];
-          const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
-          let localArch = new Set<string>();
-          try {
-            const raw = localStorage.getItem(`dl_archived_${email}`);
-            if (raw) localArch = new Set(JSON.parse(raw));
-          } catch {}
-          setLocalArchived(localArch);
-          const merged = allProjects.map((p) => ({
-            ...p,
-            archived: p.archived === true || localArch.has(p.project_name as string),
-          }));
-          setProjects(merged);
-          setArchivedProjects(merged.filter((p) => p.archived));
+      // Apply whatever is already cached — instant, zero-spinner render.
+      const applyProjectsCache = (row: Record<string, unknown> | null) => {
+        const rawProjects = row?.data || row?.projects || [];
+        const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
+        // Guard: an empty read — a row caught mid-invalidation or a partial
+        // refill — must never wipe a populated project list. A genuine cold
+        // start has nothing cached yet, so `projects` is already empty here.
+        if (allProjects.length === 0) return;
+        let localArch = new Set<string>();
+        try {
+          const stored = localStorage.getItem(`dl_archived_${email}`);
+          if (stored) localArch = new Set(JSON.parse(stored));
+        } catch {}
+        setLocalArchived(localArch);
+        const merged = allProjects.map((p) => ({
+          ...p,
+          archived: p.archived === true || localArch.has(p.project_name as string),
+        }));
+        setProjects(merged);
+        setArchivedProjects(merged.filter((p) => p.archived));
+      };
+      const applyCacheRows = (
+        eRow: Record<string, unknown> | null,
+        pRow: Record<string, unknown> | null,
+        dRow: Record<string, unknown> | null
+      ) => {
+        if (eRow?.data) {
+          const next = (Array.isArray(eRow.data) ? eRow.data : []) as Entry[];
+          // Don't commit an empty result over a non-empty previous state — a
+          // concurrent read can catch the row mid-invalidation and return [].
+          setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
         }
-        if (cachedDueSoon?.data)
-          setDueSoonRows(Array.isArray(cachedDueSoon.data) ? cachedDueSoon.data : []);
-      } else {
-        console.log('[Dashboard] NO CACHE — calling syncAllData...');
-        // First visit ever — trigger initial sync, then re-read
-        // But if offline, syncAllData can't fetch from server — skip and show empty state
+        if (pRow?.data || pRow?.projects) applyProjectsCache(pRow);
+        if (dRow?.data) setDueSoonRows(Array.isArray(dRow.data) ? (dRow.data as Entry[]) : []);
+      };
+
+      applyCacheRows(cachedEntries, cachedProjects, cachedDueSoon);
+
+      // A *missing* row (cacheGet returned null — not an empty array) means the
+      // store was never populated OR was just invalidated by a mutation/SSE
+      // event. Quick-add (addNaturalLanguageEntry) does NOT write optimistically:
+      // the backend creates the row and SSE deletes our cache expecting a refill.
+      // So we must pull from the server whenever a row is absent, independent of
+      // whether the other store is still cached — a naive "any cache?" check left
+      // freshly created entries invisible until a manual refresh. This never runs
+      // while optimistic rows exist, so it can't clobber an in-flight mutation.
+      const rowsMissing = !cachedEntries || !cachedProjects;
+      if (rowsMissing) {
         if (!navigator.onLine) {
-          console.log('[Dashboard] No cache and offline — nothing to load yet');
+          console.log('[Dashboard] Rows missing and offline — nothing to fetch');
           return;
         }
-        console.log('[Dashboard] syncAllData starting...');
-        await syncAllData(email);
-        console.log('[Dashboard] syncAllData done, re-reading cache...');
+        console.log('[Dashboard] Cache rows missing — force syncAllData (bypass throttle)...');
+        await syncAllData(email, { force: true });
         const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
           cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
-        // Second bail-out point: syncAllData + the re-read are long-running,
-        // plenty of time for a subscriber-triggered reload to overtake us.
+        // syncAllData + the re-read are long-running; a subscriber-triggered
+        // reload may have overtaken us. Only the newest call commits.
         if (seq !== loadSeq.current) {
           console.log('[Dashboard] Stale loadData after syncAllData, skipping commit', {
             seq,
@@ -498,26 +451,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           });
           return;
         }
-        if (freshEntries?.data)
-          setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-        if (freshProjects?.data || freshProjects?.projects) {
-          const rawProjects = freshProjects.data || freshProjects.projects || [];
-          const allProjects = (Array.isArray(rawProjects) ? rawProjects : []) as Project[];
-          let localArch = new Set<string>();
-          try {
-            const raw = localStorage.getItem(`dl_archived_${email}`);
-            if (raw) localArch = new Set(JSON.parse(raw));
-          } catch {}
-          setLocalArchived(localArch);
-          const merged = allProjects.map((p) => ({
-            ...p,
-            archived: p.archived === true || localArch.has(p.project_name as string),
-          }));
-          setProjects(merged);
-          setArchivedProjects(merged.filter((p) => p.archived));
-        }
-        if (freshDueSoon?.data)
-          setDueSoonRows(Array.isArray(freshDueSoon.data) ? freshDueSoon.data : []);
+        applyCacheRows(freshEntries, freshProjects, freshDueSoon);
       }
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
@@ -537,14 +471,19 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   }, [email]);
 
-  // SSE: Listen for real-time entry updates from backend
-  // When the backend finishes parsing a natural language entry, it pushes
-  // the data via SSE. We invalidate IndexedDB cache and reload the UI.
-  useSSEEntries({
-    onEntry: () => {
-      loadData();
-    },
-  });
+  // Single stable callback reused for every cache subscription. cacheDeleteMany
+  // de-duplicates by callback identity, so a batched SSE invalidation that drops
+  // ALL_ENTRIES + PROJECTS in one event reloads the Dashboard exactly once here
+  // instead of once per store (which is what used to fan out into racing
+  // loadData() calls).
+  const reload = useCallback(() => {
+    void loadData();
+  }, [loadData]);
+
+  // SSE: When the backend finishes parsing a natural language entry it pushes
+  // the data via SSE; useSSEEntries batch-invalidates the affected cache rows,
+  // which reloads this page through the shared `reload` subscription above.
+  useSSEEntries();
 
   useEffect(() => {
     loadData();
@@ -555,12 +494,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   useEffect(() => {
     if (!email) return;
     const unsubs = [
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.ENTRIES, `${email}:due-soon`, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
+      cacheSubscribe(CACHE_STORES.ENTRIES, `${email}:due-soon`, reload),
     ];
     return () => unsubs.forEach((unsub) => unsub());
-  }, [email, loadData]);
+  }, [email, reload]);
 
   // Re-read from IndexedDB when the tab/page becomes visible again.
   // This catches the case where the user creates a project on another page
@@ -940,11 +879,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
       setNewProjectOpen(false);
       resetProjectForm();
-      trackCreatedEntry({
-        entryId: `project:${projectName}`,
-        projectName,
-        title: `Project: ${projectName}`,
-      });
       await loadData();
 
       // Navigate to the newly created project's page
@@ -1794,11 +1728,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <QuickEntryBar
                 onEntryCreated={(info) => {
                   loadData();
-                  // Populate "Recently created" with every entry the backend
-                  // actually created (single-match OR multi-match).
-                  for (const item of info?.created ?? []) {
-                    trackCreatedEntry(item);
-                  }
                   // Only navigate when there's exactly one clear target —
                   // for multi-match we intentionally stop here and let the
                   // "Recently created" section drive navigation.
@@ -1810,82 +1739,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 placeholder={aiPlaceholder}
               />
             </div>
-
-            {/* Recently Viewed Section */}
-            {visibleRecentlyViewed.length > 0 && (
-              <div className="recent-section">
-                <div className="due-soon-section-label">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <span>Recently viewed</span>
-                </div>
-                <div className="recent-list">
-                  {visibleRecentlyViewed.slice(0, 3).map((item) => (
-                    <button
-                      key={item.entryId}
-                      className="recent-item"
-                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
-                      title={item.type === 'project' ? `View project: ${item.title}` : item.title}
-                    >
-                      <span className="recent-item-title">
-                        {item.type === 'project' && (
-                          <span className="recent-item-badge">Project</span>
-                        )}
-                        {item.title}
-                      </span>
-                      {item.type === 'entry' && (
-                        <span className="recent-item-project">{item.projectName}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recently Created Section */}
-            {visibleRecentlyCreated.length > 0 && (
-              <div className="recent-section">
-                <div className="due-soon-section-label">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  <span>Recently created</span>
-                </div>
-                <div className="recent-list">
-                  {visibleRecentlyCreated.slice(0, 3).map((item) => (
-                    <button
-                      key={item.entryId}
-                      className="recent-item"
-                      onClick={() => navigate(`/project/${encodeURIComponent(item.projectName)}`)}
-                      title={item.title}
-                    >
-                      <span className="recent-item-title">{item.title}</span>
-                      <span className="recent-item-project">{item.projectName}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Due Soon header: label on the left, view toggle on the right */}
             <div className="due-soon-header-row">
@@ -2138,6 +1991,42 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     )}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Recently created — the 3 newest entries, listed under Due soon. */}
+            {!loading && recentlyCreatedEntries.length > 0 && (
+              <div className="recent-section">
+                <div className="due-soon-section-label">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  <span>Recently created</span>
+                </div>
+                <div className="recent-list">
+                  {recentlyCreatedEntries.map((e, i) => (
+                    <button
+                      key={`recent-created-${e.id || i}`}
+                      className="recent-item"
+                      onClick={() =>
+                        navigate(`/project/${encodeURIComponent(String(e.project_name))}`)
+                      }
+                      title={getEntryTitle(e as any)}
+                    >
+                      <span className="recent-item-title">{getEntryTitle(e as any)}</span>
+                      <span className="recent-item-project">{e.project_name as string}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -2666,31 +2555,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <AddEntry
                 user_email={email}
                 project_name={newEntryProject}
-                onAdded={(result) => {
+                onAdded={() => {
                   setNewEntryOpen(false);
                   setNewEntryProject('');
                   loadData();
-                  // Track the created entry
-                  const created = Array.isArray((result as any)?.data)
-                    ? (result as any).data[0]
-                    : (result as any)?.data;
-                  if (created?.id && newEntryProject) {
-                    const title =
-                      typeof created.entries === 'string'
-                        ? created.entries
-                        : (typeof created.entries === 'object' && created.entries
-                            ? (Object.values(created.entries).find(
-                                (v: any) => typeof v === 'string' && v.length > 0
-                              ) as string)
-                            : null) ||
-                          created.summary ||
-                          newEntryProject;
-                    trackCreatedEntry({
-                      entryId: created.id,
-                      projectName: newEntryProject,
-                      title: String(title).slice(0, 100),
-                    });
-                  }
                   // Navigate to the project page where the entry was created
                   navigate(`/project/${encodeURIComponent(newEntryProject)}`);
                 }}
@@ -2708,14 +2576,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {voiceOpen && (
         <VoiceFeature
           onClose={() => setVoiceOpen(false)}
-          onEntryCreated={(info) => {
+          onEntryCreated={() => {
             setVoiceOpen(false);
             loadData();
-            // Voice creates exactly the same shape of result as QuickEntryBar,
-            // so track every entry in the `created[]` list the same way.
-            for (const item of info?.created ?? []) {
-              trackCreatedEntry(item);
-            }
           }}
         />
       )}

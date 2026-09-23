@@ -837,10 +837,15 @@ export function StatsView() {
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
       if (seq !== loadSeq.current) return;
-      if (cachedEntries?.data)
-        setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-      if (cachedProjects?.data)
-        setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
+      if (cachedEntries?.data) {
+        const next = Array.isArray(cachedEntries.data) ? cachedEntries.data : [];
+        // Never commit an empty list over a populated one (mid-invalidation read).
+        setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+      }
+      if (cachedProjects?.data) {
+        const next = Array.isArray(cachedProjects.data) ? cachedProjects.data : [];
+        setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+      }
       if (cachedEntries?.data) {
         setDueSoonCount(computeDueSoon(cachedEntries.data).length);
       }
@@ -852,10 +857,14 @@ export function StatsView() {
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
         if (seq !== loadSeq.current) return;
-        if (freshEntries?.data)
-          setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-        if (freshProjects?.data)
-          setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+        if (freshEntries?.data) {
+          const next = Array.isArray(freshEntries.data) ? freshEntries.data : [];
+          setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+        }
+        if (freshProjects?.data) {
+          const next = Array.isArray(freshProjects.data) ? freshProjects.data : [];
+          setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+        }
         if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
       }
     } catch (err) {
@@ -875,15 +884,19 @@ export function StatsView() {
     };
   }, [email, loadData]);
 
-  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows
+  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows.
+  // A single shared callback so a batched invalidation reloads exactly once.
+  const reload = useCallback(() => {
+    void loadData();
+  }, [loadData]);
   useEffect(() => {
     if (!email) return;
     const unsubs = [
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
     ];
     return () => unsubs.forEach((u) => u());
-  }, [email, loadData]);
+  }, [email, reload]);
 
   // Entries scoped to ?project= — every stat below derives from these so
   // the whole dashboard follows a single scope.

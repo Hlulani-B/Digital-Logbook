@@ -100,25 +100,43 @@ export function AllEntriesPage() {
         cacheGet(CACHE_STORES.PROJECTS, email),
       ]);
       if (seq !== loadSeq.current) return;
-      const hasCache = cachedEntries?.data || cachedProjects?.data;
-      if (hasCache) {
-        if (cachedEntries?.data)
-          setEntries(Array.isArray(cachedEntries.data) ? cachedEntries.data : []);
-        if (cachedProjects?.data)
-          setProjects(Array.isArray(cachedProjects.data) ? cachedProjects.data : []);
-      } else {
-        // First visit ever — trigger initial sync
+      // Render whatever is cached immediately (zero spinner). Projects are stored
+      // under `.projects` by the sync layer but `.data` by some getters, so read
+      // both shapes here the way Dashboard does.
+      const applyRows = (
+        eRow: Record<string, unknown> | null,
+        pRow: Record<string, unknown> | null
+      ) => {
+        if (eRow?.data) {
+          const next = (Array.isArray(eRow.data) ? eRow.data : []) as Entry[];
+          // Never commit an empty list over a populated one — a concurrent read
+          // can catch the row mid-invalidation and return [].
+          setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+        }
+        const rawProjects = pRow?.data || pRow?.projects;
+        if (rawProjects) {
+          const next = (Array.isArray(rawProjects) ? rawProjects : []) as typeof projects;
+          setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+        }
+      };
+
+      applyRows(cachedEntries, cachedProjects);
+
+      // A missing row (never synced, or just invalidated by a mutation/SSE event)
+      // must be refilled from the server — independent of whether the other row
+      // is present. Only fires when there is no optimistic row to clobber.
+      const rowsMissing = !cachedEntries || !cachedProjects;
+      if (rowsMissing) {
+        if (!navigator.onLine) return;
         setLoading(true);
-        await syncAllData(email);
+        // force: bypass the 10s throttle so an invalidated cache always refills.
+        await syncAllData(email, { force: true });
         const [freshEntries, freshProjects] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
         ]);
         if (seq !== loadSeq.current) return;
-        if (freshEntries?.data)
-          setEntries(Array.isArray(freshEntries.data) ? freshEntries.data : []);
-        if (freshProjects?.data)
-          setProjects(Array.isArray(freshProjects.data) ? freshProjects.data : []);
+        applyRows(freshEntries, freshProjects);
       }
     } catch (err) {
       console.error('[AllEntries] loadData error:', err);
@@ -131,15 +149,21 @@ export function AllEntriesPage() {
     loadData();
   }, [loadData]);
 
+  // Shared reload ref for every subscription so a batched cache invalidation
+  // (cacheDeleteMany) triggers exactly one reload, not one per store.
+  const reload = useCallback(() => {
+    void loadData();
+  }, [loadData]);
+
   // Subscribe to cache changes — re-load when syncAllData writes new data
   useEffect(() => {
     if (!email) return;
     const unsubs = [
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
     ];
     return () => unsubs.forEach((unsub) => unsub());
-  }, [email, loadData]);
+  }, [email, reload]);
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;

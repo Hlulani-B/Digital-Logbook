@@ -1,6 +1,6 @@
 import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, cacheDelete, CACHE_STORES } from '@/lib/cache';
-import { addToQueue } from '@/CacheFunctions/offlineQueue';
+import { addToQueue, getQueue, updateQueueEntry } from '@/CacheFunctions/offlineQueue';
 
 // ── GET functions ──────────────────────────────────────────────
 
@@ -20,12 +20,17 @@ export async function getNotes(entry_id) {
     Array.isArray(cached?.data) ? `dataLen=${cached.data.length}` : 'no-data'
   );
   if (cached?.success && Array.isArray(cached.data)) {
-    // Refresh from server in background (don't block the caller)
-    _refreshNotesFromServer(entry_id, cacheKey);
+    // Refresh from server in background (don't block the caller). Offline this
+    // can only fail, and a failed refresh is logged as an error — skip it.
+    if (navigator.onLine) _refreshNotesFromServer(entry_id, cacheKey);
     return { ...cached, _fromCache: true };
   }
 
-  // 2. No cache — must wait for server
+  // 2. No cache — must wait for the server
+  if (!navigator.onLine) {
+    console.log('[getNotes] Offline and no cache');
+    return { success: true, offline: true, data: [] };
+  }
   console.log('[getNotes] No cache, fetching from server...');
   return _fetchNotesFromServer(entry_id, cacheKey);
 }
@@ -177,7 +182,7 @@ export async function addNote(email, entry_id, entry_type, value) {
   // 2. Check online
   if (!navigator.onLine) {
     console.log('[addNote] Offline, queuing action');
-    await addToQueue('addNote', 'notes', { email, entry_id, entry_type, value });
+    await queueNote({ email, entry_id, entry_type, value });
     return { success: true, queued: true };
   }
 
@@ -188,12 +193,12 @@ export async function addNote(email, entry_id, entry_type, value) {
       JSON.stringify({ email, entry_id, entry_type, value }).length,
       'bytes'
     );
-    const result = await request(`${PROJECT_URL}/service/notes`, {
-      method: 'POST',
-      body: JSON.stringify({
-        function: 'add',
-        values: { email, entry_id, entry_type, value },
-      }),
+    const result = await addNoteSync({
+      email,
+      entry_id,
+      entry_type,
+      value,
+      optimistic_id: optimisticNote.id,
     });
 
     console.log(
@@ -209,30 +214,95 @@ export async function addNote(email, entry_id, entry_type, value) {
       result?.message
     );
 
-    // 4. Replace the optimistic note with the authoritative row. Re-read the
-    // current cache (a background refresh may have changed it) and drop *this*
-    // optimistic id specifically so concurrent adds aren't clobbered.
-    if (result?.success && result.data) {
-      const fresh = await cacheGet(CACHE_STORES.NOTES, cacheKey);
-      const freshData = Array.isArray(fresh?.data) ? fresh.data : notesArray;
-      const withoutOptimistic = freshData.filter((n) => n.id !== optimisticNote.id);
-      const hasReal = withoutOptimistic.some((n) => String(n.id) === String(result.data.id));
-      const updated = hasReal ? withoutOptimistic : [...withoutOptimistic, result.data];
-      await cacheSet(CACHE_STORES.NOTES, cacheKey, { success: true, data: updated });
-    }
     return result;
   } catch (err) {
     console.error('[addNote] Server sync failed, queuing:', err);
-    await addToQueue('addNote', 'notes', { email, entry_id, entry_type, value });
+    await queueNote({ email, entry_id, entry_type, value });
     return { success: true, queued: true };
   }
 }
 
 /**
+ * Server-only add — no optimistic write, no re-queueing.
+ * Used to replay a queued addNote: the note is already on screen, and calling
+ * the public addNote again would append a second optimistic row and swallow the
+ * failure back into the queue instead of letting the processor retry it.
+ */
+export async function addNoteSync(payload) {
+  const { email, entry_id, entry_type, value } = payload;
+  const cacheKey = `notes:${entry_id}`;
+  const result = await request(`${PROJECT_URL}/service/notes`, {
+    method: 'POST',
+    body: JSON.stringify({
+      function: 'add',
+      values: { email, entry_id, entry_type, value },
+    }),
+  });
+
+  // Replace the pending optimistic note with the authoritative row. Only ONE
+  // pending row is consumed, so adding the same text twice keeps both notes.
+  if (result?.success && result.data) {
+    const fresh = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+    const rows = Array.isArray(fresh?.data) ? fresh.data : [];
+    const matchesPending = (n) =>
+      !!n._optimistic &&
+      (payload.optimistic_id
+        ? String(n.id) === String(payload.optimistic_id)
+        : n.entry_type === entry_type && n.value === value);
+    let consumed = false;
+    const withoutPending = rows.filter((n) => {
+      if (!consumed && matchesPending(n)) {
+        consumed = true;
+        return false;
+      }
+      return true;
+    });
+    const hasReal = withoutPending.some((n) => String(n.id) === String(result.data.id));
+    await cacheSet(CACHE_STORES.NOTES, cacheKey, {
+      success: true,
+      data: hasReal ? withoutPending : [...withoutPending, result.data],
+    });
+  }
+  return result;
+}
+
+/**
+ * Queue a note action, resolving the entry id first.
+ *
+ * A note added to an entry that is itself still queued has no server id yet, so
+ * posting it later would fail on a foreign-key error and the note would be
+ * dropped after the retries. In that case the note is merged into the pending
+ * addEntry payload instead — the server then creates the entry and its notes in
+ * one go, in the right order.
+ *
+ * @returns {Promise<boolean>} true when a dedicated queue entry was created
+ */
+async function queueNote(payload) {
+  const { entry_id } = payload;
+  if (typeof entry_id === 'string' && entry_id.startsWith('optimistic-')) {
+    const pending = await getQueue();
+    const host = pending.find(
+      (q) => q.action === 'addEntry' && q.payload?.optimistic_id === entry_id
+    );
+    if (host) {
+      host.payload.notes = [...(host.payload.notes || []), { entry_type: payload.entry_type, value: payload.value }];
+      await updateQueueEntry(host);
+      console.log('[addNote] Merged into pending addEntry queue item', host.id);
+      return false;
+    }
+  }
+  await addToQueue('addNote', 'notes', payload);
+  return true;
+}
+
+/**
  * Update a text note.
  * Only text notes can be updated.
+ * @param {string} [entry_id] Owner entry, so the visible notes *list* cache can
+ *   be patched too — without it the edit only lands in the single-note cache and
+ *   the change disappears on the next render/reload.
  */
-export async function updateNote(note_id, new_value) {
+export async function updateNote(note_id, new_value, entry_id) {
   // 1. Optimistic: update in cache
   // We don't know the entry_id here, so we update the individual note cache
   const noteCacheKey = `note:${note_id}`;
@@ -241,6 +311,9 @@ export async function updateNote(note_id, new_value) {
   if (cachedNote?.data) {
     cachedNote.data.value = new_value;
     await cacheSet(CACHE_STORES.NOTES, noteCacheKey, cachedNote);
+  }
+  if (entry_id) {
+    await patchNoteRow(`notes:${entry_id}`, note_id, { value: new_value });
   }
 
   // 2. Check online
@@ -252,24 +325,47 @@ export async function updateNote(note_id, new_value) {
 
   // 3. Sync to server
   try {
-    const result = await request(`${PROJECT_URL}/service/notes`, {
-      method: 'POST',
-      body: JSON.stringify({
-        function: 'update',
-        values: { note_id, new_value },
-      }),
-    });
-
-    // Update cache with authoritative data
-    if (result?.success && result.data) {
-      await cacheSet(CACHE_STORES.NOTES, noteCacheKey, result);
-    }
+    const result = await updateNoteSync({ note_id, new_value });
     return result;
   } catch (err) {
     console.error('[updateNote] Server sync failed, queuing:', err);
     await addToQueue('updateNote', 'notes', { note_id, new_value });
     return { success: true, queued: true };
   }
+}
+
+/** Server-only update, for replaying a queued action. */
+export async function updateNoteSync(payload) {
+  const { note_id, new_value } = payload;
+  const result = await request(`${PROJECT_URL}/service/notes`, {
+    method: 'POST',
+    body: JSON.stringify({
+      function: 'update',
+      values: { note_id, new_value },
+    }),
+  });
+
+  if (result?.success && result.data) {
+    const row = result.data;
+    await cacheSet(CACHE_STORES.NOTES, `note:${note_id}`, result);
+    if (row.entry_id) {
+      await patchNoteRow(`notes:${row.entry_id}`, note_id, { value: row.value, deleted: row.deleted });
+    }
+  }
+  return result;
+}
+
+/** Patch one note row inside a cached notes list. */
+async function patchNoteRow(cacheKey, note_id, patch) {
+  const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+  const rows = Array.isArray(cached?.data) ? cached.data : [];
+  if (!rows.length) return;
+  await cacheSet(CACHE_STORES.NOTES, cacheKey, {
+    success: true,
+    data: rows.map((n) =>
+      String(n.id) === String(note_id) ? { ...n, ...patch } : n
+    ),
+  });
 }
 
 /**
@@ -301,18 +397,40 @@ export async function deleteNote(note_id, entry_id) {
 
   // 3. Sync to server
   try {
-    const result = await request(`${PROJECT_URL}/service/notes`, {
-      method: 'POST',
-      body: JSON.stringify({
-        function: 'delete',
-        values: { note_id },
-      }),
-    });
-
-    return result;
+    return await deleteNoteSync({ note_id, entry_id });
   } catch (err) {
     console.error('[deleteNote] Server sync failed, queuing:', err);
     await addToQueue('deleteNote', 'notes', { note_id, entry_id });
     return { success: true, queued: true };
   }
+}
+
+/** Server-only delete, for replaying a queued action. */
+export async function deleteNoteSync(payload) {
+  const { note_id, entry_id } = payload;
+  const result = await request(`${PROJECT_URL}/service/notes`, {
+    method: 'POST',
+    body: JSON.stringify({
+      function: 'delete',
+      values: { note_id },
+    }),
+  });
+
+  // Drop both cache views of the deleted note (the list keeps its other rows).
+  if (result?.success) {
+    await cacheDelete(CACHE_STORES.NOTES, `note:${note_id}`);
+    if (entry_id) await removeNoteRow(`notes:${entry_id}`, note_id);
+  }
+  return result;
+}
+
+/** Remove one note row from a cached notes list. */
+async function removeNoteRow(cacheKey, note_id) {
+  const cached = await cacheGet(CACHE_STORES.NOTES, cacheKey);
+  const rows = Array.isArray(cached?.data) ? cached.data : [];
+  if (!rows.length) return;
+  await cacheSet(CACHE_STORES.NOTES, cacheKey, {
+    success: true,
+    data: rows.filter((n) => String(n.id) !== String(note_id)),
+  });
 }

@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
-import { useAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
 
 type Activity = {
   id: number;
@@ -107,7 +107,9 @@ export function ActivitySummary() {
         const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent items: ${recentEntities.join(', ')}. ${tone}`;
 
         const aiResult = await askAI(prompt);
-        if (!cancelled) {
+        // Re-check on resolve: the toggle may have been flipped off (or the
+        // effect re-run) while this request was in flight.
+        if (!cancelled && getAiMessagesEnabled()) {
           const msg =
             aiResult.success && aiResult.response ? parseAIResponse(aiResult.response) : '';
           setSummary(msg || "Here's what you've been up to recently.");

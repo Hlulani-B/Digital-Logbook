@@ -31,23 +31,34 @@ export function DataDisclaimer2() {
       cacheGet(CACHE_STORES.ALL_ENTRIES, email),
     ]);
     if (seq !== loadSeq.current) return;
-    if (p?.data || p?.projects) setProjects(p.data || p.projects || []);
-    if (e?.data) setEntries(Array.isArray(e.data) ? e.data : []);
+    if (p?.data || p?.projects) {
+      const next = p.data || p.projects || [];
+      // Never blank a populated list with an empty mid-invalidation read.
+      setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+    }
+    if (e?.data) {
+      const next = Array.isArray(e.data) ? e.data : [];
+      setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+    }
   }, [email]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Subscribe to cache changes — re-render NavBar/Header when data arrives
+  // Subscribe to cache changes — re-render NavBar/Header when data arrives.
+  // Shared callback so a batched invalidation reloads exactly once, not per store.
+  const reload = useCallback(() => {
+    void loadData();
+  }, [loadData]);
   useEffect(() => {
     if (!email) return;
     const unsubs = [
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
+      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
+      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
     ];
     return () => unsubs.forEach((u) => u());
-  }, [email, loadData]);
+  }, [email, reload]);
 
   return (
     <div className="dash-layout">

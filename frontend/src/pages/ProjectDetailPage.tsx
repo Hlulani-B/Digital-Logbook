@@ -23,7 +23,7 @@ import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
-import { getAiMessagesEnabled } from '@/functions/aiMessages';
+import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
 import { FiMic, FiSettings } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -154,12 +154,24 @@ export function ProjectDetailPage() {
     })();
 
     // 2. Subscribe to cache changes
-    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[]) => {
-      if (!cancelled) {
-        setEntries(newData || []);
-        setLoading(false); // Data arrived, stop loading
-      }
-    }) as (data: any) => void);
+    const unsubscribe = cacheSubscribe(
+      cacheStore,
+      cacheKey,
+      ((newData: Entry[] | null) => {
+        if (cancelled) return;
+        if (Array.isArray(newData)) {
+          setEntries(newData);
+          setLoading(false); // Real data arrived — stop the spinner.
+        } else {
+          // A null payload means the row was DELETED (cacheDelete emits null on
+          // invalidation — e.g. SSE after a quick-add, or a project rename). The
+          // old code did setEntries(newData || []) here, blanking the list with
+          // nothing to refill it, so the project looked empty until a refresh.
+          // Pull fresh data instead; the write re-emits with a real array.
+          sortUnarchivedEntries(email, projectName, sortType);
+        }
+      }) as (data: unknown) => void
+    );
 
     return () => {
       cancelled = true;
@@ -250,6 +262,15 @@ export function ProjectDetailPage() {
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
     'No items to show yet. Add your first item above!'
   );
+  // Reactive preference — swaps an already-shown AI empty message back to the
+  // static line the instant "AI messages" is toggled off in Settings.
+  const aiMessagesOn = useAiMessagesEnabled();
+
+  useEffect(() => {
+    if (!aiMessagesOn) {
+      setAiEmptyMessage('No items to show yet. Add your first item above!');
+    }
+  }, [aiMessagesOn]);
 
   // Refresh entries from server (called after add/update/delete)
   const loadEntries = useCallback(async () => {
@@ -260,7 +281,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   useEffect(() => {
-    if (!getAiMessagesEnabled()) return;
+    if (!aiMessagesOn) return;
     if (!loading && filteredEntries.length === 0 && !searchQuery) {
       let cancelled = false;
       (async () => {
@@ -277,7 +298,7 @@ export function ProjectDetailPage() {
         cancelled = true;
       };
     }
-  }, [loading, projectName, searchQuery]);
+  }, [loading, projectName, searchQuery, aiMessagesOn]);
 
   // Search within this project only
   useEffect(() => {

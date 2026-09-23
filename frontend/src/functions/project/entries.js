@@ -299,7 +299,7 @@ async function syncEntryMutation(action, payload) {
   }
   if (result?.success && result.data) {
     const row = Array.isArray(result.data) ? result.data[0] : result.data;
-    if (row)
+    if (row) {
       await changeEntryCaches(payload, (rows) => {
         const id = _local?.id ?? payload.entry_id;
         const present = rows.some(
@@ -315,6 +315,21 @@ async function syncEntryMutation(action, payload) {
             ? [...rows, row]
             : rows;
       });
+      // Move notes cached under the optimistic id (creation-time notes) onto the
+      // real server id so the notes panel keeps showing them without a refetch.
+      if (action === 'add' && _local?.id && row.id && String(_local.id) !== String(row.id)) {
+        const optimisticNotesKey = `notes:${_local.id}`;
+        const optimisticNotes = await cacheGet(CACHE_STORES.NOTES, optimisticNotesKey);
+        if (optimisticNotes) {
+          const noteRows = Array.isArray(optimisticNotes.data) ? optimisticNotes.data : [];
+          await cacheSet(CACHE_STORES.NOTES, `notes:${row.id}`, {
+            success: true,
+            data: noteRows.map((n) => ({ ...n, entry_id: row.id, _optimistic: undefined })),
+          });
+          await cacheDelete(CACHE_STORES.NOTES, optimisticNotesKey);
+        }
+      }
+    }
   } else if (result?.success === false && result.retryable !== true) {
     await rollbackEntryMutation(payload);
   }
@@ -410,6 +425,25 @@ async function mutateEntry(action, input, options = { requireServer: false }) {
             : row
         )
   );
+  // Offline notes-at-creation: persist notes attached when the entry was created
+  // into the notes cache under the optimistic id so the notes panel renders them
+  // before the server round-trip (images keep an "(uploading...)" placeholder).
+  if (action === 'add' && Array.isArray(payload.notes) && payload.notes.length > 0) {
+    const noteRows = payload.notes
+      .filter((n) => n && n.entry_type && n.value != null && n.value !== '')
+      .map((n, i) => ({
+        id: `optimistic-note-${id}-${i}`,
+        email: payload.user_email,
+        entry_id: id,
+        entry_type: n.entry_type,
+        value: n.entry_type === 'text' || n.entry_type === 'link' ? n.value : '(uploading...)',
+        created_at: new Date().toISOString(),
+        deleted: false,
+        _optimistic: true,
+      }));
+    if (noteRows.length > 0)
+      await cacheSet(CACHE_STORES.NOTES, `notes:${id}`, { success: true, data: noteRows });
+  }
   const queue = async () => {
     try {
       await addToQueue(action === 'add' ? 'addEntry' : 'updateEntry', 'entries', payload);

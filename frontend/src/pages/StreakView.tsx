@@ -31,13 +31,18 @@ export function StreakView() {
       const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
       if (seq !== loadSeq.current) return;
       if (cached?.data) {
-        setEntries(Array.isArray(cached.data) ? cached.data : []);
+        const next = Array.isArray(cached.data) ? cached.data : [];
+        // Never commit an empty list over a populated one (mid-invalidation read).
+        setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
       } else {
         // First visit ever — trigger initial sync
         await syncAllData(email);
         const fresh = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (seq !== loadSeq.current) return;
-        if (fresh?.data) setEntries(Array.isArray(fresh.data) ? fresh.data : []);
+        if (fresh?.data) {
+          const next = Array.isArray(fresh.data) ? fresh.data : [];
+          setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
+        }
       }
     } catch (err) {
       console.error('[StreakView] Failed to load entries:', err);
