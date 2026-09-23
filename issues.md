@@ -345,6 +345,49 @@ Two independent races, both triggered by the single `entry_parsed` SSE listener 
 
 ---
 
+## 10. hlulani → main PR Unmergeable: Two Disjoint `entries.js` Offline-Cache Rewrites
+
+### Problem
+
+A pull request (`#274`) was opened to bring the Dashboard "recently created" cap-of-3 change from `hlulani` into `main`. The Gitea API merge repeatedly returned `405` and reported the PR as not mergeable. A local `git merge origin/main` surfaced genuine content conflicts in two files:
+
+- `frontend/src/functions/project/entries.js`
+- `frontend/src/CacheFunctions/actionDispatcher.js`
+
+The `cap-to-3` edit itself (`Dashboard.tsx`) merged cleanly — the blockers were pre-existing divergence. `main` was 8 commits ahead of `hlulani` (PRs #271–#273: US54 no-past-date validation + timer UX) and `hlulani` was 40 commits ahead of `main`.
+
+### Root Cause
+
+The two branches contained **two completely different, mutually-exclusive rewrites of the same offline-cache subsystem** in `entries.js`, with zero shared helper symbols:
+
+- **main-only**: `mutateEntry`, `syncEntryMutation`, `changeEntryCaches`, `rollbackEntryMutation`, `reconcileEntry`, `validateEntryDates` / `ENTRY_DATE_COLUMNS` (the date-validation + timer features that were the 8 main-only commits).
+- **hlulani-only**: `buildAddEntryPayload`, `reconcileOptimisticEntry`, `_syncAddEntryToServer` and an inline optimistic `addEntry`.
+
+The merge-base (`523f8ca`) had hlulani's `_syncAddEntryToServer` style; `main` then rewrote the whole write layer around `mutateEntry`, while `hlulani` only made smaller additions on top of the old approach.
+
+Because a naive "keep both sides" merge left **two definitions of `addEntrySync`** (main's `export const addEntrySync = …` vs hlulani's `export async function addEntrySync(…)`), the result would not compile. The `actionDispatcher.js` conflict was, by contrast, comment-only (identical code either side).
+
+### Fix
+
+A manual semantic merge that preserves both branches' behavior, since `main`'s `mutateEntry` is a functional **superset** of hlulani's optimistic write / reconcile / rollback / queue (plus it adds validation):
+
+1. **Adopted main's architecture** as the `entries.js` base (`git checkout origin/main -- …/entries.js`).
+2. **Ported hlulani's one genuinely-unique feature** — creation-time notes caching — back into it:
+   - In `mutateEntry`'s `'add'` path, persist any notes attached at creation into `CACHE_STORES.NOTES` under the optimistic entry id (images store an `(uploading…)` placeholder).
+   - In `syncEntryMutation`'s success branch, move those notes from the optimistic id onto the real server id so the notes panel keeps showing them without a refetch.
+3. **`actionDispatcher.js`**: resolved the comment-only conflict to hlulani's fuller comment.
+4. Verified hlulani's `CacheFunctions` (`actionDispatcher`/`queueProcessor`/`offlineQueue`/`syncService`) reference neither `optimistic_id` nor `_local` — they dispatch by action name and call `addEntrySync`/`updateEntrySync`, both of which main also exports — so adopting main's file is internally self-consistent and does not break queue replay.
+5. `tsc --noEmit` → clean (exit 0); committed the merge (`5baae30`) and pushed to `hlulani`; PR #274 then merged into `main` (merge commit `5cd9bad`).
+
+> Note: verified by typecheck only, not by exercising the offline notes-at-creation flow at runtime — a manual offline add-with-note check is still worthwhile.
+
+### Files Modified
+
+- `frontend/src/functions/project/entries.js`
+- `frontend/src/CacheFunctions/actionDispatcher.js`
+
+---
+
 ## Summary
 
 All issues have been fixed and pushed to the `hlulani` branch. The key fixes were:
