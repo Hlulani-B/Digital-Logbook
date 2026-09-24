@@ -5,19 +5,19 @@
  * This daemon periodically inserts a row into the `health_ping` table
  * and immediately deletes it, keeping the database active.
  *
- * The daemon runs once every 12 hours (configurable via PING_INTERVAL_MS).
+ * The daemon runs once every 10 minutes (configurable via PING_INTERVAL_MS).
  * Each ping:
  *   1. Ensures the health_ping table exists (idempotent CREATE TABLE)
  *   2. INSERTs "hello hlulani" with a timestamp
  *   3. DELETEs the row immediately after
  *
- * This is a lightweight operation — one INSERT + one DELETE every 12 hours.
+ * This is a lightweight operation — one INSERT + one DELETE every 10 minutes.
  */
 
 import pool from '../db.js';
 
-// Default: every 12 hours (Supabase pauses after 7 days, so 12h is very safe)
-const DEFAULT_INTERVAL_MS = 12 * 60 * 60 * 1000;
+// Default: every 10 minutes (keeps the Supabase DB active between requests)
+const DEFAULT_INTERVAL_MS = 10 * 60 * 1000;
 const PING_MESSAGE = 'hello hlulani';
 
 let timer = null;
@@ -85,7 +85,7 @@ export function startDaemon(intervalMs) {
   }
 
   running = true;
-  console.log(`[Daemon] Starting — ping every ${interval / 1000}s (${interval / 3600000}h)`);
+  console.log(`[Daemon] Starting — ping every ${interval / 1000}s (${interval / 60000}min)`);
 
   // Run first ping immediately
   ping();
@@ -129,6 +129,7 @@ export function getDaemonConfig() {
   const interval = parseInt(process.env.PING_INTERVAL_MS, 10) || DEFAULT_INTERVAL_MS;
   return {
     intervalMs: interval,
+    intervalMinutes: interval / 60000,
     intervalHours: interval / 3600000,
     message: PING_MESSAGE,
     running,
