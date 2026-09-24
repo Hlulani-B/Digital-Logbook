@@ -176,8 +176,8 @@ describe('Daemon', () => {
       delete process.env.PING_INTERVAL_MS;
       const config = getDaemonConfig();
 
-      expect(config.intervalMs).toBe(12 * 60 * 60 * 1000); // 12 hours
-      expect(config.intervalHours).toBe(12);
+      expect(config.intervalMs).toBe(10 * 60 * 1000); // 10 minutes
+      expect(config.intervalMinutes).toBe(10);
       expect(config.message).toBe('hello hlulani');
       expect(typeof config.running).toBe('boolean');
     });
