@@ -27,6 +27,16 @@ import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessag
 import { FiMic, FiSettings } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { SearchFilterBlock } from '@/components/SearchFilters';
+import { getFields } from '@/functions/project/fields.js';
+import { normalizeField } from '@/lib/fieldSchema';
+import type { FieldDefinition } from '@/lib/fieldSchema';
+import {
+  activeFilterCount,
+  applyFieldFilters,
+  pinFirst,
+  type FieldFilters,
+} from '@/lib/entryFilters';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -154,24 +164,20 @@ export function ProjectDetailPage() {
     })();
 
     // 2. Subscribe to cache changes
-    const unsubscribe = cacheSubscribe(
-      cacheStore,
-      cacheKey,
-      ((newData: Entry[] | null) => {
-        if (cancelled) return;
-        if (Array.isArray(newData)) {
-          setEntries(newData);
-          setLoading(false); // Real data arrived — stop the spinner.
-        } else {
-          // A null payload means the row was DELETED (cacheDelete emits null on
-          // invalidation — e.g. SSE after a quick-add, or a project rename). The
-          // old code did setEntries(newData || []) here, blanking the list with
-          // nothing to refill it, so the project looked empty until a refresh.
-          // Pull fresh data instead; the write re-emits with a real array.
-          sortUnarchivedEntries(email, projectName, sortType);
-        }
-      }) as (data: unknown) => void
-    );
+    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[] | null) => {
+      if (cancelled) return;
+      if (Array.isArray(newData)) {
+        setEntries(newData);
+        setLoading(false); // Real data arrived — stop the spinner.
+      } else {
+        // A null payload means the row was DELETED (cacheDelete emits null on
+        // invalidation — e.g. SSE after a quick-add, or a project rename). The
+        // old code did setEntries(newData || []) here, blanking the list with
+        // nothing to refill it, so the project looked empty until a refresh.
+        // Pull fresh data instead; the write re-emits with a real array.
+        sortUnarchivedEntries(email, projectName, sortType);
+      }
+    }) as (data: unknown) => void);
 
     return () => {
       cancelled = true;
@@ -226,6 +232,11 @@ export function ProjectDetailPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [_searching, setSearching] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Field filters — scoped to this project's fields
+  const [projectFields, setProjectFields] = useState<FieldDefinition[]>([]);
+  const [fieldFilters, setFieldFilters] = useState<FieldFilters>({});
+  const filterCount = activeFilterCount(fieldFilters);
 
   // Quick entry
   const [quickText, setQuickText] = useState('');
@@ -282,7 +293,7 @@ export function ProjectDetailPage() {
   // AI empty message
   useEffect(() => {
     if (!aiMessagesOn) return;
-    if (!loading && filteredEntries.length === 0 && !searchQuery) {
+    if (!loading && filteredEntries.length === 0 && !searchQuery && filterCount === 0) {
       let cancelled = false;
       (async () => {
         const tone = getToneInstruction();
@@ -298,7 +309,7 @@ export function ProjectDetailPage() {
         cancelled = true;
       };
     }
-  }, [loading, projectName, searchQuery, aiMessagesOn]);
+  }, [loading, projectName, searchQuery, aiMessagesOn, filterCount]);
 
   // Search within this project only
   useEffect(() => {
@@ -326,6 +337,27 @@ export function ProjectDetailPage() {
       searchRef.current.focus();
     }
   }, [searchOpen]);
+
+  // Load this project's fields so the filter panel can offer per-field filters
+  useEffect(() => {
+    if (!email || !projectName) return;
+    let cancelled = false;
+    setProjectFields([]);
+    setFieldFilters({});
+    (async () => {
+      try {
+        const result = await getFields(email, projectName);
+        if (!cancelled && result?.success === true && Array.isArray(result.data)) {
+          setProjectFields(result.data.map((f: unknown) => normalizeField(f)));
+        }
+      } catch {
+        // Fields are optional — the search bar still works without them
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [email, projectName]);
 
   // Close on escape
   useEffect(() => {
@@ -366,8 +398,17 @@ export function ProjectDetailPage() {
     return { dueSoonEntries: dueSoon, otherEntries: other };
   }, [entries, searchResults]);
 
-  const filteredEntries =
-    searchResults !== null ? searchResults : [...dueSoonEntries, ...otherEntries];
+  // Search results (or the full feed) with pinned entries on top, then field filters
+  const filteredEntries = useMemo(() => {
+    const source = searchResults !== null ? searchResults : [...dueSoonEntries, ...otherEntries];
+    return applyFieldFilters(pinFirst(source), fieldFilters);
+  }, [searchResults, dueSoonEntries, otherEntries, fieldFilters]);
+
+  // The unsplit feed for the main view: pinned first, field filters applied
+  const feedEntries = useMemo(
+    () => applyFieldFilters(pinFirst(entries), fieldFilters),
+    [entries, fieldFilters]
+  );
 
   // Priority handler
   const handleSetPriority = async (
@@ -466,28 +507,6 @@ export function ProjectDetailPage() {
       <NavBar entries={entries} activeView="all" />
       <main className="dash-main">
         <Header title={projectName || 'Project'} entries={entries} />
-
-        {/* Search bar inline for mobile */}
-        <div className="feed-search-bar">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder={`Search in ${projectName}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="feed-search-input"
-          />
-        </div>
 
         {/* Sort controls + view toggle */}
         <div className="feed-controls-row">
@@ -648,85 +667,97 @@ export function ProjectDetailPage() {
           </button>
         </div>
 
-        {/* Quick Entry Bar — scoped to this project */}
-        <div className="quick-entry-bar">
-          <form className="quick-entry-form" onSubmit={handleQuickSubmit}>
-            <div className="quick-entry-input-wrap">
-              <svg
-                className="quick-entry-icon"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              <input
-                type="text"
-                className="quick-entry-input"
-                placeholder={isOnline ? quickAddPlaceholder : 'Offline — quick add unavailable'}
-                value={quickText}
-                onChange={(e) => setQuickText(e.target.value)}
-                onKeyDown={handleQuickKeyDown}
-                disabled={quickLoading || !isOnline}
-                title={!isOnline ? 'Quick add is not available offline' : undefined}
-              />
-              <button
-                type="button"
-                className="quick-entry-voice"
-                onClick={() => setVoiceOpen(true)}
-                aria-label="Voice item"
-                title={!isOnline ? 'Voice item is not available offline' : 'Record a voice item'}
-                disabled={!isOnline}
-                style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-              >
-                <FiMic size={16} />
-              </button>
-              <button
-                type="submit"
-                className="quick-entry-submit"
-                disabled={quickLoading || !quickText.trim() || !isOnline}
-                title={!isOnline ? 'Quick add is not available offline' : undefined}
-              >
-                {quickLoading ? (
-                  <svg
-                    className="animate-spin"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                    <path d="M12 2a10 10 0 0 1 10 10" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </form>
-          {quickMessage && (
-            <div className={`quick-entry-message ${quickMessageType}`}>{quickMessage}</div>
-          )}
+        {/* Search + per-field filters, with the AI quick-add bar beside it */}
+        <div className="search-ai-row">
+          <SearchFilterBlock
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            placeholder={`Search in ${projectName}...`}
+            fields={projectFields}
+            filters={fieldFilters}
+            onFiltersChange={setFieldFilters}
+          />
+
+          {/* Quick Entry Bar — scoped to this project */}
+          <div className="quick-entry-bar search-ai-row__ai">
+            <form className="quick-entry-form" onSubmit={handleQuickSubmit}>
+              <div className="quick-entry-input-wrap">
+                <svg
+                  className="quick-entry-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                <input
+                  type="text"
+                  className="quick-entry-input"
+                  placeholder={isOnline ? quickAddPlaceholder : 'Offline — quick add unavailable'}
+                  value={quickText}
+                  onChange={(e) => setQuickText(e.target.value)}
+                  onKeyDown={handleQuickKeyDown}
+                  disabled={quickLoading || !isOnline}
+                  title={!isOnline ? 'Quick add is not available offline' : undefined}
+                />
+                <button
+                  type="button"
+                  className="quick-entry-voice"
+                  onClick={() => setVoiceOpen(true)}
+                  aria-label="Voice item"
+                  title={!isOnline ? 'Voice item is not available offline' : 'Record a voice item'}
+                  disabled={!isOnline}
+                  style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                >
+                  <FiMic size={16} />
+                </button>
+                <button
+                  type="submit"
+                  className="quick-entry-submit"
+                  disabled={quickLoading || !quickText.trim() || !isOnline}
+                  title={!isOnline ? 'Quick add is not available offline' : undefined}
+                >
+                  {quickLoading ? (
+                    <svg
+                      className="animate-spin"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" />
+                    </svg>
+                  ) : (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
+            {quickMessage && (
+              <div className={`quick-entry-message ${quickMessageType}`}>{quickMessage}</div>
+            )}
+          </div>
         </div>
 
         {/* Loading — only show if no cached data */}
@@ -843,9 +874,38 @@ export function ProjectDetailPage() {
                 <h2 className="empty-title">No items yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
+            ) : feedEntries.length === 0 ? (
+              <div className="empty-state animate-in">
+                <div className="empty-icon">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                </div>
+                <h2 className="empty-title">No items match your filters</h2>
+                <p className="empty-desc">
+                  No items in {projectName} match the current field filters.
+                </p>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginTop: '0.75rem' }}
+                  onClick={() => setFieldFilters({})}
+                >
+                  Clear filters
+                </button>
+              </div>
             ) : viewMode === 'table' ? (
               <ProjectTaskTable
-                rows={entries}
+                rows={feedEntries}
                 onUpdate={async (id: string, patch: Record<string, any>) => {
                   console.log('[onUpdate] Called with id:', id, 'patch:', patch);
                   // Find the entry being updated
@@ -917,7 +977,7 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'checklist' ? (
               <ChecklistView
-                entries={entries.map((r) => ({
+                entries={feedEntries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,
                   project_name: r.project_name as string,
@@ -933,7 +993,7 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
-                entries={entries.map((r) => ({
+                entries={feedEntries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,
                   project_name: r.project_name as string,
@@ -949,7 +1009,7 @@ export function ProjectDetailPage() {
               />
             ) : (
               <div className="entries-grid">
-                {entries.map((row, i) => (
+                {feedEntries.map((row, i) => (
                   <EntryBox
                     key={`entry-${row.id || i}`}
                     entry={row as any}

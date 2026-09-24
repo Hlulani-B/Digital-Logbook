@@ -7,6 +7,8 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
+import { EntrySearchBar } from '@/components/SearchFilters';
+import { matchesTextQuery, pinFirst } from '@/lib/entryFilters';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ActivitySummary } from '@/components/ActivitySummary';
 import { addProject } from '@/functions/project/project.js';
@@ -221,6 +223,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Projects live in a slide-over drawer rather than replacing the entries feed.
   const [projectsDrawerOpen, setProjectsDrawerOpen] = useState(false);
 
+  // Regular (non-AI) search over the current feed
+  const [pageSearch, setPageSearch] = useState('');
+
   useEffect(() => {
     localStorage.setItem('dashboard-display-mode', displayMode);
   }, [displayMode]);
@@ -284,7 +289,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       })
       .slice(0, 3);
   }, [entries]);
-
 
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
@@ -636,8 +640,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       return due >= startOfToday && due <= threeDaysFromNow;
     });
 
-    return filtered;
-  }, [entries, activeView]);
+    // Regular search — summary, project name and every field value
+    if (pageSearch.trim()) {
+      filtered = filtered.filter((e) => matchesTextQuery(e, pageSearch));
+    }
+
+    return pinFirst(filtered);
+  }, [entries, activeView, pageSearch]);
 
   // In-progress entries (started but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
@@ -1723,21 +1732,28 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             </div>
 
-            {/* Quick Entry Bar - Natural Language */}
-            <div data-tour="quick-entry">
-              <QuickEntryBar
-                onEntryCreated={(info) => {
-                  loadData();
-                  // Only navigate when there's exactly one clear target —
-                  // for multi-match we intentionally stop here and let the
-                  // "Recently created" section drive navigation.
-                  if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
-                    navigate(`/project/${encodeURIComponent(info.projectName)}`);
-                  }
-                }}
-                onVoiceOpen={() => setVoiceOpen(true)}
-                placeholder={aiPlaceholder}
+            {/* Search + AI quick-add bar */}
+            <div className="search-ai-row">
+              <EntrySearchBar
+                value={pageSearch}
+                onChange={setPageSearch}
+                placeholder="Search items..."
               />
+              <div data-tour="quick-entry" className="search-ai-row__ai">
+                <QuickEntryBar
+                  onEntryCreated={(info) => {
+                    loadData();
+                    // Only navigate when there's exactly one clear target —
+                    // for multi-match we intentionally stop here and let the
+                    // "Recently created" section drive navigation.
+                    if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+                      navigate(`/project/${encodeURIComponent(info.projectName)}`);
+                    }
+                  }}
+                  onVoiceOpen={() => setVoiceOpen(true)}
+                  placeholder={aiPlaceholder}
+                />
+              </div>
             </div>
 
             {/* Due Soon header: label on the left, view toggle on the right */}

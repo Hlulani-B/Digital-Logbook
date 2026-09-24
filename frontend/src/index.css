@@ -3377,6 +3377,196 @@ img {
   color: var(--text-muted);
 }
 
+/* ========== SEARCH + AI BAR ROW ========== */
+.search-ai-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.search-ai-row .feed-search-bar,
+.quick-entry-bar.search-ai-row__ai {
+  margin-bottom: 0;
+}
+.search-ai-row .feed-search-bar,
+.search-filter-block {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.search-ai-row__ai {
+  flex: 0 0 32%;
+  max-width: 420px;
+  min-width: 230px;
+}
+.search-ai-row__ai .quick-entry-bar {
+  margin-bottom: 0;
+}
+
+/* Filters button + expandable panel */
+.filter-toggle {
+  margin-top: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--text-secondary, #555);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.filter-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.filter-toggle.has-filters {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.filter-toggle__chevron {
+  transition: transform 0.15s ease;
+}
+.filter-toggle.is-open .filter-toggle__chevron {
+  transform: rotate(180deg);
+}
+.filter-panel {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  animation: toast-slide-in 0.2s ease-out;
+}
+.filter-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.filter-panel__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.filter-panel__clear {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  color: var(--accent);
+  cursor: pointer;
+}
+.filter-panel__clear:hover {
+  text-decoration: underline;
+}
+.filter-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.35fr) 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+.filter-row__label {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #555);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-row__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.filter-row__dash {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.filter-input,
+.filter-select {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs, 6px);
+  outline: none;
+  min-width: 0;
+}
+.filter-input {
+  flex: 1 1 auto;
+}
+.filter-input--num {
+  max-width: 130px;
+}
+.filter-input:focus,
+.filter-select:focus {
+  border-color: var(--accent);
+}
+@media (max-width: 760px) {
+  .search-ai-row {
+    flex-direction: column;
+  }
+  .search-ai-row__ai {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  .filter-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+/* Pin button on entry cards */
+.entry-box__top-row {
+  align-items: center;
+  gap: 0.25rem;
+}
+.entry-box__pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs, 6px);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.entry-box__pin-btn:hover {
+  color: var(--accent);
+  background: var(--surface-hover, rgba(0, 0, 0, 0.04));
+}
+.entry-box__pin-btn.is-pinned {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.entry-box__pin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Quick Entry Bar */
 .quick-entry-bar {
   margin-bottom: 1.25rem;

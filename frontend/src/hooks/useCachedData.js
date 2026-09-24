@@ -30,24 +30,35 @@ export function useCachedData(store, key, fetchFn, deps = []) {
   useEffect(() => {
     if (!store || !key) return;
 
-    // 1. Read from IndexedDB immediately
     let cancelled = false;
-    (async () => {
-      const cached = await cacheGet(store, key);
-      if (!cancelled) {
-        const payload = cached?.data !== undefined ? cached.data : cached;
-        setData(payload ?? null);
-        setLoaded(true);
-      }
-    })();
+    // A write that lands while the initial read is still in flight must WIN.
+    // The read is served before that write (the SELECT continuation is queued
+    // first), so its stale null would otherwise resolve last and clobber the
+    // fresh value the subscription already delivered — the data then stays
+    // missing until some unrelated emit re-renders the component.
+    let hasUpdate = false;
 
-    // 2. Subscribe to future cache changes
+    // 1. Subscribe to future cache changes (before the read so no emit can
+    //    slip through the window between the read starting and us listening)
     const unsubscribe = cacheSubscribe(store, key, (newData) => {
       if (!cancelled) {
+        hasUpdate = true;
         setData(newData ?? null);
         setLoaded(true);
       }
     });
+
+    // 2. Read from IndexedDB immediately
+    (async () => {
+      const cached = await cacheGet(store, key);
+      if (!cancelled) {
+        if (!hasUpdate) {
+          const payload = cached?.data !== undefined ? cached.data : cached;
+          setData(payload ?? null);
+        }
+        setLoaded(true);
+      }
+    })();
 
     return () => {
       cancelled = true;

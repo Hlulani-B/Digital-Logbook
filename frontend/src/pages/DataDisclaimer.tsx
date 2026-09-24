@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiShield, FiDatabase, FiCpu, FiLock, FiCheck } from 'react-icons/fi';
+import { FiShield, FiCpu, FiLock, FiCheck } from 'react-icons/fi';
 
 /**
  * DataDisclaimer — shown once after signup (new accounts only).
- * Transparently explains how the user's data is stored, what the AI does with it,
- * and what rights they have. Must be acknowledged before entering the dashboard.
+ * Transparently explains that the user's data is kept secure, what the AI does
+ * with it, and what rights they have. Must be acknowledged before entering the
+ * dashboard.
  */
 export function DataDisclaimer() {
   const navigate = useNavigate();
@@ -50,26 +51,24 @@ export function DataDisclaimer() {
               textAlign: 'left',
             }}
           >
-            {/* Data Storage */}
+            {/* Data Security */}
             <div className="disclaimer-section">
               <div className="disclaimer-section-header">
-                <FiDatabase size={18} />
-                <span>Where your data lives</span>
+                <FiShield size={18} />
+                <span>Your data is secure</span>
               </div>
               <ul className="disclaimer-list">
                 <li>
-                  Your entries, projects, and profile are stored in a <strong>Supabase</strong>{' '}
-                  cloud database (PostgreSQL). Supabase is an open-source backend hosted on
-                  infrastructure in dedicated data centres.
+                  Your entries, projects, and profile are stored <strong>securely</strong> and are
+                  only ever accessible from your own account.
                 </li>
                 <li>
-                  A copy of your data is also cached <strong>locally in your browser</strong>{' '}
-                  (IndexedDB) so the app works fast and offline. This cache stays on your device and
-                  is never sent anywhere except back to your own account.
+                  A private copy of your data is also kept <strong>on your own device</strong> so
+                  the app works fast and offline. It is never shared with anyone else.
                 </li>
                 <li>
-                  The app is hosted on <strong>Render</strong> (free tier). Your data in transit is
-                  encrypted via HTTPS.
+                  Your data is <strong>encrypted in transit</strong> and is never used for anything
+                  other than running this app.
                 </li>
               </ul>
             </div>

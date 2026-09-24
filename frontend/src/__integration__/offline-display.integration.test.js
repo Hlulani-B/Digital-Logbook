@@ -51,9 +51,12 @@ describe('offline display and sync', () => {
     // Tests share one IndexedDB, and the queue/cache are module singletons —
     // start each one clean so an earlier case can't leak rows into a later one.
     const { clearQueue } = await import('@/CacheFunctions/offlineQueue.js');
-    const { clearUserCache } = await import('@/lib/cache');
+    const { cacheSet, clearUserCache, CACHE_STORES } = await import('@/lib/cache');
     await clearQueue();
     await clearUserCache(EMAIL);
+    // The entry form renders from the project's field schema, so the fields
+    // cache is always warm in real use; the date gate in mutateEntry needs it.
+    await cacheSet(CACHE_STORES.FIELDS, CACHE_KEY, { success: true, data: [] });
   });
 
   it('A: offline addEntry with a cold cache writes and emits the entry', async () => {

@@ -438,6 +438,35 @@ async function _doSync(email, onProgress, epoch = syncEpoch) {
     console.error('[syncService] Failed to cache activity:', err);
   }
 
+  // ── Report per-store failures ────────────────────────────────
+  // `errors` is part of this module's contract: callers use it to tell a
+  // complete sync from a partial one. Without these pushes a rejected store
+  // left the array empty and `success` stayed true.
+  const recordFailure = (name, result) => {
+    if (result?.status === 'rejected')
+      summary.errors.push({
+        store: name,
+        message: result.reason?.message || `Failed to sync ${name}`,
+      });
+    else if (result?.value?.success === false)
+      summary.errors.push({
+        store: name,
+        message: result.value.message || `Failed to sync ${name}`,
+      });
+  };
+  recordFailure('projects', projectsResult);
+  recordFailure('all-entries', allEntriesResult);
+  recordFailure('profile', profileResult);
+  recordFailure('activity', activityResult);
+  const archiveNames = [
+    'archives',
+    'unarchived-entries',
+    'archived-projects',
+    'unarchived-projects',
+  ];
+  (archivesResults.value || []).forEach((result, i) => recordFailure(archiveNames[i], result));
+  fieldProjectNames.forEach((name, i) => recordFailure(`fields:${name}`, fieldsResults.value[i]));
+
   // ── Post-sync: compute derived data from cache (pure local, no server) ──
   try {
     const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);

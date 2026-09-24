@@ -5,15 +5,31 @@
  *   addEntry → optimistic IndexedDB write → server sync → cache update
  *   updateEntry → optimistic patch → server sync → authoritative update
  *   deleteEntry → optimistic removal → server sync
- *   Rollback on server failure
+ *   Transport failures queue for replay; known HTTP failures keep the
+ *   rollback path (see mutateEntry in functions/project/entries.js).
  */
 
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 
-// Mock the API request module
-const mockRequest = vi.fn();
+// US54: validateEntryDates rejects past due dates, so fixtures must stay in the future.
+const futureDate = (days = 7) =>
+  new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const FUTURE_DATE = futureDate();
+
+// The schema gate in mutateEntry() loads project fields before every write, so
+// field reads are answered separately from entry mutations. Individual tests
+// configure `entryResponder` (a value or a function that may throw).
+let entryResponder = null;
+
+const mockRequest = vi.fn(async (url, options) => {
+  const body = JSON.parse(options?.body ?? '{}');
+  if (String(url).includes('/service/field')) return { success: true, data: [] };
+  if (!entryResponder) return { success: true };
+  return entryResponder(body);
+});
+
 vi.mock('@/lib/api', () => ({
   request: (...args) => mockRequest(...args),
   PROJECT_URL: 'http://localhost:5003',
@@ -26,9 +42,17 @@ const EMAIL = 'test@test.com';
 const PROJECT = 'TestProject';
 const CACHE_KEY = `${EMAIL}:${PROJECT}`;
 
+const findRequestBody = (fnName) => {
+  const call = mockRequest.mock.calls.find(
+    ([, options]) => JSON.parse(options?.body ?? '{}').function === fnName
+  );
+  return JSON.parse(call[1].body);
+};
+
 describe('Entry CRUD Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    entryResponder = null;
     // Reset cache before each test
     return cacheSet(CACHE_STORES.ENTRIES, CACHE_KEY, { success: true, data: [] });
   });
@@ -40,10 +64,10 @@ describe('Entry CRUD Integration', () => {
         user_email: EMAIL,
         project_name: PROJECT,
         entries: { task: 'Build feature' },
-        due_date: '2025-09-10',
+        due_date: FUTURE_DATE,
         status: 'up_next',
       };
-      mockRequest.mockResolvedValueOnce({ success: true, data: [serverEntry] });
+      entryResponder = () => ({ success: true, data: [serverEntry] });
 
       // Also seed the all-entries cache
       await cacheSet(CACHE_STORES.ALL_ENTRIES, EMAIL, { success: true, data: [] });
@@ -52,7 +76,7 @@ describe('Entry CRUD Integration', () => {
         EMAIL,
         PROJECT,
         { task: 'Build feature' },
-        '2025-09-10',
+        FUTURE_DATE,
         null,
         'up_next',
         null,
@@ -70,6 +94,11 @@ describe('Entry CRUD Integration', () => {
           body: expect.stringContaining('"function":"add"'),
         })
       );
+      // The optimistic row was reconciled to the authoritative server id
+      const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
+      const entries = cached.data || cached;
+      expect(entries.length).toBe(1);
+      expect(entries[0].id).toBe('real-id-123');
     });
 
     it('rolls back optimistic entry on server failure', async () => {
@@ -78,7 +107,10 @@ describe('Entry CRUD Integration', () => {
       await cacheSet(CACHE_STORES.ENTRIES, CACHE_KEY, { success: true, data: [existing] });
       await cacheSet(CACHE_STORES.ALL_ENTRIES, EMAIL, { success: true, data: [existing] });
 
-      mockRequest.mockRejectedValueOnce(new Error('Network error'));
+      // A known HTTP failure is not retryable — it must roll back, not queue.
+      entryResponder = () => {
+        throw new Error('API error 500: Internal Server Error');
+      };
 
       const result = await addEntry(
         EMAIL,
@@ -125,7 +157,7 @@ describe('Entry CRUD Integration', () => {
         status: 'done_and_dusted',
         summary: 'Updated summary',
       };
-      mockRequest.mockResolvedValueOnce({ success: true, data: [updatedEntry] });
+      entryResponder = () => ({ success: true, data: [updatedEntry] });
 
       await updateEntry(
         EMAIL,
@@ -153,7 +185,7 @@ describe('Entry CRUD Integration', () => {
       const updatedEntry = { ...legacyEntry, status: 'in_motion' };
       await cacheSet(CACHE_STORES.ENTRIES, CACHE_KEY, { success: true, data: [legacyEntry] });
       await cacheSet(CACHE_STORES.ALL_ENTRIES, EMAIL, { success: true, data: [legacyEntry] });
-      mockRequest.mockResolvedValueOnce({ success: true, data: [updatedEntry] });
+      entryResponder = () => ({ success: true, data: [updatedEntry] });
 
       await updateEntry(
         EMAIL,
@@ -168,7 +200,7 @@ describe('Entry CRUD Integration', () => {
         undefined
       );
 
-      const requestValues = JSON.parse(mockRequest.mock.calls[0][1].body).values;
+      const requestValues = findRequestBody('update').values;
       expect(requestValues).not.toHaveProperty('new_entry');
       expect(requestValues.status).toBe('in_motion');
 
@@ -180,7 +212,7 @@ describe('Entry CRUD Integration', () => {
     });
 
     it('rolls back on server failure', async () => {
-      mockRequest.mockResolvedValueOnce({ success: false, message: 'Conflict' });
+      entryResponder = () => ({ success: false, message: 'Conflict' });
 
       await updateEntry(
         EMAIL,
@@ -201,15 +233,18 @@ describe('Entry CRUD Integration', () => {
       expect(entries[0].status).toBe('up_next'); // Original value
     });
 
-    it('rolls back on network error', async () => {
-      mockRequest.mockRejectedValueOnce(new Error('Timeout'));
+    it('keeps the optimistic patch and queues when the server is unreachable', async () => {
+      // Transport failures are queued for replay instead of rolled back.
+      entryResponder = () => {
+        throw new Error('Request timed out after 90s');
+      };
 
-      await updateEntry(
+      const result = await updateEntry(
         EMAIL,
         PROJECT,
         'entry-1',
         undefined,
-        '2025-12-25', // new due_date
+        FUTURE_DATE, // new due_date
         undefined,
         undefined,
         undefined,
@@ -217,13 +252,15 @@ describe('Entry CRUD Integration', () => {
         undefined
       );
 
+      expect(result.queued).toBe(true);
+
       const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
       const entries = cached.data || cached;
-      expect(entries[0].due_date).toBe('2025-09-10'); // Original value
+      expect(entries[0].due_date).toBe(`${FUTURE_DATE}T23:59:59.999Z`); // Optimistic value kept
     });
 
     it('updates both per-project and all-entries caches', async () => {
-      mockRequest.mockResolvedValueOnce({
+      entryResponder = () => ({
         success: true,
         data: [{ ...existingEntry, priority: '0' }],
       });
@@ -258,7 +295,7 @@ describe('Entry CRUD Integration', () => {
     });
 
     it('removes entry from cache immediately', async () => {
-      mockRequest.mockResolvedValueOnce({ success: true });
+      entryResponder = () => ({ success: true });
 
       await deleteEntry(EMAIL, PROJECT, entry1);
 
@@ -269,7 +306,7 @@ describe('Entry CRUD Integration', () => {
     });
 
     it('removes from all-entries cache too', async () => {
-      mockRequest.mockResolvedValueOnce({ success: true });
+      entryResponder = () => ({ success: true });
 
       await deleteEntry(EMAIL, PROJECT, entry1);
 
@@ -279,21 +316,27 @@ describe('Entry CRUD Integration', () => {
       expect(all[0].id).toBe('e2');
     });
 
-    it('rolls back on server failure', async () => {
-      mockRequest.mockRejectedValueOnce(new Error('Server error'));
+    it('queues the removal for retry on server failure (removal is kept, not rolled back)', async () => {
+      entryResponder = () => {
+        throw new Error('Server error');
+      };
 
-      await deleteEntry(EMAIL, PROJECT, entry1);
+      const result = await deleteEntry(EMAIL, PROJECT, entry1);
 
+      expect(result).toMatchObject({ success: true, queued: true });
+
+      // The optimistic removal stands — replaying the queue finishes the delete.
       const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
       const entries = cached.data || cached;
-      expect(entries.length).toBe(2); // Both entries restored
+      expect(entries.length).toBe(1);
+      expect(entries[0].id).toBe('e2');
     });
   });
 
   describe('getEntries — server → cache write', () => {
     it('writes server response to per-project cache', async () => {
       const serverData = [{ id: 's1', entries: { task: 'From server' }, project_name: PROJECT }];
-      mockRequest.mockResolvedValueOnce({ success: true, data: serverData });
+      entryResponder = () => ({ success: true, data: serverData });
 
       await getEntries(EMAIL, PROJECT);
 
@@ -303,14 +346,18 @@ describe('Entry CRUD Integration', () => {
       expect(entries[0].id).toBe('s1');
     });
 
-    it('returns error result on failure without corrupting cache', async () => {
+    it('serves the cached rows when the server call fails', async () => {
       // Seed cache with existing data
       await cacheSet(CACHE_STORES.ENTRIES, CACHE_KEY, { success: true, data: [{ id: 'old' }] });
-      mockRequest.mockRejectedValueOnce(new Error('Network down'));
+      entryResponder = () => {
+        throw new Error('Network down');
+      };
 
       const result = await getEntries(EMAIL, PROJECT);
 
-      expect(result.success).toBe(false);
+      // Cache-first fallback: the request still succeeds with cached rows.
+      expect(result.success).toBe(true);
+      expect(result.data.map((entry) => entry.id)).toEqual(['old']);
       // Cache should still have old data
       const cached = await cacheGet(CACHE_STORES.ENTRIES, CACHE_KEY);
       expect((cached.data || cached).length).toBe(1);

@@ -300,6 +300,14 @@ export function validateFieldDefinitions(input: unknown): {
       if (hasOwn(raw, 'options') && !Array.isArray(raw.options))
         fail('options', 'Options must be an array.');
     }
+    if (field.data_type === 'custom' || field.data_type === 'select') {
+      const values = new Set<string>();
+      for (const option of field.options) {
+        const persisted = option.value ?? option.label;
+        if (values.has(persisted)) fail('option', 'Option values must be unique.');
+        values.add(persisted);
+      }
+    }
     if (field.is_unique && !supportsUnique(field.data_type))
       fail('unique', 'Uniqueness is only available for scalar fields.');
     const rules = field.rules;
