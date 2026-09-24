@@ -16,6 +16,7 @@ export const FIELD_TYPES = [
   'checklist',
   'computed',
   'custom',
+  'select',
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];

@@ -153,6 +153,12 @@ export function EntryBox({
   const [refLoading, setRefLoading] = useState(false);
   const [calcField, setCalcField] = useState<string | null>(null);
 
+  // Pin — reserved `_pinned` key in the entries payload; pinned entries sort to the top
+  const [pinPending, setPinPending] = useState(false);
+  const [pinOverride, setPinOverride] = useState<boolean | null>(null);
+  const pinnedValue = parsedEntries._pinned === true;
+  const isPinned = pinOverride !== null ? pinOverride : pinnedValue;
+
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   const [fieldsReady, setFieldsReady] = useState(false);
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
@@ -257,6 +263,7 @@ export function EntryBox({
     'ended_at',
     '_entry_ref',
     '_project_ref',
+    '_pinned',
   ]);
   const entryFields = Object.entries(parsedEntries || {}).filter(
     ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
@@ -484,6 +491,28 @@ export function EntryBox({
     onUpdated?.({ ...entry, entries: newEntries });
   };
 
+  const togglePin = async () => {
+    if (!user_email || !project_name || pinPending) return;
+    // Opaque payloads (legacy strings) have no key space to store the pin in
+    if (payloadState.kind === 'opaque') return;
+    const next = !isPinned;
+    setPinPending(true);
+    setPinOverride(next);
+    const newEntries: Record<string, unknown> = { ...parsedEntries };
+    if (next) newEntries._pinned = true;
+    else delete newEntries._pinned;
+    try {
+      const result = await updateEntry(user_email, project_name, id, newEntries);
+      if (result?.success !== true) throw new Error(result?.message || 'Failed to update pin');
+      onUpdated?.({ ...entry, entries: newEntries });
+    } catch (err) {
+      setPinOverride(null);
+      setError(err instanceof Error ? err.message : 'Failed to update pin');
+    } finally {
+      setPinPending(false);
+    }
+  };
+
   const openCalcPicker = async (fieldName: string) => {
     setCalcField(fieldName);
     try {
@@ -674,6 +703,33 @@ export function EntryBox({
           <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
         )}
         <div className="entry-box__top-row">
+          {payloadState.kind !== 'opaque' && !archived && (
+            <button
+              type="button"
+              className={`entry-box__pin-btn ${isPinned ? 'is-pinned' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePin();
+              }}
+              disabled={pinPending}
+              aria-pressed={isPinned}
+              title={isPinned ? 'Unpin — back to the normal order' : 'Pin to the top of the list'}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill={isPinned ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="17" x2="12" y2="22" />
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+              </svg>
+            </button>
+          )}
           <div className="entry-box__menu-wrap" ref={menuRef}>
             <button
               type="button"

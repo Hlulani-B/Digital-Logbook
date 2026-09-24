@@ -283,7 +283,7 @@ export async function rollbackEntryMutation(payload) {
 }
 
 async function syncEntryMutation(action, payload) {
-  const { _local, ...values } = payload;
+  const { _local, optimistic_id: _optimisticId, ...values } = payload;
   let result = await request(`${PROJECT_URL}/service/entry`, {
     method: 'POST',
     body: JSON.stringify({ function: action, values: withoutUndefined(values) }),
@@ -446,6 +446,10 @@ async function mutateEntry(action, input, options = { requireServer: false }) {
   }
   const queue = async () => {
     try {
+      // notes.js (`queueNote`) merges notes added to a still-unsynced entry into
+      // this queued payload by matching `optimistic_id`; without it the note is
+      // queued separately and dropped on replay against a non-existent id.
+      if (action === 'add') payload.optimistic_id = id;
       await addToQueue(action === 'add' ? 'addEntry' : 'updateEntry', 'entries', payload);
     } catch (error) {
       await rollbackEntryMutation(payload);

@@ -5,9 +5,15 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // The sql.js wasm build can't locate sql-wasm.wasm outside a browser, so
+      // tests run the cache layer against the asm.js build (same API, no wasm).
+      {
+        find: /^sql\.js$/,
+        replacement: path.resolve(__dirname, './node_modules/sql.js/dist/sql-asm.js'),
+      },
+    ],
   },
   test: {
     environment: 'jsdom',

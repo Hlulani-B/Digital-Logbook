@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
+import { EntrySearchBar } from '@/components/SearchFilters';
+import { matchesTextQuery, pinFirst } from '@/lib/entryFilters';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
@@ -167,7 +169,7 @@ export function AllEntriesPage() {
 
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
-    await setPriority(email, entryId, projectName, priorityValue);
+    await setPriority(email, priorityValue, projectName, entryId);
     loadData();
   };
 
@@ -175,14 +177,9 @@ export function AllEntriesPage() {
   const filteredEntries = useMemo(() => {
     let filtered = [...entries];
 
-    // Apply search filter
+    // Apply search filter — summary, project name and every field value
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((e) => {
-        const summary = (e.summary as string) || '';
-        const project = (e.project_name as string) || '';
-        return summary.toLowerCase().includes(q) || project.toLowerCase().includes(q);
-      });
+      filtered = filtered.filter((e) => matchesTextQuery(e, searchQuery));
     }
 
     // Apply sort
@@ -201,7 +198,7 @@ export function AllEntriesPage() {
       });
     }
 
-    return filtered;
+    return pinFirst(filtered);
   }, [entries, searchQuery, sortBy]);
 
   const colorMap = useMemo(
@@ -218,26 +215,32 @@ export function AllEntriesPage() {
       <main className="dash-main">
         <Header title="My Items" entries={entries} projects={projects} />
 
-        {/* Search bar */}
-        <div className="feed-search-bar">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Filter entries..."
+        {/* Search bar beside the AI quick-add bar */}
+        <div className="search-ai-row">
+          <EntrySearchBar
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="feed-search-input"
+            onChange={setSearchQuery}
+            placeholder="Filter entries..."
           />
+
+          {/* Quick Entry Bar */}
+          <div className="search-ai-row__ai">
+            <QuickEntryBar
+              onEntryCreated={(info) => {
+                loadData();
+                // Track every created entry (single OR multi) in "Recently created".
+                for (const item of info?.created ?? []) {
+                  trackCreatedEntry(item);
+                }
+                // Navigate only when there's exactly one unambiguous target.
+                if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
+                  navigate(`/project/${encodeURIComponent(info.projectName)}`);
+                }
+              }}
+              onVoiceOpen={() => setVoiceOpen(true)}
+              placeholder={aiPlaceholder}
+            />
+          </div>
         </div>
 
         {/* Display mode + Sort controls */}
@@ -309,23 +312,6 @@ export function AllEntriesPage() {
             </button>
           </div>
         </div>
-
-        {/* Quick Entry Bar */}
-        <QuickEntryBar
-          onEntryCreated={(info) => {
-            loadData();
-            // Track every created entry (single OR multi) in "Recently created".
-            for (const item of info?.created ?? []) {
-              trackCreatedEntry(item);
-            }
-            // Navigate only when there's exactly one unambiguous target.
-            if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
-              navigate(`/project/${encodeURIComponent(info.projectName)}`);
-            }
-          }}
-          onVoiceOpen={() => setVoiceOpen(true)}
-          placeholder={aiPlaceholder}
-        />
 
         {/* Loading */}
         {loading && (
