@@ -135,13 +135,13 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         </div>
       );
     }
-    case 'custom': {
+    case 'custom':
+    case 'select': // Legacy alias
       // Legacy custom type — display the selected option label
       const option = field.options.find((o) => (o.value ?? o.label) === value);
       return (
         <div className="field-display field-display-select">{option?.label ?? String(value)}</div>
       );
-    }
     default:
       return <div className="field-display">Unsupported: {field.data_type}</div>;
   }
