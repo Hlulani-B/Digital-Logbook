@@ -1237,10 +1237,9 @@ export function FieldEditor(props: FieldEditorProps) {
       return <ChecklistFieldEditor {...props} />;
     case 'computed':
       return <ComputedFieldEditor {...props} />;
-    case 'custom': {
-      // Legacy custom type — render as a simple select from parsed options
+    case 'custom':
+    case 'select': // Legacy alias — render as select dropdown
       return <SelectFieldEditor {...props} />;
-    }
     default:
       return <div>Unsupported field type: {field.data_type}</div>;
   }

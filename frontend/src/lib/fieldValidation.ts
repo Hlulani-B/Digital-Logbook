@@ -190,6 +190,7 @@ function validateValue(
       else result = [...new Set(value.map((t: string) => t.trim()))];
       break;
     case 'custom':
+    case 'select': // Legacy alias
       if (
         typeof value !== 'string' ||
         !field.options.some((option) => (option.value ?? option.label) === value)
