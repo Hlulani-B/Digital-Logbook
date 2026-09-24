@@ -52,6 +52,7 @@ describe('AddEntry', () => {
 
     const checkbox = await screen.findByRole('checkbox', { name: 'True' });
     fireEvent.click(checkbox);
+    fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole('checkbox', { name: 'False' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
 
