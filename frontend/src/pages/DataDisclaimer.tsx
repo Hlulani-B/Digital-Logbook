@@ -37,10 +37,9 @@ export function DataDisclaimer() {
               style={{ width: 48, height: 48, borderRadius: '14px', objectFit: 'cover' }}
             />
           </div>
-          <h1 className="auth-title">Your data &amp; AI — the honest picture</h1>
+          <h1 className="auth-title">Your privacy &amp; data</h1>
           <p className="auth-subtitle" style={{ marginBottom: '1.25rem' }}>
-            Before you dive in, we want you to know exactly what happens with your information. No
-            surprises.
+            We believe in transparency. Here's what you need to know about your information.
           </p>
 
           <div
@@ -70,6 +69,7 @@ export function DataDisclaimer() {
                   Your data is <strong>encrypted in transit</strong> and is never used for anything
                   other than running this app.
                 </li>
+                <li>All data transmitted between your device and our servers is encrypted.</li>
               </ul>
             </div>
 
@@ -77,34 +77,24 @@ export function DataDisclaimer() {
             <div className="disclaimer-section">
               <div className="disclaimer-section-header">
                 <FiCpu size={18} />
-                <span>How AI is used</span>
+                <span>Smart features</span>
               </div>
               <ul className="disclaimer-list">
                 <li>
-                  When you type a quick entry, the text is sent to an <strong>AI model</strong> to
-                  parse it into structured data (project, priority, due date). This is the only
-                  automated AI processing that happens.
+                  Optional AI assistance helps parse quick entries into structured data. This
+                  processing is temporary and not stored.
                 </li>
                 <li>
-                  The AI <strong>reads your entry text and project names</strong> to understand
-                  context. It does <strong>not</strong> have access to your password, email, or any
-                  other personal data.
+                  AI features only access the specific entry text you submit — never your password,
+                  email, or other personal information.
                 </li>
                 <li>
-                  AI-generated comments and greetings are <strong>optional</strong> — you can turn
-                  them off at any time in Settings → Preferences → AI Messages.
+                  AI-generated suggestions are optional and can be disabled anytime in Settings.
                 </li>
+                <li>Your data is never used to train external AI models.</li>
                 <li>
-                  We do <strong>not</strong> train any external AI model on your data. The AI
-                  provider processes your text per-request and does not retain it for model
-                  training.
-                </li>
-                <li>
-                  <strong>Quick Add is not perfect.</strong> The AI may misread your intent — for
-                  example it could assign an entry to the wrong project, guess the wrong priority,
-                  or parse a due date incorrectly. <strong>Always verify</strong> that the entry was
-                  filed in the right place after using Quick Add. You can edit any entry to fix
-                  mistakes.
+                  <strong>AI assistance is a helper, not perfect.</strong> Always review auto-parsed
+                  entries to ensure accuracy. You can edit any entry at any time.
                 </li>
               </ul>
             </div>
@@ -113,20 +103,19 @@ export function DataDisclaimer() {
             <div className="disclaimer-section">
               <div className="disclaimer-section-header">
                 <FiLock size={18} />
-                <span>Your rights &amp; control</span>
+                <span>Your control</span>
               </div>
               <ul className="disclaimer-list">
                 <li>
-                  You can <strong>export all your data</strong> at any time via Settings → Data
-                  Portability (JSON format).
+                  <strong>Export your data</strong> anytime in JSON format from Settings.
                 </li>
                 <li>
-                  You can <strong>delete your account</strong> permanently from Settings → Account.
-                  There is a 30-day grace period in case you change your mind.
+                  <strong>Delete your account</strong> permanently from Settings. A recovery period
+                  is available if you change your mind.
                 </li>
                 <li>
-                  Your data is <strong>yours</strong>. We will never sell it, share it with
-                  advertisers, or use it for anything other than running this app.
+                  Your data belongs to you. We never sell, share with third parties, or use it
+                  beyond providing this service.
                 </li>
               </ul>
             </div>
@@ -147,8 +136,8 @@ export function DataDisclaimer() {
                 size={14}
                 style={{ verticalAlign: 'middle', marginRight: 6, marginBottom: 2 }}
               />
-              <strong>Open source:</strong> this app's code is publicly auditable. Anyone can
-              inspect exactly what happens with your data.
+              <strong>Committed to privacy:</strong> we follow security best practices and undergo
+              regular reviews to protect your information.
             </div>
           </div>
 
