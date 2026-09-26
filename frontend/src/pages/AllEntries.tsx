@@ -12,11 +12,15 @@ import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { EntryBox } from '@/pages/NewEntry';
+import { AddEntry } from '@/pages/AddEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
+import { KanbanBoardView } from '@/pages/Kanban';
+import { TimelineView } from '@/pages/Timeline';
 import { type EntryPayload } from '@/lib/entryPayload';
+import { type CalendarEntry } from '@/lib/calendar';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 type Entry = Record<string, unknown>;
@@ -30,13 +34,20 @@ interface ToolbarDropdownProps<T extends string> {
   value: T;
   options: Array<ToolbarDropdownOption<T>>;
   onChange: (value: T) => void;
+  /** Which edge the menu hugs — 'right' keeps it inside the viewport. */
+  menuAlign?: 'left' | 'right';
 }
 
 /**
  * Compact toolbar dropdown (View / Sort style). Shows the active option on
  * the trigger and closes on outside click or Escape.
  */
-function ToolbarDropdown<T extends string>({ value, options, onChange }: ToolbarDropdownProps<T>) {
+function ToolbarDropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  menuAlign = 'left',
+}: ToolbarDropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -86,7 +97,15 @@ function ToolbarDropdown<T extends string>({ value, options, onChange }: Toolbar
         </svg>
       </button>
       {open && (
-        <div className="toolbar-dropdown__menu" role="listbox">
+        <div
+          className={[
+            'toolbar-dropdown__menu',
+            menuAlign === 'right' && 'toolbar-dropdown__menu--right',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          role="listbox"
+        >
           {options.map((option) => (
             <button
               key={option.value}
@@ -128,11 +147,20 @@ export function AllEntriesPage() {
     localStorage.setItem('allentries-sort-by', sortBy);
   }, [sortBy]);
 
-  // Display mode: cards, checklist, board, or table
+  // Display mode: cards, checklist, board, table, kanban, or timeline
   // Persist in localStorage so it survives refresh
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'table'>(() => {
+  const [displayMode, setDisplayMode] = useState<
+    'cards' | 'checklist' | 'board' | 'table' | 'kanban' | 'timeline'
+  >(() => {
     const saved = localStorage.getItem('allentries-display-mode');
-    if (saved === 'cards' || saved === 'checklist' || saved === 'board' || saved === 'table') {
+    if (
+      saved === 'cards' ||
+      saved === 'checklist' ||
+      saved === 'board' ||
+      saved === 'table' ||
+      saved === 'kanban' ||
+      saved === 'timeline'
+    ) {
       return saved;
     }
     return 'cards';
@@ -150,6 +178,10 @@ export function AllEntriesPage() {
 
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // Corner add-entry button — project picker then the entry form
+  const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [newEntryProject, setNewEntryProject] = useState('');
 
   // Static placeholder for quick entry (no AI) — kept in sync with the home page
   const aiPlaceholder = 'Capture quick entry';
@@ -295,6 +327,10 @@ export function AllEntriesPage() {
     [projects]
   );
 
+  // Kanban groups by status and Timeline is chronological — sorting does not
+  // apply there, so the Sort control is hidden while those views are active.
+  const showSortControl = displayMode !== 'kanban' && displayMode !== 'timeline';
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
@@ -357,62 +393,40 @@ export function AllEntriesPage() {
               Projects
             </button>
           </div>
-        </div>
 
-        {/* View + Sort controls */}
-        <div className="feed-controls-row">
-          <div className="feed-view-group">
-            <span className="feed-view-label">View:</span>
-            <ToolbarDropdown
-              value={displayMode}
-              onChange={setDisplayMode}
-              options={[
-                { value: 'cards', label: 'Cards' },
-                { value: 'checklist', label: 'Checklist' },
-                { value: 'board', label: 'Board' },
-                { value: 'table', label: 'Table' },
-              ]}
-            />
-            <div className="feed-sort-group">
-              <span className="feed-sort-label">Sort:</span>
-              <button
-                className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`}
-                onClick={() => setSortBy('date')}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                Date
-              </button>
-              <button
-                className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`}
-                onClick={() => setSortBy('priority')}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                </svg>
-                Priority
-              </button>
+          {/* View + Sort sit together opposite the Entries/Projects toggle,
+              mirroring the search/AI bar row's layout. */}
+          <div className="page-switcher-controls">
+            <div className="feed-view-group">
+              <span className="feed-view-label">View:</span>
+              <ToolbarDropdown
+                value={displayMode}
+                onChange={setDisplayMode}
+                options={[
+                  { value: 'cards', label: 'Cards' },
+                  { value: 'checklist', label: 'Checklist' },
+                  { value: 'board', label: 'Board' },
+                  { value: 'table', label: 'Table' },
+                  { value: 'kanban', label: 'Kanban' },
+                  { value: 'timeline', label: 'Timeline' },
+                ]}
+              />
             </div>
+
+            {showSortControl && (
+              <div className="feed-sort-group">
+                <span className="feed-sort-label">Sort:</span>
+                <ToolbarDropdown
+                  value={sortBy}
+                  onChange={setSortBy}
+                  menuAlign="right"
+                  options={[
+                    { value: 'date', label: 'Date' },
+                    { value: 'priority', label: 'Priority' },
+                  ]}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -502,6 +516,17 @@ export function AllEntriesPage() {
             colorMap={colorMap}
           />
         )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'kanban' && (
+          <KanbanBoardView
+            entries={filteredEntries as unknown as CalendarEntry[]}
+            email={email}
+            colorMap={colorMap}
+            onUpdated={() => loadData()}
+          />
+        )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'timeline' && (
+          <TimelineView entries={filteredEntries as unknown as CalendarEntry[]} />
+        )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
           <div className="entries-feed">
             {filteredEntries.map((row, i) => (
@@ -520,6 +545,110 @@ export function AllEntriesPage() {
           </div>
         )}
       </main>
+
+      {/* Corner add-entry button — mirrors the home and project pages */}
+      <div className="fab-container">
+        <button
+          className="fab"
+          onClick={() => setNewEntryOpen(true)}
+          aria-label="New entry"
+          title="Create a new entry"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="fab-label">New</span>
+        </button>
+      </div>
+
+      {/* New Entry Modal — pick a project, then fill in the entry form */}
+      {newEntryOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setNewEntryOpen(false);
+            setNewEntryProject('');
+          }}
+        >
+          <div
+            className={`modal-card glass modal-card-wide${newEntryProject ? ' modal-card--entry' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {!newEntryProject ? (
+              <>
+                <h2 className="modal-title">New Entry</h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Select a project:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  {projects
+                    .filter((p) => !p.archived)
+                    .map((p) => (
+                      <button
+                        key={p.project_name as string}
+                        className="drawer-item"
+                        onClick={() => setNewEntryProject(p.project_name as string)}
+                        style={{ textAlign: 'left', justifyContent: 'flex-start' }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        {p.project_name as string}
+                      </button>
+                    ))}
+                  {projects.filter((p) => !p.archived).length === 0 && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                      No projects yet. Create one first.
+                    </p>
+                  )}
+                </div>
+                <div className="modal-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setNewEntryOpen(false);
+                      setNewEntryProject('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <AddEntry
+                user_email={email}
+                project_name={newEntryProject}
+                onAdded={() => {
+                  setNewEntryOpen(false);
+                  setNewEntryProject('');
+                  loadData();
+                }}
+                onCancel={() => {
+                  setNewEntryOpen(false);
+                  setNewEntryProject('');
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Voice Feature */}
       {voiceOpen && (

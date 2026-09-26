@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AllEntriesPage } from '../AllEntries';
+import { cacheGet } from '@/lib/cache';
 
 // Mock all dependencies
 vi.mock('@/context/AuthContext', () => ({
@@ -49,6 +50,10 @@ vi.mock('@/pages/NewEntry', () => ({
   EntryBox: vi.fn(() => <div data-testid="entry-box">EntryBox</div>),
 }));
 
+vi.mock('@/pages/AddEntry', () => ({
+  AddEntry: vi.fn(() => <div data-testid="add-entry">AddEntry</div>),
+}));
+
 vi.mock('@/Templates/EntryTemplates/EntryChecklist', () => ({
   ChecklistView: vi.fn(() => <div data-testid="checklist-view">ChecklistView</div>),
 }));
@@ -63,6 +68,14 @@ vi.mock('@/Templates/ProjectTemplates/ProjectTable', () => ({
 
 vi.mock('@/pages/VoiceFeature', () => ({
   default: vi.fn(() => <div data-testid="voice-feature">VoiceFeature</div>),
+}));
+
+vi.mock('@/pages/Kanban', () => ({
+  KanbanBoardView: vi.fn(() => <div data-testid="kanban-view">KanbanBoardView</div>),
+}));
+
+vi.mock('@/pages/Timeline', () => ({
+  TimelineView: vi.fn(() => <div data-testid="timeline-view">TimelineView</div>),
 }));
 
 describe('AllEntriesPage', () => {
@@ -106,12 +119,15 @@ describe('AllEntriesPage', () => {
     expect(screen.getByRole('option', { name: 'Checklist' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Board' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Table' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Kanban' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Timeline' })).toBeTruthy();
   });
 
-  it('renders sort buttons for Date and Priority', () => {
+  it('shows the sort dropdown with Date and Priority options', () => {
     renderPage();
-    expect(screen.getByText('Date')).toBeTruthy();
-    expect(screen.getByText('Priority')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Date' }));
+    expect(screen.getByRole('option', { name: 'Date' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Priority' })).toBeTruthy();
   });
 
   it('defaults to cards display mode', () => {
@@ -122,8 +138,8 @@ describe('AllEntriesPage', () => {
 
   it('defaults to date sorting', () => {
     renderPage();
-    const dateBtn = screen.getByText('Date');
-    expect(dateBtn.className).toContain('active');
+    // The Sort dropdown trigger shows the active sort option
+    expect(screen.getByRole('button', { name: 'Date' })).toBeTruthy();
   });
 
   it('changes display mode from the View dropdown', () => {
@@ -135,6 +151,62 @@ describe('AllEntriesPage', () => {
     expect(setItemSpy).toHaveBeenCalledWith('allentries-display-mode', 'checklist');
     setItemSpy.mockRestore();
     localStorage.clear();
+  });
+
+  it('changes the sort preference from the sort dropdown', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Date' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Priority' }));
+    expect(screen.getByRole('button', { name: 'Priority' })).toBeTruthy();
+    expect(setItemSpy).toHaveBeenCalledWith('allentries-sort-by', 'priority');
+    setItemSpy.mockRestore();
+    localStorage.clear();
+  });
+
+  it('hides the sort control only in kanban and timeline views', () => {
+    renderPage();
+    // Visible in the default (cards) view
+    expect(screen.getByRole('button', { name: 'Date' })).toBeTruthy();
+
+    // Hidden in the kanban view
+    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Kanban' }));
+    expect(screen.queryByRole('button', { name: 'Date' })).toBeNull();
+
+    // Hidden in the timeline view
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Timeline' }));
+    expect(screen.queryByRole('button', { name: 'Date' })).toBeNull();
+
+    // Reappears in the other views
+    fireEvent.click(screen.getByRole('button', { name: 'Timeline' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Cards' }));
+    expect(screen.getByRole('button', { name: 'Date' })).toBeTruthy();
+    localStorage.clear();
+  });
+
+  it('shows the corner add-entry button', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: 'New entry' })).toBeTruthy();
+  });
+
+  it('opens the new-entry project picker from the corner button', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'New entry' }));
+    expect(screen.getByText('New Entry')).toBeTruthy();
+    expect(screen.getByText('No projects yet. Create one first.')).toBeTruthy();
+  });
+
+  it('opens the entry form after picking a project in the new-entry modal', async () => {
+    vi.mocked(cacheGet)
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [{ project_name: 'Alpha' }] });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'New entry' }));
+    const projectButton = await screen.findByRole('button', { name: 'Alpha' });
+    fireEvent.click(projectButton);
+    expect(screen.getByTestId('add-entry')).toBeTruthy();
   });
 
   it('shows empty state when no entries', async () => {
@@ -171,8 +243,8 @@ describe('AllEntriesPage', () => {
   it('reads sort preference from localStorage on mount', () => {
     localStorage.setItem('allentries-sort-by', 'priority');
     renderPage();
-    const priorityBtn = screen.getByText('Priority');
-    expect(priorityBtn.className).toContain('active');
+    // The Sort dropdown trigger reflects the saved preference
+    expect(screen.getByRole('button', { name: 'Priority' })).toBeTruthy();
     localStorage.clear();
   });
 });

@@ -4656,11 +4656,22 @@ img {
   font-weight: 500;
 }
 
-/* Page switcher row (Entries / Projects tabs) */
+/* Page switcher row (Entries / Projects tabs) — the View and Sort controls
+   sit together on the opposite side of the toggle, mirroring the search/AI
+   bar row. */
 .page-switcher-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.page-switcher-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 /* Compact toolbar dropdown (View / Sort style) */
@@ -4706,6 +4717,10 @@ img {
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.toolbar-dropdown__menu--right {
+  left: auto;
+  right: 0;
 }
 .toolbar-dropdown__option {
   display: flex;
@@ -8286,6 +8301,16 @@ img {
 }
 .project-card--actionable {
   user-select: none;
+}
+/* Archived project cards reuse the home card look but are read-only: no
+   pointer affordance and no hover lift — only the Unarchive action. */
+.project-card--archived {
+  cursor: default;
+}
+.project-card--archived:hover {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
 }
 .project-card--actionable.is-pinned {
   border-color: var(--accent);

@@ -268,21 +268,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // The 3 most recently created (unarchived) entries, newest first. Derived
-  // straight from the live entries cache so the list survives reloads and works
-  // offline — unlike the old in-session tracker, which was empty on a fresh load.
-  const recentlyCreatedEntries = useMemo(() => {
-    return entries
-      .filter((e) => !e.archived)
-      .slice()
-      .sort((a, b) => {
-        const at = new Date((a.created_at as string) || 0).getTime();
-        const bt = new Date((b.created_at as string) || 0).getTime();
-        return bt - at;
-      })
-      .slice(0, 3);
-  }, [entries]);
-
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
   const [showGreetingToast, setShowGreetingToast] = useState(false);
@@ -1530,23 +1515,49 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             {archivedProjects.length === 0 ? (
               <p className="archives-empty-line">No archived projects</p>
             ) : (
-              <div className="archived-projects-grid">
+              /* Same card format as the home page, but read-only: no pin,
+                 archive or delete — only Unarchive to restore the project. */
+              <div className="projects-grid">
                 {archivedProjects.map((project, i) => {
                   const name = project.project_name as string;
+                  const count = entries.filter((e) => e.project_name === name).length;
+                  const inMotionCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'in_motion'
+                  ).length;
+                  const doneCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'done_and_dusted'
+                  ).length;
                   return (
-                    <div key={`archived-${name}-${i}`} className="glass archived-project-card">
-                      <FiArchive size={18} className="archived-project-icon" />
-                      <div className="archived-project-info">
-                        <span className="archived-project-name">{name}</span>
-                        <span className="archived-project-status">Archived · read-only</span>
+                    <div
+                      key={`archived-${name}-${i}`}
+                      className="project-card project-card--archived"
+                    >
+                      <div className="project-card-header">
+                        <h3 className="project-card-name">{name}</h3>
+                        <span className="project-card-count">{count} entries</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleUnarchiveProject(name)}
-                        className="btn-secondary archived-project-unarchive"
-                      >
-                        <FiRotateCcw size={13} /> Unarchive
-                      </button>
+                      <div className="project-card-stats">
+                        {inMotionCount > 0 && (
+                          <span className="project-card-stat project-card-stat--active">
+                            {inMotionCount} in progress
+                          </span>
+                        )}
+                        {doneCount > 0 && (
+                          <span className="project-card-stat project-card-stat--done">
+                            {doneCount} done
+                          </span>
+                        )}
+                      </div>
+                      <div className="project-card-actions">
+                        <button
+                          type="button"
+                          className="project-card-action-btn"
+                          onClick={() => handleUnarchiveProject(name)}
+                          title="Restore this project"
+                        >
+                          <FiRotateCcw size={12} /> Unarchive
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -1601,9 +1612,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 <QuickEntryBar
                   onEntryCreated={(info) => {
                     loadData();
-                    // Only navigate when there's exactly one clear target —
-                    // for multi-match we intentionally stop here and let the
-                    // "Recently created" section drive navigation.
+                    // Only navigate when there's exactly one clear target — a
+                    // multi-match spread across projects must not yank the user
+                    // into an arbitrary one.
                     if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
                       navigate(`/project/${encodeURIComponent(info.projectName)}`);
                     }
@@ -1920,42 +1931,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     )}
                   />
                 ))}
-              </div>
-            )}
-
-            {/* Recently created — the 3 newest entries, listed under Due soon. */}
-            {!loading && recentlyCreatedEntries.length > 0 && (
-              <div className="recent-section">
-                <div className="due-soon-section-label">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  <span>Recently created</span>
-                </div>
-                <div className="recent-list">
-                  {recentlyCreatedEntries.map((e, i) => (
-                    <button
-                      key={`recent-created-${e.id || i}`}
-                      className="recent-item"
-                      onClick={() =>
-                        navigate(`/project/${encodeURIComponent(String(e.project_name))}`)
-                      }
-                      title={getEntryTitle(e as any)}
-                    >
-                      <span className="recent-item-title">{getEntryTitle(e as any)}</span>
-                      <span className="recent-item-project">{e.project_name as string}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 

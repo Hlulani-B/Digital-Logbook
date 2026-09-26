@@ -111,9 +111,7 @@ export function QuickEntryBar({ onEntryCreated, onVoiceOpen, placeholder }: Quic
           });
         }
         const total = created.length;
-        setMessage(
-          `Added ${total} ${total === 1 ? 'entry' : 'entries'} — see "Recently created" below.`
-        );
+        setMessage(`Added ${total} ${total === 1 ? 'entry' : 'entries'}.`);
       } else if (isProjectOnly) {
         projectName = (data?.project as string) || undefined;
         setMessage(`Project "${projectName}" created!`);
