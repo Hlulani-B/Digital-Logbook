@@ -3,36 +3,22 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { NotificationsBell } from '@/components/NotificationsBell';
-import { FiArchive } from 'react-icons/fi';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
-import { colorForName } from '@/lib/projectColorMap';
 import { startAppTour } from '@/lib/tour';
 
 interface NavBarProps {
-  projects?: Array<Record<string, unknown>>;
   entries?: Array<Record<string, unknown>>;
   activeView?: string;
-  onArchiveProject?: (projectName: string) => void;
-  onNewProject?: () => void;
 }
 
-export function NavBar({
-  projects: projectsProp = [],
-  entries: entriesProp = [],
-  activeView = 'all',
-  onArchiveProject,
-  onNewProject,
-}: NavBarProps) {
+export function NavBar({ entries: entriesProp = [], activeView = 'all' }: NavBarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Load projects and entries from IndexedDB directly (local-first)
-  const [projects, setProjects] = useState<Array<Record<string, unknown>>>(() =>
-    Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : []
-  );
+  // Load entries from IndexedDB directly (local-first) — drives the Home badge
   const [entries, setEntries] = useState<Array<Record<string, unknown>>>(() =>
     Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : []
   );
@@ -42,13 +28,6 @@ export function NavBar({
     const email = user.email!;
     const loadData = async () => {
       try {
-        // Load projects from IndexedDB
-        const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
-        if (cachedProjects?.data || cachedProjects?.projects) {
-          const rawProjects = cachedProjects.data || cachedProjects.projects || [];
-          const projectsList = Array.isArray(rawProjects) ? rawProjects : [];
-          setProjects(projectsList.filter((p: Record<string, unknown>) => !p.archived));
-        }
         // Load entries from IndexedDB
         const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (cachedEntries?.data) {
@@ -61,18 +40,12 @@ export function NavBar({
     };
     loadData();
 
-    // Re-read when syncAllData or mutations write new projects/entries to cache
-    const unsubs = [
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
-    ];
-    return () => unsubs.forEach((u) => u());
+    // Re-read when syncAllData or mutations write new entries to cache
+    const unsub = cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData());
+    return () => unsub();
   }, [user?.email]);
 
   // Use props if provided, otherwise use IndexedDB data
-  const safeProjects = (
-    Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : projects
-  ) as Array<Record<string, unknown>>;
   const safeEntries = (
     Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : entries
   ) as Array<Record<string, unknown>>;
@@ -333,7 +306,7 @@ export function NavBar({
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Items
+            All Entries
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -376,51 +349,6 @@ export function NavBar({
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
             Calendar
-          </button>
-          <button
-            data-tour="drawer-kanban"
-            className={`drawer-item ${isActive('/kanban') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/kanban');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            Kanban
-          </button>
-          <button
-            data-tour="drawer-timeline"
-            className={`drawer-item ${isActive('/timeline') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/timeline');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <polyline points="8 8 12 4 16 8" />
-              <polyline points="8 16 12 20 16 16" />
-            </svg>
-            Timeline
           </button>
           <button
             data-tour="drawer-import-export"
@@ -488,121 +416,6 @@ export function NavBar({
           </button>
         </div>
 
-        <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title" data-tour="drawer-projects">
-            Projects
-          </p>
-          <div className="drawer-project-list">
-            {safeProjects
-              .filter((p) => !p.archived)
-              .map((project) => {
-                const name = project.project_name as string;
-                const count = safeEntries.filter((e) => e.project_name === name).length;
-                const projColor = (project.project_color as string) || colorForName(name);
-                return (
-                  <div
-                    key={name}
-                    className={`drawer-item ${activeView === name ? 'active' : ''}`}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigate(`/project/${encodeURIComponent(name)}`);
-                        setDrawerOpen(false);
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: 'none',
-                        border: 'none',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: projColor,
-                          flexShrink: 0,
-                        }}
-                      />
-                      {name}
-                      <span className="drawer-badge">{count}</span>
-                    </button>
-                    {onArchiveProject && (
-                      <button
-                        type="button"
-                        onClick={() => onArchiveProject(name)}
-                        title="Archive project"
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid rgba(139, 115, 85, 0.3)',
-                          color: 'var(--text-secondary, #6b7280)',
-                          borderRadius: '0.4rem',
-                          padding: '0.2rem 0.5rem',
-                          fontSize: '0.7rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                        }}
-                      >
-                        <FiArchive size={12} />
-                        Archive
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            {safeProjects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet. Create one below.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="drawer-footer">
-          <button
-            data-tour="drawer-new-project"
-            className="btn-primary drawer-new-btn"
-            onClick={() => {
-              if (onNewProject) onNewProject();
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Project
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              navigate('/projects');
-              setDrawerOpen(false);
-            }}
-            style={{ marginTop: '0.5rem', width: '100%' }}
-          >
-            Manage Projects
-          </button>
-        </div>
       </aside>
     </>
   );

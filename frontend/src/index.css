@@ -3394,9 +3394,9 @@ img {
   min-width: 0;
 }
 .search-ai-row__ai {
-  flex: 0 0 32%;
-  max-width: 420px;
-  min-width: 230px;
+  flex: 0 0 26%;
+  max-width: 330px;
+  min-width: 200px;
 }
 .search-ai-row__ai .quick-entry-bar {
   margin-bottom: 0;
@@ -8202,6 +8202,132 @@ img {
   .projects-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ========== HOME PROJECTS SECTION (Dashboard inline cards) ========== */
+.home-projects {
+  margin-bottom: 1.5rem;
+}
+.home-projects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.home-projects-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.home-projects-entries-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.home-projects-entries-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.project-card--actionable {
+  user-select: none;
+}
+.project-card--actionable.is-pinned {
+  border-color: var(--accent);
+}
+.project-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.project-card-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  color: var(--text-secondary, #6b7280);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.project-card-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.project-card-action-btn--danger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+.project-card-pin-btn.is-pinned {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface-hover);
+}
+.project-card-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.project-card-confirm-yes {
+  background: #ef4444;
+  border: none;
+  color: #fff;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.project-card-confirm-yes:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.project-card-confirm-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.project-card--add {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-style: dashed;
+  color: var(--text-muted);
+  background: transparent;
+}
+.project-card--add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.project-card-add-plus {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.project-card-add-label {
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 /* ========== PROJECTS SLIDE-OVER DRAWER ========== */

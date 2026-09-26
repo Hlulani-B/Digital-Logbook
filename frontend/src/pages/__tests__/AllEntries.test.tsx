@@ -86,7 +86,7 @@ describe('AllEntriesPage', () => {
   it('renders the Header with "My Entries" title', () => {
     renderPage();
     expect(screen.getByTestId('header')).toBeTruthy();
-    expect(screen.getByText('My Items')).toBeTruthy();
+    expect(screen.getByText('My Entries')).toBeTruthy();
   });
 
   it('renders the QuickEntryBar', () => {

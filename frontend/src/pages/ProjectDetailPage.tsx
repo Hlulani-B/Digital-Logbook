@@ -271,7 +271,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
-    'No items to show yet. Add your first item above!'
+    'No entries to show yet. Add your first entry above!'
   );
   // Reactive preference — swaps an already-shown AI empty message back to the
   // static line the instant "AI messages" is toggled off in Settings.
@@ -279,7 +279,7 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     if (!aiMessagesOn) {
-      setAiEmptyMessage('No items to show yet. Add your first item above!');
+      setAiEmptyMessage('No entries to show yet. Add your first entry above!');
     }
   }, [aiMessagesOn]);
 
@@ -298,7 +298,7 @@ export function ProjectDetailPage() {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when a project has no items to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
+          `Generate a motivating message for when a project has no entries to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
         );
         // Re-check on resolve — the toggle may have been flipped during the request
         if (!cancelled && getAiMessagesEnabled() && result.success && result.response) {
@@ -481,7 +481,7 @@ export function ProjectDetailPage() {
       setQuickMessageType('success');
       await loadEntries();
     } else {
-      setQuickMessage(result.message || 'Failed to create item');
+      setQuickMessage(result.message || 'Failed to create entry');
       setQuickMessageType('error');
     }
   };
@@ -710,8 +710,8 @@ export function ProjectDetailPage() {
                   type="button"
                   className="quick-entry-voice"
                   onClick={() => setVoiceOpen(true)}
-                  aria-label="Voice item"
-                  title={!isOnline ? 'Voice item is not available offline' : 'Record a voice item'}
+                  aria-label="Voice entry"
+                  title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
                   disabled={!isOnline}
                   style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
@@ -770,7 +770,7 @@ export function ProjectDetailPage() {
                 height: 24,
               }}
             />
-            <p>Loading items...</p>
+            <p>Loading entries...</p>
           </div>
         )}
 
@@ -796,7 +796,7 @@ export function ProjectDetailPage() {
                 </div>
                 <h2 className="empty-title">No results found</h2>
                 <p className="empty-desc">
-                  No items in {projectName} match "{searchQuery}".
+                  No entries in {projectName} match "{searchQuery}".
                 </p>
               </div>
             ) : viewMode === 'checklist' ? (
@@ -871,7 +871,7 @@ export function ProjectDetailPage() {
                     <line x1="9" y1="14" x2="15" y2="14" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No items yet</h2>
+                <h2 className="empty-title">No entries yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
             ) : feedEntries.length === 0 ? (
@@ -890,9 +890,9 @@ export function ProjectDetailPage() {
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No items match your filters</h2>
+                <h2 className="empty-title">No entries match your filters</h2>
                 <p className="empty-desc">
-                  No items in {projectName} match the current field filters.
+                  No entries in {projectName} match the current field filters.
                 </p>
                 <button
                   type="button"

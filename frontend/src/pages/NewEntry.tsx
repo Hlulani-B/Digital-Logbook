@@ -380,10 +380,10 @@ export function EntryBox({
     setMenuOpen(false);
     try {
       const result = await deleteEntryById(user_email, id);
-      if (result?.success === false) throw new Error(result.message || 'Failed to delete item');
+      if (result?.success === false) throw new Error(result.message || 'Failed to delete entry');
       onDelete?.(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete item');
+      setError(err instanceof Error ? err.message : 'Failed to delete entry');
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -594,7 +594,7 @@ export function EntryBox({
           <div className="entry-box__fields--editing">
             {payloadState.kind !== 'object' ? (
               <div className="entry-box__field--editing">
-                <label className="entry-box__field-key">Item content</label>
+                <label className="entry-box__field-key">Entry content</label>
                 <span>{formatEntryValue(payloadState.value)}</span>
               </div>
             ) : (

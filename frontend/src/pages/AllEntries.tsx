@@ -210,10 +210,10 @@ export function AllEntriesPage() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar projects={projects} entries={entries} activeView="all" />
+      <NavBar entries={entries} activeView="all" />
 
       <main className="dash-main">
-        <Header title="My Items" entries={entries} projects={projects} />
+        <Header title="My Entries" entries={entries} projects={projects} />
 
         {/* Search bar beside the AI quick-add bar */}
         <div className="search-ai-row">

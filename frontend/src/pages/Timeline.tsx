@@ -236,7 +236,7 @@ export function TimelinePage() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar projects={cachedProjects} entries={cachedEntries} activeView="all" />
+      <NavBar entries={cachedEntries} activeView="all" />
 
       <main className="dash-main">
         <Header title="Timeline" entries={cachedEntries} projects={cachedProjects} />
@@ -308,8 +308,8 @@ export function TimelinePage() {
               </div>
               <h2 className="timeline-empty-title">No timeline data</h2>
               <p className="timeline-empty-message">
-                There are no dated, incomplete items to display. Add entries with start and due
-                dates, or set dependencies in the item details to see them linked here.
+                There are no dated, incomplete entries to display. Add entries with start and due
+                dates, or set dependencies in the entry details to see them linked here.
               </p>
               <button className="btn-primary" onClick={() => navigate('/dashboard')}>
                 Go to Dashboard

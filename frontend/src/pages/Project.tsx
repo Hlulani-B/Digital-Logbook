@@ -314,7 +314,7 @@ export function ProjectsPage() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar projects={projects as Array<Record<string, unknown>>} activeView="all" />
+      <NavBar activeView="all" />
       <main className="dash-main">
         <Header title="Your Projects" projects={projects as Array<Record<string, unknown>>} />
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
@@ -998,7 +998,7 @@ export function ProjectsPage() {
                           padding: '1.5rem',
                         }}
                       >
-                        Loading items...
+                        Loading entries...
                       </p>
                     ) : archivedEntries.length === 0 ? (
                       <p
@@ -1008,7 +1008,7 @@ export function ProjectsPage() {
                           padding: '2rem 0',
                         }}
                       >
-                        No items in this project.
+                        No entries in this project.
                       </p>
                     ) : (
                       <div style={{ display: 'grid', gap: '0.5rem' }}>

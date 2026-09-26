@@ -18,7 +18,7 @@ import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
-import { buildProjectColorMap, resolveProjectColor, colorForName } from '@/lib/projectColorMap';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { EntryBox } from '@/pages/NewEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
@@ -220,25 +220,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return 'cards';
   });
 
-  // Projects live in a slide-over drawer rather than replacing the entries feed.
-  const [projectsDrawerOpen, setProjectsDrawerOpen] = useState(false);
-
   // Regular (non-AI) search over the current feed
   const [pageSearch, setPageSearch] = useState('');
 
   useEffect(() => {
     localStorage.setItem('dashboard-display-mode', displayMode);
   }, [displayMode]);
-
-  // Allow closing the projects drawer with the Escape key.
-  useEffect(() => {
-    if (!projectsDrawerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setProjectsDrawerOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [projectsDrawerOpen]);
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -250,6 +237,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
+  // Pinned projects — localStorage-backed (like the local archived set) so pins
+  // survive reloads; pinned projects sort to the front of the home cards.
+  const [pinnedProjects, setPinnedProjects] = useState<Set<string>>(new Set());
+  // Project card delete flow — inline confirm per card
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState<string | null>(null);
+  const [deletingProject, setDeletingProject] = useState<string | null>(null);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
@@ -328,7 +321,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [, setAiEmptyMessage] = useState('No items to show right now.');
+  const [, setAiEmptyMessage] = useState('No entries to show right now.');
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -583,7 +576,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   }, [showGreetingToast]);
 
   // Simple, static placeholder for quick entry (no AI)
-  const aiPlaceholder = 'Write what you worked on...';
+  const aiPlaceholder = 'Capture quick entry';
 
   // Close drawer on escape
   useEffect(() => {
@@ -614,6 +607,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
     [projects]
   );
+
+  // Load pinned project names for this user (localStorage — no backend column).
+  useEffect(() => {
+    if (!email) return;
+    try {
+      const stored = localStorage.getItem(`dl_pinned_projects_${email}`);
+      setPinnedProjects(new Set(stored ? JSON.parse(stored) : []));
+    } catch {
+      setPinnedProjects(new Set());
+    }
+  }, [email]);
+
+  // Active projects with pinned ones first — drives the home-page card grid.
+  const activeProjects = useMemo(() => {
+    const active = projects.filter((p) => !p.archived);
+    const pinned = active.filter((p) => pinnedProjects.has(p.project_name as string));
+    const rest = active.filter((p) => !pinnedProjects.has(p.project_name as string));
+    return [...pinned, ...rest];
+  }, [projects, pinnedProjects]);
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
@@ -674,7 +686,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when there are no items to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (!cancelled && result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -928,6 +940,46 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const { archiveProject } = await import('@/functions/project/archives.js');
       await archiveProject(email, projectName);
     } catch {}
+  };
+
+  // Pin/unpin a project — local-only ordering, persisted per user.
+  const togglePinProject = (projectName: string) => {
+    if (!email) return;
+    setPinnedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectName)) next.delete(projectName);
+      else next.add(projectName);
+      try {
+        localStorage.setItem(`dl_pinned_projects_${email}`, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Delete a project (project-service cascades its entries server-side).
+  const handleDeleteProject = async (projectName: string) => {
+    if (!email || deletingProject) return;
+    setDeletingProject(projectName);
+    setArchiveError(null);
+    try {
+      const { deleteProject } = await import('@/functions/project/project.js');
+      const result = await deleteProject(email, projectName);
+      if (result?.success === false) {
+        throw new Error(result.message || 'Failed to delete project');
+      }
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Failed to delete project');
+      setDeletingProject(null);
+      setConfirmDeleteProject(null);
+      return;
+    }
+    // Drop it from the in-memory lists immediately; deleteProject already
+    // updated the IndexedDB cache optimistically.
+    setProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    setDeletingProject(null);
+    setConfirmDeleteProject(null);
+    await loadData();
   };
 
   const handleUnarchiveProject = async (projectName: string) => {
@@ -1185,7 +1237,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Items
+            All Entries
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -1231,52 +1283,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
-            data-tour="drawer-kanban"
-            onClick={() => {
-              navigate('/kanban');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            Kanban
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-timeline"
-            onClick={() => {
-              navigate('/timeline');
-              setDrawerOpen(false);
-            }}
-            title="See a chronological timeline of all your items across projects"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <polyline points="8 8 12 4 16 8" />
-              <polyline points="8 16 12 20 16 16" />
-            </svg>
-            Timeline
-          </button>
-          <button
-            className="drawer-item"
             data-tour="drawer-import-export"
             onClick={() => {
               navigate('/data-portability');
@@ -1300,32 +1306,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
-            onClick={() => {
-              navigate('/data-disclaimer-info');
-              setDrawerOpen(false);
-            }}
-            title="Learn how your data is stored and how AI is used"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Disclaimer
-          </button>
-          <button
-            className="drawer-item"
             data-tour="drawer-stats"
             onClick={() => {
               navigate('/stats');
               setDrawerOpen(false);
             }}
-            title="View statistics and insights about your items"
+            title="View statistics and insights about your entries"
           >
             <svg
               width="16"
@@ -1361,122 +1347,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
             Activity Log
-          </button>
-        </div>
-
-        <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title" data-tour="drawer-projects">
-            Projects
-          </p>
-          <div className="drawer-project-list">
-            {projects
-              .filter((p) => !p.archived)
-              .map((project) => {
-                const name = project.project_name as string;
-                const count = entries.filter((e) => e.project_name === name).length;
-                const projColor = (project.project_color as string) || colorForName(name);
-                return (
-                  <div
-                    key={name}
-                    className={`drawer-item ${activeView === name ? 'active' : ''}`}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigate(`/project/${encodeURIComponent(name)}`);
-                        setDrawerOpen(false);
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: 'none',
-                        border: 'none',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: projColor,
-                          flexShrink: 0,
-                        }}
-                      />
-                      {name}
-                      <span className="drawer-badge">{count}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleArchiveProject(name)}
-                      title="Archive project"
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(139, 115, 85, 0.3)',
-                        color: 'var(--text-secondary, #6b7280)',
-                        borderRadius: '0.4rem',
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                      }}
-                    >
-                      <FiArchive size={12} />
-                      Archive
-                    </button>
-                  </div>
-                );
-              })}
-            {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet. Create one below.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="drawer-footer">
-          <button
-            className="btn-primary drawer-new-btn"
-            data-tour="drawer-new-project"
-            onClick={() => {
-              setNewProjectOpen(true);
-              setDrawerOpen(false);
-            }}
-            title="Create a new project to organize your items"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Project
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              navigate('/projects');
-              setDrawerOpen(false);
-            }}
-            style={{ marginTop: '0.5rem', width: '100%' }}
-            title="View and manage all your projects"
-          >
-            Manage Projects
           </button>
         </div>
       </aside>
@@ -1720,24 +1590,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         ) : (
           <>
-            {/* Display mode + Sort controls */}
-            <div className="feed-controls-row">
-              <div className="feed-view-toggle">
-                <button
-                  className={`feed-view-btn ${projectsDrawerOpen ? 'active' : ''}`}
-                  onClick={() => setProjectsDrawerOpen(true)}
-                >
-                  Projects
-                </button>
-              </div>
-            </div>
-
             {/* Search + AI quick-add bar */}
             <div className="search-ai-row">
               <EntrySearchBar
                 value={pageSearch}
                 onChange={setPageSearch}
-                placeholder="Search items..."
+                placeholder="Search entries..."
               />
               <div data-tour="quick-entry" className="search-ai-row__ai">
                 <QuickEntryBar
@@ -1755,6 +1613,151 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 />
               </div>
             </div>
+
+            {/* Projects — inline card grid with quick actions */}
+            <section className="home-projects animate-in" data-tour="home-projects">
+              <div className="home-projects-header">
+                <h2 className="home-projects-title">Projects</h2>
+                <button
+                  type="button"
+                  className="home-projects-entries-btn"
+                  onClick={() => navigate('/entries')}
+                  title="Browse every entry"
+                >
+                  Entries
+                </button>
+              </div>
+              <div className="projects-grid">
+                {activeProjects.map((project) => {
+                  const name = project.project_name as string;
+                  const count = entries.filter((e) => e.project_name === name).length;
+                  const inMotionCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'in_motion'
+                  ).length;
+                  const doneCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'done_and_dusted'
+                  ).length;
+                  const isPinned = pinnedProjects.has(name);
+                  const isConfirmingDelete = confirmDeleteProject === name;
+                  return (
+                    <div
+                      key={name}
+                      className={`project-card project-card--actionable ${isPinned ? 'is-pinned' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/project/${encodeURIComponent(name)}`);
+                        }
+                      }}
+                    >
+                      <div className="project-card-header">
+                        <h3 className="project-card-name">{name}</h3>
+                        <span className="project-card-count">{count} entries</span>
+                      </div>
+                      <div className="project-card-stats">
+                        {inMotionCount > 0 && (
+                          <span className="project-card-stat project-card-stat--active">
+                            {inMotionCount} in progress
+                          </span>
+                        )}
+                        {doneCount > 0 && (
+                          <span className="project-card-stat project-card-stat--done">
+                            {doneCount} done
+                          </span>
+                        )}
+                      </div>
+                      {isConfirmingDelete ? (
+                        <div
+                          className="project-card-confirm"
+                          role="group"
+                          aria-label="Confirm project deletion"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <span className="project-card-confirm-text">Delete this project?</span>
+                          <button
+                            type="button"
+                            className="project-card-confirm-yes"
+                            disabled={deletingProject === name}
+                            onClick={() => handleDeleteProject(name)}
+                          >
+                            {deletingProject === name ? 'Deleting…' : 'Yes, delete'}
+                          </button>
+                          <button
+                            type="button"
+                            className="project-card-confirm-cancel"
+                            onClick={() => setConfirmDeleteProject(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          className="project-card-actions"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
+                            aria-pressed={isPinned}
+                            onClick={() => togglePinProject(name)}
+                            title={isPinned ? 'Unpin project' : 'Pin project'}
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill={isPinned ? 'currentColor' : 'none'}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <line x1="12" y1="17" x2="12" y2="22" />
+                              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+                            </svg>
+                            {isPinned ? 'Pinned' : 'Pin'}
+                          </button>
+                          <button
+                            type="button"
+                            className="project-card-action-btn"
+                            onClick={() => handleArchiveProject(name)}
+                            title="Archive project"
+                          >
+                            <FiArchive size={12} />
+                            Archive
+                          </button>
+                          <button
+                            type="button"
+                            className="project-card-action-btn project-card-action-btn--danger"
+                            onClick={() => setConfirmDeleteProject(name)}
+                            title="Delete project"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="project-card project-card--add"
+                  data-tour="home-new-project"
+                  onClick={() => setNewProjectOpen(true)}
+                  title="Create a new project"
+                >
+                  <span className="project-card-add-plus" aria-hidden>
+                    +
+                  </span>
+                  <span className="project-card-add-label">Add New Project</span>
+                </button>
+              </div>
+            </section>
 
             {/* Due Soon header: label on the left, view toggle on the right */}
             <div className="due-soon-header-row">
@@ -1814,111 +1817,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     height: 24,
                   }}
                 />
-                <p>Loading items...</p>
-              </div>
-            )}
-
-            {/* Projects slide-over drawer — opens over the dashboard so the
-                entries feed keeps its place instead of being replaced. */}
-            {projectsDrawerOpen && (
-              <div
-                className="projects-drawer-overlay"
-                role="presentation"
-                onClick={() => setProjectsDrawerOpen(false)}
-              >
-                <aside
-                  className="projects-drawer"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Your projects"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="projects-drawer-header">
-                    <h2 className="projects-grid-title">Your Projects</h2>
-                    <button
-                      type="button"
-                      className="projects-drawer-close"
-                      aria-label="Close projects"
-                      onClick={() => setProjectsDrawerOpen(false)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="projects-drawer-body">
-                    {projects.filter((p) => !p.archived).length === 0 ? (
-                      <div className="empty-state animate-in">
-                        <div className="empty-icon">
-                          <svg
-                            width="48"
-                            height="48"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                          </svg>
-                        </div>
-                        <h2 className="empty-title">No projects yet</h2>
-                        <p className="empty-desc">Create your first project to get started.</p>
-                        <button
-                          className="btn-primary"
-                          onClick={() => {
-                            setProjectsDrawerOpen(false);
-                            setNewProjectOpen(true);
-                          }}
-                          style={{ marginTop: '1rem' }}
-                        >
-                          + New Project
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="projects-grid">
-                        {projects
-                          .filter((p) => !p.archived)
-                          .map((project) => {
-                            const name = project.project_name as string;
-                            const count = entries.filter((e) => e.project_name === name).length;
-                            const inMotionCount = entries.filter(
-                              (e) => e.project_name === name && e.status === 'in_motion'
-                            ).length;
-                            const doneCount = entries.filter(
-                              (e) => e.project_name === name && e.status === 'done_and_dusted'
-                            ).length;
-                            return (
-                              <button
-                                key={name}
-                                className="project-card"
-                                onClick={() => {
-                                  setProjectsDrawerOpen(false);
-                                  navigate(`/project/${encodeURIComponent(name)}`);
-                                }}
-                              >
-                                <div className="project-card-header">
-                                  <h3 className="project-card-name">{name}</h3>
-                                  <span className="project-card-count">{count} entries</span>
-                                </div>
-                                <div className="project-card-stats">
-                                  {inMotionCount > 0 && (
-                                    <span className="project-card-stat project-card-stat--active">
-                                      {inMotionCount} in progress
-                                    </span>
-                                  )}
-                                  {doneCount > 0 && (
-                                    <span className="project-card-stat project-card-stat--done">
-                                      {doneCount} done
-                                    </span>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </div>
-                </aside>
+                <p>Loading entries...</p>
               </div>
             )}
 
@@ -1947,7 +1846,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     </svg>
                   </div>
                   <h2 className="empty-title">Nothing due soon</h2>
-                  <p className="empty-desc">No items are due within the next 3 days.</p>
+                  <p className="empty-desc">No entries are due within the next 3 days.</p>
                 </div>
               </div>
             )}
@@ -2190,7 +2089,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   setNewEntryOpen(true);
                   setFabOpen(false);
                 }}
-                title="Create a new item in one of your projects"
+                title="Create a new entry in one of your projects"
               >
                 <svg
                   width="16"
@@ -2205,7 +2104,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   <line x1="12" y1="11" x2="12" y2="17" />
                   <line x1="9" y1="14" x2="15" y2="14" />
                 </svg>
-                New Item
+                New Entry
               </button>
             ) : (
               <div className="fab-menu-hint" title="You need to create a project first">
@@ -2224,33 +2123,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 <span>Create a project first</span>
               </div>
             )}
-            <button
-              className="fab-menu-item"
-              onClick={() => {
-                setNewProjectOpen(true);
-                setFabOpen(false);
-              }}
-              title="Create a new project to organize your items"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-              New Project
-            </button>
           </div>
         )}
         <button
           className={`fab ${fabOpen ? 'fab-open' : ''}`}
           onClick={() => setFabOpen(!fabOpen)}
           aria-label="Quick actions"
-          title="Quick actions: create a new item or project"
+          title="Quick actions: create a new entry"
         >
           <svg
             width="20"
@@ -2521,7 +2400,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           >
             {!newEntryProject ? (
               <>
-                <h2 className="modal-title">New Item</h2>
+                <h2 className="modal-title">New Entry</h2>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Select a project:
                 </p>

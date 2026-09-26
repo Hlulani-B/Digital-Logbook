@@ -297,11 +297,7 @@ export function KanbanPage() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar
-        projects={projects as Array<Record<string, unknown>>}
-        entries={entries as unknown as Array<Record<string, unknown>>}
-        activeView="all"
-      />
+      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
       <main className="dash-main">
         <div className="kanban-page" data-tour="page-kanban">
           <Header
@@ -337,7 +333,7 @@ export function KanbanPage() {
                 id="search-filter"
                 type="text"
                 className="kanban-search"
-                placeholder="Search items…"
+                placeholder="Search entries…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -370,7 +366,7 @@ export function KanbanPage() {
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="kanban-empty">
-              <p>No items match the current filter.</p>
+              <p>No entries match the current filter.</p>
               <button
                 className="btn-secondary"
                 onClick={() => {
