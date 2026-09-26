@@ -139,6 +139,18 @@ export function DataDisclaimer() {
               <strong>Committed to privacy:</strong> we follow security best practices and undergo
               regular reviews to protect your information.
             </div>
+
+            {/* Last updated */}
+            <div
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary, #888)',
+                textAlign: 'center',
+                marginTop: '0.5rem',
+              }}
+            >
+              Last updated: September 26, 2026
+            </div>
           </div>
 
           {/* Accept checkbox */}
