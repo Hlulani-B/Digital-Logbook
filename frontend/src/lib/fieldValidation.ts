@@ -197,6 +197,17 @@ function validateValue(
       )
         fail('option', 'Choose an available option.');
       break;
+    case 'multiselect':
+      if (!Array.isArray(value)) {
+        fail('type', 'Multiselect must be an array of values.');
+      } else if (
+        !value.every(
+          (v) => typeof v === 'string' && field.options.some((option) => option.id === v)
+        )
+      ) {
+        fail('option', 'Each value must be an available option ID.');
+      } else result = [...new Set(value)];
+      break;
     case 'checklist': {
       if (!Array.isArray(value)) {
         fail('type', 'Checklist must be an array of items.');

@@ -13,6 +13,7 @@ export const FIELD_TYPES = [
   'image',
   'entity_link',
   'tags',
+  'multiselect',
   'checklist',
   'computed',
   'custom',
