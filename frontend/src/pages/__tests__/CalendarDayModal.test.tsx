@@ -89,7 +89,7 @@ function fillRequiredFields() {
 describe('CalendarDayModal adding layout', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    getFields.mockResolvedValue({ data: fields });
+    getFields.mockResolvedValue({ success: true, data: fields });
     addEntry.mockResolvedValue({ success: true });
   });
 
@@ -188,7 +188,7 @@ describe('CalendarDayModal adding layout', () => {
   });
 
   it('keeps the footer available before project selection and while fields load', async () => {
-    const pending = deferred<{ data: typeof fields }>();
+    const pending = deferred<{ success: boolean; data: typeof fields }>();
     getFields.mockReturnValueOnce(pending.promise);
     renderModal();
     const form = openForm();
@@ -203,7 +203,7 @@ describe('CalendarDayModal adding layout', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
     expect(getFields).toHaveBeenCalledWith('test@example.com', 'Project Alpha');
 
-    await act(async () => pending.resolve({ data: fields }));
+    await act(async () => pending.resolve({ success: true, data: fields }));
     expect(screen.queryByText('Loading fields...')).not.toBeInTheDocument();
     expect(form.querySelector('.cdm-form-actions')).toBe(footer);
     expect(screen.getByLabelText('detail 30')).toBeInTheDocument();

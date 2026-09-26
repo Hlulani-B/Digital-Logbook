@@ -81,6 +81,7 @@ beforeEach(() => {
   mocks.deleteEntryById.mockResolvedValue({ success: true });
   mocks.archiveEntry.mockResolvedValue({ success: true });
   mocks.getFields.mockResolvedValue({
+    success: true,
     data: [
       { field_name: 'Title', data_type: 'text' },
       { field_name: 'Notes', data_type: 'markdown' },

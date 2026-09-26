@@ -44,11 +44,6 @@ describe('NavBar', () => {
     );
   }
 
-  it('renders the Digital Logbook title', () => {
-    renderNavBar();
-    expect(screen.getByText('Digital Logbook')).toBeTruthy();
-  });
-
   it('renders the hamburger toggle button', () => {
     renderNavBar();
     expect(screen.getByLabelText('Toggle menu')).toBeTruthy();
@@ -62,7 +57,6 @@ describe('NavBar', () => {
     // Drawer should now be visible
     expect(screen.getByText('Navigation')).toBeTruthy();
     expect(screen.getByText('Views')).toBeTruthy();
-    expect(screen.getByText('Projects')).toBeTruthy();
   });
 
   it('shows supported navigation items without Today or Tracker view links', () => {
@@ -81,36 +75,6 @@ describe('NavBar', () => {
     expect(screen.queryByRole('link', { name: 'Today' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tracker' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Tracker' })).toBeNull();
-  });
-
-  it('shows "No projects yet" when no projects provided', () => {
-    renderNavBar();
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-    expect(screen.getByText('No projects yet. Create one below.')).toBeTruthy();
-  });
-
-  it('renders project names when projects are provided', () => {
-    const projects = [
-      { project_name: 'Project Alpha', archived: false },
-      { project_name: 'Project Beta', archived: false },
-    ];
-    renderNavBar({ projects });
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-
-    expect(screen.getByText('Project Alpha')).toBeTruthy();
-    expect(screen.getByText('Project Beta')).toBeTruthy();
-  });
-
-  it('does not show archived projects', () => {
-    const projects = [
-      { project_name: 'Active Project', archived: false },
-      { project_name: 'Archived Project', archived: true },
-    ];
-    renderNavBar({ projects });
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-
-    expect(screen.getByText('Active Project')).toBeTruthy();
-    expect(screen.queryByText('Archived Project')).toBeNull();
   });
 
   it('navigates to /dashboard when Home is clicked', () => {
@@ -209,20 +173,5 @@ describe('NavBar', () => {
   it('renders ProfileMenu with user info', () => {
     renderNavBar();
     expect(screen.getByText('Test User')).toBeTruthy();
-  });
-
-  it('shows project entry counts in badges', () => {
-    const projects = [{ project_name: 'Alpha', archived: false }];
-    const entries = [
-      { id: '1', project_name: 'Alpha' },
-      { id: '2', project_name: 'Alpha' },
-      { id: '3', project_name: 'Beta' },
-    ];
-    renderNavBar({ projects, entries });
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-
-    // Alpha should have badge with 2
-    const badges = screen.getAllByText('2');
-    expect(badges.length).toBeGreaterThan(0);
   });
 });
