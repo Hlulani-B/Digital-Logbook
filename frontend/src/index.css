@@ -1437,7 +1437,7 @@ label {
   justify-content: center;
   background: var(--bg);
   overflow-y: auto;
-  padding: 2rem;
+  padding: 1.5rem;
   position: relative;
 }
 
@@ -1453,7 +1453,7 @@ label {
 }
 
 .split-form-wrapper .auth-subtitle {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .split-form-wrapper form {
@@ -1467,7 +1467,7 @@ label {
 }
 
 .split-form-wrapper .auth-divider {
-  margin: 1rem 0;
+  margin: 0.6rem 0;
 }
 
 .split-form-wrapper .auth-buttons {
