@@ -136,7 +136,9 @@ describe('DataPortability import', () => {
       null,
       null,
       undefined,
-      'Saved summary'
+      'Saved summary',
+      undefined,
+      { requireServer: true }
     );
     expect(archiveEntry).toHaveBeenCalledWith(
       'test@example.com',
