@@ -61,28 +61,32 @@ field.
 
 ## users
 
-| Column                | Type         | Notes                                        |
-| --------------------- | ------------ | -------------------------------------------- |
-| email                 | VARCHAR(255) | PK, NOT NULL, UNIQUE                         |
-| username              | VARCHAR(50)  | UNIQUE, nullable                             |
-| name                  | VARCHAR(100) | nullable                                     |
-| avatar                | TEXT         | nullable                                     |
-| created_at            | TIMESTAMPTZ  | default now()                                |
-| deletion_scheduled_at | TIMESTAMPTZ  | set when the user schedules account deletion |
-| deleted               | BOOLEAN      | NOT NULL default false — soft-delete flag    |
+| Column                 | Type         | Notes                                         |
+| ---------------------- | ------------ | --------------------------------------------- |
+| email                  | VARCHAR(255) | PK, NOT NULL, UNIQUE                          |
+| username               | VARCHAR(50)  | UNIQUE, nullable                              |
+| name                   | VARCHAR(100) | nullable                                      |
+| avatar                 | TEXT         | nullable                                      |
+| created_at             | TIMESTAMPTZ  | default now()                                 |
+| deletion_scheduled_at  | TIMESTAMPTZ  | set when the user schedules account deletion  |
+| deleted                | BOOLEAN      | NOT NULL default false — soft-delete flag     |
+| email_notifications    | BOOLEAN      | NOT NULL default true — email preference      |
+| notification_lead_time | TEXT         | default '24 hours' — due-date alert lead time |
 
 ## projects
 
-| Column        | Type         | Notes                                                          |
-| ------------- | ------------ | -------------------------------------------------------------- |
-| id            | BIGSERIAL    | PK, auto-generated                                             |
-| project_name  | VARCHAR(255) | NOT NULL                                                       |
-| user_email    | VARCHAR(255) | NOT NULL, FK → users(email)                                    |
-| description   | TEXT         | nullable                                                       |
-| archived      | BOOLEAN      | default false                                                  |
-| deleted       | BOOLEAN      | NOT NULL default false — soft-delete flag                      |
-| project_color | VARCHAR(7)   | nullable hex string (e.g. `#ec4899`), NULL = fall back to hash |
-| created_at    | TIMESTAMPTZ  | default now()                                                  |
+| Column          | Type         | Notes                                                          |
+| --------------- | ------------ | -------------------------------------------------------------- |
+| id              | BIGSERIAL    | PK, auto-generated                                             |
+| project_name    | VARCHAR(255) | NOT NULL                                                       |
+| user_email      | VARCHAR(255) | NOT NULL, FK → users(email)                                    |
+| description     | TEXT         | nullable                                                       |
+| archived        | BOOLEAN      | default false                                                  |
+| deleted         | BOOLEAN      | NOT NULL default false — soft-delete flag                      |
+| project_color   | VARCHAR(7)   | nullable hex string (e.g. `#ec4899`), NULL = fall back to hash |
+| schema_revision | INTEGER      | NOT NULL default 1 — schema version tracking                   |
+| provenance      | JSONB        | nullable — template fork source info                           |
+| created_at      | TIMESTAMPTZ  | default now()                                                  |
 
 The pair `(user_email, project_name)` is unique, so one user cannot have two
 projects with the same name. `description` was added after the initial schema
@@ -95,35 +99,44 @@ name-derived colour.
 
 ## fields
 
-| Column      | Type         | Notes                            |
-| ----------- | ------------ | -------------------------------- |
-| id          | UUID         | PK, default gen_random_uuid()    |
-| user_email  | VARCHAR(255) | NOT NULL                         |
-| table_name  | VARCHAR(100) | NOT NULL                         |
-| field_name  | VARCHAR(100) | NOT NULL                         |
-| data_type   | VARCHAR(50)  | e.g. text, number, boolean, date |
-| is_required | BOOLEAN      | default false                    |
-| deleted     | BOOLEAN      | default false — soft-delete flag |
-| created_at  | TIMESTAMPTZ  | default CURRENT_TIMESTAMP        |
+| Column        | Type         | Notes                                                       |
+| ------------- | ------------ | ----------------------------------------------------------- |
+| id            | UUID         | PK, default gen_random_uuid()                               |
+| user_email    | VARCHAR(255) | NOT NULL                                                    |
+| table_name    | VARCHAR(100) | NOT NULL                                                    |
+| field_name    | VARCHAR(100) | NOT NULL                                                    |
+| data_type     | VARCHAR(50)  | e.g. text, number, boolean, date, select, multiselect, tags |
+| is_required   | BOOLEAN      | default false                                               |
+| is_unique     | BOOLEAN      | NOT NULL default false — unique value constraint            |
+| rules         | JSONB        | NOT NULL default '{}' — custom validation rules             |
+| has_default   | BOOLEAN      | NOT NULL default false — whether field has default          |
+| default_value | JSONB        | nullable — default value                                    |
+| options       | JSONB        | NOT NULL default '[]' — available options for select fields |
+| display_order | INTEGER      | NOT NULL default 0 — field ordering                         |
+| deleted       | BOOLEAN      | default false — soft-delete flag                            |
+| created_at    | TIMESTAMPTZ  | default CURRENT_TIMESTAMP                                   |
 
 ## entries
 
-| Column       | Type                  | Notes                                         |
-| ------------ | --------------------- | --------------------------------------------- |
-| id           | UUID                  | PK, default gen_random_uuid()                 |
-| user_email   | VARCHAR(255)          | NOT NULL, indexed                             |
-| project_name | VARCHAR(255)          | NOT NULL, indexed                             |
-| entries      | JSONB                 | NOT NULL, dynamic field values                |
-| due_date     | TIMESTAMPTZ           | nullable, indexed                             |
-| priority     | priority_level (ENUM) | nullable                                      |
-| status       | entry_status (ENUM)   | NOT NULL, default `'up_next'` — see below     |
-| archived     | BOOLEAN               | default false                                 |
-| started_at   | TIMESTAMPTZ           | nullable, set when user starts a work session |
-| ended_at     | TIMESTAMPTZ           | nullable, set when user stops the session     |
-| duration     | INTERVAL              | generated, `ended_at - started_at`            |
-| summary      | TEXT                  | nullable, AI-generated one-sentence summary   |
-| deleted      | BOOLEAN               | default false — soft-delete flag              |
-| created_at   | TIMESTAMPTZ           | default CURRENT_TIMESTAMP                     |
+| Column             | Type                  | Notes                                         |
+| ------------------ | --------------------- | --------------------------------------------- |
+| id                 | UUID                  | PK, default gen_random_uuid()                 |
+| user_email         | VARCHAR(255)          | NOT NULL, indexed                             |
+| project_name       | VARCHAR(255)          | NOT NULL, indexed                             |
+| entries            | JSONB                 | NOT NULL, dynamic field values                |
+| due_date           | TIMESTAMPTZ           | nullable, indexed                             |
+| priority           | priority_level (ENUM) | nullable                                      |
+| status             | entry_status (ENUM)   | NOT NULL, default `'up_next'` — see below     |
+| archived           | BOOLEAN               | default false                                 |
+| started_at         | TIMESTAMPTZ           | nullable, set when user starts a work session |
+| ended_at           | TIMESTAMPTZ           | nullable, set when user stops the session     |
+| duration           | INTERVAL              | generated, `ended_at - started_at`            |
+| target_duration_ms | BIGINT                | nullable — deadline countdown target          |
+| paused_ms          | BIGINT                | NOT NULL default 0 — accumulated paused ms    |
+| paused_at          | TIMESTAMPTZ           | nullable — when timer was paused              |
+| summary            | TEXT                  | nullable, AI-generated one-sentence summary   |
+| deleted            | BOOLEAN               | default false — soft-delete flag              |
+| created_at         | TIMESTAMPTZ           | default CURRENT_TIMESTAMP                     |
 
 !!! warning "Migration drift on `status`"
 The baseline migration declares `status VARCHAR(30) DEFAULT 'up_next'`,
@@ -245,6 +258,57 @@ deadline and skips that provider on subsequent requests until the deadline
 passes. This keeps the entry-summary and Quick-Add features working even
 when one provider is throttled, without needing to store cooldown state in
 process memory (which would be lost on cold start of a Render free instance).
+
+## notifications
+
+| Column        | Type        | Notes                                                |
+| ------------- | ----------- | ---------------------------------------------------- |
+| id            | UUID        | PK, default gen_random_uuid()                        |
+| user_email    | TEXT        | NOT NULL                                             |
+| entry_id      | UUID        | nullable, FK → entries(id)                           |
+| project_name  | TEXT        | nullable — denormalized for display                  |
+| entry_title   | TEXT        | nullable — denormalized for display                  |
+| type          | TEXT        | NOT NULL, CHECK (type IN ('due_soon', 'overdue'))    |
+| due_at        | TIMESTAMPTZ | nullable — when the entry is/was due                 |
+| read          | BOOLEAN     | NOT NULL default false                               |
+| emailed       | BOOLEAN     | NOT NULL default false — whether email was sent      |
+| snoozed_until | TIMESTAMPTZ | nullable — when snooze expires                       |
+| dismissed     | BOOLEAN     | NOT NULL default false — user dismissed notification |
+| created_at    | TIMESTAMPTZ | NOT NULL default now()                               |
+
+In-app notification feed for due-soon and overdue entries. One row per
+(user, entry, type) — the UNIQUE constraint prevents duplicates. The
+`generate_due_notifications()` RPC runs hourly via pg_cron to populate
+this table. Indexed on `(user_email, read)` for unread counts and
+`(emailed)` for pending email batches.
+
+## schema_templates
+
+| Column      | Type         | Notes                                                         |
+| ----------- | ------------ | ------------------------------------------------------------- |
+| id          | UUID         | PK, default gen_random_uuid()                                 |
+| user_email  | VARCHAR(255) | nullable — NULL for built-in templates                        |
+| scope       | TEXT         | NOT NULL, CHECK (scope IN ('built_in', 'personal', 'global')) |
+| name        | VARCHAR(255) | NOT NULL                                                      |
+| description | TEXT         | nullable                                                      |
+| fields      | JSONB        | NOT NULL default '[]' — field definitions                     |
+| version     | INTEGER      | NOT NULL default 1                                            |
+| is_fork     | BOOLEAN      | NOT NULL default false                                        |
+| forked_from | UUID         | nullable — source template if forked                          |
+| deleted     | BOOLEAN      | NOT NULL default false                                        |
+| deleted_at  | TIMESTAMPTZ  | nullable                                                      |
+| created_at  | TIMESTAMPTZ  | NOT NULL default now()                                        |
+| updated_at  | TIMESTAMPTZ  | NOT NULL default now()                                        |
+
+Template system for pre-defined field schemas. Templates are deep-copied
+into projects on creation (no live inheritance). Three scopes:
+
+- **built_in**: Platform-provided templates (user_email is NULL)
+- **personal**: User-created templates (user_email is set)
+- **global**: Shared templates visible to all users
+
+Row Level Security is enabled with restrictive policies — only the
+backend service-role key can modify templates.
 
 ```sql
 CREATE TABLE notes (
@@ -385,23 +449,32 @@ Database changes are tracked through versioned SQL migration files in `supabase/
 
 ### Migration Files
 
-| File                                              | Purpose                                                                                                                                                    |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                                                                      |
-| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                                                                       |
-| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                                                                           |
-| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                                                                          |
-| `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job                                                       |
-| `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                                                                                                             |
-| `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                                                                                                |
-| `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                                                                                               |
-| `008_add_project_color.sql`                       | `project_color VARCHAR(7)` column on projects for custom colour picker                                                                                     |
-| `008_create_field_stats_rpc.sql`                  | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project)                                                                 |
-| `009_create_notes_table.sql`                      | `notes` table for per-entry personalisation (text, image, pdf, link)                                                                                       |
-| `010_purge_unconfirmed_signups.sql`               | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days                                                               |
-| `011_create_notifications.sql`                    | `notifications` table (due-soon/overdue feed), `users.email_notifications` preference, `generate_due_notifications()` RPC + hourly pg_cron/pg_net cycle    |
-| `012_add_timer_pause_fields.sql`                  | Timer pause support: `target_duration_ms`, `paused_ms`, `paused_at` columns on `entries`; updated `get_project_stats()` to subtract paused time            |
-| `013_notification_enhancements.sql`               | Snooze (`snoozed_until`), dismiss (`dismissed`) columns on `notifications`; `notification_lead_time` on `users`; updated generator with per-user lead time |
+| File                                              | Purpose                                                                                                                                                     |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `000_baseline_full_schema.sql`                    | Idempotent baseline — creates all tables, types, indexes from scratch                                                                                       |
+| `001_add_project_description_and_unique_name.sql` | `description` column on projects + unique constraint on `(user_email, project_name)`                                                                        |
+| `002_auto_provision_public_users_for_auth.sql`    | Backfills `auth.users` into `public.users` for existing accounts                                                                                            |
+| `003_create_activity_log_table.sql`               | Creates `activity_log` table with composite index                                                                                                           |
+| `004_account_deletion_grace_period.sql`           | Soft-delete columns, `delete_user()`/`restore_user()`/`purge_deleted_users()` RPCs, nightly cron job                                                        |
+| `005_add_soft_delete_column.sql`                  | Adds `deleted` boolean to all remaining tables                                                                                                              |
+| `006_create_health_ping_table.sql`                | `health_ping` table for Supabase keep-alive daemon with RLS                                                                                                 |
+| `007_add_summary_column.sql`                      | `summary TEXT` column on entries for AI-generated one-liners                                                                                                |
+| `008_add_project_color.sql`                       | `project_color VARCHAR(7)` column on projects for custom colour picker                                                                                      |
+| `008_create_field_stats_rpc.sql`                  | `get_field_stats()` RPC — generic per-field statistics (total, groups, series, by-project)                                                                  |
+| `009_create_notes_table.sql`                      | `notes` table for per-entry personalisation (text, image, pdf, link)                                                                                        |
+| `010_purge_unconfirmed_signups.sql`               | `purge_unconfirmed_users()` RPC + nightly cron purging email sign-ups unconfirmed for 3 days                                                                |
+| `011_create_notifications.sql`                    | `notifications` table (due-soon/overdue feed), `users.email_notifications` preference, `generate_due_notifications()` RPC + hourly pg_cron/pg_net cycle     |
+| `012_add_timer_pause_fields.sql`                  | Timer pause support: `target_duration_ms`, `paused_ms`, `paused_at` columns on `entries`; updated `get_project_stats()` to subtract paused time             |
+| `013_notification_enhancements.sql`               | Snooze (`snoozed_until`), dismiss (`dismissed`) columns on `notifications`; `notification_lead_time` on `users`; updated generator with per-user lead time  |
+| `014_keep_completed_notifications.sql`            | Preserve notifications for completed entries instead of auto-deleting them                                                                                  |
+| `015_custom_field_rules.sql`                      | Field validation: `is_unique`, `rules`, `has_default`, `default_value`, `options`, `display_order` on `fields`; `schema_revision`, `provenance` on projects |
+| `016_schema_templates.sql`                        | `schema_templates` table for built-in, personal, and global field templates with RLS                                                                        |
+| `017_field_attachments.sql`                       | File attachments for custom fields — stores upload metadata and S3 references                                                                               |
+| `018_entity_linking.sql`                          | Cross-entry and cross-project linking support                                                                                                               |
+| `019_field_permissions.sql`                       | Per-field visibility and edit permissions                                                                                                                   |
+| `020_template_fork_source_text.sql`               | Stores original template source text for forked templates                                                                                                   |
+| `021_timer_abandonment_notifications.sql`         | Alerts when timers run >2 hours or pause >30 minutes; `users.timer_abandonment_notifications` preference                                                    |
+| `022_seed_global_templates.sql`                   | Seeds built-in templates (Daily Log, Weekly Review, Project Tracker, etc.)                                                                                  |
 
 ### CLI Commands
 
