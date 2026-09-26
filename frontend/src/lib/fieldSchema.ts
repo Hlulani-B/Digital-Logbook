@@ -16,7 +16,7 @@ export const FIELD_TYPES = [
   'checklist',
   'computed',
   'custom',
-  'select',
+  'select', // Legacy alias for custom (select dropdown)
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
@@ -99,20 +99,24 @@ export const isComputedField = (type: FieldType): boolean => type === 'computed'
 export function normalizeField(input: unknown, index = 0): FieldDefinition {
   const source = isRecord(input) ? input : {};
   const originalType = typeof source.data_type === 'string' ? source.data_type : 'text';
-  const legacyCustom = originalType === 'custom' || originalType.startsWith('custom:');
+  const legacyCustom = originalType === 'custom';
+  const legacyCustomWithOptions = originalType.startsWith('custom:');
   let options = Array.isArray(source.options) ? source.options : [];
-  if (!options.length && originalType.startsWith('custom:')) {
+  if (!options.length && legacyCustomWithOptions) {
     options = originalType
       .slice(7)
       .split(',')
       .map((label) => label.trim())
       .filter(Boolean);
   }
+  // 'custom' with options or 'custom:*' becomes 'select'; plain 'custom' stays 'custom'
+  const becomesSelect = legacyCustomWithOptions || (legacyCustom && options.length > 0);
+  const legacySelect = originalType === 'select' || becomesSelect;
   return {
     ...source,
     ...(typeof source.id === 'string' ? { id: source.id } : {}),
     field_name: typeof source.field_name === 'string' ? source.field_name : '',
-    data_type: (legacyCustom ? 'custom' : originalType) as FieldType,
+    data_type: (legacyCustom ? 'custom' : legacySelect ? 'select' : originalType) as FieldType,
     is_required: source.is_required === true,
     is_unique: source.is_unique === true,
     rules: isRecord(source.rules) ? { ...source.rules } : {},
