@@ -116,6 +116,67 @@ name-derived colour.
 | deleted       | BOOLEAN      | default false — soft-delete flag                            |
 | created_at    | TIMESTAMPTZ  | default CURRENT_TIMESTAMP                                   |
 
+### Field Data Types
+
+The `data_type` column defines how a field behaves, what UI component renders it, and how values are validated. Supported types:
+
+| Type          | UI Component      | Storage Format          | Description                                                |
+| ------------- | ----------------- | ----------------------- | ---------------------------------------------------------- |
+| `text`        | Text input        | `string`                | Single-line plain text                                     |
+| `markdown`    | Markdown editor   | `string` (Markdown)     | Multi-line text with Markdown formatting                   |
+| `integer`     | Number input      | `integer`               | Whole numbers only                                         |
+| `float`       | Number input      | `float`                 | Decimal numbers                                            |
+| `number`      | Number input      | `number`                | Generic numeric (auto-detects int/float)                   |
+| `date`        | Date picker       | `YYYY-MM-DD`            | Calendar date without time                                 |
+| `timestamp`   | DateTime picker   | ISO 8601 string         | Date and time combined                                     |
+| `boolean`     | Toggle/Checkbox   | `boolean`               | True/false value                                           |
+| `geolocation` | Map picker        | `{lat, lng}` object     | GPS coordinates                                            |
+| `currency`    | Currency input    | `number`                | Monetary values with currency symbol                       |
+| `file`        | File upload       | `{url, name, size}`     | File attachment metadata                                   |
+| `image`       | Image upload      | `{url, name, size}`     | Image file with preview                                    |
+| `entity_link` | Link picker       | `{id, type}` object     | Reference to another entry or project                      |
+| `tags`        | Tag input         | `string[]`              | Multiple free-form tags                                    |
+| `select`      | Dropdown          | `string` (option ID)    | Single selection from predefined options                   |
+| `multiselect` | Multi-dropdown    | `string[]` (option IDs) | Multiple selections from predefined options (deduplicated) |
+| `checklist`   | Checkbox list     | `{label, done}[]`       | List of items with completion state                        |
+| `computed`    | Read-only display | varies                  | Auto-calculated value (not user-editable)                  |
+| `custom`      | Custom renderer   | varies                  | Legacy type — becomes `select` when options are present    |
+
+### Field Rules
+
+The `rules` JSONB column stores validation constraints:
+
+```typescript
+interface FieldRules {
+  min?: number | string; // Minimum value (numeric fields)
+  max?: number | string; // Maximum value (numeric fields)
+  minLength?: number; // Minimum length (text fields)
+  maxLength?: number; // Maximum length (text fields)
+  pattern?: string; // Regex pattern (text fields)
+  warn_min?: number | string; // Warning threshold (low)
+  warn_max?: number | string; // Warning threshold (high)
+  alert_min?: number | string; // Alert threshold (low)
+  alert_max?: number | string; // Alert threshold (high)
+}
+```
+
+Warning and alert thresholds enable the **Dynamic Taxonomy** feature — fields can trigger visual warnings or alerts when values fall outside acceptable ranges.
+
+### Field Options
+
+The `options` JSONB column stores predefined choices for `select` and `multiselect` fields:
+
+```typescript
+interface FieldOption {
+  id: string; // Unique identifier for the option
+  label: string; // Display text
+  value?: string; // Optional separate value (defaults to id)
+  parent_id?: string; // For hierarchical/dynamic taxonomy options
+}
+```
+
+The `parent_id` enables **Dynamic Taxonomy** — options can reference parent options to create hierarchical selection structures.
+
 ## entries
 
 | Column             | Type                  | Notes                                         |
@@ -309,6 +370,54 @@ into projects on creation (no live inheritance). Three scopes:
 
 Row Level Security is enabled with restrictive policies — only the
 backend service-role key can modify templates.
+
+### Template Scopes
+
+| Scope      | user_email | Visibility              | Managed By         |
+| ---------- | ---------- | ----------------------- | ------------------ |
+| `built_in` | NULL       | All users (read-only)   | Platform (seeds)   |
+| `global`   | Set        | All users (read-only)   | Admins via backend |
+| `personal` | Set        | Owner only (read/write) | Individual users   |
+
+### Template Forking
+
+Templates can be forked to create variations:
+
+- `is_fork = true` indicates the template was copied from another
+- `forked_from` stores the UUID of the source template
+- `source_text` (migration 020) preserves the original template's field definitions as JSONB for reference
+- Forked templates are independent — changes to the source don't affect forks
+
+### Seeded Global Templates
+
+Migration 022 seeds four built-in templates available to all users:
+
+| Template Name         | Purpose                                   | Key Fields                                                                 |
+| --------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
+| **Lab Report**        | Laboratory experiment reports             | Experiment Title, Date, Hypothesis, Methodology, Results, Conclusion, Tags |
+| **Meeting Notes**     | Meeting documentation                     | Meeting Title, Date & Time, Attendees, Agenda, Decisions, Action Items     |
+| **Field Observation** | Field research observations               | Observation Title, Date, Location (geolocation), Weather, Photos           |
+| **Daily Log**         | Simple daily task and reflection tracking | Date, Tasks Completed (checklist), Notes, Reflections, Mood (select)       |
+
+### Template Fields Structure
+
+The `fields` JSONB column stores an array of field definitions matching the `fields` table schema:
+
+```typescript
+interface TemplateField {
+  field_name: string;
+  data_type: FieldType; // See Field Data Types table above
+  is_required: boolean;
+  is_unique: boolean;
+  rules: FieldRules;
+  has_default: boolean;
+  default_value?: unknown;
+  options: FieldOption[];
+  display_order: number;
+}
+```
+
+When a project is created from a template, these field definitions are deep-copied into the project's `fields` table rows — there is no live inheritance or synchronization after creation.
 
 ```sql
 CREATE TABLE notes (
