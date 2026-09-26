@@ -46,7 +46,10 @@ vi.mock('@/functions/project/natural_language.js', () => ({
 }));
 vi.mock('@/functions/ai.js', () => ({ askAI: vi.fn(), parseAIResponse: (s: string) => s }));
 vi.mock('@/functions/tone', () => ({ getToneInstruction: () => '' }));
-vi.mock('@/functions/aiMessages', () => ({ getAiMessagesEnabled: () => false }));
+vi.mock('@/functions/aiMessages', () => ({
+  getAiMessagesEnabled: () => false,
+  useAiMessagesEnabled: () => false,
+}));
 
 // Imported lazily so the mocks above are registered first.
 const { ProjectDetailPage } = await import('@/pages/ProjectDetailPage');
