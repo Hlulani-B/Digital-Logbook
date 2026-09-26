@@ -130,7 +130,7 @@ describe('Checklist edit dialog layout', () => {
     expect(screen.getByText(sampleEntry.summary)).toBeInTheDocument();
   });
 
-  it('cancels without saving and preserves the existing draft retention on reopening', () => {
+  it('cancels without saving and resets the form on reopening', () => {
     const { container, onUpdated } = renderCard();
     openEdit();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Unsaved draft' } });
@@ -141,8 +141,11 @@ describe('Checklist edit dialog layout', () => {
     expect(mocks.updateEntry).not.toHaveBeenCalled();
     expect(onUpdated).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText(sampleEntry.summary));
-    expect(screen.getByRole('textbox')).toHaveValue('Unsaved draft');
-    expect(element(container, 'input[type="date"]')).toHaveValue('2026-09-28');
+    // Draft is not retained - form resets to original values
+    expect(screen.getByRole('textbox')).toHaveValue(sampleEntry.summary);
+    expect(element(container, 'input[type="date"]')).toHaveValue(
+      sampleEntry.due_date ? sampleEntry.due_date.slice(0, 10) : ''
+    );
   });
 
   it('keeps save errors in the body before the fields and allows retry with a cleared due date', async () => {
