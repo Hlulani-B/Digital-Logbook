@@ -116,7 +116,7 @@ export function normalizeField(input: unknown, index = 0): FieldDefinition {
     ...source,
     ...(typeof source.id === 'string' ? { id: source.id } : {}),
     field_name: typeof source.field_name === 'string' ? source.field_name : '',
-    data_type: (legacyCustom ? 'custom' : legacySelect ? 'select' : originalType) as FieldType,
+    data_type: (becomesSelect ? 'select' : legacyCustom ? 'custom' : originalType) as FieldType,
     is_required: source.is_required === true,
     is_unique: source.is_unique === true,
     rules: isRecord(source.rules) ? { ...source.rules } : {},
