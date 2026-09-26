@@ -3516,7 +3516,7 @@ img {
 .filter-select:focus {
   border-color: var(--accent);
 }
-@media (max-width: 760px) {
+@media (max-width: 560px) {
   .search-ai-row {
     flex-direction: column;
   }
@@ -3526,6 +3526,8 @@ img {
     max-width: none;
     min-width: 0;
   }
+}
+@media (max-width: 760px) {
   .filter-row {
     grid-template-columns: 1fr;
     gap: 0.25rem;
@@ -4652,6 +4654,80 @@ img {
   border-color: var(--accent);
   color: var(--text);
   font-weight: 500;
+}
+
+/* Page switcher row (Entries / Projects tabs) */
+.page-switcher-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+/* Compact toolbar dropdown (View / Sort style) */
+.toolbar-dropdown {
+  position: relative;
+}
+.toolbar-dropdown__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.625rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.toolbar-dropdown__btn:hover {
+  border-color: var(--border-hover);
+}
+.toolbar-dropdown__btn[aria-expanded='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.toolbar-dropdown__chevron {
+  transition: transform 0.15s ease;
+}
+.toolbar-dropdown__btn[aria-expanded='true'] .toolbar-dropdown__chevron {
+  transform: rotate(180deg);
+}
+.toolbar-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 30;
+  min-width: 9rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.toolbar-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  background: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.toolbar-dropdown__option:hover {
+  background: var(--surface-hover);
+  color: var(--text-dim);
+}
+.toolbar-dropdown__option.is-active {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ========== FEED HEADER ROW (title + stats) ========== */
@@ -8207,37 +8283,6 @@ img {
 /* ========== HOME PROJECTS SECTION (Dashboard inline cards) ========== */
 .home-projects {
   margin-bottom: 1.5rem;
-}
-.home-projects-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-.home-projects-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
-}
-.home-projects-entries-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.home-projects-entries-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 .project-card--actionable {
   user-select: none;

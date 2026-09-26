@@ -337,7 +337,8 @@ function buildSteps(): DriveStep[] {
       title: 'Projects',
       description:
         'Group related entries under a project — like a module or a client. ' +
-        'Each project gets its own page and colour. Click a card to open it, or pin it to keep it on top.',
+        'Each project gets its own page and colour. Click a card to open it, or pin it to keep it on top. ' +
+        'Use the Entries / Projects switch to jump between the full entries list and this page.',
       drawer: 'close',
       side: 'bottom',
       align: 'start',

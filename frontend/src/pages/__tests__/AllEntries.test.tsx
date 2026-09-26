@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AllEntriesPage } from '../AllEntries';
 
@@ -96,15 +96,16 @@ describe('AllEntriesPage', () => {
 
   it('renders the search input', () => {
     renderPage();
-    expect(screen.getByPlaceholderText('Filter entries...')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Search entries...')).toBeTruthy();
   });
 
-  it('renders display mode toggle buttons', () => {
+  it('shows the View dropdown with every display option', () => {
     renderPage();
-    expect(screen.getByText('Cards')).toBeTruthy();
-    expect(screen.getByText('Checklist')).toBeTruthy();
-    expect(screen.getByText('Board')).toBeTruthy();
-    expect(screen.getByText('Table')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
+    expect(screen.getByRole('option', { name: 'Cards' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Checklist' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Board' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Table' })).toBeTruthy();
   });
 
   it('renders sort buttons for Date and Priority', () => {
@@ -115,15 +116,25 @@ describe('AllEntriesPage', () => {
 
   it('defaults to cards display mode', () => {
     renderPage();
-    // Cards button should be active by default
-    const cardsBtn = screen.getByText('Cards');
-    expect(cardsBtn.className).toContain('active');
+    // The View dropdown trigger shows the active display mode
+    expect(screen.getByRole('button', { name: 'Cards' })).toBeTruthy();
   });
 
   it('defaults to date sorting', () => {
     renderPage();
     const dateBtn = screen.getByText('Date');
     expect(dateBtn.className).toContain('active');
+  });
+
+  it('changes display mode from the View dropdown', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Checklist' }));
+    expect(screen.getByRole('button', { name: 'Checklist' })).toBeTruthy();
+    expect(setItemSpy).toHaveBeenCalledWith('allentries-display-mode', 'checklist');
+    setItemSpy.mockRestore();
+    localStorage.clear();
   });
 
   it('shows empty state when no entries', async () => {
@@ -153,8 +164,7 @@ describe('AllEntriesPage', () => {
   it('reads display mode from localStorage on mount', () => {
     localStorage.setItem('allentries-display-mode', 'board');
     renderPage();
-    const boardBtn = screen.getByText('Board');
-    expect(boardBtn.className).toContain('active');
+    expect(screen.getByRole('button', { name: 'Board' })).toBeTruthy();
     localStorage.clear();
   });
 

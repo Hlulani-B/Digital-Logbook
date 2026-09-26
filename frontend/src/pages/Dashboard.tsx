@@ -1616,16 +1616,30 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
             {/* Projects — inline card grid with quick actions */}
             <section className="home-projects animate-in" data-tour="home-projects">
-              <div className="home-projects-header">
-                <h2 className="home-projects-title">Projects</h2>
-                <button
-                  type="button"
-                  className="home-projects-entries-btn"
-                  onClick={() => navigate('/entries')}
-                  title="Browse every entry"
+              <div className="page-switcher-row">
+                <div
+                  className="feed-view-toggle"
+                  role="group"
+                  aria-label="Switch between entries and projects"
                 >
-                  Entries
-                </button>
+                  <button
+                    type="button"
+                    className="feed-view-btn"
+                    onClick={() => navigate('/entries')}
+                    title="Browse all entries"
+                  >
+                    Entries
+                  </button>
+                  <button
+                    type="button"
+                    className="feed-view-btn active"
+                    aria-current="page"
+                    onClick={() => navigate('/dashboard')}
+                    title="Back to projects"
+                  >
+                    Projects
+                  </button>
+                </div>
               </div>
               <div className="projects-grid">
                 {activeProjects.map((project) => {
