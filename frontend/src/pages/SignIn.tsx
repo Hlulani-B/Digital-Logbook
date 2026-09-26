@@ -290,6 +290,7 @@ export function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<string>('');
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -454,7 +455,7 @@ export function SignIn() {
         await signInWithEmail(email, password);
         await routeAfterAuth(email);
       } else {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password, role || undefined);
         sessionStorage.setItem('dl_new_signup', 'true');
         setSuccess(
           'Account created! Please check your email to confirm your account before signing in.'
@@ -812,6 +813,27 @@ export function SignIn() {
                     </div>
                   )}
 
+                  {mode === 'signup' && (
+                    <div className="field-group">
+                      <label htmlFor="role" className="field-label">
+                        Role (optional)
+                      </label>
+                      <select
+                        id="role"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        className="field-input"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <option value="">Select your role</option>
+                        <option value="Student">Student</option>
+                        <option value="Lecturer">Lecturer</option>
+                        <option value="Tutor">Tutor</option>
+                        <option value="Professional">Professional</option>
+                      </select>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={emailLoading || (mode === 'signup' && !signupRequirementsMet)}
@@ -837,6 +859,7 @@ export function SignIn() {
                       setSuccess(null);
                       setEmailSuggestion(null);
                       setConfirmPassword('');
+                      setRole('');
                     }}
                     className="auth-mode-toggle"
                   >
