@@ -37,7 +37,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Hello')).toBeTruthy();
   });
 
-  it('renders the navbar with Digital Logbook title', () => {
+  it('renders the navbar with hamburger menu', () => {
     render(
       <MemoryRouter>
         <AppShell>
@@ -45,7 +45,7 @@ describe('AppShell', () => {
         </AppShell>
       </MemoryRouter>
     );
-    expect(screen.getByText('Digital Logbook')).toBeTruthy();
+    expect(screen.getByLabelText('Toggle menu')).toBeTruthy();
   });
 
   it('renders the hamburger button', () => {

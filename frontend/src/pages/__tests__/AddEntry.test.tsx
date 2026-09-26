@@ -4,8 +4,6 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AddEntry } from '../AddEntry';
-import { addEntry } from '../../functions/project/entries.js';
-import { getFields } from '../../functions/project/fields.js';
 
 vi.mock('../../functions/project/entries.js', () => ({
   addEntry: vi.fn(),
@@ -14,6 +12,9 @@ vi.mock('../../functions/project/entries.js', () => ({
 vi.mock('../../functions/project/fields.js', () => ({
   getFields: vi.fn(),
 }));
+
+import { addEntry } from '../../functions/project/entries.js';
+import { getFields } from '../../functions/project/fields.js';
 
 const globalStyles = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
 const fieldStyles = readFileSync(resolve(__dirname, '../../components/fields/fields.css'), 'utf8');
@@ -27,7 +28,7 @@ const optionalBooleanField = {
 describe('AddEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getFields).mockResolvedValue({ data: [optionalBooleanField] });
+    vi.mocked(getFields).mockResolvedValue({ success: true, data: [optionalBooleanField] });
     vi.mocked(addEntry).mockResolvedValue({ success: true });
   });
 
@@ -65,7 +66,7 @@ describe('AddEntry', () => {
       field_name: `detail_${i + 1}`,
       data_type: 'text',
     }));
-    vi.mocked(getFields).mockResolvedValueOnce({ data: fields });
+    vi.mocked(getFields).mockResolvedValueOnce({ success: true, data: fields });
     renderForm({ onCancel: vi.fn() });
     const inputs = await screen.findAllByRole('textbox');
     expect(inputs).toHaveLength(30);
@@ -108,7 +109,10 @@ describe('AddEntry', () => {
   });
 
   it('keeps Cancel available and prevents submission while loading fields', async () => {
-    let resolveFields!: (value: { data: (typeof optionalBooleanField)[] }) => void;
+    let resolveFields!: (value: {
+      success: boolean;
+      data: (typeof optionalBooleanField)[];
+    }) => void;
     vi.mocked(getFields).mockReturnValueOnce(
       new Promise((resolve) => {
         resolveFields = resolve;
@@ -126,7 +130,7 @@ describe('AddEntry', () => {
     expect(addEntry).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalledOnce();
-    await act(async () => resolveFields({ data: [optionalBooleanField] }));
+    await act(async () => resolveFields({ success: true, data: [optionalBooleanField] }));
     expect(form.querySelector('.entry-form__footer')).toBe(footer);
     expect(screen.getByRole('button', { name: 'Add Item' })).toBeEnabled();
   });
@@ -163,6 +167,7 @@ describe('AddEntry', () => {
 
   it('preserves required-field validation and entered values after a save failure', async () => {
     vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
       data: [{ field_name: 'Title', data_type: 'text', is_required: true }],
     });
     vi.mocked(addEntry).mockRejectedValueOnce(new Error('Save unavailable'));
@@ -184,6 +189,7 @@ describe('AddEntry', () => {
     // jsdom verifies declarations, not actual viewport geometry or sticky positioning.
     render(<style>{fieldStyles + globalStyles}</style>);
     vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
       data: [
         optionalBooleanField,
         { field_name: 'Title', data_type: 'text' },

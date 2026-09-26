@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { TemplatePicker } from '../fields/TemplatePicker';
 import { listTemplates, type Template } from '@/lib/templateApi';
 
@@ -43,7 +44,11 @@ function renderPicker() {
   const onSelect = vi.fn();
   const onCancel = vi.fn();
   return {
-    ...render(<TemplatePicker onSelect={onSelect} onCancel={onCancel} />),
+    ...render(
+      <MemoryRouter>
+        <TemplatePicker onSelect={onSelect} onCancel={onCancel} />
+      </MemoryRouter>
+    ),
     onSelect,
     onCancel,
   };
