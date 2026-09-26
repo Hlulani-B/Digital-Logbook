@@ -116,7 +116,7 @@ describe('Checklist edit dialog layout', () => {
       sampleEntry.project_name,
       sampleEntry.id,
       undefined,
-      '2026-09-27',
+      '2026-09-27T21:59:59.999Z',
       undefined,
       undefined,
       undefined,
@@ -212,9 +212,7 @@ describe('Checklist edit dialog layout', () => {
         undefined,
         undefined,
         undefined,
-        status === 'done_and_dusted' ? 'up_next' : 'done_and_dusted',
-        undefined,
-        status === 'done_and_dusted' ? undefined : expect.any(String)
+        status === 'done_and_dusted' ? 'up_next' : 'done_and_dusted'
       );
       expect(container.querySelector('.checklist-dialog-overlay')).toBeNull();
     }

@@ -77,7 +77,16 @@ function openEdit() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.updateEntry.mockResolvedValue({ success: true });
+  mocks.updateEntry.mockImplementation(async (user_email, project_name, id, entries) => ({
+    success: true,
+    data: {
+      ...sampleEntry,
+      user_email,
+      project_name,
+      id,
+      entries: entries ?? sampleEntry.entries,
+    },
+  }));
   mocks.deleteEntryById.mockResolvedValue({ success: true });
   mocks.archiveEntry.mockResolvedValue({ success: true });
   mocks.getFields.mockResolvedValue({
@@ -170,6 +179,9 @@ describe('EntryBox inline edit layout', () => {
     fireEvent.change(due, { target: { value: '2026-09-25T15:30' } });
     fireEvent.change(started, { target: { value: '2026-09-24T09:00' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    // Wait for the save button to show "Saving..." to ensure state has updated
+    await screen.findByRole('button', { name: 'Saving...' });
 
     for (const control of body.querySelectorAll('select, input, textarea')) {
       expect(control).toBeDisabled();
