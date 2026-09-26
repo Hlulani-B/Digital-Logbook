@@ -60,7 +60,7 @@ function renderModal(entries: CalendarEntry[] = []) {
     <>
       <style>{modalStyles}</style>
       <CalendarDayModal
-        date={new Date(2026, 8, 22)}
+        date={new Date(2030, 8, 22)}
         entries={entries}
         projects={[{ project_name: 'Project Alpha' }]}
         userEmail="test@example.com"
@@ -171,7 +171,7 @@ describe('CalendarDayModal adding layout', () => {
       }
     }
     expect(screen.getByLabelText('Due Date')).toHaveAttribute('type', 'datetime-local');
-    expect(screen.getByLabelText('Due Date')).toHaveValue('2026-09-22T09:00');
+    expect(screen.getByLabelText('Due Date')).toHaveValue('2030-09-22T09:00');
     for (const control of [
       ...screen.getAllByRole('combobox'),
       screen.getByRole('button', { name: 'Add Item' }),
@@ -219,7 +219,9 @@ describe('CalendarDayModal adding layout', () => {
     fireEvent.change(screen.getByLabelText('amount'), { target: { value: '42' } });
     fireEvent.change(screen.getByLabelText('quantity'), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText('score'), { target: { value: '7' } });
-    fireEvent.change(screen.getByLabelText('start date'), { target: { value: '2026-09-23' } });
+    fireEvent.change(screen.getByLabelText('start date (UTC date)'), {
+      target: { value: '2030-09-23' },
+    });
     fireEvent.change(screen.getByLabelText('detail 30'), { target: { value: 'Final value' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
 
@@ -231,11 +233,11 @@ describe('CalendarDayModal adding layout', () => {
         amount: 42,
         quantity: 3,
         score: 7,
-        start_date: '2026-09-23',
+        start_date: '2030-09-23',
         confirmed: true,
         detail_30: 'Final value',
       },
-      new Date(2026, 8, 22, 9).toISOString(),
+      new Date(2030, 8, 22, 9).toISOString(),
       null,
       'up_next',
       null,
