@@ -129,6 +129,30 @@ After the 30-day grace period, a background process permanently removes the acco
 - `services/project-service/src/Routes/notifications.js` — RPC endpoints
 - `frontend/src/components/NotificationsBell.tsx` — bell UI
 
+### Timer Abandonment Notifications
+
+**What it does:** Alerts users when they've left a session timer running for too long (>2 hours) or paused indefinitely (>30 minutes) — both as an in-app bell notification and optionally as an email.
+
+**Why it was implemented:** Users were forgetting to stop timers when switching tasks or closing the app, leading to inaccurate time tracking. This safety net catches abandoned sessions before they skew project statistics.
+
+**How it works:**
+
+- An hourly `pg_cron` job (migration 021) scans `entries` for two conditions:
+  - **timer_running_long** — `started_at` set, `ended_at` null, `paused_at` null, running for >2 hours
+  - **timer_paused_long** — `paused_at` set, `ended_at` null, paused for >30 minutes
+- One notification per (user, entry, type) — idempotent via unique constraint
+- Client-side detection: on app load, if `localStorage` has a `last_known_timer` from a previous session that was never stopped, an immediate in-app notification fires
+- The SettingsPanel **Timer abandonment notifications** toggle is persisted to `users.timer_abandonment_notifications` (default true) and honoured by the email sender; the in-app bell always shows them
+- Notifications are automatically cleared when the entry is completed, archived, or deleted; read notifications are pruned after 30 days
+- Integrated into the existing `run_due_notification_cycle()` function alongside due-date notifications
+
+**Key files:**
+
+- `supabase/migrations/021_timer_abandonment_notifications.sql` — table type extension, preference column, generator RPC, cycle integration
+- `services/project-service/src/functions/notifications/notifications.js` — timer abandonment queries + email sender
+- `frontend/src/components/NotificationsBell.tsx` — bell UI displays timer alerts
+- `frontend/src/components/SettingsPanel.tsx` — "Timer abandonment notifications" toggle
+
 ---
 
 ## Dashboard & Navigation
