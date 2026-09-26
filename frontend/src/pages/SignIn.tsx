@@ -591,11 +591,6 @@ export function SignIn() {
 
   return (
     <div className="signin-page">
-      <nav className="signin-topnav" aria-label="Page sections">
-        <a href="#ss-about">About</a>
-        <a href="#ss-about-us">About Us</a>
-        <a href="#ss-features">Features</a>
-      </nav>
       <div className="split-auth">
         {/* Left panel — video showcase */}
         <div className="split-left">
@@ -624,6 +619,11 @@ export function SignIn() {
           <div className="split-video-caption">
             <h2>Digital Logbook</h2>
             <p>Track your time, own your progress</p>
+            <nav className="split-nav-links" aria-label="Page sections">
+              <a href="#ss-about">About</a>
+              <a href="#ss-about-us">About Us</a>
+              <a href="#ss-features">Features</a>
+            </nav>
           </div>
         </div>
 
@@ -645,7 +645,7 @@ export function SignIn() {
                 {/* Email/Password Form */}
                 <form
                   onSubmit={handleEmailSubmit}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}
                 >
                   <div className="field-group">
                     <label htmlFor="email" className="field-label">
@@ -828,7 +828,7 @@ export function SignIn() {
                 </form>
 
                 {/* Toggle + Forgot Password */}
-                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                <div style={{ textAlign: 'center', marginTop: '0.25rem' }}>
                   <button
                     type="button"
                     onClick={() => {
