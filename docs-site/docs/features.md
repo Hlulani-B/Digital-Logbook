@@ -8,7 +8,7 @@ A comprehensive overview of all features implemented in the Digital Logbook, why
 
 The Digital Logbook uses Supabase Auth as its identity provider. Users can authenticate with existing Google or GitHub accounts, or create a dedicated email and password account. Sessions are managed globally so protected pages automatically redirect unauthenticated visitors to the sign-in screen.
 
-![Sign-in page showing the email and password form and Google and GitHub OAuth buttons](assets/ui-images/Screenshot_19-8-2026_123315_digital-logbook-bxgv.onrender.com.jpeg)
+![Sign-in page with nav links on left panel under tagline, compact form on right, and Google/GitHub OAuth buttons](assets/ui-images/Screenshot_27-9-2026_0039_signin_page.png)
 
 ### Signing Up and Signing In
 
