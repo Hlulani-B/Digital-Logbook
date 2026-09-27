@@ -3,13 +3,16 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createServiceWake } from './service-wake.js';
 
 const app = express();
 
 const PORT = process.env.PORT || 4000;
 const PROXY_TIMEOUT = Number(process.env.PROXY_TIMEOUT_MS || 120000);
-const WAKE_TIMEOUT = 115000;
-const WAKE_TTL = 10 * 60 * 1000;
+function positiveSetting(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.ceil(value) : fallback;
+}
 
 const allowedOrigins = [
   ...(process.env.CORS_ORIGINS || '')
@@ -95,8 +98,12 @@ const services = {
   ),
 };
 
-let wakePromise = null;
-let lastSuccessfulWake = 0;
+const serviceWake = createServiceWake(services, {
+  timeoutMs: positiveSetting('WAKE_TIMEOUT_MS', 115000),
+  probeTimeoutMs: positiveSetting('WAKE_PROBE_TIMEOUT_MS', 10000),
+  retryIntervalMs: positiveSetting('WAKE_RETRY_INTERVAL_MS', 1000),
+  ttlMs: positiveSetting('WAKE_TTL_MS', 60000),
+});
 
 app.get('/', (req, res) => {
   res.status(200).json({
@@ -113,123 +120,41 @@ app.get('/health', (req, res) => {
   });
 });
 
-async function wakeService(serviceName, target) {
-  const controller = new AbortController();
-
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, WAKE_TIMEOUT);
-
-  const startedAt = Date.now();
-
-  try {
-    console.log(`[gateway] Waking ${serviceName}: ${target}`);
-
-    const response = await fetch(`${target}/`, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'digital-logbook-api-gateway',
-      },
-    });
-
-    const responseTime = Date.now() - startedAt;
-
-    console.log(`[gateway] ${serviceName} awake - HTTP ${response.status} - ${responseTime}ms`);
-
-    return {
-      service: serviceName,
-      status: 'awake',
-      httpStatus: response.status,
-      responseTimeMs: responseTime,
-    };
-  } catch (error) {
-    const responseTime = Date.now() - startedAt;
-
-    console.error(`[gateway] ${serviceName} wake failed: ${error.message}`);
-
-    return {
-      service: serviceName,
-      status: 'failed',
-      error: error.message,
-      responseTimeMs: responseTime,
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+function serviceUnavailable(res, service) {
+  res.setHeader('Retry-After', '5');
+  res.status(503).json({
+    success: false,
+    code: 'SERVICE_UNAVAILABLE',
+    error: 'Backend service is starting or unavailable. Please try again.',
+    service,
+  });
 }
 
-async function wakeAllServices() {
-  const now = Date.now();
-
-  if (lastSuccessfulWake && now - lastSuccessfulWake < WAKE_TTL) {
-    return;
-  }
-
-  if (wakePromise) {
-    return wakePromise;
-  }
-
-  console.log('[gateway] Waking all backend services...');
-
-  wakePromise = Promise.all(
-    Object.entries(services).map(([serviceName, target]) => wakeService(serviceName, target))
-  );
-
-  try {
-    const results = await wakePromise;
-
-    const failedServices = results.filter((result) => result.status !== 'awake');
-
-    if (failedServices.length === 0) {
-      lastSuccessfulWake = Date.now();
-
-      console.log('[gateway] All backend services are awake');
-    } else {
-      console.error(
-        '[gateway] Some backend services failed to wake:',
-        failedServices.map((service) => service.service)
-      );
-    }
-
-    return results;
-  } finally {
-    wakePromise = null;
-  }
-}
-
-async function ensureAllServicesAwake(req, res, next) {
-  try {
-    await wakeAllServices();
+function ensureServiceAwake(service) {
+  return async (req, res, next) => {
+    const pending = serviceWake.wakeAll(service);
+    const result = await pending[service];
+    if (req.aborted || res.destroyed) return;
+    if (result.status !== 'awake') return serviceUnavailable(res, service);
     next();
-  } catch (error) {
-    console.error('[gateway] Service wake-up error:', error.message);
-
-    res.status(503).json({
-      success: false,
-      error: 'Backend services are starting. Please try again.',
-    });
-  }
+  };
 }
 
 app.get('/api/wake', async (req, res) => {
-  try {
-    lastSuccessfulWake = 0;
-
-    const results = await wakeAllServices();
-
-    const failed = results?.filter((result) => result.status === 'failed') || [];
-
-    res.status(failed.length === 0 ? 200 : 207).json({
-      success: failed.length === 0,
-      services: results,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+  const service = req.query.service;
+  if (service !== undefined && (typeof service !== 'string' || !Object.hasOwn(services, service))) {
+    return res.status(400).json({ success: false, error: 'Unknown backend service' });
   }
+  res.setHeader('Cache-Control', 'no-store');
+  const pending = serviceWake.wakeAll(service);
+  const results = service ? [await pending[service]] : await Promise.all(Object.values(pending));
+  if (req.aborted || res.destroyed) return;
+  const failed = results.filter((result) => result.status !== 'awake');
+  if (service && failed.length) return serviceUnavailable(res, service);
+  res.status(failed.length === 0 ? 200 : 207).json({
+    success: failed.length === 0,
+    services: results,
+  });
 });
 
 function createServiceProxy(serviceName, target) {
@@ -251,6 +176,7 @@ function createServiceProxy(serviceName, target) {
       },
 
       proxyRes: (proxyRes, req) => {
+        if ([502, 503, 504].includes(proxyRes.statusCode)) serviceWake.invalidate(serviceName);
         console.log(
           `[gateway] <- ${serviceName}`,
           `${req.method} ${req.originalUrl}`,
@@ -259,6 +185,7 @@ function createServiceProxy(serviceName, target) {
       },
 
       error: (err, req, res) => {
+        serviceWake.invalidate(serviceName);
         console.error(`[gateway] ${serviceName} proxy error`);
 
         console.error({
@@ -269,35 +196,33 @@ function createServiceProxy(serviceName, target) {
           target,
         });
 
-        if (!res.headersSent) {
-          res.writeHead(502, {
-            'Content-Type': 'application/json',
-          });
-        }
-
-        res.end(
-          JSON.stringify({
-            success: false,
-            error: 'Backend service unavailable',
-            service: serviceName,
-          })
-        );
+        if (res.destroyed || res.writableEnded) return;
+        if (res.headersSent) return res.destroy();
+        serviceUnavailable(res, serviceName);
       },
     },
   });
 }
 
-app.use('/api/auth', ensureAllServicesAwake, createServiceProxy('auth', services.auth));
+app.use('/api/auth', ensureServiceAwake('auth'), createServiceProxy('auth', services.auth));
 
 app.use(
   '/api/dashboard',
-  ensureAllServicesAwake,
+  ensureServiceAwake('dashboard'),
   createServiceProxy('dashboard', services.dashboard)
 );
 
-app.use('/api/project', ensureAllServicesAwake, createServiceProxy('project', services.project));
+app.use(
+  '/api/project',
+  ensureServiceAwake('project'),
+  createServiceProxy('project', services.project)
+);
 
-app.use('/api/profile', ensureAllServicesAwake, createServiceProxy('profile', services.profile));
+app.use(
+  '/api/profile',
+  ensureServiceAwake('profile'),
+  createServiceProxy('profile', services.profile)
+);
 
 app.use((req, res) => {
   res.status(404).json({

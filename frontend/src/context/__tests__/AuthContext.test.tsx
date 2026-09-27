@@ -14,6 +14,9 @@ const mockSession = {
   access_token: 'test-token',
 };
 
+const { startBackendWake } = vi.hoisted(() => ({ startBackendWake: vi.fn() }));
+vi.mock('@/lib/gateway', () => ({ startBackendWake, GATEWAY_URL: '' }));
+
 const unsubscribe = vi.fn();
 const signInWithPassword = vi.fn();
 const signUp = vi.fn();
@@ -95,6 +98,7 @@ describe('AuthContext', () => {
     );
 
     expect(screen.getByTestId('loading')).toHaveTextContent('true');
+    expect(startBackendWake).toHaveBeenCalled();
 
     await waitFor(() => {
       expect(screen.getByTestId('loading')).toHaveTextContent('false');

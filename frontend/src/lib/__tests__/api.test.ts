@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
 const mockGetSession = vi.fn();
+const { mockEnsureBackendReady, mockInvalidateBackendReady } = vi.hoisted(() => ({
+  mockEnsureBackendReady: vi.fn(),
+  mockInvalidateBackendReady: vi.fn(),
+}));
+
+vi.mock('../gateway', () => ({
+  GATEWAY_URL: '',
+  ensureBackendReady: mockEnsureBackendReady,
+  invalidateBackendReady: mockInvalidateBackendReady,
+}));
 
 vi.mock('../supabase', () => ({
   getSupabase: () => ({
@@ -24,6 +34,7 @@ function getMockFetch(): Mock {
 
 describe('request', () => {
   beforeEach(() => {
+    mockEnsureBackendReady.mockResolvedValue(undefined);
     vi.stubGlobal('fetch', vi.fn());
     mockGetSession.mockResolvedValue({
       data: { session: { access_token: 'test-token' } },
@@ -31,6 +42,7 @@ describe('request', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -101,6 +113,36 @@ describe('request', () => {
         headers: expect.objectContaining({ Authorization: '' }),
       })
     );
+  });
+
+  it('starts the operation timeout only after the backend is ready', async () => {
+    vi.useFakeTimers();
+    let ready!: () => void;
+    mockEnsureBackendReady.mockReturnValueOnce(new Promise<void>((resolve) => (ready = resolve)));
+    getMockFetch().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ saved: true }),
+    });
+    const pending = request('/api/project/service/entries', { method: 'POST', timeoutMs: 50 });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetch).not.toHaveBeenCalled();
+    ready();
+    await expect(pending).resolves.toEqual({ saved: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(getMockFetch().mock.calls[0][1].signal.aborted).toBe(false);
+  });
+
+  it('invalidates readiness without replaying a failed write', async () => {
+    getMockFetch().mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      text: () => Promise.resolve('upstream unavailable'),
+    });
+    await expect(
+      request('/api/project/service/entries', { method: 'POST', body: '{}' })
+    ).rejects.toThrow('API error 502');
+    expect(mockInvalidateBackendReady).toHaveBeenCalledWith('/api/project/service/entries');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
 

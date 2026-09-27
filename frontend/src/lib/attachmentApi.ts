@@ -1,6 +1,7 @@
 import { getSupabase } from '@/lib/supabase';
 
 import { PROJECT_URL as API_BASE } from './api';
+import { fetchFromGateway } from './gateway';
 
 export interface AttachmentLease {
   id: string;
@@ -34,7 +35,7 @@ export async function createAttachmentLease(
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(
+  const response = await fetchFromGateway(
     `${API_BASE}/service/attachments/projects/${projectId}/fields/${fieldId}/leases`,
     {
       method: 'POST',
@@ -80,14 +81,17 @@ export async function finalizeAttachment(
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/attachments/${attachmentId}/finalize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ entryId, upload_token: uploadToken }),
-  });
+  const response = await fetchFromGateway(
+    `${API_BASE}/service/attachments/${attachmentId}/finalize`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ entryId, upload_token: uploadToken }),
+    }
+  );
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to finalize attachment');
@@ -100,7 +104,7 @@ export async function getAttachment(attachmentId: string): Promise<Attachment> {
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/attachments/${attachmentId}`, {
+  const response = await fetchFromGateway(`${API_BASE}/service/attachments/${attachmentId}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
   if (!response.ok) throw new Error('Attachment not found');

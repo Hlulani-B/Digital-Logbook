@@ -38,6 +38,14 @@ vi.mock('@/functions/project/archives.js', () => ({
   getUnarchivedProjects: (...args) => mockGetUnarchivedProjects(...args),
 }));
 
+vi.mock('@/functions/project/fields.js', () => ({
+  getFields: vi.fn().mockResolvedValue({ success: true, data: [] }),
+}));
+
+vi.mock('@/functions/activity.js', () => ({
+  getActivities: vi.fn().mockResolvedValue({ success: true, data: [] }),
+}));
+
 const { syncAllData, computeDueSoon, syncProjectEntries } =
   await import('@/CacheFunctions/syncService.js');
 

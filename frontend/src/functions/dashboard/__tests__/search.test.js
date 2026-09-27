@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { searchAll, searchProject, searchProjects } from '../search';
 
+vi.mock('../../../lib/gateway', () => ({
+  GATEWAY_URL: '',
+  fetchFromGateway: (...args) => fetch(...args),
+}));
+
 describe('search functions', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());

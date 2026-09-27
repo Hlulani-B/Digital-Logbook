@@ -1,9 +1,10 @@
 import { DASHBOARD_URL as url } from '../../lib/api';
+import { fetchFromGateway } from '../../lib/gateway';
 
 async function safeFetch(endpoint, body) {
   let res;
   try {
-    res = await fetch(url + endpoint, {
+    res = await fetchFromGateway(url + endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
