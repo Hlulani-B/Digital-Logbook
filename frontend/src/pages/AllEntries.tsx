@@ -120,9 +120,7 @@ function ToolbarDropdown<T extends string>({
               type="button"
               role="option"
               aria-selected={option.value === value}
-              className={`toolbar-dropdown__option ${
-                option.value === value ? 'is-active' : ''
-              }`}
+              className={`toolbar-dropdown__option ${option.value === value ? 'is-active' : ''}`}
               onClick={() => {
                 onChange(option.value);
                 setOpen(false);
@@ -357,8 +355,8 @@ export function AllEntriesPage() {
   // Projects offered in the filter panel — anything with entries or fields
   const projectNames = useMemo(
     () =>
-      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
-        (a, b) => a.localeCompare(b)
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort((a, b) =>
+        a.localeCompare(b)
       ),
     [entryCounts, fieldCounts]
   );

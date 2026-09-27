@@ -779,7 +779,9 @@ export function ProjectDetailPage() {
                   className="quick-entry-voice"
                   onClick={() => setVoiceOpen(true)}
                   aria-label="Voice entry"
-                  title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+                  title={
+                    !isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'
+                  }
                   disabled={!isOnline}
                   style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >

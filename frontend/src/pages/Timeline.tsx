@@ -174,9 +174,7 @@ export function TimelineView({ entries, onGoToDashboard }: TimelineViewProps) {
           >
             −
           </button>
-          <span className="timeline-zoom-level">
-            {Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%
-          </span>
+          <span className="timeline-zoom-level">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
           <button
             type="button"
             className="btn-secondary"
@@ -210,8 +208,8 @@ export function TimelineView({ entries, onGoToDashboard }: TimelineViewProps) {
           </div>
           <h2 className="timeline-empty-title">No timeline data</h2>
           <p className="timeline-empty-message">
-            There are no dated, incomplete entries to display. Add entries with start and due
-            dates, or set dependencies in the entry details to see them linked here.
+            There are no dated, incomplete entries to display. Add entries with start and due dates,
+            or set dependencies in the entry details to see them linked here.
           </p>
           {onGoToDashboard && (
             <button className="btn-primary" onClick={onGoToDashboard}>

@@ -349,13 +349,9 @@ describe('EntryBox inline edit layout', () => {
     const { container } = renderBox(entry);
     await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());
     expect(container.querySelector('.entry-box__project-ref-area')).toBeNull();
-    expect(
-      screen.queryByRole('button', { name: '+ Project Reference' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Project Reference' })).not.toBeInTheDocument();
     expect(screen.queryByText('Referenced project')).not.toBeInTheDocument();
-    expect(container.querySelector('.entry-box__table')?.textContent).not.toContain(
-      '_project_ref'
-    );
+    expect(container.querySelector('.entry-box__table')?.textContent).not.toContain('_project_ref');
   });
 
   it('keeps delete confirmation inline in the ordinary menu with cancel and delete callbacks', async () => {

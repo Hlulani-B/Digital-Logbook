@@ -111,7 +111,9 @@ export default function EntriesByDueDateBoard({
                 entry={entry}
                 onUpdated={onUpdated}
                 onDelete={onDelete}
-                projectColor={colorMap ? resolveProjectColor(entry.project_name, colorMap) : undefined}
+                projectColor={
+                  colorMap ? resolveProjectColor(entry.project_name, colorMap) : undefined
+                }
               />
             ))}
           </div>

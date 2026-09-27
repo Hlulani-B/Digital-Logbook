@@ -1,7 +1,7 @@
 import { getSupabase } from '@/lib/supabase';
 
-const API_BASE =
-  import.meta.env.VITE_PROJECT_SERVICE_URL || 'https://project-service-96ml.onrender.com';
+import { PROJECT_URL as API_BASE } from './api';
+import { fetchFromGateway } from './gateway';
 
 export interface Template {
   id: string;
@@ -26,7 +26,7 @@ export async function listTemplates(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}/service/templates?scope=${scope}`, {
+    response = await fetchFromGateway(`${API_BASE}/service/templates?scope=${scope}`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
   } catch {
@@ -68,7 +68,7 @@ export async function getTemplate(templateId: string): Promise<Template> {
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
+  const response = await fetchFromGateway(`${API_BASE}/service/templates/${templateId}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
   if (!response.ok) throw new Error('Template not found');
@@ -87,7 +87,7 @@ export async function createTemplate(input: {
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/templates`, {
+  const response = await fetchFromGateway(`${API_BASE}/service/templates`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ export async function updateTemplate(
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
+  const response = await fetchFromGateway(`${API_BASE}/service/templates/${templateId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ export async function deleteTemplate(templateId: string): Promise<void> {
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) throw new Error('Not authenticated');
-  const response = await fetch(`${API_BASE}/service/templates/${templateId}`, {
+  const response = await fetchFromGateway(`${API_BASE}/service/templates/${templateId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${session.access_token}` },
   });

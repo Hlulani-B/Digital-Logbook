@@ -1,11 +1,11 @@
-export const AUTH_URL = import.meta.env.VITE_AUTH_SERVICE_URL;
-export const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_SERVICE_URL;
-export const PROJECT_URL =
-  import.meta.env.VITE_PROJECT_SERVICE_URL || 'https://project-service-96ml.onrender.com';
-export const PROFILE_URL =
-  import.meta.env.VITE_PROFILE_SERVICE_URL || 'https://profile-service-0zk7.onrender.com';
+import { GATEWAY_URL as GATEWAY, ensureBackendReady, invalidateBackendReady } from './gateway';
 
-const DEFAULT_TIMEOUT_MS = 90_000; // 90s — Render free-tier cold start + AI processing
+export const AUTH_URL = `${GATEWAY}/api/auth`;
+export const DASHBOARD_URL = `${GATEWAY}/api/dashboard`;
+export const PROJECT_URL = `${GATEWAY}/api/project`;
+export const PROFILE_URL = `${GATEWAY}/api/profile`;
+
+const DEFAULT_TIMEOUT_MS = 90_000; // Operation timeout; service startup has its own allowance.
 
 export async function request<T>(
   url: string,
@@ -13,9 +13,11 @@ export async function request<T>(
 ): Promise<T> {
   const start = Date.now();
   const shortUrl = url.replace(/https?:\/\/[^/]+/, '');
-  console.log(
-    `[api] → ${options?.method || 'GET'} ${shortUrl} timeout=${options?.timeoutMs ?? 90}s`
-  );
+  const { timeoutMs: _timeoutMs, ...fetchOptions } = options ?? {};
+  const timeoutMs = _timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  console.log(`[api] → ${options?.method || 'GET'} ${shortUrl} timeout=${timeoutMs / 1000}s`);
+
+  await ensureBackendReady(url);
 
   const { getSupabase } = await import('./supabase');
   const {
@@ -23,8 +25,6 @@ export async function request<T>(
   } = await getSupabase().auth.getSession();
   const token = session?.access_token || '';
 
-  const { timeoutMs: _timeoutMs, ...fetchOptions } = options ?? {};
-  const timeoutMs = _timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -41,6 +41,7 @@ export async function request<T>(
     });
 
     if (!res.ok) {
+      if ([502, 503, 504].includes(res.status)) invalidateBackendReady(url);
       const body = await res.text();
       console.log(
         `[api] ← ${options?.method || 'GET'} ${shortUrl} ${res.status} in ${Date.now() - start}ms`

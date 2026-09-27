@@ -3,6 +3,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { clearUserCache } from '@/lib/cache';
 import { disconnectSSE } from '@/lib/sse';
+import { startBackendWake } from '@/lib/gateway';
 
 // Dev mode bypass - creates mock user for local testing
 const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === 'true';
@@ -43,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    // Begin waking all backends while the sign-in page/session is loading.
+    startBackendWake();
     // Dev mode bypass - skip Supabase auth
     if (DEV_MODE) {
       console.log('[DEV MODE] Using mock user - auth bypassed');
@@ -79,7 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (state.user) startBackendWake();
+  }, [state.user?.id]);
+
   const signInWithGoogle = async () => {
+    startBackendWake();
     if (DEV_MODE) {
       console.log('[DEV MODE] signInWithGoogle skipped');
       return;
@@ -94,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGitHub = async () => {
+    startBackendWake();
     if (DEV_MODE) {
       console.log('[DEV MODE] signInWithGitHub skipped');
       return;
@@ -108,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithEmail = async (email: string, password: string) => {
+    startBackendWake();
     if (DEV_MODE) {
       console.log('[DEV MODE] signInWithEmail skipped');
       return;
@@ -120,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, role?: string) => {
+    startBackendWake();
     if (DEV_MODE) {
       console.log('[DEV MODE] signUpWithEmail skipped');
       return;

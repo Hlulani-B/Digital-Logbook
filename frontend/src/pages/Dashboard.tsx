@@ -655,8 +655,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Projects offered in the filter panel — anything with entries or fields
   const projectNames = useMemo(
     () =>
-      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
-        (a, b) => a.localeCompare(b)
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort((a, b) =>
+        a.localeCompare(b)
       ),
     [entryCounts, fieldCounts]
   );
