@@ -125,3 +125,61 @@ export function applyFieldFilters<T extends Record<string, unknown>>(
     return active.every(([field, filter]) => matchesFilter(payload[field], filter));
   });
 }
+
+/**
+ * Filters for the all-entries feed. Entries there are mixed across projects, so
+ * instead of per-project field filters the criteria are project-level: the
+ * project's name, how many entries it has and how many fields it defines.
+ */
+export interface ProjectFilters {
+  /** Selected project name ('' = every project) */
+  projectName: string;
+  /** Number of entries in the entry's project */
+  entryCount: FieldFilterState;
+  /** Number of fields defined on the entry's project */
+  fieldCount: FieldFilterState;
+}
+
+/** Counts per project name — entry counts plus field counts. */
+export interface ProjectCounts {
+  entryCounts: Record<string, number>;
+  fieldCounts: Record<string, number>;
+}
+
+export function defaultProjectFilters(): ProjectFilters {
+  const numeric = (): FieldFilterState => ({ mode: 'above', value: '', min: '', max: '' });
+  return { projectName: '', entryCount: numeric(), fieldCount: numeric() };
+}
+
+/** Number of active project criteria — drives the badge on the filter icon. */
+export function activeProjectFilterCount(filters: ProjectFilters): number {
+  let count = filters.projectName.trim() === '' ? 0 : 1;
+  if (isFilterActive(filters.entryCount)) count += 1;
+  if (isFilterActive(filters.fieldCount)) count += 1;
+  return count;
+}
+
+/** Apply every active project filter (AND logic) to a list of entries. */
+export function applyProjectFilters<T extends Record<string, unknown>>(
+  rows: T[],
+  filters: ProjectFilters,
+  counts: ProjectCounts
+): T[] {
+  const name = filters.projectName.trim().toLowerCase();
+  const entryActive = isFilterActive(filters.entryCount);
+  const fieldActive = isFilterActive(filters.fieldCount);
+  if (!name && !entryActive && !fieldActive) return rows;
+
+  return rows.filter((row) => {
+    const project = typeof row.project_name === 'string' ? row.project_name : '';
+    if (name && project.toLowerCase() !== name) return false;
+    // Unknown counts fall back to 0 — a project with no cached fields has none.
+    if (entryActive && !matchesFilter(counts.entryCounts[project] ?? 0, filters.entryCount)) {
+      return false;
+    }
+    if (fieldActive && !matchesFilter(counts.fieldCounts[project] ?? 0, filters.fieldCount)) {
+      return false;
+    }
+    return true;
+  });
+}

@@ -46,7 +46,10 @@ vi.mock('@/functions/project/natural_language.js', () => ({
 }));
 vi.mock('@/functions/ai.js', () => ({ askAI: vi.fn(), parseAIResponse: (s: string) => s }));
 vi.mock('@/functions/tone', () => ({ getToneInstruction: () => '' }));
-vi.mock('@/functions/aiMessages', () => ({ getAiMessagesEnabled: () => false }));
+vi.mock('@/functions/aiMessages', () => ({
+  getAiMessagesEnabled: () => false,
+  useAiMessagesEnabled: () => false,
+}));
 
 // Imported lazily so the mocks above are registered first.
 const { ProjectDetailPage } = await import('@/pages/ProjectDetailPage');
@@ -111,4 +114,72 @@ describe('ProjectDetailPage offline', () => {
     expect((stored?.data || []).map((e: any) => e.id)).toHaveLength(1);
     expect((stored.data as any[])[0]._optimistic).toBe(true);
   }, 120000);
+
+  it('pins the project from its own page — the same list the home cards read', async () => {
+    localStorage.removeItem(`dl_pinned_projects_${EMAIL}`);
+    render(
+      <NotesProvider>
+        <MemoryRouter initialEntries={[`/project/${PROJECT}`]}>
+          <Routes>
+            <Route path="/project/:projectName" element={<ProjectDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </NotesProvider>
+    );
+
+    const pinButton = await screen.findByRole('button', { name: 'Pin project' });
+    fireEvent.click(pinButton);
+
+    expect(JSON.parse(localStorage.getItem(`dl_pinned_projects_${EMAIL}`) || '[]')).toEqual([
+      PROJECT,
+    ]);
+    expect(await screen.findByRole('button', { name: 'Unpin project' })).toBeTruthy();
+
+    // Clicking again removes the project from the pinned list
+    fireEvent.click(screen.getByRole('button', { name: 'Unpin project' }));
+    expect(JSON.parse(localStorage.getItem(`dl_pinned_projects_${EMAIL}`) || '[]')).toEqual([]);
+  });
+
+  it('shows the field filter button inside the search bar and opens the panel', async () => {
+    render(
+      <NotesProvider>
+        <MemoryRouter initialEntries={[`/project/${PROJECT}`]}>
+          <Routes>
+            <Route path="/project/:projectName" element={<ProjectDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </NotesProvider>
+    );
+
+    // The funnel button lives at the end of the search bar itself
+    const filterButton = await screen.findByRole('button', { name: 'Filters' });
+    fireEvent.click(filterButton);
+
+    expect(await screen.findByText('Filter by field')).toBeTruthy();
+    // The cached 'task' field gets its own filter input
+    expect(screen.getByLabelText('task contains')).toBeTruthy();
+  });
+
+  it('tints entry cards with the project accent colour', async () => {
+    const { colorForName } = await import('@/lib/projectColorMap');
+    await cacheSet(CACHE_STORES.ENTRIES, `${EMAIL}:${PROJECT}`, {
+      success: true,
+      data: [{ id: 'e1', project_name: PROJECT, entries: { task: 'hello' } }],
+    });
+
+    const { container } = render(
+      <NotesProvider>
+        <MemoryRouter initialEntries={[`/project/${PROJECT}`]}>
+          <Routes>
+            <Route path="/project/:projectName" element={<ProjectDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </NotesProvider>
+    );
+
+    await waitFor(() => expect(container.querySelector('.entry-box')).toBeTruthy());
+    const card = container.querySelector('.entry-box') as HTMLElement;
+    // No custom colour is cached — the accent falls back to the name hash
+    expect(card.getAttribute('style')).toContain(colorForName(PROJECT));
+  });
 });

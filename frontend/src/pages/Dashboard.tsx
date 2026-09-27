@@ -7,12 +7,19 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
-import { EntrySearchBar } from '@/components/SearchFilters';
-import { matchesTextQuery, pinFirst } from '@/lib/entryFilters';
+import { ProjectFilterBlock } from '@/components/SearchFilters';
+import {
+  activeProjectFilterCount,
+  applyProjectFilters,
+  defaultProjectFilters,
+  matchesTextQuery,
+  pinFirst,
+  type ProjectFilters,
+} from '@/lib/entryFilters';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ActivitySummary } from '@/components/ActivitySummary';
 import { addProject } from '@/functions/project/project.js';
-import { addField } from '@/functions/project/fields.js';
+import { addField, getFields } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
@@ -33,7 +40,7 @@ import { useTimerActions } from '@/hooks/useTimerActions';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { TemplatePicker } from '@/components/fields/TemplatePicker';
 import type { Template } from '@/lib/templateApi';
-import { FiArchive, FiRotateCcw, FiX } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiX } from 'react-icons/fi';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import {
   type CalendarEntry,
@@ -222,6 +229,13 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Regular (non-AI) search over the current feed
   const [pageSearch, setPageSearch] = useState('');
+  // Feed filters — the home feed is mixed across projects, so the panel narrows
+  // it by project-level criteria (project name, entry count, field count),
+  // matching the entries page. Field counts are read from the fields cache.
+  const [projectFilters, setProjectFilters] = useState<ProjectFilters>(() =>
+    defaultProjectFilters()
+  );
+  const [fieldCounts, setFieldCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     localStorage.setItem('dashboard-display-mode', displayMode);
@@ -323,6 +337,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Project settings panel
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  // Project the settings panel edits — set by the Edit button on a project card
+  const [settingsProjectName, setSettingsProjectName] = useState('');
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
@@ -593,6 +609,60 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     [projects]
   );
 
+  // Field counts for the filter panel. Field definitions live per project, so
+  // each project's rows are read from the cache and only fetched when missing.
+  useEffect(() => {
+    if (!email) return;
+    const names = Array.from(
+      new Set([
+        ...projects.map((p) => p.project_name as string),
+        ...entries.map((e) => e.project_name as string),
+      ])
+    ).filter(Boolean);
+    if (names.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = {};
+      await Promise.all(
+        names.map(async (name) => {
+          try {
+            let cached = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
+            if (!cached?.data) cached = await getFields(email, name);
+            const rows = Array.isArray(cached?.data) ? cached.data : [];
+            next[name] = rows.filter((r: Record<string, unknown>) => r?.field_name).length;
+          } catch {
+            next[name] = 0;
+          }
+        })
+      );
+      if (!cancelled) setFieldCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [email, projects, entries]);
+
+  // Entry counts per project — powers the "entry count" filter
+  const entryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      const name = (e.project_name as string) || '';
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [entries]);
+
+  // Projects offered in the filter panel — anything with entries or fields
+  const projectNames = useMemo(
+    () =>
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [entryCounts, fieldCounts]
+  );
+
+  const activeFilters = activeProjectFilterCount(projectFilters);
+
   // Load pinned project names for this user (localStorage — no backend column).
   useEffect(() => {
     if (!email) return;
@@ -642,8 +712,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       filtered = filtered.filter((e) => matchesTextQuery(e, pageSearch));
     }
 
+    // Project filters — project name, entry count and field count
+    filtered = applyProjectFilters(filtered, projectFilters, { entryCounts, fieldCounts });
+
     return pinFirst(filtered);
-  }, [entries, activeView, pageSearch]);
+  }, [entries, activeView, pageSearch, projectFilters, entryCounts, fieldCounts]);
 
   // In-progress entries (started but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
@@ -1527,10 +1600,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   const doneCount = entries.filter(
                     (e) => e.project_name === name && e.status === 'done_and_dusted'
                   ).length;
+                  const cardAccent = resolveProjectColor(name, dashColorMap);
                   return (
                     <div
                       key={`archived-${name}-${i}`}
                       className="project-card project-card--archived"
+                      style={{
+                        borderLeft: `3px solid ${cardAccent}`,
+                        background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
+                      }}
                     >
                       <div className="project-card-header">
                         <h3 className="project-card-name">{name}</h3>
@@ -1601,12 +1679,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         ) : (
           <>
-            {/* Search + AI quick-add bar */}
+            {/* Search + AI quick-add bar — project-level filters match the
+                entries page so the funnel icon is available on Home too. */}
             <div className="search-ai-row">
-              <EntrySearchBar
-                value={pageSearch}
-                onChange={setPageSearch}
+              <ProjectFilterBlock
+                query={pageSearch}
+                onQueryChange={setPageSearch}
                 placeholder="Search entries..."
+                projectNames={projectNames}
+                filters={projectFilters}
+                onFiltersChange={setProjectFilters}
               />
               <div data-tour="quick-entry" className="search-ai-row__ai">
                 <QuickEntryBar
@@ -1635,20 +1717,20 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 >
                   <button
                     type="button"
-                    className="feed-view-btn"
-                    onClick={() => navigate('/entries')}
-                    title="Browse all entries"
-                  >
-                    Entries
-                  </button>
-                  <button
-                    type="button"
                     className="feed-view-btn active"
                     aria-current="page"
                     onClick={() => navigate('/dashboard')}
                     title="Back to projects"
                   >
                     Projects
+                  </button>
+                  <button
+                    type="button"
+                    className="feed-view-btn"
+                    onClick={() => navigate('/entries')}
+                    title="Browse all entries"
+                  >
+                    Entries
                   </button>
                 </div>
               </div>
@@ -1664,10 +1746,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   ).length;
                   const isPinned = pinnedProjects.has(name);
                   const isConfirmingDelete = confirmDeleteProject === name;
+                  const cardAccent = resolveProjectColor(name, dashColorMap);
                   return (
                     <div
                       key={name}
                       className={`project-card project-card--actionable ${isPinned ? 'is-pinned' : ''}`}
+                      style={{
+                        borderLeft: `3px solid ${cardAccent}`,
+                        background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
+                      }}
                       role="button"
                       tabIndex={0}
                       onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
@@ -1725,6 +1812,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                           onClick={(e) => e.stopPropagation()}
                           onKeyDown={(e) => e.stopPropagation()}
                         >
+                          <button
+                            type="button"
+                            className="project-card-action-btn"
+                            onClick={() => {
+                              setSettingsProjectName(name);
+                              setProjectSettingsOpen(true);
+                            }}
+                            title="Edit project"
+                          >
+                            <FiEdit2 size={12} />
+                            Edit
+                          </button>
                           <button
                             type="button"
                             className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
@@ -1870,8 +1969,24 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       </>
                     </svg>
                   </div>
-                  <h2 className="empty-title">Nothing due soon</h2>
-                  <p className="empty-desc">No entries are due within the next 3 days.</p>
+                  {activeFilters > 0 ? (
+                    <>
+                      <h2 className="empty-title">No entries match your filters</h2>
+                      <p className="empty-desc">Try widening or clearing the filters.</p>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setProjectFilters(defaultProjectFilters())}
+                      >
+                        Clear filters
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="empty-title">Nothing due soon</h2>
+                      <p className="empty-desc">No entries are due within the next 3 days.</p>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -2485,9 +2600,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {/* Project Settings Panel */}
       <ProjectSettingsPanel
         open={projectSettingsOpen}
-        projectName={activeView}
+        projectName={settingsProjectName}
         userEmail={email}
-        currentColor={dashColorMap[activeView] || null}
+        currentColor={dashColorMap[settingsProjectName] || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => {
           setActiveView('all');

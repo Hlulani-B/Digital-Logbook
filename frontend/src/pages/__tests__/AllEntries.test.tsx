@@ -19,6 +19,7 @@ vi.mock('@/lib/cache', () => ({
     ALL_ENTRIES: 'all_entries',
     PROJECTS: 'projects',
     PROFILE: 'profile',
+    FIELDS: 'fields',
   },
 }));
 
@@ -246,5 +247,99 @@ describe('AllEntriesPage', () => {
     // The Sort dropdown trigger reflects the saved preference
     expect(screen.getByRole('button', { name: 'Priority' })).toBeTruthy();
     localStorage.clear();
+  });
+
+  /** Route each cache store this page reads to the data under test. */
+  function mockFeed({
+    entries,
+    projects,
+    fields = {},
+  }: {
+    entries: Array<Record<string, unknown>>;
+    projects: Array<Record<string, unknown>>;
+    fields?: Record<string, Array<Record<string, unknown>>>;
+  }) {
+    vi.mocked(cacheGet).mockImplementation(async (store: string, key: string) => {
+      if (store === 'all_entries') return { data: entries };
+      if (store === 'projects') return { data: projects };
+      if (store === 'fields') return { data: fields[key.split(':')[1]] ?? [] };
+      return { data: [] };
+    });
+  }
+
+  const feedEntries = [
+    { id: 'a1', project_name: 'Alpha' },
+    { id: 'a2', project_name: 'Alpha' },
+    { id: 'a3', project_name: 'Alpha' },
+    { id: 'b1', project_name: 'Beta' },
+  ];
+  const feedProjects = [{ project_name: 'Alpha' }, { project_name: 'Beta' }];
+
+  it('shows the filter icon at the end of the search bar', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeTruthy();
+  });
+
+  it('opens the entries filter panel with project, entry count and field count', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    expect(screen.getByText('Filter entries')).toBeTruthy();
+    expect(screen.getByLabelText('Project name filter')).toBeTruthy();
+    expect(screen.getByLabelText('Entry count filter type')).toBeTruthy();
+    expect(screen.getByLabelText('Field count filter type')).toBeTruthy();
+  });
+
+  it('filters the feed by project name', async () => {
+    mockFeed({ entries: feedEntries, projects: feedProjects });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.change(screen.getByLabelText('Project name filter'), { target: { value: 'Alpha' } });
+
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
+    expect(screen.getByRole('button', { name: 'Filters (1 active)' })).toBeTruthy();
+  });
+
+  it("filters the feed by the entry's project entry count", async () => {
+    mockFeed({ entries: feedEntries, projects: feedProjects });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.change(screen.getByLabelText('Entry count value'), { target: { value: '2' } });
+
+    // Alpha has 3 entries, Beta only 1 — Above 2 keeps Alpha's rows
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
+  });
+
+  it("filters the feed by the entry's project field count", async () => {
+    mockFeed({
+      entries: feedEntries,
+      projects: feedProjects,
+      fields: { Alpha: [{ field_name: 'Calories' }, { field_name: 'Food Name' }] },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.change(screen.getByLabelText('Field count value'), { target: { value: '1' } });
+
+    // Only Alpha defines fields at all — Beta's 0 field count is filtered out
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
+  });
+
+  it('clears every active filter', async () => {
+    mockFeed({ entries: feedEntries, projects: feedProjects });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.change(screen.getByLabelText('Project name filter'), { target: { value: 'Beta' } });
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(1));
+
+    fireEvent.click(screen.getByText('Clear all'));
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
+    expect(screen.getByLabelText('Project name filter')).toHaveProperty('value', '');
   });
 });

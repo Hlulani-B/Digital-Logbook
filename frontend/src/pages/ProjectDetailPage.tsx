@@ -29,6 +29,7 @@ import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { SearchFilterBlock } from '@/components/SearchFilters';
 import { getFields } from '@/functions/project/fields.js';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 import { normalizeField } from '@/lib/fieldSchema';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import {
@@ -114,6 +115,10 @@ export function ProjectDetailPage() {
 
   // Project colour (loaded from cached projects)
   const [projectColor, setProjectColor] = useState<string | null>(null);
+
+  // Pin — the same localStorage list the home cards use, so pinning here also
+  // floats this project to the top of the home page.
+  const [projectPinned, setProjectPinned] = useState(false);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -225,6 +230,39 @@ export function ProjectDetailPage() {
     });
     return () => unsub();
   }, [email, projectName]);
+
+  // Load this project's pinned state (localStorage — no backend column)
+  useEffect(() => {
+    if (!email || !projectName) return;
+    try {
+      const stored = localStorage.getItem(`dl_pinned_projects_${email}`);
+      setProjectPinned(new Set(stored ? JSON.parse(stored) : []).has(projectName));
+    } catch {
+      setProjectPinned(false);
+    }
+  }, [email, projectName]);
+
+  const toggleProjectPin = () => {
+    if (!email || !projectName) return;
+    setProjectPinned((prev) => {
+      const next = !prev;
+      try {
+        const key = `dl_pinned_projects_${email}`;
+        const stored = JSON.parse(localStorage.getItem(key) || '[]');
+        const set = new Set(Array.isArray(stored) ? stored : []);
+        if (next) set.add(projectName);
+        else set.delete(projectName);
+        localStorage.setItem(key, JSON.stringify([...set]));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Colour shown on this project's entry cards — the project's custom colour,
+  // or the same name-derived accent every other page gives it.
+  const projectAccent = projectName
+    ? resolveProjectColor(projectName, projectColor ? { [projectName]: projectColor } : {})
+    : null;
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -665,6 +703,36 @@ export function ProjectDetailPage() {
             <FiSettings size={12} />
             Settings
           </button>
+
+          {/* Pin — floats this project to the top of the home page */}
+          <button
+            type="button"
+            className={`sort-btn ${projectPinned ? 'is-pinned' : ''}`}
+            onClick={toggleProjectPin}
+            aria-pressed={projectPinned}
+            aria-label={projectPinned ? 'Unpin project' : 'Pin project'}
+            title={
+              projectPinned
+                ? 'Unpin — the project leaves the top of the home list'
+                : 'Pin to the top of the home list'
+            }
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill={projectPinned ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="17" x2="12" y2="22" />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+            </svg>
+            {projectPinned ? 'Pinned' : 'Pin'}
+          </button>
         </div>
 
         {/* Search + per-field filters, with the AI quick-add bar beside it */}
@@ -813,7 +881,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -829,7 +897,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : (
               <div className="entries-feed">
@@ -840,7 +908,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
-                    projectColor={projectColor}
+                    projectColor={projectAccent}
                   />
                 ))}
               </div>
@@ -961,6 +1029,7 @@ export function ProjectDetailPage() {
                   }
                 }}
                 projectNames={projectName ? [projectName] : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
                 onDeleteSelected={async (ids: string[]) => {
                   if (!email) return;
                   // Optimistic: remove from local state immediately
@@ -989,7 +1058,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -1005,7 +1074,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : (
               <div className="entries-grid">
@@ -1016,7 +1085,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
-                    projectColor={projectColor}
+                    projectColor={projectAccent}
                   />
                 ))}
               </div>

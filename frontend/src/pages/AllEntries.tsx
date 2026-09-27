@@ -4,9 +4,17 @@ import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
-import { EntrySearchBar } from '@/components/SearchFilters';
-import { matchesTextQuery, pinFirst } from '@/lib/entryFilters';
+import { ProjectFilterBlock } from '@/components/SearchFilters';
+import {
+  activeProjectFilterCount,
+  applyProjectFilters,
+  defaultProjectFilters,
+  matchesTextQuery,
+  pinFirst,
+  type ProjectFilters,
+} from '@/lib/entryFilters';
 import { setPriority } from '@/functions/project/priority.js';
+import { getFields } from '@/functions/project/fields.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
@@ -183,6 +191,15 @@ export function AllEntriesPage() {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState('');
 
+  // Feed filters — entries are mixed across projects, so the panel narrows the
+  // feed by project-level criteria (project name, entry count, field count)
+  // instead of per-project field values.
+  const [projectFilters, setProjectFilters] = useState<ProjectFilters>(() =>
+    defaultProjectFilters()
+  );
+  // Field counts per project — read from the fields cache, fetched when missing.
+  const [fieldCounts, setFieldCounts] = useState<Record<string, number>>({});
+
   // Static placeholder for quick entry (no AI) — kept in sync with the home page
   const aiPlaceholder = 'Capture quick entry';
 
@@ -288,6 +305,39 @@ export function AllEntriesPage() {
     return () => unsubs.forEach((unsub) => unsub());
   }, [email, reload]);
 
+  // Field counts for the filter panel. Field definitions live per project, so
+  // each project's rows are read from the cache and only fetched when missing.
+  useEffect(() => {
+    if (!email) return;
+    const names = Array.from(
+      new Set([
+        ...projects.map((p) => p.project_name as string),
+        ...entries.map((e) => e.project_name as string),
+      ])
+    ).filter(Boolean);
+    if (names.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = {};
+      await Promise.all(
+        names.map(async (name) => {
+          try {
+            let cached = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
+            if (!cached?.data) cached = await getFields(email, name);
+            const rows = Array.isArray(cached?.data) ? cached.data : [];
+            next[name] = rows.filter((r: Record<string, unknown>) => r?.field_name).length;
+          } catch {
+            next[name] = 0;
+          }
+        })
+      );
+      if (!cancelled) setFieldCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [email, projects, entries]);
+
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
     await setPriority(email, priorityValue, projectName, entryId);
@@ -295,6 +345,26 @@ export function AllEntriesPage() {
   };
 
   // Filtered entries
+  const entryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      const name = (e.project_name as string) || '';
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [entries]);
+
+  // Projects offered in the filter panel — anything with entries or fields
+  const projectNames = useMemo(
+    () =>
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [entryCounts, fieldCounts]
+  );
+
+  const activeFilters = activeProjectFilterCount(projectFilters);
+
   const filteredEntries = useMemo(() => {
     let filtered = [...entries];
 
@@ -302,6 +372,9 @@ export function AllEntriesPage() {
     if (searchQuery.trim()) {
       filtered = filtered.filter((e) => matchesTextQuery(e, searchQuery));
     }
+
+    // Apply project filters — project name, entry count, field count
+    filtered = applyProjectFilters(filtered, projectFilters, { entryCounts, fieldCounts });
 
     // Apply sort
     if (sortBy === 'priority') {
@@ -320,7 +393,7 @@ export function AllEntriesPage() {
     }
 
     return pinFirst(filtered);
-  }, [entries, searchQuery, sortBy]);
+  }, [entries, searchQuery, sortBy, projectFilters, entryCounts, fieldCounts]);
 
   const colorMap = useMemo(
     () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
@@ -342,10 +415,13 @@ export function AllEntriesPage() {
 
         {/* Search bar beside the AI quick-add bar */}
         <div className="search-ai-row">
-          <EntrySearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
+          <ProjectFilterBlock
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
             placeholder="Search entries..."
+            projectNames={projectNames}
+            filters={projectFilters}
+            onFiltersChange={setProjectFilters}
           />
 
           {/* Quick Entry Bar */}
@@ -377,20 +453,20 @@ export function AllEntriesPage() {
           >
             <button
               type="button"
+              className="feed-view-btn"
+              onClick={() => navigate('/dashboard')}
+              title="Back to projects"
+            >
+              Projects
+            </button>
+            <button
+              type="button"
               className="feed-view-btn active"
               aria-current="page"
               onClick={() => navigate('/entries')}
               title="Browse all entries"
             >
               Entries
-            </button>
-            <button
-              type="button"
-              className="feed-view-btn"
-              onClick={() => navigate('/dashboard')}
-              title="Back to projects"
-            >
-              Projects
             </button>
           </div>
 
@@ -457,12 +533,29 @@ export function AllEntriesPage() {
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </div>
-              <h2 className="empty-title">{searchQuery ? 'No results found' : 'No entries yet'}</h2>
+              <h2 className="empty-title">
+                {searchQuery
+                  ? 'No results found'
+                  : activeFilters > 0
+                    ? 'No entries match your filters'
+                    : 'No entries yet'}
+              </h2>
               <p className="empty-desc">
                 {searchQuery
                   ? `No entries match "${searchQuery}". Try a different search term.`
-                  : 'No entries to show right now.'}
+                  : activeFilters > 0
+                    ? 'Try widening or clearing the filters.'
+                    : 'No entries to show right now.'}
               </p>
+              {activeFilters > 0 && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setProjectFilters(defaultProjectFilters())}
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           </div>
         )}
