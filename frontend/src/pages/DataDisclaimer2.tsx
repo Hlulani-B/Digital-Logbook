@@ -14,7 +14,6 @@ import { useAuth } from '@/context/AuthContext';
 export function DataDisclaimer2() {
   const { user } = useAuth();
   const email = user?.email;
-  const [projects, setProjects] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
 
   // Guard against overlapping loadData calls — two cacheSubscribe listeners
@@ -26,16 +25,8 @@ export function DataDisclaimer2() {
   const loadData = useCallback(async () => {
     if (!email) return;
     const seq = ++loadSeq.current;
-    const [p, e] = await Promise.all([
-      cacheGet(CACHE_STORES.PROJECTS, email),
-      cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-    ]);
+    const e = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
     if (seq !== loadSeq.current) return;
-    if (p?.data || p?.projects) {
-      const next = p.data || p.projects || [];
-      // Never blank a populated list with an empty mid-invalidation read.
-      setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
-    }
     if (e?.data) {
       const next = Array.isArray(e.data) ? e.data : [];
       setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
@@ -53,17 +44,14 @@ export function DataDisclaimer2() {
   }, [loadData]);
   useEffect(() => {
     if (!email) return;
-    const unsubs = [
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
-    ];
-    return () => unsubs.forEach((u) => u());
+    const unsub = cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload);
+    return () => unsub();
   }, [email, reload]);
 
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar projects={projects} entries={entries} />
+      <NavBar entries={entries} />
       <main className="dash-main">
         <Header title="Data & AI Disclaimer" />
         <div

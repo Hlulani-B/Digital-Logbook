@@ -4,6 +4,7 @@ import { FiEdit } from 'react-icons/fi';
 import { classifyEntryPayload, formatEntryValue, cleanSummaryText } from '@/lib/entryPayload';
 import './ProjectTable.css';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 
 /* Hook to detect mobile width (< 600px) */
 function useIsMobile() {
@@ -784,7 +785,7 @@ export default function ProjectTaskTable({
           hideHeader={projectNames?.length === 1}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
-          projectColor={colorMap ? colorMap[project.name] || undefined : undefined}
+          projectColor={colorMap ? resolveProjectColor(project.name, colorMap) : undefined}
         />
       ))}
     </div>

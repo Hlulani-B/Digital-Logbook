@@ -1,5 +1,6 @@
 import ChecklistEntryCard from '../EntryTemplates/EntryChecklist';
 import { type EntryPayload } from '@/lib/entryPayload';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -110,7 +111,9 @@ export default function EntriesByDueDateBoard({
                 entry={entry}
                 onUpdated={onUpdated}
                 onDelete={onDelete}
-                projectColor={colorMap ? colorMap[entry.project_name] || undefined : undefined}
+                projectColor={
+                  colorMap ? resolveProjectColor(entry.project_name, colorMap) : undefined
+                }
               />
             ))}
           </div>

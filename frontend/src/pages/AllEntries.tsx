@@ -4,22 +4,136 @@ import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
-import { EntrySearchBar } from '@/components/SearchFilters';
-import { matchesTextQuery, pinFirst } from '@/lib/entryFilters';
+import { ProjectFilterBlock } from '@/components/SearchFilters';
+import {
+  activeProjectFilterCount,
+  applyProjectFilters,
+  defaultProjectFilters,
+  matchesTextQuery,
+  pinFirst,
+  type ProjectFilters,
+} from '@/lib/entryFilters';
 import { setPriority } from '@/functions/project/priority.js';
+import { getFields } from '@/functions/project/fields.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { EntryBox } from '@/pages/NewEntry';
+import { AddEntry } from '@/pages/AddEntry';
 import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
 import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import VoiceFeature from '@/pages/VoiceFeature';
+import { KanbanBoardView } from '@/pages/Kanban';
+import { TimelineView } from '@/pages/Timeline';
 import { type EntryPayload } from '@/lib/entryPayload';
+import { type CalendarEntry } from '@/lib/calendar';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 
 type Entry = Record<string, unknown>;
+
+interface ToolbarDropdownOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+interface ToolbarDropdownProps<T extends string> {
+  value: T;
+  options: Array<ToolbarDropdownOption<T>>;
+  onChange: (value: T) => void;
+  /** Which edge the menu hugs — 'right' keeps it inside the viewport. */
+  menuAlign?: 'left' | 'right';
+}
+
+/**
+ * Compact toolbar dropdown (View / Sort style). Shows the active option on
+ * the trigger and closes on outside click or Escape.
+ */
+function ToolbarDropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  menuAlign = 'left',
+}: ToolbarDropdownProps<T>) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const currentLabel = options.find((option) => option.value === value)?.label ?? value;
+
+  return (
+    <div className="toolbar-dropdown" ref={rootRef}>
+      <button
+        type="button"
+        className="toolbar-dropdown__btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="toolbar-dropdown__value">{currentLabel}</span>
+        <svg
+          className="toolbar-dropdown__chevron"
+          aria-hidden="true"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className={[
+            'toolbar-dropdown__menu',
+            menuAlign === 'right' && 'toolbar-dropdown__menu--right',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          role="listbox"
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={`toolbar-dropdown__option ${option.value === value ? 'is-active' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AllEntriesPage() {
   const { user, signOut } = useAuth();
@@ -39,11 +153,20 @@ export function AllEntriesPage() {
     localStorage.setItem('allentries-sort-by', sortBy);
   }, [sortBy]);
 
-  // Display mode: cards, checklist, board, or table
+  // Display mode: cards, checklist, board, table, kanban, or timeline
   // Persist in localStorage so it survives refresh
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board' | 'table'>(() => {
+  const [displayMode, setDisplayMode] = useState<
+    'cards' | 'checklist' | 'board' | 'table' | 'kanban' | 'timeline'
+  >(() => {
     const saved = localStorage.getItem('allentries-display-mode');
-    if (saved === 'cards' || saved === 'checklist' || saved === 'board' || saved === 'table') {
+    if (
+      saved === 'cards' ||
+      saved === 'checklist' ||
+      saved === 'board' ||
+      saved === 'table' ||
+      saved === 'kanban' ||
+      saved === 'timeline'
+    ) {
       return saved;
     }
     return 'cards';
@@ -62,8 +185,21 @@ export function AllEntriesPage() {
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // Static placeholder for quick entry (no AI)
-  const aiPlaceholder = 'Write what you worked on...';
+  // Corner add-entry button — project picker then the entry form
+  const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [newEntryProject, setNewEntryProject] = useState('');
+
+  // Feed filters — entries are mixed across projects, so the panel narrows the
+  // feed by project-level criteria (project name, entry count, field count)
+  // instead of per-project field values.
+  const [projectFilters, setProjectFilters] = useState<ProjectFilters>(() =>
+    defaultProjectFilters()
+  );
+  // Field counts per project — read from the fields cache, fetched when missing.
+  const [fieldCounts, setFieldCounts] = useState<Record<string, number>>({});
+
+  // Static placeholder for quick entry (no AI) — kept in sync with the home page
+  const aiPlaceholder = 'Capture quick entry';
 
   const email = user?.email || '';
 
@@ -167,6 +303,39 @@ export function AllEntriesPage() {
     return () => unsubs.forEach((unsub) => unsub());
   }, [email, reload]);
 
+  // Field counts for the filter panel. Field definitions live per project, so
+  // each project's rows are read from the cache and only fetched when missing.
+  useEffect(() => {
+    if (!email) return;
+    const names = Array.from(
+      new Set([
+        ...projects.map((p) => p.project_name as string),
+        ...entries.map((e) => e.project_name as string),
+      ])
+    ).filter(Boolean);
+    if (names.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = {};
+      await Promise.all(
+        names.map(async (name) => {
+          try {
+            let cached = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
+            if (!cached?.data) cached = await getFields(email, name);
+            const rows = Array.isArray(cached?.data) ? cached.data : [];
+            next[name] = rows.filter((r: Record<string, unknown>) => r?.field_name).length;
+          } catch {
+            next[name] = 0;
+          }
+        })
+      );
+      if (!cancelled) setFieldCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [email, projects, entries]);
+
   const handleSetPriority = async (entryId: string, projectName: string, priorityValue: string) => {
     if (!email) return;
     await setPriority(email, priorityValue, projectName, entryId);
@@ -174,6 +343,26 @@ export function AllEntriesPage() {
   };
 
   // Filtered entries
+  const entryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      const name = (e.project_name as string) || '';
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [entries]);
+
+  // Projects offered in the filter panel — anything with entries or fields
+  const projectNames = useMemo(
+    () =>
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [entryCounts, fieldCounts]
+  );
+
+  const activeFilters = activeProjectFilterCount(projectFilters);
+
   const filteredEntries = useMemo(() => {
     let filtered = [...entries];
 
@@ -181,6 +370,9 @@ export function AllEntriesPage() {
     if (searchQuery.trim()) {
       filtered = filtered.filter((e) => matchesTextQuery(e, searchQuery));
     }
+
+    // Apply project filters — project name, entry count, field count
+    filtered = applyProjectFilters(filtered, projectFilters, { entryCounts, fieldCounts });
 
     // Apply sort
     if (sortBy === 'priority') {
@@ -199,28 +391,35 @@ export function AllEntriesPage() {
     }
 
     return pinFirst(filtered);
-  }, [entries, searchQuery, sortBy]);
+  }, [entries, searchQuery, sortBy, projectFilters, entryCounts, fieldCounts]);
 
   const colorMap = useMemo(
     () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
     [projects]
   );
 
+  // Kanban groups by status and Timeline is chronological — sorting does not
+  // apply there, so the Sort control is hidden while those views are active.
+  const showSortControl = displayMode !== 'kanban' && displayMode !== 'timeline';
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar projects={projects} entries={entries} activeView="all" />
+      <NavBar entries={entries} activeView="all" />
 
       <main className="dash-main">
-        <Header title="My Items" entries={entries} projects={projects} />
+        <Header title="My Entries" entries={entries} projects={projects} />
 
         {/* Search bar beside the AI quick-add bar */}
         <div className="search-ai-row">
-          <EntrySearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Filter entries..."
+          <ProjectFilterBlock
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            placeholder="Search entries..."
+            projectNames={projectNames}
+            filters={projectFilters}
+            onFiltersChange={setProjectFilters}
           />
 
           {/* Quick Entry Bar */}
@@ -243,73 +442,65 @@ export function AllEntriesPage() {
           </div>
         </div>
 
-        {/* Display mode + Sort controls */}
-        <div className="feed-controls-row">
-          <div className="feed-view-toggle">
+        {/* Page switcher: Entries / Projects */}
+        <div className="page-switcher-row">
+          <div
+            className="feed-view-toggle"
+            role="group"
+            aria-label="Switch between entries and projects"
+          >
             <button
-              className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-              onClick={() => setDisplayMode('cards')}
+              type="button"
+              className="feed-view-btn"
+              onClick={() => navigate('/dashboard')}
+              title="Back to projects"
             >
-              Cards
+              Projects
             </button>
             <button
-              className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-              onClick={() => setDisplayMode('checklist')}
+              type="button"
+              className="feed-view-btn active"
+              aria-current="page"
+              onClick={() => navigate('/entries')}
+              title="Browse all entries"
             >
-              Checklist
-            </button>
-            <button
-              className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-              onClick={() => setDisplayMode('board')}
-            >
-              Board
-            </button>
-            <button
-              className={`feed-view-btn ${displayMode === 'table' ? 'active' : ''}`}
-              onClick={() => setDisplayMode('table')}
-            >
-              Table
+              Entries
             </button>
           </div>
-          <div className="feed-sort-group">
-            <span className="feed-sort-label">Sort:</span>
-            <button
-              className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`}
-              onClick={() => setSortBy('date')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              Date
-            </button>
-            <button
-              className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`}
-              onClick={() => setSortBy('priority')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
-              Priority
-            </button>
+
+          {/* View + Sort sit together opposite the Entries/Projects toggle,
+              mirroring the search/AI bar row's layout. */}
+          <div className="page-switcher-controls">
+            <div className="feed-view-group">
+              <span className="feed-view-label">View:</span>
+              <ToolbarDropdown
+                value={displayMode}
+                onChange={setDisplayMode}
+                options={[
+                  { value: 'cards', label: 'Cards' },
+                  { value: 'checklist', label: 'Checklist' },
+                  { value: 'board', label: 'Board' },
+                  { value: 'table', label: 'Table' },
+                  { value: 'kanban', label: 'Kanban' },
+                  { value: 'timeline', label: 'Timeline' },
+                ]}
+              />
+            </div>
+
+            {showSortControl && (
+              <div className="feed-sort-group">
+                <span className="feed-sort-label">Sort:</span>
+                <ToolbarDropdown
+                  value={sortBy}
+                  onChange={setSortBy}
+                  menuAlign="right"
+                  options={[
+                    { value: 'date', label: 'Date' },
+                    { value: 'priority', label: 'Priority' },
+                  ]}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -340,12 +531,29 @@ export function AllEntriesPage() {
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </div>
-              <h2 className="empty-title">{searchQuery ? 'No results found' : 'No entries yet'}</h2>
+              <h2 className="empty-title">
+                {searchQuery
+                  ? 'No results found'
+                  : activeFilters > 0
+                    ? 'No entries match your filters'
+                    : 'No entries yet'}
+              </h2>
               <p className="empty-desc">
                 {searchQuery
                   ? `No entries match "${searchQuery}". Try a different search term.`
-                  : 'No entries to show right now.'}
+                  : activeFilters > 0
+                    ? 'Try widening or clearing the filters.'
+                    : 'No entries to show right now.'}
               </p>
+              {activeFilters > 0 && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setProjectFilters(defaultProjectFilters())}
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -399,6 +607,17 @@ export function AllEntriesPage() {
             colorMap={colorMap}
           />
         )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'kanban' && (
+          <KanbanBoardView
+            entries={filteredEntries as unknown as CalendarEntry[]}
+            email={email}
+            colorMap={colorMap}
+            onUpdated={() => loadData()}
+          />
+        )}
+        {!loading && filteredEntries.length > 0 && displayMode === 'timeline' && (
+          <TimelineView entries={filteredEntries as unknown as CalendarEntry[]} />
+        )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
           <div className="entries-feed">
             {filteredEntries.map((row, i) => (
@@ -417,6 +636,110 @@ export function AllEntriesPage() {
           </div>
         )}
       </main>
+
+      {/* Corner add-entry button — mirrors the home and project pages */}
+      <div className="fab-container">
+        <button
+          className="fab"
+          onClick={() => setNewEntryOpen(true)}
+          aria-label="New entry"
+          title="Create a new entry"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="fab-label">New</span>
+        </button>
+      </div>
+
+      {/* New Entry Modal — pick a project, then fill in the entry form */}
+      {newEntryOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setNewEntryOpen(false);
+            setNewEntryProject('');
+          }}
+        >
+          <div
+            className={`modal-card glass modal-card-wide${newEntryProject ? ' modal-card--entry' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {!newEntryProject ? (
+              <>
+                <h2 className="modal-title">New Entry</h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Select a project:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  {projects
+                    .filter((p) => !p.archived)
+                    .map((p) => (
+                      <button
+                        key={p.project_name as string}
+                        className="drawer-item"
+                        onClick={() => setNewEntryProject(p.project_name as string)}
+                        style={{ textAlign: 'left', justifyContent: 'flex-start' }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        {p.project_name as string}
+                      </button>
+                    ))}
+                  {projects.filter((p) => !p.archived).length === 0 && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                      No projects yet. Create one first.
+                    </p>
+                  )}
+                </div>
+                <div className="modal-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setNewEntryOpen(false);
+                      setNewEntryProject('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <AddEntry
+                user_email={email}
+                project_name={newEntryProject}
+                onAdded={() => {
+                  setNewEntryOpen(false);
+                  setNewEntryProject('');
+                  loadData();
+                }}
+                onCancel={() => {
+                  setNewEntryOpen(false);
+                  setNewEntryProject('');
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Voice Feature */}
       {voiceOpen && (
