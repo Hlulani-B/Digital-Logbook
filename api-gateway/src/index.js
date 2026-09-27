@@ -20,7 +20,7 @@ const allowedOrigins = [
     .map((origin) => origin.trim())
     .filter(Boolean),
 
-  'https://digital-logbook-xjhn.onrender.com',
+  'https://api-gateway-xeim.onrender.com',
   'https://digital-logbook-bxgv.onrender.com',
   'https://digital-logbook-bjev.onrender.com',
   'https://digital-logbook-hlulani.onrender.com',
