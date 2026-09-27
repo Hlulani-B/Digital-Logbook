@@ -36,6 +36,8 @@ If automatic linking is disabled in the Supabase project, the second sign-in met
 
 Users who forget their password can request a reset link from the sign-in page or from the Account tab in settings.
 
+![Password Reset page with email input field and Send Reset Link button](assets/ui-images/Screenshot_27-9-2026_password_reset.png)
+
 The flow works as follows:
 
 - The user enters their email to request a reset link.
