@@ -94,9 +94,11 @@ describe('ProjectDetailPage offline', () => {
     // Open the New item modal and fill the single column.
     fireEvent.click(screen.getByText('New'));
     const input = await waitFor(() => {
-      const el = document.getElementById('field-task') as HTMLInputElement | null;
+      // Find the input by its label text (field name is 'task')
+      const label = screen.getByText('task', { selector: 'label' });
+      const el = label.parentElement?.querySelector('input');
       expect(el).toBeTruthy();
-      return el!;
+      return el as HTMLInputElement;
     });
     fireEvent.change(input, { target: { value: 'offline task' } });
     fireEvent.submit(container.querySelector('form.add-entry')!);

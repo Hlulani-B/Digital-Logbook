@@ -415,7 +415,6 @@ export function NavBar({ entries: entriesProp = [], activeView = 'all' }: NavBar
             Activity Log
           </button>
         </div>
-
       </aside>
     </>
   );

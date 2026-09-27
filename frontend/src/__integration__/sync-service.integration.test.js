@@ -14,6 +14,7 @@ const mockGetProjectsByEmail = vi.fn();
 const mockGetAllEntries = vi.fn();
 const mockGetProfile = vi.fn();
 const mockGetArchives = vi.fn();
+const mockGetUnarchived = vi.fn();
 const mockGetArchivedProjects = vi.fn();
 const mockGetUnarchivedProjects = vi.fn();
 
@@ -32,6 +33,7 @@ vi.mock('@/functions/profile/profile.js', () => ({
 
 vi.mock('@/functions/project/archives.js', () => ({
   getArchives: (...args) => mockGetArchives(...args),
+  getUnarchived: (...args) => mockGetUnarchived(...args),
   getArchivedProjects: (...args) => mockGetArchivedProjects(...args),
   getUnarchivedProjects: (...args) => mockGetUnarchivedProjects(...args),
 }));
@@ -50,6 +52,7 @@ describe('SyncService Integration', () => {
     mockGetAllEntries.mockResolvedValue({ success: true, data: [] });
     mockGetProfile.mockResolvedValue({ success: true, data: { username: 'syncuser' } });
     mockGetArchives.mockResolvedValue({ success: true, data: [] });
+    mockGetUnarchived.mockResolvedValue({ success: true, data: [] });
     mockGetArchivedProjects.mockResolvedValue({ success: true, data: [] });
     mockGetUnarchivedProjects.mockResolvedValue({ success: true, data: [] });
   });

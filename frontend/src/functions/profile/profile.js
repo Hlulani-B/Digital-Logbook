@@ -177,6 +177,66 @@ export async function updateName(email, new_name) {
 }
 
 /**
+ * Update profile details (role, bio, student_number).
+ * Updates IndexedDB immediately, then syncs to server.
+ */
+export async function updateProfileDetails(email, { role, bio, student_number }) {
+  const cached = await cacheGet(CACHE_STORES.PROFILE, email);
+
+  // 1. Optimistic: update in cache
+  if (cached) {
+    const currentData = cached.data || cached;
+    await cacheSet(CACHE_STORES.PROFILE, email, {
+      success: true,
+      profile: {
+        ...currentData,
+        ...(currentData?.profile || {}),
+        role: role ?? currentData?.profile?.role,
+        bio: bio ?? currentData?.profile?.bio,
+        student_number: student_number ?? currentData?.profile?.student_number,
+      },
+    });
+  }
+
+  // 2. Check online status
+  if (!navigator.onLine) {
+    console.log('[updateProfileDetails] Offline, queuing action');
+    await addToQueue('updateProfileDetails', 'profile', {
+      email,
+      role,
+      bio,
+      student_number,
+    });
+    return { success: true, queued: true };
+  }
+
+  // 3. Sync to server
+  try {
+    const result = await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'profileDetails',
+        values: { email, role, bio, student_number },
+      }),
+    });
+
+    if (result?.success) {
+      await getProfile(email);
+    }
+    return result;
+  } catch (err) {
+    console.error('[updateProfileDetails] Server sync failed, queuing for retry:', err);
+    await addToQueue('updateProfileDetails', 'profile', {
+      email,
+      role,
+      bio,
+      student_number,
+    });
+    return { success: true, queued: true };
+  }
+}
+
+/**
  * Update avatar URL.
  * Updates IndexedDB immediately, then syncs to server.
  */

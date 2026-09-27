@@ -290,6 +290,7 @@ export function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<string>('');
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -454,7 +455,7 @@ export function SignIn() {
         await signInWithEmail(email, password);
         await routeAfterAuth(email);
       } else {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password, role || undefined);
         sessionStorage.setItem('dl_new_signup', 'true');
         setSuccess(
           'Account created! Please check your email to confirm your account before signing in.'
@@ -591,11 +592,6 @@ export function SignIn() {
 
   return (
     <div className="signin-page">
-      <nav className="signin-topnav" aria-label="Page sections">
-        <a href="#ss-about">About</a>
-        <a href="#ss-about-us">About Us</a>
-        <a href="#ss-features">Features</a>
-      </nav>
       <div className="split-auth">
         {/* Left panel — video showcase */}
         <div className="split-left">
@@ -624,6 +620,11 @@ export function SignIn() {
           <div className="split-video-caption">
             <h2>Digital Logbook</h2>
             <p>Track your time, own your progress</p>
+            <nav className="split-nav-links" aria-label="Page sections">
+              <a href="#ss-about">About</a>
+              <a href="#ss-about-us">About Us</a>
+              <a href="#ss-features">Features</a>
+            </nav>
           </div>
         </div>
 
@@ -645,7 +646,7 @@ export function SignIn() {
                 {/* Email/Password Form */}
                 <form
                   onSubmit={handleEmailSubmit}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}
                 >
                   <div className="field-group">
                     <label htmlFor="email" className="field-label">
@@ -812,6 +813,27 @@ export function SignIn() {
                     </div>
                   )}
 
+                  {mode === 'signup' && (
+                    <div className="field-group">
+                      <label htmlFor="role" className="field-label">
+                        Role (optional)
+                      </label>
+                      <select
+                        id="role"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        className="field-input"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <option value="">Select your role</option>
+                        <option value="Student">Student</option>
+                        <option value="Lecturer">Lecturer</option>
+                        <option value="Tutor">Tutor</option>
+                        <option value="Professional">Professional</option>
+                      </select>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={emailLoading || (mode === 'signup' && !signupRequirementsMet)}
@@ -828,7 +850,7 @@ export function SignIn() {
                 </form>
 
                 {/* Toggle + Forgot Password */}
-                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                <div style={{ textAlign: 'center', marginTop: '0.25rem' }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -837,6 +859,7 @@ export function SignIn() {
                       setSuccess(null);
                       setEmailSuggestion(null);
                       setConfirmPassword('');
+                      setRole('');
                     }}
                     className="auth-mode-toggle"
                   >

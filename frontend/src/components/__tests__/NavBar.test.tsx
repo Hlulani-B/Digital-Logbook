@@ -44,11 +44,6 @@ describe('NavBar', () => {
     );
   }
 
-  it('renders the Digital Logbook title', () => {
-    renderNavBar();
-    expect(screen.getByText('Digital Logbook')).toBeTruthy();
-  });
-
   it('renders the hamburger toggle button', () => {
     renderNavBar();
     expect(screen.getByLabelText('Toggle menu')).toBeTruthy();

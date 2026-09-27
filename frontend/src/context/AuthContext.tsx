@@ -25,7 +25,7 @@ interface AuthContextType extends AuthState {
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, role?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUpWithEmail = async (email: string, password: string) => {
+  const signUpWithEmail = async (email: string, password: string, role?: string) => {
     if (DEV_MODE) {
       console.log('[DEV MODE] signUpWithEmail skipped');
       return;
@@ -129,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: role ? { role } : undefined,
       },
     });
     if (error) throw error;

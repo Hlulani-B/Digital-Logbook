@@ -9,6 +9,7 @@ import {
   getProfile,
   updateName,
   updateUsername,
+  updateProfileDetails,
   addEmail,
   setEmailNotifications,
   setNotificationLeadTime,
@@ -263,6 +264,9 @@ export function SettingsPanel({
   const [serverProfile, setServerProfile] = useState<Record<string, unknown> | null>(null);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [role, setRole] = useState('');
+  const [bio, setBio] = useState('');
+  const [studentNumber, setStudentNumber] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -299,6 +303,11 @@ export function SettingsPanel({
               setServerProfile(profileData);
               setName(((profileData as Record<string, unknown>)?.name as string) || '');
               setUsername(((profileData as Record<string, unknown>)?.username as string) || '');
+              setRole(((profileData as Record<string, unknown>)?.role as string) || '');
+              setBio(((profileData as Record<string, unknown>)?.bio as string) || '');
+              setStudentNumber(
+                ((profileData as Record<string, unknown>)?.student_number as string) || ''
+              );
             }
           } else {
             throw new Error(addResult?.message || 'Failed to create profile');
@@ -313,6 +322,11 @@ export function SettingsPanel({
           setServerProfile(profileData);
           setName(((profileData as Record<string, unknown>)?.name as string) || '');
           setUsername(((profileData as Record<string, unknown>)?.username as string) || '');
+          setRole(((profileData as Record<string, unknown>)?.role as string) || '');
+          setBio(((profileData as Record<string, unknown>)?.bio as string) || '');
+          setStudentNumber(
+            ((profileData as Record<string, unknown>)?.student_number as string) || ''
+          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -342,7 +356,15 @@ export function SettingsPanel({
       const usernameResult = await updateUsername(email, username.trim());
       if (usernameResult?.error) throw new Error(usernameResult.error);
 
-      const wasOffline = nameResult?.queued || usernameResult?.queued || !navigator.onLine;
+      const detailsResult = await updateProfileDetails(email, {
+        role: role || undefined,
+        bio: bio || undefined,
+        student_number: studentNumber || undefined,
+      });
+      if (detailsResult?.error) throw new Error(detailsResult.error);
+
+      const wasOffline =
+        nameResult?.queued || usernameResult?.queued || detailsResult?.queued || !navigator.onLine;
       setSavedOffline(wasOffline);
       setProfileSuccess(true);
       setTimeout(
@@ -560,6 +582,57 @@ export function SettingsPanel({
                           }
                           className="field-input"
                         />
+                      </div>
+
+                      <div className="field-group">
+                        <label className="field-label" htmlFor="settings-role">
+                          Role
+                        </label>
+                        <select
+                          id="settings-role"
+                          value={role}
+                          onChange={(e) => setRole(e.target.value)}
+                          className="field-input"
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <option value="">Select your role</option>
+                          <option value="Student">Student</option>
+                          <option value="Lecturer">Lecturer</option>
+                          <option value="Tutor">Tutor</option>
+                          <option value="Professional">Professional</option>
+                        </select>
+                      </div>
+
+                      <div className="field-group">
+                        <label className="field-label" htmlFor="settings-student-number">
+                          Student Number
+                        </label>
+                        <input
+                          id="settings-student-number"
+                          type="text"
+                          value={studentNumber}
+                          onChange={(e) => setStudentNumber(e.target.value)}
+                          className="field-input"
+                          placeholder="e.g., STU123456"
+                        />
+                        <p className="field-hint">Optional — for academic tracking.</p>
+                      </div>
+
+                      <div className="field-group">
+                        <label className="field-label" htmlFor="settings-bio">
+                          Bio
+                        </label>
+                        <textarea
+                          id="settings-bio"
+                          value={bio}
+                          onChange={(e) => setBio(e.target.value)}
+                          className="field-input"
+                          rows={3}
+                          maxLength={200}
+                          placeholder="Tell us about yourself..."
+                          style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                        />
+                        <p className="field-hint">{bio.length}/200 characters</p>
                       </div>
 
                       <div className="field-group">
