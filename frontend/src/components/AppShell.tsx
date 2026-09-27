@@ -196,7 +196,7 @@ export function AppShell({ children }: AppShellProps) {
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Items
+            All Entries
           </button>
           <button
             className={`drawer-item ${isActive('/stats') ? 'active' : ''}`}
@@ -218,28 +218,6 @@ export function AppShell({ children }: AppShellProps) {
               <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
             My Stats
-          </button>
-          <button
-            className={`drawer-item ${isActive('/kanban') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/kanban');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            Kanban
           </button>
           <button
             className={`drawer-item ${isActive('/calendar') ? 'active' : ''}`}

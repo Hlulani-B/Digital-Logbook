@@ -64,13 +64,13 @@ describe('NavBar', () => {
     fireEvent.click(screen.getByLabelText('Toggle menu'));
 
     expect(screen.getByText('Home')).toBeTruthy();
-    expect(screen.getByText('All Items')).toBeTruthy();
+    expect(screen.getByText('All Entries')).toBeTruthy();
     expect(screen.getByText('Archives')).toBeTruthy();
     expect(screen.getByText('My Stats')).toBeTruthy();
     expect(screen.getByText('Activity Log')).toBeTruthy();
     expect(screen.getByText('Calendar')).toBeTruthy();
-    expect(screen.getByText('Kanban')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Timeline' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Kanban' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Timeline' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Today' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Today' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tracker' })).toBeNull();
@@ -87,7 +87,7 @@ describe('NavBar', () => {
   it('navigates to /entries when All Entries is clicked', () => {
     renderNavBar();
     fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('All Items'));
+    fireEvent.click(screen.getByText('All Entries'));
     expect(mockNavigate).toHaveBeenCalledWith('/entries');
   });
 
@@ -96,22 +96,6 @@ describe('NavBar', () => {
     fireEvent.click(screen.getByLabelText('Toggle menu'));
     fireEvent.click(screen.getByText('Calendar'));
     expect(mockNavigate).toHaveBeenCalledWith('/calendar');
-  });
-
-  it('navigates to /kanban when Kanban is clicked', () => {
-    renderNavBar();
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('Kanban'));
-    expect(mockNavigate).toHaveBeenCalledWith('/kanban');
-  });
-
-  it('navigates to /timeline and closes the drawer when Timeline is clicked', () => {
-    renderNavBar();
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-    expect(screen.getByRole('complementary')).toHaveClass('drawer-open');
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline' }));
-    expect(mockNavigate).toHaveBeenCalledWith('/timeline');
-    expect(screen.getByRole('complementary')).not.toHaveClass('drawer-open');
   });
 
   it('closes drawer after clicking a nav item', () => {
@@ -135,26 +119,6 @@ describe('NavBar', () => {
     // The badge should show "2"
     const badges = screen.getAllByText('2');
     expect(badges.length).toBeGreaterThan(0);
-  });
-
-  it('shows New Project button', () => {
-    renderNavBar();
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-    expect(screen.getByText('New Project')).toBeTruthy();
-  });
-
-  it('shows Manage Projects button', () => {
-    renderNavBar();
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-    expect(screen.getByText('Manage Projects')).toBeTruthy();
-  });
-
-  it('calls onNewProject when New Project is clicked', () => {
-    const onNewProject = vi.fn();
-    renderNavBar({ onNewProject });
-    fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('New Project'));
-    expect(onNewProject).toHaveBeenCalled();
   });
 
   it('dispatches open-settings event when settings is triggered via ProfileMenu', () => {

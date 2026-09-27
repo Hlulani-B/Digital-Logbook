@@ -275,7 +275,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
 
 const FALLBACK_CONFIG = {
   verb: 'performed action on',
-  entityLabel: 'item',
+  entityLabel: 'entry',
   icon: (
     <svg
       width="18"

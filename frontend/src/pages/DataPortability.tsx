@@ -278,7 +278,7 @@ export default function DataPortability() {
           [];
         for (const entry of result.entries) {
           if (!createdProjects.has(entry.project_name)) {
-            failures.push(`Item in "${entry.project_name}": project was not created`);
+            failures.push(`Entry in "${entry.project_name}": project was not created`);
             continue;
           }
           const response = await addEntry(
@@ -320,7 +320,7 @@ export default function DataPortability() {
           const response = await archiveEntry(userEmail, entry.projectName, entry.entryId);
           if (!response?.success) {
             failures.push(
-              `Archived item in "${entry.projectName}": ${response?.message ?? 'archive failed'}`
+              `Archived entry in "${entry.projectName}": ${response?.message ?? 'archive failed'}`
             );
           }
         }
@@ -383,7 +383,7 @@ export default function DataPortability() {
     return (
       <div className="dash-layout">
         <div className="bg-mesh" />
-        <NavBar projects={cachedProjects} entries={cachedEntries} activeView="all" />
+        <NavBar entries={cachedEntries} activeView="all" />
         <main className="dash-main">
           <div className="data-loading">
             <svg
@@ -414,7 +414,7 @@ export default function DataPortability() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar projects={cachedProjects} entries={cachedEntries} activeView="all" />
+      <NavBar entries={cachedEntries} activeView="all" />
 
       <main className="dash-main">
         <Header title="Import & Export" entries={cachedEntries} projects={cachedProjects} />
@@ -438,7 +438,7 @@ export default function DataPortability() {
               Export
             </h2>
             <p>
-              Download all your projects and entries, including archived items. JSON is the
+              Download all your projects and entries, including archived entries. JSON is the
               complete, versioned backup format. CSV and Markdown are interoperable views, while
               iCalendar opens in Google Calendar, Outlook, and Apple Calendar.
             </p>
