@@ -378,11 +378,68 @@ interface ActivityFeedProps {
   onLoadingChange?: (loading: boolean) => void;
 }
 
+// Filter categories for action types
+const FILTER_CATEGORIES = {
+  all: { label: 'All', types: null },
+  projects: {
+    label: 'Projects',
+    types: [
+      'PROJECT_CREATED',
+      'PROJECT_RENAMED',
+      'PROJECT_DELETED',
+      'PROJECT_ARCHIVED',
+      'PROJECT_UNARCHIVED',
+    ],
+  },
+  entries: { label: 'Entries', types: ['ENTRY_ADDED', 'ENTRY_EDITED', 'ENTRY_DELETED'] },
+  fields: { label: 'Fields', types: ['FIELD_ADDED', 'FIELD_EDITED', 'FIELD_DELETED'] },
+  other: {
+    label: 'Other',
+    types: [
+      'PRIORITY_SET',
+      'TIMER_STARTED',
+      'TIMER_STOPPED',
+      'PROFILE_CREATED',
+      'PROFILE_USERNAME_UPDATED',
+      'PROFILE_EMAIL_UPDATED',
+      'PROFILE_PASSWORD_UPDATED',
+    ],
+  },
+} as const;
+
+type FilterKey = keyof typeof FILTER_CATEGORIES;
+
 export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const { user } = useAuth();
   const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Filter activities based on active filter and search term
+  const filteredActivities = activities.filter((activity) => {
+    // Apply action type filter
+    const filterConfig = FILTER_CATEGORIES[activeFilter];
+    if (filterConfig.types && !filterConfig.types.includes(activity.action_type)) {
+      return false;
+    }
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const entityName = parseEntityName(activity.entity_name).toLowerCase();
+      const details = JSON.stringify(activity.details || {}).toLowerCase();
+      return entityName.includes(searchLower) || details.includes(searchLower);
+    }
+    return true;
+  });
 
   const loadActivities = useCallback(async () => {
     if (!email) return;
@@ -418,36 +475,141 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     );
   }
 
-  if (activities.length === 0) {
-    return (
-      <div className="empty-state animate-in">
-        <div className="empty-icon">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+  // Determine empty state message based on active filters
+  const getEmptyState = () => {
+    const hasFilter = activeFilter !== 'all';
+    const hasSearch = searchTerm.trim() !== '';
+
+    if (activities.length === 0) {
+      return {
+        icon: 'clock',
+        title: 'No activity yet',
+        description:
+          'Your recent actions — creating projects, adding entries, archiving, and more — will appear here.',
+      };
+    }
+
+    if (hasSearch && hasFilter) {
+      return {
+        icon: 'search',
+        title: 'No matching results',
+        description: `No ${FILTER_CATEGORIES[activeFilter].label.toLowerCase()} activities match "${searchTerm}".`,
+      };
+    }
+
+    if (hasSearch) {
+      return {
+        icon: 'search',
+        title: 'No results found',
+        description: `No activities match "${searchTerm}". Try a different search term.`,
+      };
+    }
+
+    if (hasFilter) {
+      return {
+        icon: 'filter',
+        title: `No ${FILTER_CATEGORIES[activeFilter].label.toLowerCase()} activity`,
+        description: `No ${FILTER_CATEGORIES[activeFilter].label.toLowerCase()} activities found. Try a different filter.`,
+      };
+    }
+
+    return {
+      icon: 'clock',
+      title: 'No activity yet',
+      description:
+        'Your recent actions — creating projects, adding entries, archiving, and more — will appear here.',
+    };
+  };
+
+  const renderEmptyIcon = (type: string) => {
+    const commonProps = {
+      width: 48,
+      height: 48,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.5,
+      strokeLinecap: 'round' as const,
+      strokeLinejoin: 'round' as const,
+    };
+
+    switch (type) {
+      case 'search':
+        return (
+          <svg {...commonProps}>
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        );
+      case 'filter':
+        return (
+          <svg {...commonProps}>
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+        );
+      default:
+        return (
+          <svg {...commonProps}>
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-        </div>
-        <h2 className="empty-title">No activity yet</h2>
-        <p className="empty-desc">
-          Your recent actions — creating projects, adding entries, archiving, and more — will appear
-          here.
-        </p>
+        );
+    }
+  };
+
+  if (filteredActivities.length === 0) {
+    const emptyState = getEmptyState();
+    return (
+      <div className="empty-state animate-in">
+        <div className="empty-icon">{renderEmptyIcon(emptyState.icon)}</div>
+        <h2 className="empty-title">{emptyState.title}</h2>
+        <p className="empty-desc">{emptyState.description}</p>
       </div>
     );
   }
 
   return (
     <div className="activity-feed">
-      {activities.map((activity, i) => {
+      {/* Search and Filter Controls */}
+      <div className="activity-controls">
+        <div className="activity-search">
+          <svg
+            className="activity-search-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            className="activity-search-input"
+            placeholder="Search activities..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
+        <div className="activity-filters">
+          {(Object.keys(FILTER_CATEGORIES) as FilterKey[]).map((key) => (
+            <button
+              key={key}
+              className={`activity-filter-btn ${activeFilter === key ? 'active' : ''}`}
+              onClick={() => setActiveFilter(key)}
+            >
+              {FILTER_CATEGORIES[key].label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Activity List */}
+      {filteredActivities.map((activity, i) => {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
         const entityName = truncateName(parseEntityName(activity.entity_name));
         const details = activity.details || {};
