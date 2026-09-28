@@ -5,6 +5,7 @@ import { FiEdit, FiClock } from 'react-icons/fi';
 import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
+import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/dashboard/stats.js';
 import { FieldEditor } from '@/components/fields/FieldEditors';
@@ -149,7 +150,10 @@ export function EntryBox({
   const menuRef = useRef<HTMLDivElement>(null);
   const { openNotes } = useNotes();
 
+  const [refPickerOpen, setRefPickerOpen] = useState<'project' | null>(null);
   const [refEntries, setRefEntries] = useState<any[]>([]);
+  const [refProjects, setRefProjects] = useState<any[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
   const [calcField, setCalcField] = useState<string | null>(null);
 
   // Pin — reserved `_pinned` key in the entries payload; pinned entries sort to the top
@@ -564,10 +568,10 @@ export function EntryBox({
     setMenuOpen(false);
     try {
       const result = await deleteEntryById(user_email, id);
-      if (result?.success === false) throw new Error(result.message || 'Failed to delete entry');
+      if (result?.success === false) throw new Error(result.message || 'Failed to delete item');
       onDelete?.(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete entry');
+      setError(err instanceof Error ? err.message : 'Failed to delete item');
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -768,6 +772,32 @@ export function EntryBox({
     }
   };
 
+  const openProjectRefPicker = async () => {
+    setRefLoading(true);
+    setRefPickerOpen('project');
+    try {
+      const result = await getProjectsByEmail(user_email);
+      const projects = result?.projects || result?.data || [];
+      setRefProjects(projects);
+    } catch {}
+    setRefLoading(false);
+  };
+
+  const selectProjectRef = async (project: any) => {
+    const ref = { project_name: project.project_name };
+    const newEntries = { ...parsedEntries, _project_ref: ref };
+    await updateEntry(user_email, project_name, id, newEntries);
+    setRefPickerOpen(null);
+    onUpdated?.({ ...entry, entries: newEntries });
+  };
+
+  const removeProjectRef = async () => {
+    const newEntries = { ...parsedEntries };
+    delete newEntries._project_ref;
+    await updateEntry(user_email, project_name, id, newEntries);
+    onUpdated?.({ ...entry, entries: newEntries });
+  };
+
   const togglePin = async () => {
     if (!user_email || !project_name || pinPending) return;
     // Opaque payloads (legacy strings) have no key space to store the pin in
@@ -871,7 +901,7 @@ export function EntryBox({
           <div className="entry-box__fields--editing">
             {payloadState.kind !== 'object' ? (
               <div className="entry-box__field--editing">
-                <label className="entry-box__field-key">Entry content</label>
+                <label className="entry-box__field-key">Item content</label>
                 <span>{formatEntryValue(payloadState.value)}</span>
               </div>
             ) : (
@@ -1163,6 +1193,47 @@ export function EntryBox({
         </div>
 
         {safeSummary && <p className="entry-box__summary">{safeSummary}</p>}
+
+        {/* Project reference area */}
+        <div className="entry-box__project-ref-area">
+          {!!parsedEntries._project_ref && (
+            <div className="entry-box__ref-row">
+              <span className="entry-box__ref-label">Project ref:</span>
+              <button
+                type="button"
+                className="entry-box__ref-link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const ref = parsedEntries._project_ref as any;
+                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
+                }}
+              >
+                📁 {(parsedEntries._project_ref as any).project_name}
+              </button>
+              <button
+                type="button"
+                className="entry-box__ref-remove"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeProjectRef();
+                }}
+                title="Remove reference"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            className="entry-box__ref-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openProjectRefPicker();
+            }}
+          >
+            + Project Reference
+          </button>
+        </div>
 
         {entryFields.length > 0 && (
           <table className="entry-box__table">
@@ -1589,6 +1660,43 @@ export function EntryBox({
         )}
         {error && <div className="entry-box__error">{error}</div>}
       </div>
+
+      {/* Project Reference Picker Modal */}
+      {refPickerOpen && (
+        <div className="modal-overlay" onClick={() => setRefPickerOpen(null)}>
+          <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ref-picker-header">
+              <h3>Select a Project</h3>
+              <button
+                type="button"
+                className="ref-picker-close"
+                onClick={() => setRefPickerOpen(null)}
+              >
+                ×
+              </button>
+            </div>
+            {refLoading ? (
+              <div className="ref-picker-loading">Loading...</div>
+            ) : (
+              <div className="ref-picker-list">
+                {refProjects.map((p: any) => (
+                  <button
+                    key={p.project_name}
+                    type="button"
+                    className="ref-picker-item"
+                    onClick={() => selectProjectRef(p)}
+                  >
+                    <span className="ref-picker-item-project">{p.project_name}</span>
+                  </button>
+                ))}
+                {refProjects.length === 0 && (
+                  <div className="ref-picker-empty">No projects found</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Calculation Picker Modal */}
       {calcField && (

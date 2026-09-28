@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 
@@ -271,88 +271,11 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
       </svg>
     ),
   },
-  TIMER_STARTED: {
-    verb: 'started timer on',
-    entityLabel: 'entry',
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="10 8 16 12 10 16 10 8" />
-      </svg>
-    ),
-  },
-  TIMER_PAUSED: {
-    verb: 'paused timer on',
-    entityLabel: 'entry',
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <line x1="10" y1="15" x2="10" y2="9" />
-        <line x1="14" y1="15" x2="14" y2="9" />
-      </svg>
-    ),
-  },
-  TIMER_RESUMED: {
-    verb: 'resumed timer on',
-    entityLabel: 'entry',
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="10 8 16 12 10 16 10 8" />
-      </svg>
-    ),
-  },
-  TIMER_STOPPED: {
-    verb: 'stopped timer on',
-    entityLabel: 'entry',
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <rect x="9" y="9" width="6" height="6" />
-      </svg>
-    ),
-  },
 };
 
 const FALLBACK_CONFIG = {
   verb: 'performed action on',
-  entityLabel: 'entry',
+  entityLabel: 'item',
   icon: (
     <svg
       width="18"
@@ -455,62 +378,75 @@ interface ActivityFeedProps {
   onLoadingChange?: (loading: boolean) => void;
 }
 
-// Filter groups: each label maps to the action_types it covers
-type FilterKey = 'all' | 'projects' | 'entries' | 'fields' | 'timer' | 'priority';
-
-const FILTER_GROUPS: Record<FilterKey, string[]> = {
-  all: [],
-  projects: [
-    'PROJECT_CREATED',
-    'PROJECT_RENAMED',
-    'PROJECT_DELETED',
-    'PROJECT_ARCHIVED',
-    'PROJECT_UNARCHIVED',
-  ],
-  entries: ['ENTRY_ADDED', 'ENTRY_UPDATED', 'ENTRY_DELETED', 'ENTRY_ARCHIVED', 'ENTRY_UNARCHIVED'],
-  fields: ['FIELD_ADDED', 'FIELD_EDITED', 'FIELD_REMOVED'],
-  timer: ['TIMER_STARTED', 'TIMER_PAUSED', 'TIMER_RESUMED', 'TIMER_STOPPED'],
-  priority: ['PRIORITY_SET'],
-};
-
-const FILTER_LABELS: Record<FilterKey, string> = {
-  all: 'All',
-  projects: 'Projects',
-  entries: 'Entries',
-  fields: 'Fields',
-  timer: 'Timer',
-  priority: 'Priority',
-};
+const PAGE_SIZE = 30;
 
 export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const { user } = useAuth();
   const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const loadActivities = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     onLoadingChange?.(true);
+    offsetRef.current = 0;
     try {
-      const actionTypes = FILTER_GROUPS[activeFilter];
-      const filterParam = actionTypes.length > 0 ? actionTypes : null;
-      const result = await getActivities(email, 50, filterParam);
+      const result = await getActivities(email, PAGE_SIZE, 0);
       setActivities(result?.data || []);
+      setHasMore(!!result?.has_more);
     } catch (err) {
       console.error('[ActivityFeed] Failed to load activities:', err);
     } finally {
       setLoading(false);
       onLoadingChange?.(false);
     }
-  }, [email, activeFilter, onLoadingChange]);
+  }, [email, onLoadingChange]);
 
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
 
-  if (loading && activities.length === 0) {
+  // Load more when sentinel becomes visible
+  const loadMore = useCallback(async () => {
+    if (!email || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextOffset = offsetRef.current + PAGE_SIZE;
+    try {
+      const result = await getActivities(email, PAGE_SIZE, nextOffset);
+      if (result?.data?.length) {
+        setActivities((prev) => [...prev, ...result.data]);
+        offsetRef.current = nextOffset;
+      }
+      setHasMore(!!result?.has_more);
+    } catch (err) {
+      console.error('[ActivityFeed] Failed to load more:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [email, loadingMore, hasMore]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  if (loading) {
     return (
       <div className="feed-loading">
         <div
@@ -525,129 +461,114 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     );
   }
 
-  const filterKeys = Object.keys(FILTER_LABELS) as FilterKey[];
+  if (activities.length === 0) {
+    return (
+      <div className="empty-state animate-in">
+        <div className="empty-icon">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        </div>
+        <h2 className="empty-title">No activity yet</h2>
+        <p className="empty-desc">
+          Your recent actions — creating projects, adding entries, archiving, and more — will appear
+          here.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="activity-feed">
-      {/* Filter chips */}
-      <div
-        className="activity-filters"
-        style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}
-      >
-        {filterKeys.map((key) => {
-          const isActive = activeFilter === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveFilter(key)}
-              style={{
-                padding: '4px 12px',
-                borderRadius: '999px',
-                border: isActive ? '1px solid #6366f1' : '1px solid #d1d5db',
-                background: isActive ? '#eef2ff' : 'white',
-                color: isActive ? '#4338ca' : '#374151',
-                fontSize: '12px',
-                fontWeight: isActive ? 600 : 400,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {FILTER_LABELS[key]}
-            </button>
-          );
-        })}
-      </div>
+      {activities.map((activity, i) => {
+        const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
+        const entityName = truncateName(parseEntityName(activity.entity_name));
+        const details = activity.details || {};
+        const detailEntries = Object.entries(details).filter(
+          ([key, val]) =>
+            val != null &&
+            val !== '' &&
+            key !== 'old_project_name' &&
+            key !== 'new_project_name' &&
+            key !== 'entry_id'
+        );
+        const isRename = activity.action_type === 'PROJECT_RENAMED';
+        const oldName = String(details.old_project_name ?? '');
+        const newName = String(details.new_project_name ?? '');
 
-      {activities.length === 0 ? (
-        <div className="empty-state animate-in">
-          <div className="empty-icon">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <h2 className="empty-title">
-            {activeFilter === 'all'
-              ? 'No activity yet'
-              : `No ${FILTER_LABELS[activeFilter].toLowerCase()} activity`}
-          </h2>
-          <p className="empty-desc">
-            {activeFilter === 'all'
-              ? 'Your recent actions — creating projects, adding entries, archiving, and more — will appear here.'
-              : `Try switching to a different filter to see more activity.`}
-          </p>
-        </div>
-      ) : (
-        activities.map((activity, i) => {
-          const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
-          const entityName = truncateName(parseEntityName(activity.entity_name));
-          const details = activity.details || {};
-          const detailEntries = Object.entries(details).filter(
-            ([key, val]) =>
-              val != null &&
-              val !== '' &&
-              key !== 'old_project_name' &&
-              key !== 'new_project_name' &&
-              key !== 'entry_id'
-          );
-          const isRename = activity.action_type === 'PROJECT_RENAMED';
-          const oldName = String(details.old_project_name ?? '');
-          const newName = String(details.new_project_name ?? '');
-
-          return (
-            <div
-              key={activity.id || i}
-              className="activity-item animate-in"
-              style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
-            >
-              <div className="activity-icon">{config.icon}</div>
-              <div className="activity-body">
-                <p className="activity-text">
-                  <span className="activity-verb">{config.verb}</span>{' '}
-                  <span className="activity-entity-label">{config.entityLabel}</span>
-                  {entityName && (
-                    <>
-                      {' '}
-                      <span className="activity-entity-name">"{entityName}"</span>
-                    </>
-                  )}
-                  {isRename && oldName && newName && (
-                    <>
-                      {' '}
-                      <span className="activity-detail">
-                        from "{truncateName(oldName)}" to "{truncateName(newName)}"
-                      </span>
-                    </>
-                  )}
-                </p>
-                <span className="activity-time">{formatRelativeTime(activity.created_at)}</span>
-
-                {detailEntries.length > 0 && (
-                  <div className="activity-details">
-                    {detailEntries.map(([key, val]) => (
-                      <div key={key} className="activity-detail-row">
-                        <span className="activity-detail-key">
-                          {DETAIL_LABELS[key] || key.replace(/_/g, ' ')}
-                        </span>
-                        <span className="activity-detail-value">{formatDetailValue(key, val)}</span>
-                      </div>
-                    ))}
-                  </div>
+        return (
+          <div
+            key={activity.id || i}
+            className="activity-item animate-in"
+            style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
+          >
+            <div className="activity-icon">{config.icon}</div>
+            <div className="activity-body">
+              <p className="activity-text">
+                <span className="activity-verb">{config.verb}</span>{' '}
+                <span className="activity-entity-label">{config.entityLabel}</span>
+                {entityName && (
+                  <>
+                    {' '}
+                    <span className="activity-entity-name">"{entityName}"</span>
+                  </>
                 )}
-              </div>
+                {isRename && oldName && newName && (
+                  <>
+                    {' '}
+                    <span className="activity-detail">
+                      from "{truncateName(oldName)}" to "{truncateName(newName)}"
+                    </span>
+                  </>
+                )}
+              </p>
+              <span className="activity-time">{formatRelativeTime(activity.created_at)}</span>
+
+              {detailEntries.length > 0 && (
+                <div className="activity-details">
+                  {detailEntries.map(([key, val]) => (
+                    <div key={key} className="activity-detail-row">
+                      <span className="activity-detail-key">
+                        {DETAIL_LABELS[key] || key.replace(/_/g, ' ')}
+                      </span>
+                      <span className="activity-detail-value">{formatDetailValue(key, val)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          );
-        })
+          </div>
+        );
+      })}
+
+      {/* Infinite scroll sentinel */}
+      {hasMore && <div ref={sentinelRef} style={{ height: 1, width: '100%' }} />}
+      {loadingMore && (
+        <div
+          className="feed-loading-more"
+          style={{ textAlign: 'center', padding: '12px 0', color: '#9ca3af', fontSize: '13px' }}
+        >
+          <div
+            className="animate-spin spinner-circle"
+            style={{ width: 20, height: 20, margin: '0 auto 6px' }}
+          />
+          Loading more…
+        </div>
+      )}
+      {!hasMore && activities.length > 0 && (
+        <p style={{ textAlign: 'center', padding: '12px 0', color: '#9ca3af', fontSize: '12px' }}>
+          No more activity
+        </p>
       )}
     </div>
   );

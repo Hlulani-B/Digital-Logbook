@@ -104,7 +104,7 @@ export function ActivitySummary() {
           .join(', ');
 
         const tone = getToneInstruction();
-        const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent entries: ${recentEntities.join(', ')}. ${tone}`;
+        const prompt = `Summarize this user's recent activity in one friendly, conversational sentence (under 20 words). Actions: ${actionSummary}. Recent items: ${recentEntities.join(', ')}. ${tone}`;
 
         const aiResult = await askAI(prompt);
         // Re-check on resolve: the toggle may have been flipped off (or the

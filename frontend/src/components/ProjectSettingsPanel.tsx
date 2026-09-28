@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { editProjectName, deleteProject, setProjectColor } from '@/functions/project/project.js';
 import { getFields, addField, editField, deleteField } from '@/functions/project/fields.js';
 import { archiveProject } from '@/functions/project/archives.js';
-import { getEntries, deleteEntryById } from '@/functions/project/entries.js';
 import { FiEdit2, FiArchive, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { FIELD_TYPES } from '@/lib/fieldSchema';
 
@@ -60,53 +59,6 @@ export function ProjectSettingsPanel({
   const [editFieldRequired, setEditFieldRequired] = useState(false);
   const [deletingField, setDeletingField] = useState<string | null>(null);
 
-  // Entries management
-  const [entries, setEntries] = useState<any[]>([]);
-  const [loadingEntries, setLoadingEntries] = useState(false);
-  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
-  const [bulkDeletingEntries, setBulkDeletingEntries] = useState(false);
-
-  const toggleSelectEntry = (id: string) => {
-    setSelectedEntries((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAllEntries = () => {
-    if (selectedEntries.size === entries.length) {
-      setSelectedEntries(new Set());
-    } else {
-      setSelectedEntries(new Set(entries.map((e) => String(e.id))));
-    }
-  };
-
-  const handleBulkDeleteEntries = async () => {
-    if (!userEmail || selectedEntries.size === 0) return;
-    setBulkDeletingEntries(true);
-    setError(null);
-    try {
-      for (const id of Array.from(selectedEntries)) {
-        const result = await deleteEntryById(userEmail, id);
-        if (result?.error) {
-          setError(`Could not delete entry: ${result.error}`);
-          break;
-        }
-      }
-      setSelectedEntries(new Set());
-      // Reload entries
-      const result = await getEntries(userEmail, projectName);
-      setEntries(Array.isArray(result?.data) ? result.data : []);
-      onProjectUpdated?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk delete entries failed');
-    } finally {
-      setBulkDeletingEntries(false);
-    }
-  };
-
   // Project colour
   const PROJECT_COLORS = [
     '#ec4899',
@@ -157,28 +109,6 @@ export function ProjectSettingsPanel({
         if (!cancelled) setFields([]);
       } finally {
         if (!cancelled) setLoadingFields(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, userEmail, projectName]);
-
-  // Load entries when panel opens
-  useEffect(() => {
-    if (!open || !userEmail || !projectName) return;
-    let cancelled = false;
-    (async () => {
-      setLoadingEntries(true);
-      try {
-        const result = await getEntries(userEmail, projectName);
-        if (!cancelled) {
-          setEntries(Array.isArray(result?.data) ? result.data : []);
-        }
-      } catch {
-        if (!cancelled) setEntries([]);
-      } finally {
-        if (!cancelled) setLoadingEntries(false);
       }
     })();
     return () => {
@@ -790,169 +720,6 @@ export function ProjectSettingsPanel({
 
           <hr className="divider" />
 
-          {/* ── Entries ── */}
-          <div className="panel-section">
-            <p className="panel-section-title">
-              <FiTrash2 size={14} style={{ marginRight: '0.35rem' }} />
-              Entries ({entries.length})
-            </p>
-
-            {loadingEntries ? (
-              <p className="field-hint">Loading entries...</p>
-            ) : entries.length === 0 ? (
-              <p className="field-hint" style={{ marginBottom: '1rem' }}>
-                No entries in this project.
-              </p>
-            ) : (
-              <>
-                {/* Select all header */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.75rem',
-                  }}
-                >
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      fontSize: '0.82rem',
-                      color: 'var(--text-muted, #6b7280)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedEntries.size === entries.length && entries.length > 0}
-                      onChange={toggleSelectAllEntries}
-                      style={{ accentColor: '#6366f1' }}
-                    />
-                    Select all
-                  </label>
-                </div>
-
-                {/* Bulk action bar */}
-                {selectedEntries.size > 0 && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 1rem',
-                      borderRadius: '0.75rem',
-                      marginBottom: '0.75rem',
-                      background: 'rgba(220,38,38,0.08)',
-                      border: '1px solid rgba(220,38,38,0.2)',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#dc2626' }}>
-                      {selectedEntries.size} selected
-                    </span>
-                    <div style={{ flex: 1 }} />
-                    <button
-                      type="button"
-                      onClick={handleBulkDeleteEntries}
-                      disabled={bulkDeletingEntries}
-                      style={{
-                        background: '#dc2626',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '0.5rem',
-                        padding: '0.4rem 0.75rem',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                      }}
-                    >
-                      <FiTrash2 size={13} />{' '}
-                      {bulkDeletingEntries ? 'Deleting...' : 'Delete selected'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedEntries(new Set())}
-                      className="btn-secondary"
-                      style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                )}
-
-                {/* Entries list */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.5rem',
-                    maxHeight: '300px',
-                    overflowY: 'auto',
-                  }}
-                >
-                  {entries.map((entry) => {
-                    const entryId = String(entry.id);
-                    const summary = entry.summary || entry.entries || '';
-                    const displayText =
-                      typeof summary === 'string' ? summary : JSON.stringify(summary).slice(0, 100);
-
-                    return (
-                      <div
-                        key={entryId}
-                        className="glass"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '0.625rem 0.75rem',
-                          borderRadius: '0.5rem',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedEntries.has(entryId)}
-                          onChange={() => toggleSelectEntry(entryId)}
-                          style={{ accentColor: '#6366f1', flexShrink: 0 }}
-                          aria-label={`Select entry ${displayText.slice(0, 30)}`}
-                        />
-                        <span
-                          style={{
-                            flex: 1,
-                            fontSize: '0.85rem',
-                            color: 'var(--text)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={displayText}
-                        >
-                          {displayText || '(empty entry)'}
-                        </span>
-                        {entry.due_date && (
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--text-muted)',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {new Date(entry.due_date).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          <hr className="divider" />
-
           {/* ── Archive Project ── */}
           <div className="panel-section">
             <p className="panel-section-title">
@@ -1018,7 +785,7 @@ export function ProjectSettingsPanel({
             ) : (
               <div className="confirm-box">
                 <p>
-                  Are you sure? This will delete all entries in this project. This action cannot be
+                  Are you sure? This will delete all items in this project. This action cannot be
                   undone.
                 </p>
                 <div className="confirm-actions">

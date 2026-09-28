@@ -112,6 +112,7 @@ export function normalizeField(input: unknown, index = 0): FieldDefinition {
   }
   // 'custom' with options or 'custom:*' becomes 'select'; plain 'custom' stays 'custom'
   const becomesSelect = legacyCustomWithOptions || (legacyCustom && options.length > 0);
+  const legacySelect = originalType === 'select' || becomesSelect;
   return {
     ...source,
     ...(typeof source.id === 'string' ? { id: source.id } : {}),

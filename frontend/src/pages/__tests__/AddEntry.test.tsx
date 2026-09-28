@@ -42,7 +42,7 @@ describe('AddEntry', () => {
     renderForm();
 
     expect(await screen.findByRole('checkbox', { name: 'False' })).toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
 
     await waitFor(() => expect(addEntry).toHaveBeenCalled());
     expect(vi.mocked(addEntry).mock.calls[0][2]).toEqual({ optional_flag: false });
@@ -55,7 +55,7 @@ describe('AddEntry', () => {
     fireEvent.click(checkbox);
     fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole('checkbox', { name: 'False' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
 
     await waitFor(() => expect(addEntry).toHaveBeenCalled());
     expect(vi.mocked(addEntry).mock.calls[0][2]).toEqual({ optional_flag: false });
@@ -70,7 +70,7 @@ describe('AddEntry', () => {
     renderForm({ onCancel: vi.fn() });
     const inputs = await screen.findAllByRole('textbox');
     expect(inputs).toHaveLength(30);
-    const form = screen.getByRole('form', { name: 'New Entry' });
+    const form = screen.getByRole('form', { name: 'New Item' });
     const body = form.querySelector('.entry-form__body') as HTMLElement;
     const footer = form.querySelector('.entry-form__footer') as HTMLElement;
     expect(Array.from(form.children)).toEqual([body, footer]);
@@ -82,7 +82,7 @@ describe('AddEntry', () => {
     expect(Array.from(body.querySelectorAll('.field-label'), (el) => el.textContent)).toEqual(
       fields.map((field) => field.field_name)
     );
-    const submit = within(footer).getByRole('button', { name: 'Add Entry' }) as HTMLButtonElement;
+    const submit = within(footer).getByRole('button', { name: 'Add Item' }) as HTMLButtonElement;
     expect(submit.form).toBe(form);
     expect(submit).toHaveAttribute('type', 'submit');
     expect(within(footer).getByRole('button', { name: 'Cancel' })).toHaveAttribute(
@@ -120,19 +120,19 @@ describe('AddEntry', () => {
     );
     const onCancel = vi.fn();
     renderForm({ onCancel });
-    const form = screen.getByRole('form', { name: 'New Entry' });
+    const form = screen.getByRole('form', { name: 'New Item' });
     const footer = form.querySelector('.entry-form__footer');
     expect(form.querySelector('.entry-form__body')).toContainElement(
       screen.getByText('Loading columns...')
     );
-    expect(screen.getByRole('button', { name: 'Add Entry' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add Item' })).toBeDisabled();
     fireEvent.submit(form);
     expect(addEntry).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalledOnce();
     await act(async () => resolveFields({ success: true, data: [optionalBooleanField] }));
     expect(form.querySelector('.entry-form__footer')).toBe(footer);
-    expect(screen.getByRole('button', { name: 'Add Entry' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Add Item' })).toBeEnabled();
   });
 
   it('cancels a populated form without saving', async () => {
@@ -154,8 +154,8 @@ describe('AddEntry', () => {
     const onAdded = vi.fn();
     renderForm({ onAdded, onCancel: vi.fn() });
     await screen.findByRole('checkbox', { name: 'False' });
-    const form = screen.getByRole('form', { name: 'New Entry' });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
+    const form = screen.getByRole('form', { name: 'New Item' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
     expect(screen.getByRole('button', { name: 'Adding...' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
     form.querySelectorAll('input, select').forEach((input) => expect(input).toBeDisabled());
@@ -173,16 +173,16 @@ describe('AddEntry', () => {
     vi.mocked(addEntry).mockRejectedValueOnce(new Error('Save unavailable'));
     renderForm({ onCancel: vi.fn() });
     const title = await screen.findByRole('textbox');
-    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
     expect(screen.getByText('"Title" is required')).toBeInTheDocument();
     expect(addEntry).not.toHaveBeenCalled();
     fireEvent.change(title, { target: { value: 'Draft title' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
     const error = await screen.findByText('Save unavailable');
     expect(error.closest('.entry-form__body')).not.toBeNull();
     expect(title).toHaveValue('Draft title');
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Add Entry' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Add Item' })).toBeEnabled();
   });
 
   it('applies the shared scroll/footer and comfortable-control CSS contract', async () => {
@@ -200,7 +200,7 @@ describe('AddEntry', () => {
     });
     renderForm({ onCancel: vi.fn() });
     await screen.findByRole('checkbox', { name: 'False' });
-    const form = screen.getByRole('form', { name: 'New Entry' });
+    const form = screen.getByRole('form', { name: 'New Item' });
     const body = form.querySelector('.entry-form__body')!;
     const footer = form.querySelector('.entry-form__footer')!;
     expect(form).toHaveStyle({

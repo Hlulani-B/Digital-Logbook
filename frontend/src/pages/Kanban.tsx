@@ -145,99 +145,9 @@ function KanbanColumn({
   );
 }
 
-interface KanbanBoardViewProps {
-  entries: CalendarEntry[];
-  email: string;
-  colorMap?: Record<string, string | null>;
-  onUpdated: () => void;
-}
-
-/**
- * The drag-and-drop Kanban board itself (columns + status updates). Shared by
- * the standalone Kanban page and the "Kanban" view on the All Entries page.
- */
-export function KanbanBoardView({ entries, email, colorMap, onUpdated }: KanbanBoardViewProps) {
-  const navigate = useNavigate();
-  const [dragging, setDragging] = useState<CalendarEntry | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const groupedEntries = useMemo(() => groupEntriesByStatus(entries), [entries]);
-
-  const handleDrop = async (targetStatus: EntryStatus) => {
-    if (!dragging || !email) return;
-    const entry = dragging;
-    const sourceStatus = getEntryStatus(entry);
-    setDragging(null);
-
-    if (sourceStatus === targetStatus) return;
-
-    setUpdatingId(entry.id);
-
-    try {
-      const result = await updateEntry(
-        email,
-        entry.project_name,
-        entry.id,
-        undefined,
-        undefined,
-        undefined,
-        targetStatus
-      );
-
-      if (result?.success !== true || result?.error) {
-        throw new Error(result?.message || result?.error || 'Failed to update status');
-      }
-      onUpdated();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update status');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleEntryClick = (entry: CalendarEntry) => {
-    navigate(`/project/${encodeURIComponent(entry.project_name)}`);
-  };
-
-  return (
-    <>
-      {error && (
-        <div className="kanban-error" role="alert">
-          {error}
-          <button type="button" className="kanban-error-close" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <div className="kanban-board">
-        {STATUS_ORDER.map((status) => (
-          <KanbanColumn
-            key={status}
-            status={status}
-            entries={groupedEntries[status]}
-            dragging={dragging}
-            onDragStart={setDragging}
-            onDrop={handleDrop}
-            onEntryClick={handleEntryClick}
-            colorMap={colorMap}
-          />
-        ))}
-      </div>
-
-      {updatingId && (
-        <div className="kanban-toast" aria-live="polite">
-          <span className="kanban-spinner" />
-          Updating status…
-        </div>
-      )}
-    </>
-  );
-}
-
 export function KanbanPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const email = user?.email ?? '';
 
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
@@ -246,6 +156,8 @@ export function KanbanPage() {
   const [error, setError] = useState<string | null>(null);
   const [projectFilter, setProjectFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dragging, setDragging] = useState<CalendarEntry | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | number | null>(null);
 
   // Guard against overlapping loadData calls — mount effect, three
   // cacheSubscribe listeners, SSE and visibilitychange all fire this
@@ -331,15 +243,65 @@ export function KanbanPage() {
     [entries, projectFilter, searchQuery]
   );
 
+  const groupedEntries = useMemo(() => groupEntriesByStatus(filteredEntries), [filteredEntries]);
   const colorMap = useMemo(
     () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
     [projects]
   );
 
+  const handleDragStart = (entry: CalendarEntry) => {
+    setDragging(entry);
+  };
+
+  const handleDrop = async (targetStatus: EntryStatus) => {
+    if (!dragging || !email) return;
+    const entry = dragging;
+    const sourceStatus = getEntryStatus(entry);
+    setDragging(null);
+
+    if (sourceStatus === targetStatus) return;
+
+    const updatedEntry = { ...entry, status: targetStatus };
+
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? updatedEntry : e)));
+    setUpdatingId(entry.id);
+
+    try {
+      const result = await updateEntry(
+        email,
+        entry.project_name,
+        entry.id,
+        undefined,
+        undefined,
+        undefined,
+        targetStatus
+      );
+
+      if (result?.success !== true || result?.error) {
+        throw new Error(result?.message || result?.error || 'Failed to update status');
+      }
+      const confirmed = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (confirmed) setEntries((prev) => prev.map((e) => (e.id === entry.id ? confirmed : e)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update status');
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleEntryClick = (entry: CalendarEntry) => {
+    navigate(`/project/${encodeURIComponent(entry.project_name)}`);
+  };
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
+      <NavBar
+        projects={projects as Array<Record<string, unknown>>}
+        entries={entries as unknown as Array<Record<string, unknown>>}
+        activeView="all"
+      />
       <main className="dash-main">
         <div className="kanban-page" data-tour="page-kanban">
           <Header
@@ -375,7 +337,7 @@ export function KanbanPage() {
                 id="search-filter"
                 type="text"
                 className="kanban-search"
-                placeholder="Search entries…"
+                placeholder="Search items…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -408,7 +370,7 @@ export function KanbanPage() {
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="kanban-empty">
-              <p>No entries match the current filter.</p>
+              <p>No items match the current filter.</p>
               <button
                 className="btn-secondary"
                 onClick={() => {
@@ -420,12 +382,27 @@ export function KanbanPage() {
               </button>
             </div>
           ) : (
-            <KanbanBoardView
-              entries={filteredEntries}
-              email={email}
-              colorMap={colorMap}
-              onUpdated={reload}
-            />
+            <div className="kanban-board">
+              {STATUS_ORDER.map((status) => (
+                <KanbanColumn
+                  key={status}
+                  status={status}
+                  entries={groupedEntries[status]}
+                  dragging={dragging}
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                  onEntryClick={handleEntryClick}
+                  colorMap={colorMap}
+                />
+              ))}
+            </div>
+          )}
+
+          {updatingId && (
+            <div className="kanban-toast" aria-live="polite">
+              <span className="kanban-spinner" />
+              Updating status…
+            </div>
           )}
         </div>
       </main>

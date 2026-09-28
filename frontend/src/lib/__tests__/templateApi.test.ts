@@ -3,11 +3,6 @@ import { listTemplates, type Template } from '../templateApi';
 
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
 
-vi.mock('../gateway', () => ({
-  GATEWAY_URL: '',
-  fetchFromGateway: (...args: Parameters<typeof fetch>) => fetch(...args),
-}));
-
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({ auth: { getSession } }),
 }));

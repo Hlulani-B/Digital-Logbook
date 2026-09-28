@@ -4,21 +4,28 @@ import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 /**
  * Fetch activities for a user.
  * Local-first: returns cached data immediately, refreshes from server in background.
+ * Paginated requests (offset > 0) skip the cache and go straight to the server.
+ *
  * @param {string} user_email
  * @param {number} [limit=50]
- * @param {string|string[]|null} [action_type] - optional filter by action type(s)
+ * @param {number} [offset=0]
+ * @returns {Promise<{success: boolean, data: array, has_more?: boolean}>}
  */
-export async function getActivities(user_email, limit = 50, action_type = null) {
-  const cacheKey = action_type
-    ? `${user_email}:activities:${Array.isArray(action_type) ? action_type.join(',') : action_type}`
-    : `${user_email}:activities`;
+export async function getActivities(user_email, limit = 50, offset = 0) {
+  const cacheKey = `${user_email}:activities`;
+  const isPaginated = offset > 0;
+
+  // Paginated requests skip cache — always go to server
+  if (isPaginated) {
+    return _fetchActivitiesFromServer(user_email, limit, cacheKey, offset);
+  }
 
   // 1. Return cached data first (instant)
   const cached = await cacheGet(CACHE_STORES.ACTIVITY, cacheKey);
   if (cached?.success && Array.isArray(cached.data)) {
     // Refresh from server in background (don't block the caller)
     if (navigator.onLine) {
-      _refreshActivitiesFromServer(user_email, limit, cacheKey, action_type);
+      _refreshActivitiesFromServer(user_email, limit, cacheKey);
     }
     return { ...cached, _fromCache: true };
   }
@@ -30,34 +37,32 @@ export async function getActivities(user_email, limit = 50, action_type = null) 
   }
 
   console.log('[getActivities] No cache, fetching from server...');
-  return _fetchActivitiesFromServer(user_email, limit, cacheKey, action_type);
+  return _fetchActivitiesFromServer(user_email, limit, cacheKey, offset);
 }
 
 /** Internal: fetch activities from server and write to cache */
-async function _fetchActivitiesFromServer(user_email, limit, cacheKey, action_type) {
+async function _fetchActivitiesFromServer(user_email, limit, cacheKey, offset = 0) {
   try {
-    const values = { user_email, limit };
-    if (action_type) values.action_type = action_type;
-
     const result = await request(`${PROJECT_URL}/service/activity`, {
       method: 'POST',
       body: JSON.stringify({
         function: 'getActivities',
-        values,
+        values: { user_email, limit, offset },
       }),
     });
 
-    if (result?.success) {
+    // Only cache the first page
+    if (result?.success && offset === 0) {
       await cacheSet(CACHE_STORES.ACTIVITY, cacheKey, result);
     }
     return result;
   } catch (err) {
     console.error('[getActivities] Failed:', err);
-    return { success: false, data: [] };
+    return { success: false, data: [], has_more: false };
   }
 }
 
 /** Internal: background refresh of activities from server */
-function _refreshActivitiesFromServer(user_email, limit, cacheKey, action_type) {
-  _fetchActivitiesFromServer(user_email, limit, cacheKey, action_type).catch(() => {});
+function _refreshActivitiesFromServer(user_email, limit, cacheKey) {
+  _fetchActivitiesFromServer(user_email, limit, cacheKey).catch(() => {});
 }

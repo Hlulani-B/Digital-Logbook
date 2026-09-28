@@ -283,7 +283,7 @@ export function CalendarDayModal({
           <div>
             <h2 className="cdm-date">{formatDateHeading(date)}</h2>
             <span className="cdm-count">
-              {entries.length} entr{entries.length !== 1 ? 'ies' : 'y'}
+              {entries.length} item{entries.length !== 1 ? 's' : ''}
             </span>
           </div>
           <button type="button" className="cdm-close" onClick={onClose} aria-label="Close">
@@ -374,14 +374,14 @@ export function CalendarDayModal({
             )}
 
             {entries.length === 0 && !showAddForm && (
-              <p className="cdm-empty">No entries for this day.</p>
+              <p className="cdm-empty">No items for this day.</p>
             )}
 
             {/* Add entry form */}
             {showAddForm ? (
               <div className="cdm-form-fields">
                 <h3 className="cdm-form-title" id="cdm-form-title">
-                  New Entry
+                  New Item
                 </h3>
 
                 {/* Project selector */}
@@ -548,7 +548,7 @@ export function CalendarDayModal({
                 className="cdm-btn cdm-btn--submit"
                 disabled={saving || !selectedProject || loadingFields || !fieldsReady}
               >
-                {saving ? 'Adding...' : 'Add Entry'}
+                {saving ? 'Adding...' : 'Add Item'}
               </button>
             </div>
           )}

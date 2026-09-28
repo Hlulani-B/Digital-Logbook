@@ -81,9 +81,9 @@ describe('AppShell', () => {
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
     expect(screen.getByText('Home')).toBeTruthy();
-    expect(screen.getByText('All Entries')).toBeTruthy();
+    expect(screen.getByText('All Items')).toBeTruthy();
     expect(screen.getByText('My Stats')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Kanban' })).toBeNull();
+    expect(screen.getByText('Kanban')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Today' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Today' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tracker' })).toBeNull();
@@ -114,7 +114,7 @@ describe('AppShell', () => {
       </MemoryRouter>
     );
     fireEvent.click(screen.getByLabelText('Toggle menu'));
-    fireEvent.click(screen.getByText('All Entries'));
+    fireEvent.click(screen.getByText('All Items'));
     expect(mockNavigate).toHaveBeenCalledWith('/entries');
   });
 

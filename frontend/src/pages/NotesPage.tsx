@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getNotes, addNote, viewNote, updateNote, deleteNote } from '@/functions/project/notes.js';
 import { getAllEntries } from '@/functions/project/entries.js';
-import { getProjectsByEmail } from '@/functions/project/project.js';
 import { getEntryTitle } from '@/lib/calendar';
 import { trackViewedEntry } from '@/lib/recentlyViewed';
 import { cacheSubscribe, CACHE_STORES } from '@/lib/cache';
@@ -43,13 +42,12 @@ interface EntryData {
   due_date?: string | null;
 }
 
-/** Check if a link note value is actually a JSON-encoded reference */
+/** Check if a link note value is actually a JSON-encoded entry reference */
 function isReferenceNote(value: string): boolean {
   if (!value || typeof value !== 'string' || value[0] !== '{') return false;
   try {
     const parsed = JSON.parse(value);
-    if (!parsed || typeof parsed !== 'object' || !('project_name' in parsed)) return false;
-    return 'id' in parsed || parsed.kind === 'project';
+    return parsed && typeof parsed === 'object' && 'id' in parsed && 'project_name' in parsed;
   } catch {
     return false;
   }
@@ -102,13 +100,10 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
   // pill is disabled while offline and the user gets an explanatory hint.
   const isOnline = useNetworkStatus();
 
-  // Reference picker — the reference pill first asks whether the reference
-  // targets a project or a single entry, then lists the matching items.
+  // Reference picker
   const navigate = useNavigate();
   const [refPickerOpen, setRefPickerOpen] = useState(false);
-  const [refKind, setRefKind] = useState<'project' | 'entry' | null>(null);
   const [refEntries, setRefEntries] = useState<any[]>([]);
-  const [refProjects, setRefProjects] = useState<any[]>([]);
   const [refLoading, setRefLoading] = useState(false);
 
   // Edit state
@@ -340,35 +335,29 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     setEditValue(note.value);
   };
 
-  const openRefPicker = () => {
-    // Step 1 — pick project vs entry; the modal then shows the matching list.
-    setRefKind(null);
-    setRefPickerOpen(true);
-  };
-
-  const loadRefList = async (kind: 'project' | 'entry') => {
+  const openRefPicker = async () => {
     if (!userEmail) return;
-    setRefKind(kind);
     setRefLoading(true);
+    setRefPickerOpen(true);
     try {
-      if (kind === 'entry') {
-        const result = await getAllEntries(userEmail);
-        if (result?.data) {
-          setRefEntries(result.data.filter((e: any) => e.id !== entryId));
-        }
-      } else {
-        const result = await getProjectsByEmail(userEmail);
-        setRefProjects(result?.projects || result?.data || []);
+      const result = await getAllEntries(userEmail);
+      if (result?.data) {
+        setRefEntries(result.data.filter((e: any) => e.id !== entryId));
       }
     } catch {}
     setRefLoading(false);
   };
 
-  const submitReference = async (refData: string) => {
-    // Set the newNote to reference type with the selected data
+  const selectEntryRef = async (refEntry: any) => {
+    const display = refEntry.summary || refEntry.project_name || 'Referenced entry';
+    const refData = JSON.stringify({
+      id: refEntry.id,
+      project_name: refEntry.project_name,
+      display: String(display),
+    });
+    // Set the newNote to reference type with the selected entry data
     setNewNote({ entry_type: 'reference', value: refData });
     setRefPickerOpen(false);
-    setRefKind(null);
     // Auto-submit the note
     if (!entryId || !userEmail || adding) return;
     setAdding(true);
@@ -390,29 +379,6 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
     } finally {
       setAdding(false);
     }
-  };
-
-  const selectEntryRef = (refEntry: any) => {
-    const display = refEntry.summary || refEntry.project_name || 'Referenced entry';
-    submitReference(
-      JSON.stringify({
-        id: refEntry.id,
-        project_name: refEntry.project_name,
-        display: String(display),
-      })
-    );
-  };
-
-  const selectProjectRef = (project: any) => {
-    const name = project.project_name || project.name || '';
-    if (!name) return;
-    submitReference(
-      JSON.stringify({
-        project_name: name,
-        display: name,
-        kind: 'project',
-      })
-    );
   };
 
   const handleSaveEdit = async () => {
@@ -553,11 +519,9 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                     style={{ justifyContent: 'center', gap: '0.5rem' }}
                   >
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      {refKind === 'project'
-                        ? 'Select a project...'
-                        : refKind === 'entry'
-                          ? 'Select an entry...'
-                          : 'Pick a project or entry to reference'}
+                      {refPickerOpen
+                        ? 'Select an entry...'
+                        : 'Click Reference pill to pick an entry'}
                     </span>
                     {!refPickerOpen && (
                       <button
@@ -566,7 +530,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                         style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
                         onClick={openRefPicker}
                       >
-                        Choose reference
+                        Browse entries
                       </button>
                     )}
                   </div>
@@ -719,7 +683,6 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                           <div className="notes-panel__note-reference">
                             {(() => {
                               const ref = JSON.parse(note.value);
-                              const isProjectRef = ref.kind === 'project' || !ref.id;
                               return (
                                 <button
                                   type="button"
@@ -728,18 +691,16 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                                     navigate(`/project/${encodeURIComponent(ref.project_name)}`);
                                   }}
                                 >
-                                  {isProjectRef ? '📁' : '🔗'} {ref.display || 'Referenced entry'}
-                                  {!isProjectRef && (
-                                    <span
-                                      style={{
-                                        fontSize: '0.7rem',
-                                        color: 'var(--text-secondary)',
-                                        marginLeft: '0.5rem',
-                                      }}
-                                    >
-                                      ({ref.project_name})
-                                    </span>
-                                  )}
+                                  🔗 {ref.display || 'Referenced entry'}
+                                  <span
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      color: 'var(--text-secondary)',
+                                      marginLeft: '0.5rem',
+                                    }}
+                                  >
+                                    ({ref.project_name})
+                                  </span>
                                 </button>
                               );
                             })()}
@@ -881,8 +842,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
         </div>
       </div>
 
-      {/* Reference Picker Modal — first choose project vs entry, then pick
-          from the matching list. */}
+      {/* Reference Picker Modal */}
       {refPickerOpen && (
         <div
           className="modal-overlay"
@@ -891,13 +851,7 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
         >
           <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ref-picker-header">
-              <h3>
-                {refKind === 'project'
-                  ? 'Select a Project'
-                  : refKind === 'entry'
-                    ? 'Select an Entry to Reference'
-                    : 'Add a Reference'}
-              </h3>
+              <h3>Select an Entry to Reference</h3>
               <button
                 type="button"
                 className="ref-picker-close"
@@ -906,45 +860,8 @@ export function NotesPage({ entryData, onClose }: NotesPageProps) {
                 ×
               </button>
             </div>
-            {refKind === null ? (
-              <div className="ref-picker-list">
-                <button
-                  type="button"
-                  className="ref-picker-item"
-                  onClick={() => loadRefList('project')}
-                >
-                  <span className="ref-picker-item-project">📁 Project reference</span>
-                  <span className="ref-picker-item-summary">Link to a whole project</span>
-                </button>
-                <button
-                  type="button"
-                  className="ref-picker-item"
-                  onClick={() => loadRefList('entry')}
-                >
-                  <span className="ref-picker-item-project">🔗 Entry reference</span>
-                  <span className="ref-picker-item-summary">Link to a single entry</span>
-                </button>
-              </div>
-            ) : refLoading ? (
-              <div className="ref-picker-loading">
-                {refKind === 'project' ? 'Loading projects...' : 'Loading entries...'}
-              </div>
-            ) : refKind === 'project' ? (
-              <div className="ref-picker-list">
-                {refProjects.map((p: any) => (
-                  <button
-                    key={p.project_name}
-                    type="button"
-                    className="ref-picker-item"
-                    onClick={() => selectProjectRef(p)}
-                  >
-                    <span className="ref-picker-item-project">{p.project_name}</span>
-                  </button>
-                ))}
-                {refProjects.length === 0 && (
-                  <div className="ref-picker-empty">No projects found</div>
-                )}
-              </div>
+            {refLoading ? (
+              <div className="ref-picker-loading">Loading entries...</div>
             ) : (
               <div className="ref-picker-list">
                 {refEntries.map((e: any) => (

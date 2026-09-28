@@ -24,6 +24,7 @@ vi.mock('@/functions/project/archives.js', () => ({
   archiveEntry: mocks.archiveEntry,
   unarchiveEntry: mocks.unarchiveEntry,
 }));
+vi.mock('@/functions/project/project.js', () => ({ getProjectsByEmail: vi.fn() }));
 vi.mock('@/context/NotesContext', () => ({ useNotes: () => ({ openNotes: mocks.openNotes }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/lib/attachmentApi', () => ({ uploadAndFinalize: vi.fn() }));
@@ -47,13 +48,6 @@ function element<T extends HTMLElement>(root: ParentNode, selector: string): T {
   const found = root.querySelector<T>(selector);
   expect(found).not.toBeNull();
   return found!;
-}
-
-/** Local datetime-local value (minutes precision) N hours in the future. */
-function futureLocalDateTime(hoursFromNow: number): string {
-  const d = new Date(Date.now() + hoursFromNow * 3600 * 1000);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function renderBox(entry = sampleEntry) {
@@ -163,7 +157,7 @@ describe('EntryBox inline edit layout', () => {
   });
 
   it('saves all draft values and preserves the pending state and update callback', async () => {
-    let finishSave!: (value: { success: boolean; data?: unknown }) => void;
+    let finishSave!: (value: { success: boolean }) => void;
     mocks.updateEntry.mockReturnValueOnce(
       new Promise((resolve) => {
         finishSave = resolve;
@@ -182,10 +176,8 @@ describe('EntryBox inline edit layout', () => {
     const [due, started] = body.querySelectorAll('input[type="datetime-local"]');
     fireEvent.change(priority, { target: { value: '0' } });
     fireEvent.change(status, { target: { value: 'in_motion' } });
-    const dueValue = futureLocalDateTime(48);
-    const startedValue = futureLocalDateTime(24);
-    fireEvent.change(due, { target: { value: dueValue } });
-    fireEvent.change(started, { target: { value: startedValue } });
+    fireEvent.change(due, { target: { value: '2026-09-25T15:30' } });
+    fireEvent.change(started, { target: { value: '2026-09-24T09:00' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     // Wait for the save button to show "Saving..." to ensure state has updated
@@ -198,8 +190,8 @@ describe('EntryBox inline edit layout', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
     expect(onUpdated).not.toHaveBeenCalled();
     const updatedFields = { Title: 'Edited title', Notes: 'Edited notes', Locked: 'Read only' };
-    const dueISO = new Date(dueValue).toISOString();
-    const startedISO = new Date(startedValue).toISOString();
+    const dueISO = new Date('2026-09-25T15:30').toISOString();
+    const startedISO = new Date('2026-09-24T09:00').toISOString();
     expect(mocks.updateEntry).toHaveBeenCalledExactlyOnceWith(
       sampleEntry.user_email,
       sampleEntry.project_name,
@@ -209,18 +201,17 @@ describe('EntryBox inline edit layout', () => {
       'Urgent and important',
       'in_motion',
       startedISO,
-      undefined
+      null
     );
-    const savedRow = {
+    await act(async () => finishSave({ success: true }));
+    expect(onUpdated).toHaveBeenCalledExactlyOnceWith({
       ...sampleEntry,
       entries: updatedFields,
       due_date: dueISO,
       started_at: startedISO,
       priority: 'Urgent and important',
       status: 'in_motion',
-    };
-    await act(async () => finishSave({ success: true, data: savedRow }));
-    expect(onUpdated).toHaveBeenCalledExactlyOnceWith(savedRow);
+    });
     expect(container.querySelector('.entry-form')).toBeNull();
     expect(screen.getByRole('button', { name: 'Entry options' })).toBeInTheDocument();
   });
@@ -288,27 +279,23 @@ describe('EntryBox inline edit layout', () => {
 
   it('keeps historical opaque content in the body without rewriting it on save', async () => {
     const entry = { ...sampleEntry, entries: ['Historical task'] };
-    mocks.updateEntry.mockResolvedValueOnce({ success: true, data: entry });
     const { container, onUpdated } = renderBox(entry);
     openEdit();
     const body = element(container, '.entry-form__body');
     expect(within(body).getByText('["Historical task"]')).toBeInTheDocument();
     expect(within(body).queryByRole('textbox')).not.toBeInTheDocument();
-    const saveButton = screen.getByRole('button', { name: 'Save Changes' });
-    // The save button stays disabled until the project fields finish loading.
-    await waitFor(() => expect(saveButton).toBeEnabled());
-    fireEvent.click(saveButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
     await waitFor(() => expect(onUpdated).toHaveBeenCalledExactlyOnceWith(entry));
     expect(mocks.updateEntry).toHaveBeenCalledExactlyOnceWith(
       entry.user_email,
       entry.project_name,
       entry.id,
       undefined,
-      undefined,
+      null,
       null,
       'up_next',
-      undefined,
-      undefined
+      null,
+      null
     );
   });
 
@@ -339,19 +326,6 @@ describe('EntryBox inline edit layout', () => {
       sampleEntry.project_name,
       sampleEntry.id
     );
-  });
-
-  it('no longer renders the project reference area and keeps the reserved key hidden', async () => {
-    const entry = {
-      ...sampleEntry,
-      entries: { Title: 'Original title', _project_ref: { project_name: 'Referenced project' } },
-    };
-    const { container } = renderBox(entry);
-    await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());
-    expect(container.querySelector('.entry-box__project-ref-area')).toBeNull();
-    expect(screen.queryByRole('button', { name: '+ Project Reference' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Referenced project')).not.toBeInTheDocument();
-    expect(container.querySelector('.entry-box__table')?.textContent).not.toContain('_project_ref');
   });
 
   it('keeps delete confirmation inline in the ordinary menu with cancel and delete callbacks', async () => {

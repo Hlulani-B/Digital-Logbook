@@ -16,7 +16,7 @@ describe('QuickEntryBar', () => {
 
   it('renders the input with default placeholder', () => {
     render(<QuickEntryBar />);
-    expect(screen.getByPlaceholderText(/Write an entry/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/Write an item/i)).toBeTruthy();
   });
 
   it('renders with custom placeholder', () => {
@@ -41,7 +41,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Fixed login bug');
     await user.click(document.querySelector('.quick-entry-submit')!);
 
@@ -57,7 +57,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Test entry');
     await user.click(document.querySelector('.quick-entry-submit')!);
 
@@ -75,7 +75,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Test entry');
     await user.click(document.querySelector('.quick-entry-submit')!);
 
@@ -94,7 +94,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar onEntryCreated={onEntryCreated} />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Test entry');
     await user.click(document.querySelector('.quick-entry-submit')!);
 
@@ -123,7 +123,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'Quick entry{enter}');
 
     expect(addNaturalLanguageEntry).toHaveBeenCalledWith('Quick entry');
@@ -138,7 +138,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i);
+    const input = screen.getByPlaceholderText(/Write an item/i);
     await user.type(input, 'new project stuff');
     await user.click(document.querySelector('.quick-entry-submit')!);
 
@@ -159,7 +159,7 @@ describe('QuickEntryBar', () => {
 
     render(<QuickEntryBar />);
 
-    const input = screen.getByPlaceholderText(/Write an entry/i) as HTMLInputElement;
+    const input = screen.getByPlaceholderText(/Write an item/i) as HTMLInputElement;
     await user.type(input, 'Loading test');
     await user.click(document.querySelector('.quick-entry-submit')!);
 

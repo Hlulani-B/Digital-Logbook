@@ -625,7 +625,7 @@ function FieldAnalysisDetail({
         <>
           <p className="analysis-note">
             {stat.comparison.excluded} entries excluded for missing or invalid comparison values or
-            dates. Each legend entry is a {compareDef?.field_name} category.
+            dates. Each legend item is a {compareDef?.field_name} category.
           </p>
           <MatrixChart
             matrix={stat.comparison.display}
@@ -1064,7 +1064,7 @@ export function StatsView() {
     return (
       <div className="dash-layout">
         <div className="bg-mesh" />
-        <NavBar entries={entries} activeView="all" />
+        <NavBar projects={projects} entries={entries} activeView="all" />
         <main className="dash-main">
           <Header
             title={statsTitle}
@@ -1092,7 +1092,7 @@ export function StatsView() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar entries={entries} activeView="all" />
+      <NavBar projects={projects} entries={entries} activeView="all" />
       <main className="dash-main">
         <Header
           title={statsTitle}

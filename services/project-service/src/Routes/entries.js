@@ -161,27 +161,6 @@ router.post('/entry', async (req, res) => {
             project_name,
             entry_id,
           });
-
-          // Log timer-specific events so they appear in the activity feed
-          const effectiveTimerAction = timer_action;
-          const timerActionMap = {
-            start: 'TIMER_STARTED',
-            pause: 'TIMER_PAUSED',
-            resume: 'TIMER_RESUMED',
-            end: 'TIMER_STOPPED',
-          };
-          if (effectiveTimerAction && timerActionMap[effectiveTimerAction]) {
-            await logActivity(
-              user_email,
-              timerActionMap[effectiveTimerAction],
-              'timer',
-              entrySummary,
-              {
-                project_name,
-                entry_id,
-              }
-            );
-          }
         }
         return res.json(result);
       }

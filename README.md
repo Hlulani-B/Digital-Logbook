@@ -1,7 +1,3 @@
-For Docker Compose, local development, and Render setup, see [Running the application](docs/RUNNING.md).
-
-<<<<<<< HEAD
-
 ## Link to the Documentation site
 
 https://digital-logbook-documentation-site.onrender.com
@@ -356,8 +352,3 @@ Then open a pull request on Gitea into `main` (or `services` for backend-only wo
 
 - Project entries and their statistics stay scoped to that project (`project-service`).
 - The dashboard (`dashboard-service`) only shows cross-project summaries — it does not read individual entry tables directly.
-  \=======
-
-# digital-logbook-tryout
-
-> > > > > > > 441825259af21c233fb9a52fca1edd7c99a89027

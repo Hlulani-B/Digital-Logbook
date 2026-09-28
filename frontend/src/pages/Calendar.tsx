@@ -568,13 +568,13 @@ export function CalendarPage() {
           {loading ? (
             <div className="calendar-loading">
               <span className="calendar-spinner" />
-              Loading entries…
+              Loading items…
             </div>
           ) : entries.length === 0 ? (
             <div className="calendar-empty">
-              <p>No scheduled entries yet.</p>
+              <p>No scheduled items yet.</p>
               <button className="btn-primary" onClick={() => navigate('/dashboard')}>
-                Add an entry
+                Add an item
               </button>
             </div>
           ) : (

@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AllEntriesPage } from '../AllEntries';
-import { cacheGet } from '@/lib/cache';
 
 // Mock all dependencies
 vi.mock('@/context/AuthContext', () => ({
@@ -19,7 +18,6 @@ vi.mock('@/lib/cache', () => ({
     ALL_ENTRIES: 'all_entries',
     PROJECTS: 'projects',
     PROFILE: 'profile',
-    FIELDS: 'fields',
   },
 }));
 
@@ -51,10 +49,6 @@ vi.mock('@/pages/NewEntry', () => ({
   EntryBox: vi.fn(() => <div data-testid="entry-box">EntryBox</div>),
 }));
 
-vi.mock('@/pages/AddEntry', () => ({
-  AddEntry: vi.fn(() => <div data-testid="add-entry">AddEntry</div>),
-}));
-
 vi.mock('@/Templates/EntryTemplates/EntryChecklist', () => ({
   ChecklistView: vi.fn(() => <div data-testid="checklist-view">ChecklistView</div>),
 }));
@@ -69,14 +63,6 @@ vi.mock('@/Templates/ProjectTemplates/ProjectTable', () => ({
 
 vi.mock('@/pages/VoiceFeature', () => ({
   default: vi.fn(() => <div data-testid="voice-feature">VoiceFeature</div>),
-}));
-
-vi.mock('@/pages/Kanban', () => ({
-  KanbanBoardView: vi.fn(() => <div data-testid="kanban-view">KanbanBoardView</div>),
-}));
-
-vi.mock('@/pages/Timeline', () => ({
-  TimelineView: vi.fn(() => <div data-testid="timeline-view">TimelineView</div>),
 }));
 
 describe('AllEntriesPage', () => {
@@ -100,7 +86,7 @@ describe('AllEntriesPage', () => {
   it('renders the Header with "My Entries" title', () => {
     renderPage();
     expect(screen.getByTestId('header')).toBeTruthy();
-    expect(screen.getByText('My Entries')).toBeTruthy();
+    expect(screen.getByText('My Items')).toBeTruthy();
   });
 
   it('renders the QuickEntryBar', () => {
@@ -110,104 +96,34 @@ describe('AllEntriesPage', () => {
 
   it('renders the search input', () => {
     renderPage();
-    expect(screen.getByPlaceholderText('Search entries...')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Filter entries...')).toBeTruthy();
   });
 
-  it('shows the View dropdown with every display option', () => {
+  it('renders display mode toggle buttons', () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
-    expect(screen.getByRole('option', { name: 'Cards' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Checklist' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Board' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Table' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Kanban' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Timeline' })).toBeTruthy();
+    expect(screen.getByText('Cards')).toBeTruthy();
+    expect(screen.getByText('Checklist')).toBeTruthy();
+    expect(screen.getByText('Board')).toBeTruthy();
+    expect(screen.getByText('Table')).toBeTruthy();
   });
 
-  it('shows the sort dropdown with Date and Priority options', () => {
+  it('renders sort buttons for Date and Priority', () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Date' }));
-    expect(screen.getByRole('option', { name: 'Date' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Priority' })).toBeTruthy();
+    expect(screen.getByText('Date')).toBeTruthy();
+    expect(screen.getByText('Priority')).toBeTruthy();
   });
 
   it('defaults to cards display mode', () => {
     renderPage();
-    // The View dropdown trigger shows the active display mode
-    expect(screen.getByRole('button', { name: 'Cards' })).toBeTruthy();
+    // Cards button should be active by default
+    const cardsBtn = screen.getByText('Cards');
+    expect(cardsBtn.className).toContain('active');
   });
 
   it('defaults to date sorting', () => {
     renderPage();
-    // The Sort dropdown trigger shows the active sort option
-    expect(screen.getByRole('button', { name: 'Date' })).toBeTruthy();
-  });
-
-  it('changes display mode from the View dropdown', () => {
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Checklist' }));
-    expect(screen.getByRole('button', { name: 'Checklist' })).toBeTruthy();
-    expect(setItemSpy).toHaveBeenCalledWith('allentries-display-mode', 'checklist');
-    setItemSpy.mockRestore();
-    localStorage.clear();
-  });
-
-  it('changes the sort preference from the sort dropdown', () => {
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Date' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Priority' }));
-    expect(screen.getByRole('button', { name: 'Priority' })).toBeTruthy();
-    expect(setItemSpy).toHaveBeenCalledWith('allentries-sort-by', 'priority');
-    setItemSpy.mockRestore();
-    localStorage.clear();
-  });
-
-  it('hides the sort control only in kanban and timeline views', () => {
-    renderPage();
-    // Visible in the default (cards) view
-    expect(screen.getByRole('button', { name: 'Date' })).toBeTruthy();
-
-    // Hidden in the kanban view
-    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Kanban' }));
-    expect(screen.queryByRole('button', { name: 'Date' })).toBeNull();
-
-    // Hidden in the timeline view
-    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Timeline' }));
-    expect(screen.queryByRole('button', { name: 'Date' })).toBeNull();
-
-    // Reappears in the other views
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Cards' }));
-    expect(screen.getByRole('button', { name: 'Date' })).toBeTruthy();
-    localStorage.clear();
-  });
-
-  it('shows the corner add-entry button', () => {
-    renderPage();
-    expect(screen.getByRole('button', { name: 'New entry' })).toBeTruthy();
-  });
-
-  it('opens the new-entry project picker from the corner button', () => {
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'New entry' }));
-    expect(screen.getByText('New Entry')).toBeTruthy();
-    expect(screen.getByText('No projects yet. Create one first.')).toBeTruthy();
-  });
-
-  it('opens the entry form after picking a project in the new-entry modal', async () => {
-    vi.mocked(cacheGet)
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({ data: [{ project_name: 'Alpha' }] });
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'New entry' }));
-    const projectButton = await screen.findByRole('button', { name: 'Alpha' });
-    fireEvent.click(projectButton);
-    expect(screen.getByTestId('add-entry')).toBeTruthy();
+    const dateBtn = screen.getByText('Date');
+    expect(dateBtn.className).toContain('active');
   });
 
   it('shows empty state when no entries', async () => {
@@ -237,109 +153,16 @@ describe('AllEntriesPage', () => {
   it('reads display mode from localStorage on mount', () => {
     localStorage.setItem('allentries-display-mode', 'board');
     renderPage();
-    expect(screen.getByRole('button', { name: 'Board' })).toBeTruthy();
+    const boardBtn = screen.getByText('Board');
+    expect(boardBtn.className).toContain('active');
     localStorage.clear();
   });
 
   it('reads sort preference from localStorage on mount', () => {
     localStorage.setItem('allentries-sort-by', 'priority');
     renderPage();
-    // The Sort dropdown trigger reflects the saved preference
-    expect(screen.getByRole('button', { name: 'Priority' })).toBeTruthy();
+    const priorityBtn = screen.getByText('Priority');
+    expect(priorityBtn.className).toContain('active');
     localStorage.clear();
-  });
-
-  /** Route each cache store this page reads to the data under test. */
-  function mockFeed({
-    entries,
-    projects,
-    fields = {},
-  }: {
-    entries: Array<Record<string, unknown>>;
-    projects: Array<Record<string, unknown>>;
-    fields?: Record<string, Array<Record<string, unknown>>>;
-  }) {
-    vi.mocked(cacheGet).mockImplementation(async (store: string, key: string) => {
-      if (store === 'all_entries') return { data: entries };
-      if (store === 'projects') return { data: projects };
-      if (store === 'fields') return { data: fields[key.split(':')[1]] ?? [] };
-      return { data: [] };
-    });
-  }
-
-  const feedEntries = [
-    { id: 'a1', project_name: 'Alpha' },
-    { id: 'a2', project_name: 'Alpha' },
-    { id: 'a3', project_name: 'Alpha' },
-    { id: 'b1', project_name: 'Beta' },
-  ];
-  const feedProjects = [{ project_name: 'Alpha' }, { project_name: 'Beta' }];
-
-  it('shows the filter icon at the end of the search bar', () => {
-    renderPage();
-    expect(screen.getByRole('button', { name: 'Filters' })).toBeTruthy();
-  });
-
-  it('opens the entries filter panel with project, entry count and field count', () => {
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    expect(screen.getByText('Filter entries')).toBeTruthy();
-    expect(screen.getByLabelText('Project name filter')).toBeTruthy();
-    expect(screen.getByLabelText('Entry count filter type')).toBeTruthy();
-    expect(screen.getByLabelText('Field count filter type')).toBeTruthy();
-  });
-
-  it('filters the feed by project name', async () => {
-    mockFeed({ entries: feedEntries, projects: feedProjects });
-    renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    fireEvent.change(screen.getByLabelText('Project name filter'), { target: { value: 'Alpha' } });
-
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
-    expect(screen.getByRole('button', { name: 'Filters (1 active)' })).toBeTruthy();
-  });
-
-  it("filters the feed by the entry's project entry count", async () => {
-    mockFeed({ entries: feedEntries, projects: feedProjects });
-    renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    fireEvent.change(screen.getByLabelText('Entry count value'), { target: { value: '2' } });
-
-    // Alpha has 3 entries, Beta only 1 — Above 2 keeps Alpha's rows
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
-  });
-
-  it("filters the feed by the entry's project field count", async () => {
-    mockFeed({
-      entries: feedEntries,
-      projects: feedProjects,
-      fields: { Alpha: [{ field_name: 'Calories' }, { field_name: 'Food Name' }] },
-    });
-    renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    fireEvent.change(screen.getByLabelText('Field count value'), { target: { value: '1' } });
-
-    // Only Alpha defines fields at all — Beta's 0 field count is filtered out
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
-  });
-
-  it('clears every active filter', async () => {
-    mockFeed({ entries: feedEntries, projects: feedProjects });
-    renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    fireEvent.change(screen.getByLabelText('Project name filter'), { target: { value: 'Beta' } });
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(1));
-
-    fireEvent.click(screen.getByText('Clear all'));
-    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
-    expect(screen.getByLabelText('Project name filter')).toHaveProperty('value', '');
   });
 });

@@ -1,10 +1,10 @@
-import { DASHBOARD_URL as url } from '../../lib/api';
-import { fetchFromGateway } from '../../lib/gateway';
+const url =
+  import.meta.env.VITE_DASHBOARD_SERVICE_URL || 'https://dashboard-service-bpc5.onrender.com';
 
 async function safeFetch(endpoint, body) {
   let res;
   try {
-    res = await fetchFromGateway(url + endpoint, {
+    res = await fetch(url + endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

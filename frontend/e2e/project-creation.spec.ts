@@ -11,13 +11,13 @@ test.describe('Project Creation', () => {
   });
 
   test('should open new project modal', async ({ page }) => {
-    await page.getByRole('button', { name: /add new project/i }).click();
+    await page.getByRole('button', { name: /\+ new/i }).click();
     await expect(page.getByRole('heading', { name: /new project/i })).toBeVisible();
   });
 
   test('should create project with multiple columns', async ({ page }) => {
     // Open new project modal
-    await page.getByRole('button', { name: /add new project/i }).click();
+    await page.getByRole('button', { name: /\+ new/i }).click();
 
     // Fill project name
     await page.getByLabel(/project name/i).fill('Test Project');
@@ -54,7 +54,7 @@ test.describe('Project Creation', () => {
   });
 
   test('should show template picker', async ({ page }) => {
-    await page.getByRole('button', { name: /add new project/i }).click();
+    await page.getByRole('button', { name: /\+ new/i }).click();
 
     // Click template picker button
     await page.getByRole('button', { name: /choose a template/i }).click();
