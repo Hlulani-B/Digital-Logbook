@@ -49,6 +49,7 @@ import {
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
 import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
+import { CircularTimer } from '@/components/CircularTimer';
 import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
 
 // ── Timer Banner Component ────────────────────────────────────────────────────
@@ -63,32 +64,49 @@ interface TimerBannerProps {
 }
 
 function TimerBanner({ entry, projectName, elapsed, extraCount, onUpdated }: TimerBannerProps) {
-  const { timerAction, isActionInFlight, pause, resume } = useTimerActions({ entry, onUpdated });
+  const { timerAction, isActionInFlight, start, pause, resume, stop } = useTimerActions({
+    entry,
+    onUpdated,
+  });
   const isPaused = Boolean(entry.started_at && !entry.ended_at && entry.paused_at);
+  const isRunning = Boolean(entry.started_at && !entry.ended_at && !entry.paused_at);
+  const isCompleted = Boolean(entry.ended_at);
+
+  // Calculate elapsed milliseconds for CircularTimer
+  const elapsedMs = entryDurationMs(entry, Date.now());
+  const targetMs = entry.target_duration_ms ? Number(entry.target_duration_ms) : null;
 
   return (
     <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
-      <span className="dash-timer-dot" />
-      <span className="dash-timer-label">
-        {timerAction === 'pending-sync'
-          ? 'Pending sync'
-          : isPaused
-            ? 'Timer paused'
-            : 'Timer running'}
-      </span>
-      <span className="dash-timer-project">{projectName}</span>
-      <span className="dash-timer-elapsed">{elapsed}</span>
-      {extraCount > 0 && <span className="dash-timer-extra">+{extraCount} more</span>}
-      <button
-        type="button"
-        className="dash-timer-control"
-        onClick={isPaused ? resume : pause}
-        disabled={isActionInFlight}
-        aria-label={isPaused ? 'Resume timer' : 'Pause timer'}
-        title={isPaused ? 'Resume' : 'Pause'}
-      >
-        {timerAction === 'pausing' ? '…' : timerAction === 'resuming' ? '…' : isPaused ? '▶' : '❚❚'}
-      </button>
+      <div className="dash-timer-content">
+        <div className="dash-timer-info">
+          <span className="dash-timer-dot" />
+          <span className="dash-timer-label">
+            {timerAction === 'pending-sync'
+              ? 'Pending sync'
+              : isPaused
+                ? 'Timer paused'
+                : isCompleted
+                  ? 'Timer completed'
+                  : 'Timer running'}
+          </span>
+          <span className="dash-timer-project">{projectName}</span>
+          <span className="dash-timer-elapsed">{elapsed}</span>
+          {extraCount > 0 && <span className="dash-timer-extra">+{extraCount} more</span>}
+        </div>
+        <CircularTimer
+          elapsedMs={elapsedMs}
+          targetMs={targetMs}
+          isRunning={isRunning}
+          isPaused={isPaused}
+          isCompleted={isCompleted}
+          onStart={isPaused ? resume : start}
+          onPause={pause}
+          onStop={stop}
+          size={80}
+          strokeWidth={8}
+        />
+      </div>
     </div>
   );
 }
