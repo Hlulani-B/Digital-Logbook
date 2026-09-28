@@ -378,11 +378,83 @@ interface ActivityFeedProps {
   onLoadingChange?: (loading: boolean) => void;
 }
 
+// Filter categories for action types with count badges
+const FILTER_CATEGORIES = {
+  all: { label: 'All', types: null },
+  projects: {
+    label: 'Projects',
+    types: [
+      'PROJECT_CREATED',
+      'PROJECT_RENAMED',
+      'PROJECT_DELETED',
+      'PROJECT_ARCHIVED',
+      'PROJECT_UNARCHIVED',
+    ],
+  },
+  entries: { label: 'Entries', types: ['ENTRY_ADDED', 'ENTRY_EDITED', 'ENTRY_DELETED'] },
+  fields: { label: 'Fields', types: ['FIELD_ADDED', 'FIELD_EDITED', 'FIELD_DELETED'] },
+  other: {
+    label: 'Other',
+    types: [
+      'PRIORITY_SET',
+      'TIMER_STARTED',
+      'TIMER_STOPPED',
+      'PROFILE_CREATED',
+      'PROFILE_USERNAME_UPDATED',
+      'PROFILE_EMAIL_UPDATED',
+      'PROFILE_PASSWORD_UPDATED',
+    ],
+  },
+} as const;
+
+type FilterKey = keyof typeof FILTER_CATEGORIES;
+
+/**
+ * Calculate the count of activities matching each filter category.
+ */
+export function getCategoryCounts(activities: Activity[]): Record<FilterKey, number> {
+  const counts: Record<FilterKey, number> = {
+    all: activities.length,
+    projects: 0,
+    entries: 0,
+    fields: 0,
+    other: 0,
+  };
+
+  for (const activity of activities) {
+    const actionType = activity.action_type;
+    if (FILTER_CATEGORIES.projects.types!.includes(actionType as any)) {
+      counts.projects++;
+    } else if (FILTER_CATEGORIES.entries.types!.includes(actionType as any)) {
+      counts.entries++;
+    } else if (FILTER_CATEGORIES.fields.types!.includes(actionType as any)) {
+      counts.fields++;
+    } else if (FILTER_CATEGORIES.other.types!.includes(actionType as any)) {
+      counts.other++;
+    }
+  }
+
+  return counts;
+}
+
 export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const { user } = useAuth();
   const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+
+  // Calculate counts for each filter category
+  const categoryCounts = getCategoryCounts(activities);
+
+  // Filter activities based on active filter
+  const filteredActivities = activities.filter((activity) => {
+    const filterConfig = FILTER_CATEGORIES[activeFilter];
+    if (filterConfig.types && !filterConfig.types.includes(activity.action_type as any)) {
+      return false;
+    }
+    return true;
+  });
 
   const loadActivities = useCallback(async () => {
     if (!email) return;
@@ -447,7 +519,30 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
 
   return (
     <div className="activity-feed">
-      {activities.map((activity, i) => {
+      {/* Filter Buttons with Count Badges */}
+      <div className="activity-filter-bar">
+        {(Object.keys(FILTER_CATEGORIES) as FilterKey[]).map((key) => {
+          const count = categoryCounts[key];
+          const isActive = activeFilter === key;
+          return (
+            <button
+              key={key}
+              className={`activity-filter-btn ${isActive ? 'active' : ''}`}
+              onClick={() => setActiveFilter(key)}
+            >
+              <span className="activity-filter-label">{FILTER_CATEGORIES[key].label}</span>
+              <span
+                className={`activity-filter-badge ${isActive ? 'active' : ''} ${count === 0 ? 'empty' : ''}`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Activity List */}
+      {filteredActivities.map((activity, i) => {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
         const entityName = truncateName(parseEntityName(activity.entity_name));
         const details = activity.details || {};

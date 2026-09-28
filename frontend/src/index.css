@@ -6256,6 +6256,71 @@ img {
   max-width: 700px;
 }
 
+.activity-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+}
+
+.activity-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.activity-filter-btn:hover {
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.activity-filter-btn.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.activity-filter-label {
+  line-height: 1;
+}
+
+.activity-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.activity-filter-badge.active {
+  background: var(--accent);
+  color: white;
+}
+
+.activity-filter-badge.empty {
+  opacity: 0.5;
+}
+
 .activity-item {
   display: flex;
   align-items: flex-start;
