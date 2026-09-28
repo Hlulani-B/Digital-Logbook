@@ -38,15 +38,9 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
       // Check if action was queued (offline or network error)
       if (result?.queued) {
         setTimerAction('pending-sync');
-        // Don't apply optimistic patch for timestamp-sensitive actions (pause/resume/stop)
-        // These modify started_at/ended_at/paused_at/paused_ms which must come from the server
-        // to avoid invalid field combinations (e.g., paused_at set but paused_ms inflated)
-        // that cause entryDurationMs to return 0 or negative values.
-        // Only apply optimistic patch for actions where the client can safely predict the outcome.
-        const isTimestampSensitive = ['pausing', 'resuming', 'stopping'].includes(action);
-        if (!isTimestampSensitive) {
-          onUpdated({ ...entry, ...optimisticPatch });
-        }
+        // Always apply optimistic patch so the UI reflects the user's intent immediately.
+        // The server timestamps will be reconciled on sync.
+        onUpdated({ ...entry, ...optimisticPatch });
         return;
       }
 
@@ -77,7 +71,6 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
     setTimerAction('starting');
     setTimerError(null);
     try {
-      const now = new Date().toISOString();
       const result = await updateEntry(
         user_email,
         project_name,
@@ -86,10 +79,16 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
         undefined,
         undefined,
         'in_motion',
-        now,
-        undefined
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'start'
       );
-      handleResult(result, 'start', { started_at: now, status: 'in_motion' });
+      handleResult(result, 'start', { started_at: new Date().toISOString(), status: 'in_motion' });
     } catch (err) {
       setTimerError(err instanceof Error ? err.message : 'Failed to start — tap to retry');
       setTimerErrorAction('starting');
@@ -102,7 +101,6 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
     setTimerAction('pausing');
     setTimerError(null);
     try {
-      const now = new Date().toISOString();
       const result = await updateEntry(
         user_email,
         project_name,
@@ -117,9 +115,10 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
         undefined,
         undefined,
         undefined,
-        now // paused_at opens the pause
+        undefined,
+        'pause'
       );
-      handleResult(result, 'pause', { paused_at: now });
+      handleResult(result, 'pause', { paused_at: new Date().toISOString() });
     } catch (err) {
       setTimerError(err instanceof Error ? err.message : 'Failed to pause — tap to retry');
       setTimerErrorAction('pausing');
@@ -132,13 +131,6 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
     setTimerAction('resuming');
     setTimerError(null);
     try {
-      const now = new Date();
-      // Fold the open pause into the accumulated paused_ms and clear paused_at.
-      const openPauseMs = paused_at
-        ? Math.max(0, now.getTime() - new Date(paused_at).getTime())
-        : 0;
-      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
-
       const result = await updateEntry(
         user_email,
         project_name,
@@ -152,32 +144,23 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
         undefined,
         undefined,
         undefined,
-        newPausedMs,
-        null // paused_at cleared → timer runs again
+        undefined,
+        undefined,
+        'resume'
       );
-
-      handleResult(result, 'resume', { paused_ms: newPausedMs, paused_at: null });
+      handleResult(result, 'resume', { paused_at: null });
     } catch (err) {
       setTimerError(err instanceof Error ? err.message : 'Failed to resume — tap to retry');
       setTimerErrorAction('resuming');
       setTimerAction(null);
     }
-  }, [user_email, timerAction, isPaused, paused_at, paused_ms, project_name, id, handleResult]);
+  }, [user_email, timerAction, isPaused, project_name, id, handleResult]);
 
   const stop = useCallback(async () => {
     if (!user_email || timerAction) return;
     setTimerAction('stopping');
     setTimerError(null);
     try {
-      const now = new Date().toISOString();
-      // If ending while paused, fold the open pause into paused_ms and clear
-      // paused_at so entryDurationMs nets out all paused time.
-      const openPauseMs =
-        paused_at && started_at
-          ? Math.max(0, new Date(now).getTime() - new Date(paused_at).getTime())
-          : 0;
-      const newPausedMs = (Number(paused_ms) || 0) + openPauseMs;
-
       const result = await updateEntry(
         user_email,
         project_name,
@@ -187,18 +170,17 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
         undefined,
         'done_and_dusted',
         undefined,
-        now,
         undefined,
         undefined,
         undefined,
-        newPausedMs,
-        null // clear any open pause
+        undefined,
+        undefined,
+        undefined,
+        'end'
       );
-
       handleResult(result, 'stop', {
-        ended_at: now,
+        ended_at: new Date().toISOString(),
         status: 'done_and_dusted',
-        paused_ms: newPausedMs,
         paused_at: null,
       });
     } catch (err) {
@@ -206,7 +188,7 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
       setTimerErrorAction('stopping');
       setTimerAction(null);
     }
-  }, [user_email, timerAction, paused_at, started_at, paused_ms, project_name, id, handleResult]);
+  }, [user_email, timerAction, project_name, id, handleResult]);
 
   const clearError = useCallback(() => {
     setTimerError(null);
