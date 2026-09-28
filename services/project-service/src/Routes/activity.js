@@ -37,6 +37,10 @@ router.post('/activity', async (req, res) => {
         const result = await activityLog.getActivities(user_email, limit);
         return res.json(result);
       }
+      case 'exportActivities': {
+        const result = await activityLog.exportActivities(user_email);
+        return res.json(result);
+      }
       default:
         return res.status(400).json({ error: 'Invalid function' });
     }

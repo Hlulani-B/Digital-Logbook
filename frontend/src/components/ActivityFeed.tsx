@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getActivities } from '@/functions/activity.js';
+import { getActivities, exportActivities } from '@/functions/activity.js';
 
 type Activity = {
   id: number;
@@ -399,6 +399,69 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     }
   }, [email, onLoadingChange]);
 
+  const handleExport = useCallback(
+    async (format: 'json' | 'csv') => {
+      if (!email) return;
+      try {
+        const result = await exportActivities(email);
+        if (!result?.success || !result.data?.length) {
+          console.warn('[ActivityFeed] No activities to export');
+          return;
+        }
+
+        let content: string;
+        let mimeType: string;
+        let ext: string;
+
+        if (format === 'json') {
+          content = JSON.stringify(result.data, null, 2);
+          mimeType = 'application/json';
+          ext = 'json';
+        } else {
+          // CSV export
+          const headers = [
+            'id',
+            'action_type',
+            'entity_type',
+            'entity_name',
+            'details',
+            'created_at',
+          ];
+          const rows = result.data.map((row: Activity) =>
+            headers
+              .map((h) => {
+                const val =
+                  h === 'details'
+                    ? JSON.stringify(row.details)
+                    : String(row[h as keyof Activity] ?? '');
+                // Escape CSV: wrap in quotes if contains comma, quote, or newline
+                return val.includes(',') || val.includes('"') || val.includes('\n')
+                  ? `"${val.replace(/"/g, '""')}"`
+                  : val;
+              })
+              .join(',')
+          );
+          content = [headers.join(','), ...rows].join('\n');
+          mimeType = 'text/csv';
+          ext = 'csv';
+        }
+
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `activity-log-${new Date().toISOString().slice(0, 10)}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('[ActivityFeed] Export failed:', err);
+      }
+    },
+    [email]
+  );
+
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
@@ -447,6 +510,53 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
 
   return (
     <div className="activity-feed">
+      <div className="activity-feed-header">
+        <span className="activity-feed-count">{activities.length} activities</span>
+        <div className="activity-export-dropdown">
+          <button
+            className="activity-export-btn"
+            onClick={() => {
+              const menu = document.getElementById('export-menu');
+              if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            }}
+            title="Export activity log"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export
+          </button>
+          <div id="export-menu" className="activity-export-menu">
+            <button
+              onClick={() => {
+                handleExport('json');
+                document.getElementById('export-menu')!.style.display = 'none';
+              }}
+            >
+              Export as JSON
+            </button>
+            <button
+              onClick={() => {
+                handleExport('csv');
+                document.getElementById('export-menu')!.style.display = 'none';
+              }}
+            >
+              Export as CSV
+            </button>
+          </div>
+        </div>
+      </div>
       {activities.map((activity, i) => {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
         const entityName = truncateName(parseEntityName(activity.entity_name));

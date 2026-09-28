@@ -98,6 +98,61 @@ describe('ActivityLog', () => {
     });
   });
 
+  // ─── exportActivities() ──────────────────────────────────────────
+
+  describe('exportActivities', () => {
+    let activityLog;
+
+    beforeEach(() => {
+      activityLog = new ActivityLog();
+    });
+
+    it('should return all activities without a limit', async () => {
+      const mockActivities = [
+        { id: 1, action_type: 'PROJECT_CREATED', entity_name: 'P1' },
+        { id: 2, action_type: 'ENTRY_ADDED', entity_name: 'E1' },
+        { id: 3, action_type: 'PROJECT_DELETED', entity_name: 'P2' },
+      ];
+      pool.query.mockResolvedValueOnce({ rows: mockActivities });
+
+      const result = await activityLog.exportActivities('a@b.com');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(3);
+      // Verify no LIMIT clause in the query
+      const sql = pool.query.mock.calls[0][0];
+      expect(sql).not.toContain('LIMIT');
+    });
+
+    it('should select specific columns for export', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.exportActivities('a@b.com');
+
+      const sql = pool.query.mock.calls[0][0];
+      expect(sql).toContain('id, action_type, entity_type, entity_name, details, created_at');
+    });
+
+    it('should return empty array when no activities exist', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await activityLog.exportActivities('a@b.com');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(0);
+    });
+
+    it('should return failure on database error', async () => {
+      pool.query.mockRejectedValueOnce(new Error('Connection timeout'));
+
+      const result = await activityLog.exportActivities('a@b.com');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Connection timeout');
+      expect(result.data).toEqual([]);
+    });
+  });
+
   // ─── logActivity (convenience export) ─────────────────────────
 
   describe('logActivity', () => {

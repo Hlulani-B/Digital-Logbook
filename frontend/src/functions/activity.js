@@ -53,3 +53,24 @@ async function _fetchActivitiesFromServer(user_email, limit, cacheKey) {
 function _refreshActivitiesFromServer(user_email, limit, cacheKey) {
   _fetchActivitiesFromServer(user_email, limit, cacheKey).catch(() => {});
 }
+
+/**
+ * Export ALL activities for a user (no limit). Never cached.
+ * @param {string} user_email
+ * @returns {Promise<{success: boolean, data?: array}>}
+ */
+export async function exportActivities(user_email) {
+  try {
+    const result = await request(`${PROJECT_URL}/service/activity`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'exportActivities',
+        values: { user_email },
+      }),
+    });
+    return result;
+  } catch (err) {
+    console.error('[exportActivities] Failed:', err);
+    return { success: false, data: [] };
+  }
+}

@@ -60,6 +60,31 @@ export class ActivityLog {
       return { success: false, message: error.message, data: [] };
     }
   }
+
+  /**
+   * Export ALL activities for a user (no limit). Used for data export/download.
+   *
+   * @param {string} user_email - verified user email from the JWT
+   * @returns {Promise<{success: boolean, message?: string, data?: array}>}
+   */
+  async exportActivities(user_email) {
+    try {
+      if (!pool) throw new Error('Database pool not initialized');
+
+      const { rows } = await pool.query(
+        `SELECT id, action_type, entity_type, entity_name, details, created_at
+         FROM activity_log
+         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
+         ORDER BY created_at DESC`,
+        [user_email]
+      );
+
+      return { success: true, data: rows || [] };
+    } catch (error) {
+      console.error('[activityLog] exportActivities failed:', error.message);
+      return { success: false, message: error.message, data: [] };
+    }
+  }
 }
 
 /**
