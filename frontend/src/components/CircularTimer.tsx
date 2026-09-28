@@ -69,14 +69,14 @@ export function CircularTimer({
 
   // Determine ring color based on state
   const ringColor = useMemo(() => {
-    if (isCompleted) return '#10b981'; // green
-    if (isPaused) return '#f59e0b'; // amber
-    if (isRunning) return '#8b5cf6'; // purple
-    return '#d1d5db'; // gray
+    if (isCompleted) return '#059669'; // bold green
+    if (isPaused) return '#d97706'; // bold amber
+    if (isRunning) return '#7c3aed'; // bold purple
+    return '#9ca3af'; // medium gray
   }, [isRunning, isPaused, isCompleted]);
 
-  // Background ring color
-  const bgRingColor = '#e5e7eb';
+  // Background ring color - darker for visibility
+  const bgRingColor = '#d1d5db';
 
   return (
     <div className="circular-timer" style={{ width: size, height: size }}>
@@ -115,9 +115,9 @@ export function CircularTimer({
           dominantBaseline="central"
           className="circular-timer-time"
           style={{
-            fontSize: size * 0.2,
-            fontWeight: 600,
-            fill: '#1f2937',
+            fontSize: size * 0.22,
+            fontWeight: 700,
+            fill: '#111827',
             fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}
         >
