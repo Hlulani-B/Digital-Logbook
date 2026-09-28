@@ -888,6 +888,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
 
+    const projectName = newProjectName.trim();
+
+    // Client-side duplicate check against existing projects
+    if (
+      projects.some((p) => (p.project_name as string)?.toLowerCase() === projectName.toLowerCase())
+    ) {
+      setNewProjectError('A project with this name already exists.');
+      return;
+    }
+
     // Validate fields before creating project
     const nonEmptyFields = projectFields.filter((f) => f.field_name.trim());
     if (nonEmptyFields.length > 0) {
@@ -914,8 +924,17 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     setNewProjectError(null);
 
     try {
-      const projectName = newProjectName.trim();
-      await addProject(email, projectName, newProjectDescription.trim() || undefined);
+      const result = await addProject(
+        email,
+        projectName,
+        newProjectDescription.trim() || undefined
+      );
+
+      // Server rejected (e.g. duplicate name that slipped past client check)
+      if (result?.success === false) {
+        setNewProjectError(result.message || 'Failed to create project');
+        return;
+      }
 
       // Immediately add the project to local state so the entry picker sees it
       setProjects((prev) => {

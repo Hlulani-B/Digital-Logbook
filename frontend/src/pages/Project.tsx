@@ -206,10 +206,20 @@ export function ProjectsPage() {
   const handleCreateProject = async () => {
     const trimmed = newProjectName.trim();
     if (!trimmed || !email) return;
+
+    // Client-side duplicate check
+    if (projects.some((p) => p.project_name.toLowerCase() === trimmed.toLowerCase())) {
+      setError('A project with this name already exists.');
+      return;
+    }
+
     setSaving(true);
     try {
       const result = await addProject(email, trimmed, '');
-      if (result?.error) throw new Error(result.error);
+      if (result?.success === false) {
+        setError(result.message || 'Could not create project');
+        return;
+      }
       setNewProjectName('');
       setCreating(false);
       await loadProjects();
@@ -235,11 +245,25 @@ export function ProjectsPage() {
       setEditingName(null);
       return;
     }
+
+    // Client-side duplicate check (exclude the project being renamed)
+    if (
+      projects.some(
+        (p) => p.project_name !== oldName && p.project_name.toLowerCase() === trimmed.toLowerCase()
+      )
+    ) {
+      setEditError('A project with this name already exists.');
+      return;
+    }
+
     setSaving(true);
     setEditError(null);
     try {
       const result = await editProjectName(email, trimmed, oldName);
-      if (result?.error) throw new Error(result.error);
+      if (result?.success === false) {
+        setEditError(result.message || 'Could not rename project');
+        return;
+      }
       setEditingName(null);
       await loadProjects();
     } catch (err) {

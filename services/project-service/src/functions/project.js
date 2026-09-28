@@ -61,6 +61,13 @@ export class Project {
       return { success: true, message: 'Project name updated successfully' };
     } catch (error) {
       if (client) await client.query('ROLLBACK');
+      // 23505 = unique_violation (e.g. duplicate project name for this user)
+      if (error.code === '23505') {
+        return {
+          success: false,
+          message: 'A project with this name already exists for your account.',
+        };
+      }
       console.log(error);
       return { success: false, message: error.message };
     } finally {

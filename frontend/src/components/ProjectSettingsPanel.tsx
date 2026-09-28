@@ -140,7 +140,11 @@ export function ProjectSettingsPanel({
     setSaving(true);
     setError(null);
     try {
-      await editProjectName(userEmail, editName.trim(), projectName);
+      const result = await editProjectName(userEmail, editName.trim(), projectName);
+      if (result?.success === false) {
+        setError(result.message || 'Failed to update project name');
+        return;
+      }
       onProjectUpdated?.();
       onClose();
     } catch (err) {
