@@ -21,6 +21,7 @@ import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
 import { ManualTimeModal } from '@/components/ManualTimeModal';
+import { playCompleteSound, playWarningSound } from '@/lib/timerSounds';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -200,6 +201,7 @@ export function EntryBox({
   const isPaused = Boolean(started_at && !ended_at && paused_at);
   const [timerText, setTimerText] = useState<string>('');
   const [autoStopped, setAutoStopped] = useState(false);
+  const [warningPlayed, setWarningPlayed] = useState(false);
   useEffect(() => {
     if (!started_at || ended_at) {
       setTimerText('');
@@ -213,27 +215,24 @@ export function EntryBox({
       // Auto-stop when countdown reaches zero
       if (target_duration_ms != null && remaining !== null && remaining <= 0 && !autoStopped) {
         setAutoStopped(true);
-        // Play a subtle beep notification
-        try {
-          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-          const oscillator = audioCtx.createOscillator();
-          const gainNode = audioCtx.createGain();
-          oscillator.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-          oscillator.frequency.value = 800;
-          gainNode.gain.value = 0.1;
-          oscillator.start();
-          setTimeout(() => {
-            oscillator.stop();
-            audioCtx.close();
-          }, 200);
-        } catch {
-          // Audio not supported, silently ignore
-        }
+        // Play completion sound
+        playCompleteSound();
         // Auto-stop the timer
         stopTimer();
         setTimerText('00:00:00');
         return;
+      }
+
+      // 5-minute warning
+      if (
+        target_duration_ms != null &&
+        remaining !== null &&
+        remaining <= 300000 && // 5 minutes in ms
+        remaining > 0 &&
+        !warningPlayed
+      ) {
+        setWarningPlayed(true);
+        playWarningSound();
       }
 
       setTimerText(
@@ -243,12 +242,22 @@ export function EntryBox({
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms, autoStopped, stopTimer]);
+  }, [
+    started_at,
+    ended_at,
+    paused_at,
+    paused_ms,
+    target_duration_ms,
+    autoStopped,
+    warningPlayed,
+    stopTimer,
+  ]);
 
-  // Reset auto-stopped flag when timer is manually started
+  // Reset auto-stopped and warning flags when timer is manually started
   useEffect(() => {
     if (started_at && !ended_at) {
       setAutoStopped(false);
+      setWarningPlayed(false);
     }
   }, [started_at, ended_at]);
 
