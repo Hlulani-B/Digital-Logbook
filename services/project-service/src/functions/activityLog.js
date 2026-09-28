@@ -40,19 +40,27 @@ export class ActivityLog {
    *
    * @param {string} user_email - verified user email from the JWT
    * @param {number} limit     - max number of records to return (default 50)
+   * @param {string} [search]  - optional case-insensitive text filter on entity_name and details
    * @returns {Promise<{success: boolean, message?: string, data?: array}>}
    */
-  async getActivities(user_email, limit = 50) {
+  async getActivities(user_email, limit = 50, search = null) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
 
-      const { rows } = await pool.query(
-        `SELECT * FROM activity_log
-         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
-         ORDER BY created_at DESC
-         LIMIT $2`,
-        [user_email, limit]
-      );
+      const hasSearch = search && search.trim();
+      let query = `SELECT * FROM activity_log
+         WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)`;
+      const params = [user_email];
+
+      if (hasSearch) {
+        params.push(`%${search.trim()}%`);
+        query += ` AND (entity_name ILIKE $2 OR details::text ILIKE $2)`;
+      }
+
+      params.push(limit);
+      query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
+
+      const { rows } = await pool.query(query, params);
 
       return { success: true, data: rows || [] };
     } catch (error) {

@@ -96,6 +96,47 @@ describe('ActivityLog', () => {
       expect(result.success).toBe(false);
       expect(result.message).toBe('Connection lost');
     });
+
+    it('should add ILIKE filter when search term is provided', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getActivities('a@b.com', 50, 'photo');
+
+      const query = pool.query.mock.calls[0][0];
+      expect(query).toContain('ILIKE');
+      expect(query).toContain('entity_name');
+      expect(query).toContain('details::text');
+      const params = pool.query.mock.calls[0][1];
+      expect(params[1]).toBe('%photo%');
+      expect(params[2]).toBe(50);
+    });
+
+    it('should not add ILIKE clause when search is null', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getActivities('a@b.com', 50, null);
+
+      const query = pool.query.mock.calls[0][0];
+      expect(query).not.toContain('ILIKE');
+    });
+
+    it('should not add ILIKE clause when search is empty or whitespace', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getActivities('a@b.com', 50, '   ');
+
+      const query = pool.query.mock.calls[0][0];
+      expect(query).not.toContain('ILIKE');
+    });
+
+    it('should trim search term before wrapping with wildcards', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getActivities('a@b.com', 50, '  hello  ');
+
+      const params = pool.query.mock.calls[0][1];
+      expect(params[1]).toBe('%hello%');
+    });
   });
 
   // ─── logActivity (convenience export) ─────────────────────────

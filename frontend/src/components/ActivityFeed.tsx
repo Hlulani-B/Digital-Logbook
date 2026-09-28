@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 
@@ -383,13 +383,25 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input by 300ms
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchTerm(value.trim());
+    }, 300);
+  }, []);
 
   const loadActivities = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     onLoadingChange?.(true);
     try {
-      const result = await getActivities(email, 50);
+      const result = await getActivities(email, 50, searchTerm || null);
       setActivities(result?.data || []);
     } catch (err) {
       console.error('[ActivityFeed] Failed to load activities:', err);
@@ -397,11 +409,18 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
       setLoading(false);
       onLoadingChange?.(false);
     }
-  }, [email, onLoadingChange]);
+  }, [email, searchTerm, onLoadingChange]);
 
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -419,34 +438,124 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   }
 
   if (activities.length === 0) {
+    const isSearching = searchTerm.length > 0;
     return (
-      <div className="empty-state animate-in">
-        <div className="empty-icon">
+      <div className="activity-feed">
+        <div
+          className="activity-search-wrapper"
+          style={{ position: 'relative', marginBottom: '12px' }}
+        >
+          <input
+            type="text"
+            className="activity-search-input"
+            placeholder="Search activity..."
+            value={searchInput}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px 8px 34px',
+              fontSize: '0.875rem',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-subtle)',
+              color: 'var(--text)',
+              outline: 'none',
+            }}
+          />
           <svg
-            width="48"
-            height="48"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            style={{
+              position: 'absolute',
+              left: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted, #9ca3af)',
+              pointerEvents: 'none',
+            }}
           >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
         </div>
-        <h2 className="empty-title">No activity yet</h2>
-        <p className="empty-desc">
-          Your recent actions — creating projects, adding entries, archiving, and more — will appear
-          here.
-        </p>
+        <div className="empty-state animate-in">
+          <div className="empty-icon">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <h2 className="empty-title">{isSearching ? 'No results found' : 'No activity yet'}</h2>
+          <p className="empty-desc">
+            {isSearching
+              ? `No activities match "${searchTerm}".`
+              : 'Your recent actions — creating projects, adding entries, archiving, and more — will appear here.'}
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="activity-feed">
+      <div
+        className="activity-search-wrapper"
+        style={{ position: 'relative', marginBottom: '12px' }}
+      >
+        <input
+          type="text"
+          className="activity-search-input"
+          placeholder="Search activity..."
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '8px 12px 8px 34px',
+            fontSize: '0.875rem',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-subtle)',
+            color: 'var(--text)',
+            outline: 'none',
+          }}
+        />
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            position: 'absolute',
+            left: '10px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--text-muted, #9ca3af)',
+            pointerEvents: 'none',
+          }}
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </div>
       {activities.map((activity, i) => {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
         const entityName = truncateName(parseEntityName(activity.entity_name));

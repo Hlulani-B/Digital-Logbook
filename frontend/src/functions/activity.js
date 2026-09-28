@@ -4,9 +4,20 @@ import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 /**
  * Fetch activities for a user.
  * Local-first: returns cached data immediately, refreshes from server in background.
+ * When a search term is provided, cache is skipped (search results are not cached).
+ *
+ * @param {string} user_email
+ * @param {number} [limit=50]
+ * @param {string|null} [search] - optional text search filter
  */
-export async function getActivities(user_email, limit = 50) {
+export async function getActivities(user_email, limit = 50, search = null) {
   const cacheKey = `${user_email}:activities`;
+  const isSearch = !!search && search.trim().length > 0;
+
+  // Search requests skip cache — always go to server
+  if (isSearch) {
+    return _fetchActivitiesFromServer(user_email, limit, cacheKey, search);
+  }
 
   // 1. Return cached data first (instant)
   const cached = await cacheGet(CACHE_STORES.ACTIVITY, cacheKey);
@@ -29,17 +40,21 @@ export async function getActivities(user_email, limit = 50) {
 }
 
 /** Internal: fetch activities from server and write to cache */
-async function _fetchActivitiesFromServer(user_email, limit, cacheKey) {
+async function _fetchActivitiesFromServer(user_email, limit, cacheKey, search = null) {
   try {
+    const values = { user_email, limit };
+    if (search) values.search = search;
+
     const result = await request(`${PROJECT_URL}/service/activity`, {
       method: 'POST',
       body: JSON.stringify({
         function: 'getActivities',
-        values: { user_email, limit },
+        values,
       }),
     });
 
-    if (result?.success) {
+    // Only cache non-search results
+    if (result?.success && !search) {
       await cacheSet(CACHE_STORES.ACTIVITY, cacheKey, result);
     }
     return result;
