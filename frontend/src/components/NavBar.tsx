@@ -14,7 +14,6 @@ interface NavBarProps {
 }
 
 export function NavBar({
-  projects: projectsProp = [],
   entries: entriesProp = [],
   activeView = 'all',
   onNewProject,
@@ -25,10 +24,7 @@ export function NavBar({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Load projects and entries from IndexedDB directly (local-first)
-  const [projects, setProjects] = useState<Array<Record<string, unknown>>>(() =>
-    Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : []
-  );
+  // Load entries from IndexedDB directly (local-first)
   const [entries, setEntries] = useState<Array<Record<string, unknown>>>(() =>
     Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : []
   );
@@ -38,13 +34,6 @@ export function NavBar({
     const email = user.email!;
     const loadData = async () => {
       try {
-        // Load projects from IndexedDB
-        const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
-        if (cachedProjects?.data || cachedProjects?.projects) {
-          const rawProjects = cachedProjects.data || cachedProjects.projects || [];
-          const projectsList = Array.isArray(rawProjects) ? rawProjects : [];
-          setProjects(projectsList.filter((p: Record<string, unknown>) => !p.archived));
-        }
         // Load entries from IndexedDB
         const cachedEntries = await cacheGet(CACHE_STORES.ALL_ENTRIES, email);
         if (cachedEntries?.data) {
@@ -57,11 +46,8 @@ export function NavBar({
     };
     loadData();
 
-    // Re-read when syncAllData or mutations write new projects/entries to cache
-    const unsubs = [
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, () => loadData()),
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData()),
-    ];
+    // Re-read when mutations write new entries to cache
+    const unsubs = [cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData())];
     return () => unsubs.forEach((u) => u());
   }, [user?.email]);
 
