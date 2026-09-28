@@ -3,16 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { NotificationsBell } from '@/components/NotificationsBell';
-import { FiArchive } from 'react-icons/fi';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
-import { colorForName } from '@/lib/projectColorMap';
 import { startAppTour } from '@/lib/tour';
 
 interface NavBarProps {
   projects?: Array<Record<string, unknown>>;
   entries?: Array<Record<string, unknown>>;
   activeView?: string;
-  onArchiveProject?: (projectName: string) => void;
   onNewProject?: () => void;
 }
 
@@ -20,7 +17,6 @@ export function NavBar({
   projects: projectsProp = [],
   entries: entriesProp = [],
   activeView = 'all',
-  onArchiveProject,
   onNewProject,
 }: NavBarProps) {
   const { user, signOut } = useAuth();
@@ -70,9 +66,6 @@ export function NavBar({
   }, [user?.email]);
 
   // Use props if provided, otherwise use IndexedDB data
-  const safeProjects = (
-    Array.isArray(projectsProp) && projectsProp.length > 0 ? projectsProp : projects
-  ) as Array<Record<string, unknown>>;
   const safeEntries = (
     Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : entries
   ) as Array<Record<string, unknown>>;
