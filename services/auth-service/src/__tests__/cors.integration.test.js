@@ -12,6 +12,7 @@ const { createApp, errorHandler } = require('../index.js');
 describe('Auth Service Integration: CORS + Error Handling', () => {
   describe('CORS origin validation via error handler', () => {
     const allowedOrigins = [
+      'https://digital-logbook-dhtq.onrender.com',
       'https://digital-logbook-bxgv.onrender.com',
       'https://digital-logbook-bjev.onrender.com',
       'https://digital-logbook-hlulani.onrender.com',
