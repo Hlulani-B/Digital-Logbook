@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 
@@ -378,27 +378,19 @@ interface ActivityFeedProps {
   onLoadingChange?: (loading: boolean) => void;
 }
 
-const PAGE_SIZE = 30;
-
 export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const { user } = useAuth();
   const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const offsetRef = useRef(0);
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const loadActivities = useCallback(async () => {
     if (!email) return;
     setLoading(true);
     onLoadingChange?.(true);
-    offsetRef.current = 0;
     try {
-      const result = await getActivities(email, PAGE_SIZE, 0);
+      const result = await getActivities(email, 50);
       setActivities(result?.data || []);
-      setHasMore(!!result?.has_more);
     } catch (err) {
       console.error('[ActivityFeed] Failed to load activities:', err);
     } finally {
@@ -410,41 +402,6 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
-
-  // Load more when sentinel becomes visible
-  const loadMore = useCallback(async () => {
-    if (!email || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextOffset = offsetRef.current + PAGE_SIZE;
-    try {
-      const result = await getActivities(email, PAGE_SIZE, nextOffset);
-      if (result?.data?.length) {
-        setActivities((prev) => [...prev, ...result.data]);
-        offsetRef.current = nextOffset;
-      }
-      setHasMore(!!result?.has_more);
-    } catch (err) {
-      console.error('[ActivityFeed] Failed to load more:', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [email, loadingMore, hasMore]);
-
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          loadMore();
-        }
-      },
-      { rootMargin: '200px' }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loadMore]);
 
   if (loading) {
     return (
@@ -550,26 +507,6 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
           </div>
         );
       })}
-
-      {/* Infinite scroll sentinel */}
-      {hasMore && <div ref={sentinelRef} style={{ height: 1, width: '100%' }} />}
-      {loadingMore && (
-        <div
-          className="feed-loading-more"
-          style={{ textAlign: 'center', padding: '12px 0', color: '#9ca3af', fontSize: '13px' }}
-        >
-          <div
-            className="animate-spin spinner-circle"
-            style={{ width: 20, height: 20, margin: '0 auto 6px' }}
-          />
-          Loading more…
-        </div>
-      )}
-      {!hasMore && activities.length > 0 && (
-        <p style={{ textAlign: 'center', padding: '12px 0', color: '#9ca3af', fontSize: '12px' }}>
-          No more activity
-        </p>
-      )}
     </div>
   );
 }

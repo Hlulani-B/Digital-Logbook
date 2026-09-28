@@ -4,21 +4,9 @@ import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 /**
  * Fetch activities for a user.
  * Local-first: returns cached data immediately, refreshes from server in background.
- * Paginated requests (offset > 0) skip the cache and go straight to the server.
- *
- * @param {string} user_email
- * @param {number} [limit=50]
- * @param {number} [offset=0]
- * @returns {Promise<{success: boolean, data: array, has_more?: boolean}>}
  */
-export async function getActivities(user_email, limit = 50, offset = 0) {
+export async function getActivities(user_email, limit = 50) {
   const cacheKey = `${user_email}:activities`;
-  const isPaginated = offset > 0;
-
-  // Paginated requests skip cache — always go to server
-  if (isPaginated) {
-    return _fetchActivitiesFromServer(user_email, limit, cacheKey, offset);
-  }
 
   // 1. Return cached data first (instant)
   const cached = await cacheGet(CACHE_STORES.ACTIVITY, cacheKey);
@@ -37,28 +25,27 @@ export async function getActivities(user_email, limit = 50, offset = 0) {
   }
 
   console.log('[getActivities] No cache, fetching from server...');
-  return _fetchActivitiesFromServer(user_email, limit, cacheKey, offset);
+  return _fetchActivitiesFromServer(user_email, limit, cacheKey);
 }
 
 /** Internal: fetch activities from server and write to cache */
-async function _fetchActivitiesFromServer(user_email, limit, cacheKey, offset = 0) {
+async function _fetchActivitiesFromServer(user_email, limit, cacheKey) {
   try {
     const result = await request(`${PROJECT_URL}/service/activity`, {
       method: 'POST',
       body: JSON.stringify({
         function: 'getActivities',
-        values: { user_email, limit, offset },
+        values: { user_email, limit },
       }),
     });
 
-    // Only cache the first page
-    if (result?.success && offset === 0) {
+    if (result?.success) {
       await cacheSet(CACHE_STORES.ACTIVITY, cacheKey, result);
     }
     return result;
   } catch (err) {
     console.error('[getActivities] Failed:', err);
-    return { success: false, data: [], has_more: false };
+    return { success: false, data: [] };
   }
 }
 

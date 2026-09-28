@@ -39,31 +39,25 @@ export class ActivityLog {
    * Fetch recent activities for a user, newest first.
    *
    * @param {string} user_email - verified user email from the JWT
-   * @param {number} limit      - max number of records to return (default 50)
-   * @param {number} [offset=0] - number of records to skip (for pagination)
-   * @returns {Promise<{success: boolean, message?: string, data?: array, has_more?: boolean}>}
+   * @param {number} limit     - max number of records to return (default 50)
+   * @returns {Promise<{success: boolean, message?: string, data?: array}>}
    */
-  async getActivities(user_email, limit = 50, offset = 0) {
+  async getActivities(user_email, limit = 50) {
     try {
       if (!pool) throw new Error('Database pool not initialized');
 
-      // Fetch one extra row to determine whether more pages exist
-      const fetchLimit = limit + 1;
       const { rows } = await pool.query(
         `SELECT * FROM activity_log
          WHERE user_email = $1 AND (deleted = false OR deleted IS NULL)
          ORDER BY created_at DESC
-         LIMIT $2 OFFSET $3`,
-        [user_email, fetchLimit, offset]
+         LIMIT $2`,
+        [user_email, limit]
       );
 
-      const has_more = rows.length > limit;
-      const data = has_more ? rows.slice(0, limit) : rows;
-
-      return { success: true, data, has_more };
+      return { success: true, data: rows || [] };
     } catch (error) {
       console.error('[activityLog] getActivities failed:', error.message);
-      return { success: false, message: error.message, data: [], has_more: false };
+      return { success: false, message: error.message, data: [] };
     }
   }
 }

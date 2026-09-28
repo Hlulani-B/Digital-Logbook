@@ -397,6 +397,22 @@ async function mutateEntry(action, input, options = { requireServer: false }) {
       (payload.status !== before?.status &&
         ['in_motion', 'done_and_dusted'].includes(payload.status)));
   if (timerPending) patch._timerPending = true;
+  // Optimistic timer state: set paused_at for pause, clear it for resume
+  if (payload.timer_action === 'pause' && !patch.paused_at) {
+    patch.paused_at = new Date().toISOString();
+  } else if (payload.timer_action === 'resume') {
+    patch.paused_at = null;
+    patch.paused_ms =
+      (Number(before?.paused_ms) || 0) +
+      (before?.paused_at ? Math.max(0, Date.now() - new Date(before.paused_at).getTime()) : 0);
+  } else if (payload.timer_action === 'start' && !patch.started_at) {
+    patch.started_at = new Date().toISOString();
+    patch.status = 'in_motion';
+  } else if (payload.timer_action === 'end' && !patch.ended_at) {
+    patch.ended_at = new Date().toISOString();
+    patch.status = 'done_and_dusted';
+    patch.paused_at = null;
+  }
   const optimistic =
     action === 'add'
       ? { ...patch, id, created_at: new Date().toISOString(), _optimistic: true }
