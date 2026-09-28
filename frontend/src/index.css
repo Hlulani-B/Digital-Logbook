@@ -4784,9 +4784,6 @@ img {
 
 /* ========== DASHBOARD LIVE TIMER BANNER ========== */
 .dash-timer-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
   margin-bottom: 0.75rem;
   padding: 0.5rem 0.85rem;
   border-radius: var(--radius);
@@ -4795,6 +4792,19 @@ img {
   font-family: var(--font-body, 'Lora', serif);
   font-size: 0.82rem;
   color: var(--text);
+}
+.dash-timer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.dash-timer-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
 }
 .dash-timer-dot {
   width: 8px;
@@ -4861,6 +4871,74 @@ img {
 .dash-timer-control:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ========== CIRCULAR TIMER ========== */
+.circular-timer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.circular-timer-svg {
+  display: block;
+}
+.circular-timer-ring {
+  transition:
+    stroke-dashoffset 0.3s ease,
+    stroke 0.3s ease;
+}
+.circular-timer-time {
+  user-select: none;
+}
+.circular-timer-controls {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+.circular-timer-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.circular-timer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.circular-timer-btn--play {
+  background: var(--accent, #6366f1);
+  color: white;
+}
+.circular-timer-btn--play:hover:not(:disabled) {
+  background: #4f46e5;
+  transform: scale(1.1);
+}
+.circular-timer-btn--pause {
+  background: #f59e0b;
+  color: white;
+}
+.circular-timer-btn--pause:hover:not(:disabled) {
+  background: #d97706;
+  transform: scale(1.1);
+}
+.circular-timer-btn--stop {
+  background: #ef4444;
+  color: white;
+}
+.circular-timer-btn--stop:hover:not(:disabled) {
+  background: #dc2626;
+  transform: scale(1.1);
 }
 
 /* ========== FEED STATS PANEL ========== */
