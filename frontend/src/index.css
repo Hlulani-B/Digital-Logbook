@@ -4338,6 +4338,17 @@ img {
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+/* Pulsing animation for running timer */
+@keyframes timer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
 .entry-box__task-elapsed {
   font-family: 'Plus Jakarta Sans', var(--font-body, 'Lora', serif);
   font-size: 0.85rem;
