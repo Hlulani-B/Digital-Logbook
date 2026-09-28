@@ -25,21 +25,21 @@ describe('Stats', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the "View Stats" button when panel is closed', () => {
+  it('renders the "Global Stats" button when panel is closed', () => {
     render(<Stats entries={[]} projects={[]} dueSoonCount={0} />);
-    expect(screen.getByText('View Stats')).toBeTruthy();
+    expect(screen.getByText('Global Stats')).toBeTruthy();
   });
 
   it('opens stats panel on button click', () => {
     render(<Stats entries={[]} projects={[]} dueSoonCount={0} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     expect(screen.getByText('Quick Stats')).toBeTruthy();
   });
 
   it('displays total entries count', () => {
     const entries = [{ id: '1' }, { id: '2' }, { id: '3' }];
     render(<Stats entries={entries} projects={[]} dueSoonCount={0} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     expect(screen.getByText('3')).toBeTruthy();
     expect(screen.getByText('Total Entries')).toBeTruthy();
   });
@@ -47,26 +47,26 @@ describe('Stats', () => {
   it('displays projects count', () => {
     const projects = [{ project_name: 'A' }, { project_name: 'B' }];
     render(<Stats entries={[]} projects={projects} dueSoonCount={0} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     expect(screen.getByText('2')).toBeTruthy();
     expect(screen.getByText('Projects')).toBeTruthy();
   });
 
   it('displays due soon count', () => {
     render(<Stats entries={[]} projects={[]} dueSoonCount={5} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     expect(screen.getByText('5')).toBeTruthy();
     expect(screen.getByText('Due Soon')).toBeTruthy();
   });
 
   it('closes panel when close button is clicked', () => {
     render(<Stats entries={[]} projects={[]} dueSoonCount={0} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     expect(screen.getByText('Quick Stats')).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText('Close stats'));
     expect(screen.queryByText('Quick Stats')).toBeNull();
-    expect(screen.getByText('View Stats')).toBeTruthy();
+    expect(screen.getByText('Global Stats')).toBeTruthy();
   });
 
   it('shows "Project Stats" when activeProject is set', () => {
@@ -94,7 +94,7 @@ describe('Stats', () => {
 
   it('handles empty entries and projects gracefully', () => {
     render(<Stats entries={null as any} projects={null as any} dueSoonCount={0} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     // Multiple "0" values are shown (entries, projects, due soon)
     const zeros = screen.getAllByText('0');
     expect(zeros.length).toBeGreaterThanOrEqual(3);
@@ -102,7 +102,7 @@ describe('Stats', () => {
 
   it('displays Time Tracked label', () => {
     render(<Stats entries={[]} projects={[]} dueSoonCount={0} />);
-    fireEvent.click(screen.getByText('View Stats'));
+    fireEvent.click(screen.getByText('Global Stats'));
     expect(screen.getByText('Time Tracked')).toBeTruthy();
   });
 });

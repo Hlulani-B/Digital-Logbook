@@ -91,8 +91,8 @@ describe('ProjectDetailPage offline', () => {
       </NotesProvider>
     );
 
-    // Open the New item modal and fill the single column.
-    fireEvent.click(screen.getByText('New'));
+    // Open the New item modal from the New Entry card and fill the single column.
+    fireEvent.click(await screen.findByRole('button', { name: /New Entry/ }));
     const input = await waitFor(() => {
       // Find the input by its label text (field name is 'task')
       const label = screen.getByText('task', { selector: 'label' });
@@ -116,31 +116,6 @@ describe('ProjectDetailPage offline', () => {
     expect((stored?.data || []).map((e: any) => e.id)).toHaveLength(1);
     expect((stored.data as any[])[0]._optimistic).toBe(true);
   }, 120000);
-
-  it('pins the project from its own page — the same list the home cards read', async () => {
-    localStorage.removeItem(`dl_pinned_projects_${EMAIL}`);
-    render(
-      <NotesProvider>
-        <MemoryRouter initialEntries={[`/project/${PROJECT}`]}>
-          <Routes>
-            <Route path="/project/:projectName" element={<ProjectDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      </NotesProvider>
-    );
-
-    const pinButton = await screen.findByRole('button', { name: 'Pin project' });
-    fireEvent.click(pinButton);
-
-    expect(JSON.parse(localStorage.getItem(`dl_pinned_projects_${EMAIL}`) || '[]')).toEqual([
-      PROJECT,
-    ]);
-    expect(await screen.findByRole('button', { name: 'Unpin project' })).toBeTruthy();
-
-    // Clicking again removes the project from the pinned list
-    fireEvent.click(screen.getByRole('button', { name: 'Unpin project' }));
-    expect(JSON.parse(localStorage.getItem(`dl_pinned_projects_${EMAIL}`) || '[]')).toEqual([]);
-  });
 
   it('shows the field filter button inside the search bar and opens the panel', async () => {
     render(

@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
 import { DueSoonRail } from '@/components/DueSoonRail';
+import { ToolbarDropdown } from '@/components/ToolbarDropdown';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import {
@@ -25,7 +26,7 @@ import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js
 import { getToneInstruction } from '@/functions/tone';
 import { askAI } from '@/functions/ai.js';
 import { getAiMessagesEnabled, useAiMessagesEnabled } from '@/functions/aiMessages';
-import { FiMic, FiSettings } from 'react-icons/fi';
+import { FiMic } from 'react-icons/fi';
 import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { SearchFilterBlock } from '@/components/SearchFilters';
@@ -116,10 +117,6 @@ export function ProjectDetailPage() {
 
   // Project colour (loaded from cached projects)
   const [projectColor, setProjectColor] = useState<string | null>(null);
-
-  // Pin — the same localStorage list the home cards use, so pinning here also
-  // floats this project to the top of the home page.
-  const [projectPinned, setProjectPinned] = useState(false);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -231,33 +228,6 @@ export function ProjectDetailPage() {
     });
     return () => unsub();
   }, [email, projectName]);
-
-  // Load this project's pinned state (localStorage — no backend column)
-  useEffect(() => {
-    if (!email || !projectName) return;
-    try {
-      const stored = localStorage.getItem(`dl_pinned_projects_${email}`);
-      setProjectPinned(new Set(stored ? JSON.parse(stored) : []).has(projectName));
-    } catch {
-      setProjectPinned(false);
-    }
-  }, [email, projectName]);
-
-  const toggleProjectPin = () => {
-    if (!email || !projectName) return;
-    setProjectPinned((prev) => {
-      const next = !prev;
-      try {
-        const key = `dl_pinned_projects_${email}`;
-        const stored = JSON.parse(localStorage.getItem(key) || '[]');
-        const set = new Set(Array.isArray(stored) ? stored : []);
-        if (next) set.add(projectName);
-        else set.delete(projectName);
-        localStorage.setItem(key, JSON.stringify([...set]));
-      } catch {}
-      return next;
-    });
-  };
 
   // Colour shown on this project's entry cards — the project's custom colour,
   // or the same name-derived accent every other page gives it.
@@ -589,135 +559,44 @@ export function ProjectDetailPage() {
         <div className="feed-controls-row">
           <div className="feed-sort-group">
             <span className="feed-sort-label">Sort:</span>
-            <button
-              className={`sort-btn ${sortBy === 'date' ? 'active' : ''}`}
-              onClick={() => setSortBy('date')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              Date
-            </button>
-            <button
-              className={`sort-btn ${sortBy === 'priority' ? 'active' : ''}`}
-              onClick={() => setSortBy('priority')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
-              Priority
-            </button>
+            <ToolbarDropdown
+              value={sortBy}
+              onChange={setSortBy}
+              options={[
+                { value: 'date', label: 'Date' },
+                { value: 'priority', label: 'Priority' },
+              ]}
+            />
           </div>
 
-          {/* View toggle — Table / Cards */}
-          <div className="view-toggle-group">
-            <span className="feed-sort-label">View:</span>
-            <button
-              className={`sort-btn ${viewMode === 'table' ? 'active' : ''}`}
-              onClick={() => setViewMode('table')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-              Table
-            </button>
-            <button
-              className={`sort-btn ${viewMode === 'cards' ? 'active' : ''}`}
-              onClick={() => setViewMode('cards')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-              </svg>
-              Cards
-            </button>
-            <button
-              className={`sort-btn ${viewMode === 'checklist' ? 'active' : ''}`}
-              onClick={() => setViewMode('checklist')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="9 11 12 14 22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-              Checklist
-            </button>
-            <button
-              className={`sort-btn ${viewMode === 'board' ? 'active' : ''}`}
-              onClick={() => setViewMode('board')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="3" width="7" height="18" rx="1" />
-                <rect x="14" y="3" width="7" height="12" rx="1" />
-              </svg>
-              Board
-            </button>
+          {/* View toggle — Cards / Table / Checklist / Board */}
+          <div className="feed-view-group">
+            <span className="feed-view-label">View:</span>
+            <ToolbarDropdown
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { value: 'cards', label: 'Cards' },
+                { value: 'table', label: 'Table' },
+                { value: 'checklist', label: 'Checklist' },
+                { value: 'board', label: 'Board' },
+              ]}
+            />
           </div>
 
           {/* Stats — opens the stats dashboard scoped to this project */}
           <button
             type="button"
-            className="sort-btn"
+            className="feed-stats-btn"
             onClick={() =>
               projectName && navigate(`/stats?project=${encodeURIComponent(projectName)}`)
             }
-            aria-label="Open stats dashboard"
-            title="Open the stats dashboard for this project"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            aria-label={`Open ${projectName} stats`}
+            title={`Open the stats dashboard for ${projectName}`}
           >
             <svg
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -727,51 +606,9 @@ export function ProjectDetailPage() {
               <line x1="12" y1="20" x2="12" y2="4" />
               <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
-            Stats
+            {projectName} Stats
           </button>
 
-          {/* Project Settings button */}
-          <button
-            type="button"
-            className="sort-btn"
-            onClick={() => setProjectSettingsOpen(true)}
-            aria-label="Project settings"
-            title="Project settings"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-          >
-            <FiSettings size={12} />
-            Settings
-          </button>
-
-          {/* Pin — floats this project to the top of the home page */}
-          <button
-            type="button"
-            className={`sort-btn ${projectPinned ? 'is-pinned' : ''}`}
-            onClick={toggleProjectPin}
-            aria-pressed={projectPinned}
-            aria-label={projectPinned ? 'Unpin project' : 'Pin project'}
-            title={
-              projectPinned
-                ? 'Unpin — the project leaves the top of the home list'
-                : 'Pin to the top of the home list'
-            }
-            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill={projectPinned ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="12" y1="17" x2="12" y2="22" />
-              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
-            </svg>
-            {projectPinned ? 'Pinned' : 'Pin'}
-          </button>
         </div>
 
         {/* Search + per-field filters, with the AI quick-add bar beside it */}
@@ -1148,26 +985,6 @@ export function ProjectDetailPage() {
 
               <DueSoonRail entries={dueSoonEntries} />
             </div>
-
-        {/* FAB — only New Entry (project is already known) */}
-        <div className="fab-container">
-          <button className="fab" onClick={() => setNewEntryOpen(true)} aria-label="New entry">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span className="fab-label">New</span>
-          </button>
-        </div>
 
         {/* New Entry Modal — project is pre-set */}
         {newEntryOpen && (

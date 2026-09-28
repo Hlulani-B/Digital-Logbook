@@ -187,15 +187,15 @@ describe('AllEntriesPage', () => {
     localStorage.clear();
   });
 
-  it('shows the corner add-entry button', () => {
+  it('shows the new-entry card in the feed', async () => {
     renderPage();
-    expect(screen.getByRole('button', { name: 'New entry' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /New Entry/ })).toBeTruthy();
   });
 
-  it('opens the new-entry project picker from the corner button', () => {
+  it('opens the new-entry project picker from the new-entry card', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'New entry' }));
-    expect(screen.getByText('New Entry')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: /New Entry/ }));
+    expect(screen.getByRole('heading', { name: 'New Entry' })).toBeTruthy();
     expect(screen.getByText('No projects yet. Create one first.')).toBeTruthy();
   });
 
@@ -204,7 +204,7 @@ describe('AllEntriesPage', () => {
       .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ data: [{ project_name: 'Alpha' }] });
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'New entry' }));
+    fireEvent.click(await screen.findByRole('button', { name: /New Entry/ }));
     const projectButton = await screen.findByRole('button', { name: 'Alpha' });
     fireEvent.click(projectButton);
     expect(screen.getByTestId('add-entry')).toBeTruthy();

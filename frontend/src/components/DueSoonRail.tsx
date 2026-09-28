@@ -9,16 +9,6 @@ interface DueSoonRailProps {
   entries: Entry[];
 }
 
-const RAIL_COLLAPSE_KEY = 'dl_due_rail_collapsed';
-
-function readRailCollapsed(): boolean {
-  try {
-    return localStorage.getItem(RAIL_COLLAPSE_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
 /** "Today" / "Tomorrow" / short date — the chip shown on a due-soon item. */
 function formatRailDue(value?: string | null): string | null {
   if (!value) return null;
@@ -36,24 +26,15 @@ function formatRailDue(value?: string | null): string | null {
 /**
  * Card-width right rail listing the entries due soon. Clicking an item opens
  * that entry inside its project (same behaviour as the old due-soon feed).
- * The tab on its left collapses/expands the whole rail — collapsed returns
- * the page to its pre-rail layout.
+ * Open by default; the tab attached to its edge hides it again so the page
+ * can return to its pre-rail layout.
  */
 export function DueSoonRail({ entries }: DueSoonRailProps) {
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState<boolean>(() => readRailCollapsed());
+  // Always starts open — hiding is a per-visit choice.
+  const [collapsed, setCollapsed] = useState(false);
 
-  const toggle = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(RAIL_COLLAPSE_KEY, String(next));
-      } catch {
-        /* storage unavailable — the rail simply forgets its state */
-      }
-      return next;
-    });
-  };
+  const toggle = () => setCollapsed((prev) => !prev);
 
   // Soonest due first so the most urgent entries sit at the top.
   const sorted = [...entries].sort((a, b) => {
