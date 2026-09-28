@@ -273,6 +273,56 @@ export function EntryBox({
     }
   }, [started_at, ended_at]);
 
+  // Keyboard shortcuts for timer control
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        saving ||
+        isActionInFlight
+      ) {
+        return;
+      }
+
+      // Space: Start or Stop timer
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!started_at && !ended_at) {
+          startTimer();
+        } else if (started_at && !ended_at && !isPaused) {
+          stopTimer();
+        }
+      }
+
+      // P: Pause or Resume (only when timer is running)
+      if (e.code === 'KeyP' && started_at && !ended_at) {
+        e.preventDefault();
+        if (isPaused) {
+          resumeTimer();
+        } else {
+          pauseTimer();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    started_at,
+    ended_at,
+    isPaused,
+    saving,
+    isActionInFlight,
+    startTimer,
+    stopTimer,
+    pauseTimer,
+    resumeTimer,
+  ]);
+
   const [draftFields, setDraftFields] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
   );
@@ -1136,6 +1186,7 @@ export function EntryBox({
                   className="entry-box__task-btn entry-box__task-btn--start"
                   onClick={startTimer}
                   disabled={saving || isActionInFlight}
+                  title="Start timer (Space)"
                 >
                   {timerAction === 'starting'
                     ? 'Starting…'
@@ -1275,6 +1326,7 @@ export function EntryBox({
                     className="entry-box__task-btn entry-box__task-btn--resume"
                     onClick={resumeTimer}
                     disabled={saving || (isActionInFlight && timerAction !== 'resuming')}
+                    title="Resume timer (P)"
                   >
                     {timerAction === 'resuming'
                       ? 'Resuming…'
@@ -1288,6 +1340,7 @@ export function EntryBox({
                     className="entry-box__task-btn entry-box__task-btn--pause"
                     onClick={pauseTimer}
                     disabled={saving || (isActionInFlight && timerAction !== 'pausing')}
+                    title="Pause timer (P)"
                   >
                     {timerAction === 'pausing'
                       ? 'Pausing…'
@@ -1301,6 +1354,7 @@ export function EntryBox({
                   className="entry-box__task-btn entry-box__task-btn--end"
                   onClick={stopTimer}
                   disabled={saving || (isActionInFlight && timerAction !== 'stopping')}
+                  title="Stop timer (Space)"
                 >
                   {timerAction === 'stopping'
                     ? 'Stopping…'
