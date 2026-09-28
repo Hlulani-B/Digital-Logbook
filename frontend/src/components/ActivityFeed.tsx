@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
 
@@ -373,6 +374,30 @@ function parseEntityName(name: string | null | undefined): string {
   return name;
 }
 
+/**
+ * Determine the navigation link for an activity item.
+ * Returns a path string if navigable, or null if the activity has no target page.
+ */
+export function getActivityLink(activity: Activity): string | null {
+  const details = activity.details || {};
+  const projectName = details.project_name as string | undefined;
+
+  // Project-level activities: entity_name is the project name
+  if (activity.action_type.startsWith('PROJECT_')) {
+    const name = parseEntityName(activity.entity_name);
+    if (name) return `/project/${encodeURIComponent(name)}`;
+    return null;
+  }
+
+  // Entry, field, timer, priority activities: project_name is in details
+  if (projectName) {
+    return `/project/${encodeURIComponent(projectName)}`;
+  }
+
+  // Profile activities and others: no navigation target
+  return null;
+}
+
 interface ActivityFeedProps {
   /** Called when the feed finishes loading (used for parent loading state) */
   onLoadingChange?: (loading: boolean) => void;
@@ -381,6 +406,7 @@ interface ActivityFeedProps {
 export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const { user } = useAuth();
   const email = user?.email || '';
+  const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -462,12 +488,27 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
         const isRename = activity.action_type === 'PROJECT_RENAMED';
         const oldName = String(details.old_project_name ?? '');
         const newName = String(details.new_project_name ?? '');
+        const link = getActivityLink(activity);
 
         return (
           <div
             key={activity.id || i}
             className="activity-item animate-in"
-            style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
+            style={{
+              animationDelay: `${Math.min(i, 5) * 0.06}s`,
+              cursor: link ? 'pointer' : undefined,
+            }}
+            onClick={() => {
+              if (link) navigate(link);
+            }}
+            role={link ? 'button' : undefined}
+            tabIndex={link ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (link && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                navigate(link);
+              }
+            }}
           >
             <div className="activity-icon">{config.icon}</div>
             <div className="activity-body">
