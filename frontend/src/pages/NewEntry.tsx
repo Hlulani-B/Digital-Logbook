@@ -216,6 +216,7 @@ export function EntryBox({
   // moment they were paused (anchor = paused_at) and show a Paused badge.
   const isPaused = Boolean(started_at && !ended_at && paused_at);
   const [timerText, setTimerText] = useState<string>('');
+  const [pausedDurationText, setPausedDurationText] = useState<string>('');
   const [autoStopped, setAutoStopped] = useState(false);
   const [warningPlayed, setWarningPlayed] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -265,6 +266,15 @@ export function EntryBox({
       setTimerText(
         remaining != null ? formatTimer(remaining) : formatTimer(entryDurationMs(liveEntry, now))
       );
+
+      // Update paused duration text
+      if (isPaused && paused_at) {
+        const pauseStart = new Date(paused_at).getTime();
+        const pausedMs = now - pauseStart;
+        setPausedDurationText(formatTimer(pausedMs));
+      } else {
+        setPausedDurationText('');
+      }
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -1312,7 +1322,14 @@ export function EntryBox({
                   <span className="entry-box__task-pending">Pending sync</span>
                 )}
                 {isPaused && timerAction !== 'pending-sync' && (
-                  <span className="entry-box__task-paused">Paused</span>
+                  <span className="entry-box__task-paused">
+                    Paused{' '}
+                    {pausedDurationText && (
+                      <span style={{ opacity: 0.7, marginLeft: '4px' }}>
+                        ({pausedDurationText})
+                      </span>
+                    )}
+                  </span>
                 )}
                 {timerText && (
                   <div style={{ width: '100%' }}>
