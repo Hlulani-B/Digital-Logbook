@@ -64,7 +64,7 @@ interface TimerBannerProps {
 }
 
 function TimerBanner({ entry, projectName, elapsed, extraCount, onUpdated }: TimerBannerProps) {
-  const { timerAction, isActionInFlight, start, pause, resume, stop } = useTimerActions({
+  const { timerAction, start, pause, resume, stop } = useTimerActions({
     entry,
     onUpdated,
   });
