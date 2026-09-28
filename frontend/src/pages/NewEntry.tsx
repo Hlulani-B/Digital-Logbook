@@ -497,6 +497,50 @@ export function EntryBox({
     }
   };
 
+  // Timer presets - quick start with common durations
+  const TIMER_PRESETS = [
+    { label: '25m', minutes: 25, color: '#ef4444' }, // Pomodoro
+    { label: '1h', minutes: 60, color: '#3b82f6' },
+    { label: '2h', minutes: 120, color: '#8b5cf6' },
+    { label: '4h', minutes: 240, color: '#10b981' },
+  ];
+
+  const handlePresetStart = async (minutes: number) => {
+    if (!user_email || started_at || saving || isActionInFlight) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const targetMs = Math.round(minutes * 60000);
+      const now = new Date().toISOString();
+      // Set target duration and start the timer in one call
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        'in_motion',
+        now,
+        undefined,
+        undefined,
+        undefined,
+        targetMs,
+        undefined,
+        undefined
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to start timer');
+        return;
+      }
+      applyResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start timer');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Adds a deadline target to a running task that has none (count-up → countdown)
   const [targetDays, setTargetDays] = useState<string>('');
   const [targetHours, setTargetHours] = useState<string>('');
@@ -1065,6 +1109,40 @@ export function EntryBox({
           <div className="entry-box__meta-right">
             {!started_at && !ended_at && !archived && (
               <>
+                {/* Timer Presets */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    marginBottom: '8px',
+                    width: '100%',
+                  }}
+                >
+                  {TIMER_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => handlePresetStart(preset.minutes)}
+                      disabled={saving || isActionInFlight}
+                      title={`Start ${preset.label} timer`}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        border: 'none',
+                        borderRadius: '6px',
+                        background: preset.color,
+                        color: 'white',
+                        cursor: saving || isActionInFlight ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        opacity: saving || isActionInFlight ? 0.6 : 1,
+                        transition: 'opacity 0.2s',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
                   className="entry-box__task-btn entry-box__task-btn--start"
