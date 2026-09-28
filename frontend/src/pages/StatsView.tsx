@@ -1322,6 +1322,54 @@ export function StatsView() {
                 </div>
               </div>
 
+              {/* Timer Analytics */}
+              {(() => {
+                const timerEntries = scopedEntries.filter((e) => e.started_at && e.ended_at);
+                if (timerEntries.length === 0) return null;
+
+                const durations = timerEntries.map((e) => entryDurationMs(e, now));
+                const totalTimerMs = durations.reduce((sum, d) => sum + d, 0);
+                const avgDurationMs = totalTimerMs / durations.length;
+                const maxDurationMs = Math.max(...durations);
+                const minDurationMs = Math.min(...durations);
+
+                // Find longest session entry
+                const longestEntry = timerEntries.find(
+                  (e) => entryDurationMs(e, now) === maxDurationMs
+                );
+                const longestEntryName =
+                  longestEntry?.summary ||
+                  (longestEntry?.entries as Record<string, unknown>)?.task_name ||
+                  'Untitled';
+
+                return (
+                  <div className="stats-panel glass">
+                    <h3 className="stats-panel-title">Timer Analytics</h3>
+                    <div className="timer-analytics">
+                      <div className="timer-stat">
+                        <span className="timer-stat-value">{timerEntries.length}</span>
+                        <span className="timer-stat-label">Sessions</span>
+                      </div>
+                      <div className="timer-stat">
+                        <span className="timer-stat-value">{formatDuration(avgDurationMs)}</span>
+                        <span className="timer-stat-label">Avg Session</span>
+                      </div>
+                      <div className="timer-stat">
+                        <span className="timer-stat-value">{formatDuration(maxDurationMs)}</span>
+                        <span className="timer-stat-label">Longest</span>
+                        <span className="timer-stat-sub">
+                          {String(longestEntryName).slice(0, 30)}
+                        </span>
+                      </div>
+                      <div className="timer-stat">
+                        <span className="timer-stat-value">{formatDuration(minDurationMs)}</span>
+                        <span className="timer-stat-label">Shortest</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Built-in activity uses entry creation dates, independently of field analysis. */}
               {plotOptions.length > 0 && selectedPlot && (
                 <div className="stats-panel glass">
