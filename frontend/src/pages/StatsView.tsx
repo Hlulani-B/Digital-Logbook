@@ -1366,6 +1366,76 @@ export function StatsView() {
                         <span className="timer-stat-label">Shortest</span>
                       </div>
                     </div>
+                    {/* Export Timer Data Button */}
+                    <div style={{ marginTop: '16px', textAlign: 'right' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const headers = [
+                            'Entry',
+                            'Project',
+                            'Started',
+                            'Ended',
+                            'Duration (ms)',
+                            'Duration',
+                            'Paused (ms)',
+                            'Target (ms)',
+                          ];
+                          const rows = timerEntries.map((e) => {
+                            const duration = entryDurationMs(e, now);
+                            const name =
+                              (e.summary as string) ||
+                              ((e.entries as Record<string, unknown>)?.task_name as string) ||
+                              'Untitled';
+                            return [
+                              `"${String(name).replace(/"/g, '""')}"`,
+                              `"${String(e.project_name || '').replace(/"/g, '""')}"`,
+                              e.started_at || '',
+                              e.ended_at || '',
+                              duration,
+                              formatDuration(duration),
+                              Number(e.paused_ms) || 0,
+                              Number(e.target_duration_ms) || 0,
+                            ].join(',');
+                          });
+                          const csv = [headers.join(','), ...rows].join('\n');
+                          const blob = new Blob([csv], { type: 'text/csv' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `timer-sessions-${new Date().toISOString().split('T')[0]}.csv`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        style={{
+                          padding: '8px 16px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          background: 'white',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: '#374151',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Export Timer Data
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
