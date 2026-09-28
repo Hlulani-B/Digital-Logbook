@@ -27,6 +27,7 @@ const app = express();
 const PORT = process.env.PORT || 5003;
 // Allowed origins for CORS
 const allowedOrigins = [
+  'https://digital-logbook-dhtq.onrender.com',
   'https://digital-logbook-bxgv.onrender.com',
   'https://digital-logbook-bjev.onrender.com',
   'https://digital-logbook-hlulani.onrender.com',
