@@ -44,6 +44,28 @@ export function formatEntryValue(value: unknown): string {
   }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 
+  // Handle objects — check each value for base64 images
+  if (typeof value === 'object') {
+    try {
+      const str = JSON.stringify(value, (_key, val) => {
+        if (typeof val === 'string') {
+          const trimmed = val.trim();
+          if (
+            trimmed.startsWith('data:image/') ||
+            trimmed.startsWith('/9j/') ||
+            trimmed.startsWith('iVBOR')
+          ) {
+            return '[Image]';
+          }
+        }
+        return val;
+      });
+      return str || 'Not recorded';
+    } catch {
+      return 'Not recorded';
+    }
+  }
+
   try {
     return JSON.stringify(value) || 'Not recorded';
   } catch {
