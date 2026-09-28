@@ -4446,6 +4446,66 @@ img {
   padding: 0 0.25rem;
   opacity: 0.7;
 }
+
+/* ========== MOBILE TIMER IMPROVEMENTS ========== */
+@media (max-width: 640px) {
+  /* Larger touch targets for timer buttons */
+  .entry-box__task-btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.9rem;
+    min-height: 44px; /* iOS recommended touch target */
+  }
+
+  /* Timer presets - wrap on mobile */
+  .entry-box__meta-right > div:first-child {
+    flex-wrap: wrap;
+  }
+
+  /* Timer presets - 2 columns on mobile */
+  .entry-box__meta-right > div:first-child > button {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 40px;
+    font-size: 0.85rem;
+  }
+
+  /* Active timer area - stack vertically */
+  .entry-box__task-active {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  /* Timer display - larger font */
+  .entry-box__task-elapsed {
+    font-size: 1rem;
+    text-align: center;
+    width: 100%;
+  }
+
+  /* Progress bar - full width */
+  .entry-box__task-active > div > div:first-child {
+    width: 100%;
+  }
+
+  /* Timer buttons - full width on mobile */
+  .entry-box__task-active .entry-box__task-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Target inputs - larger */
+  .entry-box__target-input--small {
+    width: 3rem;
+    font-size: 0.9rem;
+    padding: 0.4rem;
+    min-height: 40px;
+  }
+
+  .entry-box__task-btn--target {
+    min-height: 40px;
+    padding: 0.4rem 0.8rem;
+  }
+}
 .entry-box__error-dismiss:hover {
   opacity: 1;
 }
