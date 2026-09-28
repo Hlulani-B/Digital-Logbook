@@ -9,6 +9,7 @@ import {
   NotificationLeadTime,
   TimerAbandonmentNotifications,
 } from '../functions/profile.js';
+import { logActivity } from '../functions/activityLog.js';
 
 const router = express.Router();
 
@@ -93,6 +94,15 @@ router.post('/profile', async (req, res) => {
         }
 
         const result = await emailNotifications.setEmailNotifications(userEmail, enabled);
+        if (result.success) {
+          await logActivity(
+            userEmail,
+            'NOTIFICATION_EMAIL_TOGGLED',
+            'notification',
+            'email_notifications',
+            { enabled }
+          );
+        }
         return res.json(result);
       }
       case 'notificationLeadTime': {
@@ -101,6 +111,15 @@ router.post('/profile', async (req, res) => {
           return res.status(400).json({ error: 'Missing email or leadTime parameter' });
         }
         const result = await notificationLeadTime.set(userEmail, leadTime);
+        if (result.success) {
+          await logActivity(
+            userEmail,
+            'NOTIFICATION_LEAD_TIME_CHANGED',
+            'notification',
+            'notification_lead_time',
+            { leadTime }
+          );
+        }
         return res.json(result);
       }
       case 'getNotificationLeadTime': {
@@ -115,6 +134,15 @@ router.post('/profile', async (req, res) => {
           return res.status(400).json({ error: 'Missing email parameter or enabled flag' });
         }
         const result = await timerAbandonmentNotifications.set(userEmail, enabled);
+        if (result.success) {
+          await logActivity(
+            userEmail,
+            'NOTIFICATION_TIMER_ABANDONMENT_TOGGLED',
+            'notification',
+            'timer_abandonment_notifications',
+            { enabled }
+          );
+        }
         return res.json(result);
       }
       case 'deleteProfile': {
