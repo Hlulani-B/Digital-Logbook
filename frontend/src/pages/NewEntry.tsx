@@ -348,6 +348,46 @@ export function EntryBox({
     resumeTimer,
   ]);
 
+  // Idle detection - track user activity and show notification after inactivity
+  const [idleMinutes, setIdleMinutes] = useState(0);
+  const [idleWarning, setIdleWarning] = useState(false);
+  const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+  useEffect(() => {
+    if (!started_at || ended_at || isPaused) return;
+
+    let lastActivity = Date.now();
+    let idleInterval: ReturnType<typeof setInterval>;
+
+    const updateActivity = () => {
+      lastActivity = Date.now();
+      setIdleWarning(false);
+      setIdleMinutes(0);
+    };
+
+    const checkIdle = () => {
+      const idleTime = Date.now() - lastActivity;
+      const minutes = Math.floor(idleTime / 60000);
+      setIdleMinutes(minutes);
+
+      if (idleTime >= IDLE_THRESHOLD_MS && !idleWarning) {
+        setIdleWarning(true);
+      }
+    };
+
+    // Listen for activity events
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    events.forEach((event) => window.addEventListener(event, updateActivity));
+
+    // Check idle status every 30 seconds
+    idleInterval = setInterval(checkIdle, 30000);
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, updateActivity));
+      clearInterval(idleInterval);
+    };
+  }, [started_at, ended_at, isPaused, idleWarning]);
+
   const [draftFields, setDraftFields] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
   );
@@ -1414,6 +1454,22 @@ export function EntryBox({
                           }}
                         >
                           Restored
+                        </span>
+                      )}
+                      {idleWarning && (
+                        <span
+                          style={{
+                            marginLeft: '6px',
+                            padding: '2px 6px',
+                            background: '#f59e0b',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                          title={`No activity for ${idleMinutes} minutes`}
+                        >
+                          Idle {idleMinutes}m
                         </span>
                       )}
                     </span>
