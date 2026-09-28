@@ -364,6 +364,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 **How it works:**
 
 - Create project with name and optional description
+- **Unique project names** — Each user cannot have two projects with the same name (case-insensitive). The frontend checks against existing projects before submitting, and the database enforces a `UNIQUE (user_email, project_name)` constraint. Attempting to create or rename to a duplicate shows an inline error: "A project with this name already exists."
 - Projects listed on Projects page with stats (entry count, last updated)
 - Archive projects to hide them from active list (soft delete)
 - Each project can have custom fields defined by the user
