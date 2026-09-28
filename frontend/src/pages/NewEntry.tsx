@@ -221,6 +221,20 @@ export function EntryBox({
   const [warningPlayed, setWarningPlayed] = useState(false);
   const [restored, setRestored] = useState(false);
 
+  // Timer actions (start/pause/resume/stop) with in-flight and failure state
+  // Must be declared before useEffects that use these functions
+  const {
+    timerAction,
+    timerError,
+    timerErrorAction,
+    isActionInFlight,
+    start: startTimer,
+    pause: pauseTimer,
+    resume: resumeTimer,
+    stop: stopTimer,
+    clearError: clearTimerError,
+  } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
+
   // Mark timer as restored if it was already running on mount
   useEffect(() => {
     if (started_at && !ended_at && !restored) {
@@ -416,19 +430,6 @@ export function EntryBox({
     priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
   );
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
-
-  // Timer actions (start/pause/resume/stop) with in-flight and failure state
-  const {
-    timerAction,
-    timerError,
-    timerErrorAction,
-    isActionInFlight,
-    start: startTimer,
-    pause: pauseTimer,
-    resume: resumeTimer,
-    stop: stopTimer,
-    clearError: clearTimerError,
-  } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
 
   useEffect(() => {
     if (!menuOpen) return;

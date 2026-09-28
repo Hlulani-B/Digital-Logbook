@@ -30,7 +30,7 @@ export function useTimerActions({ entry, onUpdated }: UseTimerActionsOptions) {
   const [timerError, setTimerError] = useState<string | null>(null);
   const [timerErrorAction, setTimerErrorAction] = useState<TimerActionState>(null);
 
-  const { id, user_email, project_name, started_at, paused_at, paused_ms } = entry;
+  const { id, user_email, project_name, started_at, paused_at } = entry;
   const isPaused = Boolean(started_at && !entry.ended_at && paused_at);
 
   const handleResult = useCallback(
