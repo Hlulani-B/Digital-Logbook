@@ -12,11 +12,15 @@ type Activity = {
   created_at: string;
 };
 
-// Maps each action_type to an SVG icon + verb phrase
-const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel: string }> = {
+// Maps each action_type to an SVG icon + verb phrase + color
+export const ACTION_CONFIG: Record<
+  string,
+  { icon: ReactNode; verb: string; entityLabel: string; color: string }
+> = {
   PROJECT_CREATED: {
     verb: 'created',
     entityLabel: 'project',
+    color: '#22c55e',
     icon: (
       <svg
         width="18"
@@ -37,6 +41,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   PROJECT_RENAMED: {
     verb: 'renamed',
     entityLabel: 'project',
+    color: '#3b82f6',
     icon: (
       <svg
         width="18"
@@ -56,6 +61,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   PROJECT_DELETED: {
     verb: 'deleted',
     entityLabel: 'project',
+    color: '#ef4444',
     icon: (
       <svg
         width="18"
@@ -75,6 +81,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   PROJECT_ARCHIVED: {
     verb: 'archived',
     entityLabel: 'project',
+    color: '#f59e0b',
     icon: (
       <svg
         width="18"
@@ -95,6 +102,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   PROJECT_UNARCHIVED: {
     verb: 'unarchived',
     entityLabel: 'project',
+    color: '#f59e0b',
     icon: (
       <svg
         width="18"
@@ -115,6 +123,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   ENTRY_ADDED: {
     verb: 'added',
     entityLabel: 'entry',
+    color: '#22c55e',
     icon: (
       <svg
         width="18"
@@ -136,6 +145,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   ENTRY_UPDATED: {
     verb: 'updated',
     entityLabel: 'entry',
+    color: '#3b82f6',
     icon: (
       <svg
         width="18"
@@ -157,6 +167,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   ENTRY_DELETED: {
     verb: 'deleted',
     entityLabel: 'entry',
+    color: '#ef4444',
     icon: (
       <svg
         width="18"
@@ -177,6 +188,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   ENTRY_ARCHIVED: {
     verb: 'archived',
     entityLabel: 'entry',
+    color: '#f59e0b',
     icon: (
       <svg
         width="18"
@@ -196,6 +208,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   ENTRY_UNARCHIVED: {
     verb: 'unarchived',
     entityLabel: 'entry',
+    color: '#f59e0b',
     icon: (
       <svg
         width="18"
@@ -215,6 +228,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   FIELD_ADDED: {
     verb: 'added',
     entityLabel: 'field',
+    color: '#a855f7',
     icon: (
       <svg
         width="18"
@@ -235,6 +249,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   FIELD_EDITED: {
     verb: 'edited',
     entityLabel: 'field',
+    color: '#a855f7',
     icon: (
       <svg
         width="18"
@@ -254,6 +269,7 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   PRIORITY_SET: {
     verb: 'set priority on',
     entityLabel: 'entry',
+    color: '#f97316',
     icon: (
       <svg
         width="18"
@@ -273,9 +289,10 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
   },
 };
 
-const FALLBACK_CONFIG = {
+export const FALLBACK_CONFIG = {
   verb: 'performed action on',
   entityLabel: 'item',
+  color: '#6b7280',
   icon: (
     <svg
       width="18"
@@ -469,7 +486,16 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
             className="activity-item animate-in"
             style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
           >
-            <div className="activity-icon">{config.icon}</div>
+            <div
+              className="activity-icon"
+              style={{
+                color: config.color,
+                background: `${config.color}18`,
+                borderColor: `${config.color}40`,
+              }}
+            >
+              {config.icon}
+            </div>
             <div className="activity-body">
               <p className="activity-text">
                 <span className="activity-verb">{config.verb}</span>{' '}
