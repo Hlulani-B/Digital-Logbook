@@ -30,7 +30,18 @@ export function classifyEntryPayload(value: unknown): EntryPayloadState {
 
 export function formatEntryValue(value: unknown): string {
   if (value == null) return 'Not recorded';
-  if (typeof value === 'string') return value.trim() || 'Not recorded';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    // Detect base64 image data — show a friendly label instead of dumping the raw string
+    if (
+      trimmed.startsWith('data:image/') ||
+      trimmed.startsWith('/9j/') ||
+      trimmed.startsWith('iVBOR')
+    ) {
+      return '[Image]';
+    }
+    return trimmed || 'Not recorded';
+  }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 
   try {
@@ -43,10 +54,12 @@ export function formatEntryValue(value: unknown): string {
 export function getEntryPayloadFields(value: unknown): EntryPayloadField[] {
   const payload = classifyEntryPayload(value);
   if (payload.kind === 'object') {
-    return Object.entries(payload.value).map(([name, fieldValue]) => ({
-      name,
-      value: formatEntryValue(fieldValue),
-    }));
+    return Object.entries(payload.value)
+      .filter(([name]) => !name.startsWith('_')) // skip internal fields
+      .map(([name, fieldValue]) => ({
+        name,
+        value: formatEntryValue(fieldValue),
+      }));
   }
 
   return [{ name: 'Legacy content', value: formatEntryValue(payload.value) }];

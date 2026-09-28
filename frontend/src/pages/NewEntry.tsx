@@ -454,7 +454,7 @@ export function EntryBox({
     '_pinned',
   ]);
   const entryFields = Object.entries(parsedEntries || {}).filter(
-    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
+    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_') && !key.startsWith('_')
   );
   const dueLabel = formatDate(due_date);
 

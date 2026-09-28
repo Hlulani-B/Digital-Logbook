@@ -104,7 +104,9 @@ function entryFieldColumns(rows: any[]): EntryFieldColumn[] {
     }
 
     for (const key of Object.keys(payload.value)) {
-      if (!SKIP.has(key)) keys.add(key);
+      // Skip internal/underscore-prefixed fields (e.g. _project_ref, _entry_ref, _pinned)
+      if (SKIP.has(key) || key.startsWith('_')) continue;
+      keys.add(key);
     }
   }
 
