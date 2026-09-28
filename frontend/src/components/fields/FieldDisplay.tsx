@@ -10,6 +10,17 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
   if (value === null || value === undefined || value === '') {
     return <div className="field-display field-display-empty">—</div>;
   }
+  // Detect base64 image data in any string value — show [Image] instead of raw data
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (
+      trimmed.startsWith('data:image/') ||
+      trimmed.startsWith('/9j/') ||
+      trimmed.startsWith('iVBOR')
+    ) {
+      return <div className="field-display field-display-image">[Image]</div>;
+    }
+  }
   switch (field.data_type) {
     case 'text':
       return <div className="field-display">{String(value)}</div>;
