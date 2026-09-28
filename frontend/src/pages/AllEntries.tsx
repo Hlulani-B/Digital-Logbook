@@ -504,6 +504,82 @@ export function AllEntriesPage() {
           </div>
         </div>
 
+        {/* Batch Timer Actions - shown when there are running timers */}
+        {(() => {
+          const runningTimers = filteredEntries.filter((e) => e.started_at && !e.ended_at);
+          if (runningTimers.length < 2) return null;
+
+          return (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                background: '#f0f9ff',
+                border: '1px solid #bae6fd',
+                borderRadius: '8px',
+                marginBottom: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: '13px', color: '#0369a1', fontWeight: 500 }}>
+                {runningTimers.length} timers running
+              </span>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Pause all running timers
+                    runningTimers.forEach((entry) => {
+                      const event = new CustomEvent('batch-timer-action', {
+                        detail: { entryId: entry.id, action: 'pause' },
+                      });
+                      window.dispatchEvent(event);
+                    });
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: '#374151',
+                  }}
+                >
+                  Pause All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Stop all running timers
+                    runningTimers.forEach((entry) => {
+                      const event = new CustomEvent('batch-timer-action', {
+                        detail: { entryId: entry.id, action: 'stop' },
+                      });
+                      window.dispatchEvent(event);
+                    });
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #fecaca',
+                    borderRadius: '6px',
+                    background: '#fef2f2',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: '#dc2626',
+                  }}
+                >
+                  Stop All
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
