@@ -349,6 +349,48 @@ function formatRelativeTime(dateStr: string): string {
   });
 }
 
+/**
+ * Returns a relative date group label for section headers.
+ * Groups dates into: Today, Yesterday, This Week, Last Week, This Month, or month name/year.
+ */
+export function getDateGroup(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  // Normalize to start of day for comparison
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.floor((today.getTime() - targetDay.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+
+  // This week: within the last 7 days (but not today/yesterday)
+  if (diffDays < 7) return 'This Week';
+
+  // Last week: 7-13 days ago
+  if (diffDays < 14) return 'Last Week';
+
+  // This month: same calendar month
+  if (date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()) {
+    return 'This Month';
+  }
+
+  // Last month: previous calendar month
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  if (date.getFullYear() === lastMonth.getFullYear() && date.getMonth() === lastMonth.getMonth()) {
+    return 'Last Month';
+  }
+
+  // Same year: just show month name
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString(undefined, { month: 'long' });
+  }
+
+  // Different year: show month and year
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
 /** Truncate only very long project/entity display names; entry text is shown in full. */
 function truncateName(name: string | null | undefined, max = 120): string {
   if (!name) return '';
@@ -463,46 +505,53 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
         const oldName = String(details.old_project_name ?? '');
         const newName = String(details.new_project_name ?? '');
 
-        return (
-          <div
-            key={activity.id || i}
-            className="activity-item animate-in"
-            style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
-          >
-            <div className="activity-icon">{config.icon}</div>
-            <div className="activity-body">
-              <p className="activity-text">
-                <span className="activity-verb">{config.verb}</span>{' '}
-                <span className="activity-entity-label">{config.entityLabel}</span>
-                {entityName && (
-                  <>
-                    {' '}
-                    <span className="activity-entity-name">"{entityName}"</span>
-                  </>
-                )}
-                {isRename && oldName && newName && (
-                  <>
-                    {' '}
-                    <span className="activity-detail">
-                      from "{truncateName(oldName)}" to "{truncateName(newName)}"
-                    </span>
-                  </>
-                )}
-              </p>
-              <span className="activity-time">{formatRelativeTime(activity.created_at)}</span>
+        // Determine if we need a date header
+        const currentDateGroup = getDateGroup(activity.created_at);
+        const prevDateGroup = i > 0 ? getDateGroup(activities[i - 1].created_at) : null;
+        const showDateHeader = currentDateGroup !== prevDateGroup;
 
-              {detailEntries.length > 0 && (
-                <div className="activity-details">
-                  {detailEntries.map(([key, val]) => (
-                    <div key={key} className="activity-detail-row">
-                      <span className="activity-detail-key">
-                        {DETAIL_LABELS[key] || key.replace(/_/g, ' ')}
+        return (
+          <div key={activity.id || i}>
+            {showDateHeader && <div className="activity-date-header">{currentDateGroup}</div>}
+            <div
+              className="activity-item animate-in"
+              style={{ animationDelay: `${Math.min(i, 5) * 0.06}s` }}
+            >
+              <div className="activity-icon">{config.icon}</div>
+              <div className="activity-body">
+                <p className="activity-text">
+                  <span className="activity-verb">{config.verb}</span>{' '}
+                  <span className="activity-entity-label">{config.entityLabel}</span>
+                  {entityName && (
+                    <>
+                      {' '}
+                      <span className="activity-entity-name">"{entityName}"</span>
+                    </>
+                  )}
+                  {isRename && oldName && newName && (
+                    <>
+                      {' '}
+                      <span className="activity-detail">
+                        from "{truncateName(oldName)}" to "{truncateName(newName)}"
                       </span>
-                      <span className="activity-detail-value">{formatDetailValue(key, val)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    </>
+                  )}
+                </p>
+                <span className="activity-time">{formatRelativeTime(activity.created_at)}</span>
+
+                {detailEntries.length > 0 && (
+                  <div className="activity-details">
+                    {detailEntries.map(([key, val]) => (
+                      <div key={key} className="activity-detail-row">
+                        <span className="activity-detail-key">
+                          {DETAIL_LABELS[key] || key.replace(/_/g, ' ')}
+                        </span>
+                        <span className="activity-detail-value">{formatDetailValue(key, val)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
