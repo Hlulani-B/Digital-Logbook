@@ -271,6 +271,105 @@ const ACTION_CONFIG: Record<string, { icon: ReactNode; verb: string; entityLabel
       </svg>
     ),
   },
+  PROFILE_CREATED: {
+    verb: 'created account',
+    entityLabel: 'profile',
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+        <line x1="16" y1="11" x2="20" y2="11" />
+        <line x1="18" y1="9" x2="18" y2="13" />
+      </svg>
+    ),
+  },
+  PROFILE_USERNAME_UPDATED: {
+    verb: 'changed username to',
+    entityLabel: 'profile',
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  PROFILE_NAME_UPDATED: {
+    verb: 'changed display name to',
+    entityLabel: 'profile',
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  PROFILE_AVATAR_UPDATED: {
+    verb: 'updated avatar',
+    entityLabel: 'profile',
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  PROFILE_DELETED: {
+    verb: 'deleted account',
+    entityLabel: 'profile',
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+        <line x1="18" y1="8" x2="22" y2="12" />
+        <line x1="22" y1="8" x2="18" y2="12" />
+      </svg>
+    ),
+  },
 };
 
 const FALLBACK_CONFIG = {
@@ -313,6 +412,10 @@ const DETAIL_LABELS: Record<string, string> = {
   field_name: 'Field',
   data_type: 'Type',
   is_required: 'Required',
+  new_username: 'Username',
+  new_name: 'Name',
+  avatar_url: 'Avatar',
+  deleted_at: 'Deleted at',
 };
 
 function formatDetailValue(key: string, value: unknown): string {

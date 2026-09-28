@@ -9,8 +9,26 @@ import {
   NotificationLeadTime,
   TimerAbandonmentNotifications,
 } from '../functions/profile.js';
+import pool from '../db.js';
 
 const router = express.Router();
+
+/**
+ * Fire-and-forget activity log helper.
+ * Inserts directly into the shared activity_log table — same DB as project-service.
+ */
+async function logProfileActivity(user_email, action_type, entity_name, details = {}) {
+  try {
+    if (!pool) return;
+    await pool.query(
+      `INSERT INTO activity_log (user_email, action_type, entity_type, entity_name, details)
+       VALUES ($1, $2, 'profile', $3, $4)`,
+      [user_email, action_type, entity_name, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('[profile] activity log failed:', err.message);
+  }
+}
 
 // Instantiate classes safely
 let username,
@@ -54,6 +72,11 @@ router.post('/profile', async (req, res) => {
           return res.status(400).json({ error: 'Missing required parameters' });
 
         const result = await username.username(userEmail, userName);
+        if (result.success) {
+          await logProfileActivity(userEmail, 'PROFILE_USERNAME_UPDATED', userName, {
+            new_username: userName,
+          });
+        }
         return res.json(result);
       }
       case 'email': {
@@ -61,6 +84,9 @@ router.post('/profile', async (req, res) => {
         if (!userEmail) return res.status(400).json({ error: 'Missing email parameter' });
 
         const result = await email.email(userEmail);
+        if (result.success) {
+          await logProfileActivity(userEmail, 'PROFILE_CREATED', userEmail, { source: 'sign-up' });
+        }
         return res.json(result);
       }
       case 'name': {
@@ -69,6 +95,9 @@ router.post('/profile', async (req, res) => {
           return res.status(400).json({ error: 'Missing required parameters' });
 
         const result = await name.name(userEmail, new_name);
+        if (result.success) {
+          await logProfileActivity(userEmail, 'PROFILE_NAME_UPDATED', new_name, { new_name });
+        }
         return res.json(result);
       }
       case 'avatar': {
@@ -77,6 +106,11 @@ router.post('/profile', async (req, res) => {
           return res.status(400).json({ error: 'Missing required parameters' });
 
         const result = await avatar.avatar(userEmail, url);
+        if (result.success) {
+          await logProfileActivity(userEmail, 'PROFILE_AVATAR_UPDATED', userEmail, {
+            avatar_url: url,
+          });
+        }
         return res.json(result);
       }
       case 'getProfile': {
@@ -122,6 +156,11 @@ router.post('/profile', async (req, res) => {
         if (!userEmail) return res.status(400).json({ error: 'Missing email parameter' });
 
         const result = await profile.deleteProfile(userEmail);
+        if (result.success) {
+          await logProfileActivity(userEmail, 'PROFILE_DELETED', userEmail, {
+            deleted_at: new Date().toISOString(),
+          });
+        }
         return res.json(result);
       }
       default:
