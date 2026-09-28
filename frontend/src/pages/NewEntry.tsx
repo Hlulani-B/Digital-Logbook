@@ -203,6 +203,7 @@ export function EntryBox({
   // moment they were paused (anchor = paused_at) and show a Paused badge.
   const isPaused = Boolean(started_at && !ended_at && paused_at);
   const [timerText, setTimerText] = useState<string>('');
+  const [autoStopped, setAutoStopped] = useState(false);
   useEffect(() => {
     if (!started_at || ended_at) {
       setTimerText('');
@@ -212,6 +213,33 @@ export function EntryBox({
     const tick = () => {
       const now = Date.now();
       const remaining = entryRemainingMs(liveEntry, now);
+
+      // Auto-stop when countdown reaches zero
+      if (target_duration_ms != null && remaining !== null && remaining <= 0 && !autoStopped) {
+        setAutoStopped(true);
+        // Play a subtle beep notification
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          oscillator.frequency.value = 800;
+          gainNode.gain.value = 0.1;
+          oscillator.start();
+          setTimeout(() => {
+            oscillator.stop();
+            audioCtx.close();
+          }, 200);
+        } catch {
+          // Audio not supported, silently ignore
+        }
+        // Auto-stop the timer
+        stopTimer();
+        setTimerText('00:00:00');
+        return;
+      }
+
       setTimerText(
         remaining != null ? formatTimer(remaining) : formatTimer(entryDurationMs(liveEntry, now))
       );
@@ -219,7 +247,14 @@ export function EntryBox({
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms]);
+  }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms, autoStopped, stopTimer]);
+
+  // Reset auto-stopped flag when timer is manually started
+  useEffect(() => {
+    if (started_at && !ended_at) {
+      setAutoStopped(false);
+    }
+  }, [started_at, ended_at]);
 
   const [draftFields, setDraftFields] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
@@ -1078,6 +1113,21 @@ export function EntryBox({
                 {timerText && (
                   <span className="entry-box__task-elapsed">
                     {target_duration_ms != null ? `${timerText} left` : timerText}
+                    {autoStopped && target_duration_ms != null && (
+                      <span
+                        style={{
+                          marginLeft: '6px',
+                          padding: '2px 6px',
+                          background: '#10b981',
+                          color: 'white',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Auto-stopped
+                      </span>
+                    )}
                   </span>
                 )}
                 {isPaused ? (
