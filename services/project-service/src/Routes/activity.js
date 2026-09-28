@@ -34,7 +34,8 @@ router.post('/activity', async (req, res) => {
     switch (func) {
       case 'getActivities': {
         const limit = values.limit || 50;
-        const result = await activityLog.getActivities(user_email, limit);
+        const offset = values.offset || 0;
+        const result = await activityLog.getActivities(user_email, limit, offset);
         return res.json(result);
       }
       default:

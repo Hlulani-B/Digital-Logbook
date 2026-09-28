@@ -96,6 +96,51 @@ describe('ActivityLog', () => {
       expect(result.success).toBe(false);
       expect(result.message).toBe('Connection lost');
     });
+
+    it('should pass offset to query and include OFFSET clause', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getActivities('a@b.com', 30, 60);
+
+      const query = pool.query.mock.calls[0][0];
+      expect(query).toContain('OFFSET');
+      const params = pool.query.mock.calls[0][1];
+      expect(params[2]).toBe(60);
+    });
+
+    it('should return has_more=false when rows fit within limit', async () => {
+      // limit=30, fetchLimit=31; returning 20 rows means no more
+      const rows = Array.from({ length: 20 }, (_, i) => ({ id: i }));
+      pool.query.mockResolvedValueOnce({ rows });
+
+      const result = await activityLog.getActivities('a@b.com', 30, 0);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(20);
+      expect(result.has_more).toBe(false);
+    });
+
+    it('should return has_more=true when extra row is returned', async () => {
+      // limit=30, fetchLimit=31; returning 31 rows means more exist
+      const rows = Array.from({ length: 31 }, (_, i) => ({ id: i }));
+      pool.query.mockResolvedValueOnce({ rows });
+
+      const result = await activityLog.getActivities('a@b.com', 30, 0);
+
+      expect(result.success).toBe(true);
+      // Data is trimmed to limit
+      expect(result.data).toHaveLength(30);
+      expect(result.has_more).toBe(true);
+    });
+
+    it('should default offset to 0', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getActivities('a@b.com', 30);
+
+      const params = pool.query.mock.calls[0][1];
+      expect(params[2]).toBe(0);
+    });
   });
 
   // ─── logActivity (convenience export) ─────────────────────────
