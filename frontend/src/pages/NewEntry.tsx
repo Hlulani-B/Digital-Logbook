@@ -167,6 +167,17 @@ export function EntryBox({
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
   const [manualTimeOpen, setManualTimeOpen] = useState(false);
   const [manualTimeSaving, setManualTimeSaving] = useState(false);
+  const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
+
+  // Confirm before stopping timer
+  const handleStopClick = () => {
+    setStopConfirmOpen(true);
+  };
+
+  const handleConfirmStop = () => {
+    setStopConfirmOpen(false);
+    stopTimer();
+  };
   const applyResult = (result: any) => {
     if (result?.success !== true)
       throw new Error(result?.message || result?.error || 'Failed to save changes');
@@ -1423,7 +1434,7 @@ export function EntryBox({
                 <button
                   type="button"
                   className="entry-box__task-btn entry-box__task-btn--end"
-                  onClick={stopTimer}
+                  onClick={handleStopClick}
                   disabled={saving || (isActionInFlight && timerAction !== 'stopping')}
                   title="Stop timer (Space)"
                 >
@@ -1646,6 +1657,92 @@ export function EntryBox({
         initialStartedAt={started_at}
         initialEndedAt={ended_at}
       />
+
+      {/* Stop Confirmation Modal */}
+      {stopConfirmOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.4)',
+            padding: '16px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setStopConfirmOpen(false);
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '360px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: '#fef2f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <span style={{ fontSize: '24px' }}>⏱️</span>
+            </div>
+            <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>Stop Timer?</h3>
+            <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: '14px' }}>
+              Are you sure you want to stop the timer? This will record the worked time.
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setStopConfirmOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: '#374151',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmStop}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: '#dc2626',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'white',
+                }}
+              >
+                Stop Timer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
