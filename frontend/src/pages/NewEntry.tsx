@@ -1181,7 +1181,12 @@ export function EntryBox({
               </>
             )}
             {started_at && !ended_at && (
-              <div className="entry-box__task-active">
+              <div
+                className="entry-box__task-active"
+                style={{
+                  animation: !isPaused ? 'timer-pulse 2s ease-in-out infinite' : undefined,
+                }}
+              >
                 {timerAction === 'pending-sync' && (
                   <span className="entry-box__task-pending">Pending sync</span>
                 )}
@@ -1189,24 +1194,76 @@ export function EntryBox({
                   <span className="entry-box__task-paused">Paused</span>
                 )}
                 {timerText && (
-                  <span className="entry-box__task-elapsed">
-                    {target_duration_ms != null ? `${timerText} left` : timerText}
-                    {autoStopped && target_duration_ms != null && (
-                      <span
+                  <div style={{ width: '100%' }}>
+                    {/* Progress bar for countdown mode */}
+                    {target_duration_ms != null && (
+                      <div
                         style={{
-                          marginLeft: '6px',
-                          padding: '2px 6px',
-                          background: '#10b981',
-                          color: 'white',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 600,
+                          width: '100%',
+                          height: '6px',
+                          background: '#e5e7eb',
+                          borderRadius: '3px',
+                          marginBottom: '6px',
+                          overflow: 'hidden',
                         }}
                       >
-                        Auto-stopped
-                      </span>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.max(0, Math.min(100, ((Number(target_duration_ms) - entryDurationMs({ started_at, ended_at, paused_at, paused_ms, target_duration_ms }, Date.now())) / Number(target_duration_ms)) * 100))}%`,
+                            background: (() => {
+                              const remaining = entryRemainingMs(
+                                { started_at, ended_at, paused_at, paused_ms, target_duration_ms },
+                                Date.now()
+                              );
+                              if (remaining === null) return '#3b82f6';
+                              const pct = remaining / Number(target_duration_ms);
+                              if (pct > 0.5) return '#10b981'; // Green: >50% remaining
+                              if (pct > 0.25) return '#f59e0b'; // Yellow: 25-50% remaining
+                              return '#ef4444'; // Red: <25% remaining
+                            })(),
+                            transition: 'width 1s linear, background 0.3s',
+                            borderRadius: '3px',
+                          }}
+                        />
+                      </div>
                     )}
-                  </span>
+                    <span
+                      className="entry-box__task-elapsed"
+                      style={{
+                        color: (() => {
+                          if (target_duration_ms == null) return undefined;
+                          const remaining = entryRemainingMs(
+                            { started_at, ended_at, paused_at, paused_ms, target_duration_ms },
+                            Date.now()
+                          );
+                          if (remaining === null) return undefined;
+                          const pct = remaining / Number(target_duration_ms);
+                          if (pct > 0.5) return '#10b981';
+                          if (pct > 0.25) return '#f59e0b';
+                          return '#ef4444';
+                        })(),
+                        fontWeight: target_duration_ms != null ? 600 : undefined,
+                      }}
+                    >
+                      {target_duration_ms != null ? `${timerText} left` : timerText}
+                      {autoStopped && target_duration_ms != null && (
+                        <span
+                          style={{
+                            marginLeft: '6px',
+                            padding: '2px 6px',
+                            background: '#10b981',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Auto-stopped
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 )}
                 {isPaused ? (
                   <button
