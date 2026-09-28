@@ -4338,6 +4338,19 @@ img {
     opacity: 0.85;
   }
 }
+
+/* Fade in animation for restored indicator */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .entry-box__task-elapsed {
   font-family: 'Plus Jakarta Sans', var(--font-body, 'Lora', serif);
   font-size: 0.85rem;
