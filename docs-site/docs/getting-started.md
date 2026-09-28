@@ -206,6 +206,14 @@ Sprint planning, task allocation, and progress tracking are managed through Trel
 
 - https://trello.com/b/bu363Eql/digital-logbook-sprint-1
 
+**Sprint 2 Board:**
+
+- https://trello.com/b/UeO8hIdY/digital-logbook-sprint-2
+
+**Sprint 3 Board:**
+
+- https://trello.com/b/kvvOQ10T/digital-logbook-sprint-3
+
 Contributors should check the board before starting work, move tasks as they
 progress, and ensure completed work is reflected on the board for Sprint 1
 evidence and tracking.

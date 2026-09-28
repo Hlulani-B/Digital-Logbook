@@ -18,14 +18,16 @@ predetermined schema.
 
 ## Team
 
-| Role / Primary focus                             | Person                     |
-| ------------------------------------------------ | -------------------------- |
-| Documentation & project creation                 | Siphesihle                 |
-| Frontend, UI/UX, fullstack & entry-side features | Hlulani-B (Hlulani Baloyi) |
-| Login / auth structure                           | Nasiphi (Missy)            |
-| Statistics & dashboard summaries                 | Sicelo                     |
-| Activity logs                                    | Zamokuhle (Zamo)           |
-| Archive functionality                            | Lupa                       |
+| Team member       | Main contribution areas                                                                                               | Representative work across Sprints 1–3                                                                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Siphesihle Merile | Project workflows, dashboard, task/timer functionality, UI fixes, documentation                                       | Dashboard and project creation; unfinished-work tracking; due-date support; project creation UX fixes; granular timer controls; collaborative Sprint 3 UI refinement                 |
+| Hlulani Baloyi    | Entry workflows, dynamic formats, entry views, offline support, frontend integration                                  | Entry-format builder; quick entry; project timeline; alternative entry views; offline syncing; dashboard auto-refresh; collaborative Sprint 3 UI refinement                          |
+| Nasiphi Ntontela  | Authentication, task planning/views, data portability, database tooling, API documentation, timer/validation features | Authentication; calendar/Kanban/timeline functionality; import/export; backup and restore; schema migrations; API documentation; timer notifications; entry validation and migration |
+| Sicelo Vanyelwa   | Statistics, custom-field analysis, search/grouping, comparison and visualization                                      | Project statistics; statistics on custom fields; advanced search/grouping/comparison; plotting statistical data over time; collaborative Sprint 3 UI refinement                      |
+| Zamokuhle Maziya  | Activity tracking, entry-format evolution, data preservation and UI collaboration                                     | Activity log; changing formats without losing existing data; collaborative Sprint 3 UI refinement                                                                                    |
+| Lupa Martins      | Archive workflows, richer fields, search/comparison and UI organization                                               | Archive functionality; dashboard/archive presentation; richer field support; advanced search/grouping/comparison; collaborative Sprint 3 UI refinement                               |
+
+> Contribution summaries reflect work recorded in the [project work tracker](Project_Management/work-tracker.md) across Sprints 1–3 and are intended to represent the breadth of each member's involvement beyond their original primary focus.
 
 ## Quick links
 
