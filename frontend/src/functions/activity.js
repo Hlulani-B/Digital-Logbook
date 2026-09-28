@@ -53,3 +53,27 @@ async function _fetchActivitiesFromServer(user_email, limit, cacheKey) {
 function _refreshActivitiesFromServer(user_email, limit, cacheKey) {
   _fetchActivitiesFromServer(user_email, limit, cacheKey).catch(() => {});
 }
+
+/**
+ * Fetch a digest summary for a given period.
+ * Digest requests are never cached — they always reflect current data.
+ *
+ * @param {string} user_email
+ * @param {'daily'|'weekly'} [period='daily']
+ * @returns {Promise<{success: boolean, data?: object}>}
+ */
+export async function getDigest(user_email, period = 'daily') {
+  try {
+    const result = await request(`${PROJECT_URL}/service/activity`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'getDigest',
+        values: { user_email, period },
+      }),
+    });
+    return result;
+  } catch (err) {
+    console.error('[getDigest] Failed:', err);
+    return { success: false, data: null };
+  }
+}

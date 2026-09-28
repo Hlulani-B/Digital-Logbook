@@ -98,6 +98,76 @@ describe('ActivityLog', () => {
     });
   });
 
+  // ─── getDigest() ──────────────────────────────────────────────
+
+  describe('getDigest', () => {
+    let activityLog;
+
+    beforeEach(() => {
+      activityLog = new ActivityLog();
+    });
+
+    it('should return digest with total, categories, topProjects, topEntries', async () => {
+      // Mock 4 queries: count, categories, topProjects, topEntries
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ total: 10 }] })
+        .mockResolvedValueOnce({
+          rows: [
+            { category: 'projects', count: 5 },
+            { category: 'entries', count: 5 },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [{ project_name: 'P1', count: 3 }] })
+        .mockResolvedValueOnce({ rows: [{ entity_name: 'E1', count: 2 }] });
+
+      const result = await activityLog.getDigest('a@b.com', 'daily');
+
+      expect(result.success).toBe(true);
+      expect(result.data.period).toBe('daily');
+      expect(result.data.total).toBe(10);
+      expect(result.data.categories).toHaveLength(2);
+      expect(result.data.topProjects).toHaveLength(1);
+      expect(result.data.topEntries).toHaveLength(1);
+    });
+
+    it('should use 7 days interval for weekly period', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ total: 0 }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getDigest('a@b.com', 'weekly');
+
+      // Check that the first query uses '7 days' interval
+      const firstCallParams = pool.query.mock.calls[0][1];
+      expect(firstCallParams[1]).toBe('7 days');
+    });
+
+    it('should use 1 day interval for daily period', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ total: 0 }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await activityLog.getDigest('a@b.com', 'daily');
+
+      const firstCallParams = pool.query.mock.calls[0][1];
+      expect(firstCallParams[1]).toBe('1 day');
+    });
+
+    it('should return failure when db query fails', async () => {
+      pool.query.mockRejectedValueOnce(new Error('connection lost'));
+
+      const result = await activityLog.getDigest('a@b.com', 'daily');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('connection lost');
+      expect(result.data).toBeNull();
+    });
+  });
+
   // ─── logActivity (convenience export) ─────────────────────────
 
   describe('logActivity', () => {

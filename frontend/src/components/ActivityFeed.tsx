@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getActivities } from '@/functions/activity.js';
+import { getActivities, getDigest } from '@/functions/activity.js';
 
 type Activity = {
   id: number;
@@ -373,6 +373,17 @@ function parseEntityName(name: string | null | undefined): string {
   return name;
 }
 
+type DigestData = {
+  period: string;
+  total: number;
+  categories: { category: string; count: number }[];
+  topProjects: { project_name: string; count: number }[];
+  topEntries: { entity_name: string; count: number }[];
+};
+
+type ViewMode = 'feed' | 'digest';
+type DigestPeriod = 'daily' | 'weekly';
+
 interface ActivityFeedProps {
   /** Called when the feed finishes loading (used for parent loading state) */
   onLoadingChange?: (loading: boolean) => void;
@@ -383,6 +394,10 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
   const email = user?.email || '';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('feed');
+  const [digest, setDigest] = useState<DigestData | null>(null);
+  const [digestPeriod, setDigestPeriod] = useState<DigestPeriod>('daily');
+  const [digestLoading, setDigestLoading] = useState(false);
 
   const loadActivities = useCallback(async () => {
     if (!email) return;
@@ -399,11 +414,30 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     }
   }, [email, onLoadingChange]);
 
+  const loadDigest = useCallback(async () => {
+    if (!email) return;
+    setDigestLoading(true);
+    try {
+      const result = await getDigest(email, digestPeriod);
+      setDigest(result?.data || null);
+    } catch (err) {
+      console.error('[ActivityFeed] Failed to load digest:', err);
+    } finally {
+      setDigestLoading(false);
+    }
+  }, [email, digestPeriod]);
+
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
 
-  if (loading) {
+  useEffect(() => {
+    if (viewMode === 'digest') {
+      loadDigest();
+    }
+  }, [viewMode, loadDigest]);
+
+  if (loading && viewMode === 'feed') {
     return (
       <div className="feed-loading">
         <div
@@ -418,35 +452,311 @@ export function ActivityFeed({ onLoadingChange }: ActivityFeedProps) {
     );
   }
 
+  const CATEGORY_LABELS: Record<string, string> = {
+    projects: 'Projects',
+    entries: 'Entries',
+    fields: 'Fields',
+    timer: 'Timer',
+    profile: 'Profile',
+    priority: 'Priority',
+    other: 'Other',
+  };
+
+  const CATEGORY_COLORS: Record<string, string> = {
+    projects: '#22c55e',
+    entries: '#3b82f6',
+    fields: '#a855f7',
+    timer: '#14b8a6',
+    profile: '#ec4899',
+    priority: '#f97316',
+    other: '#6b7280',
+  };
+
+  const viewToggle = (
+    <div
+      className="activity-view-toggle"
+      style={{
+        display: 'flex',
+        gap: '4px',
+        marginBottom: '12px',
+        padding: '3px',
+        background: 'var(--bg-subtle)',
+        borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setViewMode('feed')}
+        style={{
+          flex: 1,
+          padding: '6px 12px',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          border: 'none',
+          borderRadius: 'calc(var(--radius-sm) - 2px)',
+          cursor: 'pointer',
+          background: viewMode === 'feed' ? 'var(--accent)' : 'transparent',
+          color: viewMode === 'feed' ? '#fff' : 'var(--text-secondary)',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        Feed
+      </button>
+      <button
+        type="button"
+        onClick={() => setViewMode('digest')}
+        style={{
+          flex: 1,
+          padding: '6px 12px',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          border: 'none',
+          borderRadius: 'calc(var(--radius-sm) - 2px)',
+          cursor: 'pointer',
+          background: viewMode === 'digest' ? 'var(--accent)' : 'transparent',
+          color: viewMode === 'digest' ? '#fff' : 'var(--text-secondary)',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        Digest
+      </button>
+    </div>
+  );
+
+  if (viewMode === 'digest') {
+    return (
+      <div className="activity-feed">
+        {viewToggle}
+
+        {/* Period toggle */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '6px',
+            marginBottom: '16px',
+          }}
+        >
+          {(['daily', 'weekly'] as DigestPeriod[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setDigestPeriod(p)}
+              style={{
+                padding: '4px 12px',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                border: '1px solid',
+                borderColor: digestPeriod === p ? 'var(--accent)' : 'var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                background: digestPeriod === p ? 'var(--accent-glow)' : 'transparent',
+                color: digestPeriod === p ? 'var(--accent)' : 'var(--text-secondary)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {p === 'daily' ? 'Today' : 'This Week'}
+            </button>
+          ))}
+        </div>
+
+        {digestLoading ? (
+          <div className="feed-loading" style={{ textAlign: 'center', padding: '24px' }}>
+            <div className="animate-spin spinner-circle" style={{ width: 20, height: 20 }} />
+            <p style={{ fontSize: '0.8125rem' }}>Loading digest...</p>
+          </div>
+        ) : !digest || digest.total === 0 ? (
+          <div className="empty-state" style={{ textAlign: 'center', padding: '24px' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              No activity {digestPeriod === 'daily' ? 'today' : 'this week'}.
+            </p>
+          </div>
+        ) : (
+          <div className="digest-content animate-in">
+            {/* Total */}
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '16px',
+                marginBottom: '16px',
+                background: 'var(--bg-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text)' }}>
+                {digest.total}
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                actions {digestPeriod === 'daily' ? 'today' : 'this week'}
+              </div>
+            </div>
+
+            {/* Category breakdown */}
+            {digest.categories.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <h4
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  By Category
+                </h4>
+                {digest.categories.map((cat) => {
+                  const pct = digest.total > 0 ? Math.round((cat.count / digest.total) * 100) : 0;
+                  const color = CATEGORY_COLORS[cat.category] || '#6b7280';
+                  return (
+                    <div key={cat.category} style={{ marginBottom: '6px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.8125rem',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        <span style={{ color }}>
+                          {CATEGORY_LABELS[cat.category] || cat.category}
+                        </span>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {cat.count} ({pct}%)
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          height: '4px',
+                          background: 'var(--border)',
+                          borderRadius: '2px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            background: color,
+                            borderRadius: '2px',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Top projects */}
+            {digest.topProjects.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <h4
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  Top Projects
+                </h4>
+                {digest.topProjects.map((proj) => (
+                  <div
+                    key={proj.project_name}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.8125rem',
+                      padding: '4px 0',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text)' }}>
+                      {truncateName(parseEntityName(proj.project_name), 40)}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)' }}>{proj.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Top entries */}
+            {digest.topEntries.length > 0 && (
+              <div>
+                <h4
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  Top Entries
+                </h4>
+                {digest.topEntries.map((entry) => (
+                  <div
+                    key={entry.entity_name}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.8125rem',
+                      padding: '4px 0',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text)' }}>
+                      {truncateName(parseEntityName(entry.entity_name), 40)}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)' }}>{entry.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (activities.length === 0) {
     return (
-      <div className="empty-state animate-in">
-        <div className="empty-icon">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+      <div className="activity-feed">
+        {viewToggle}
+        <div className="empty-state animate-in">
+          <div className="empty-icon">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <h2 className="empty-title">No activity yet</h2>
+          <p className="empty-desc">
+            Your recent actions — creating projects, adding entries, archiving, and more — will
+            appear here.
+          </p>
         </div>
-        <h2 className="empty-title">No activity yet</h2>
-        <p className="empty-desc">
-          Your recent actions — creating projects, adding entries, archiving, and more — will appear
-          here.
-        </p>
       </div>
     );
   }
 
   return (
     <div className="activity-feed">
+      {viewToggle}
       {activities.map((activity, i) => {
         const config = ACTION_CONFIG[activity.action_type] || FALLBACK_CONFIG;
         const entityName = truncateName(parseEntityName(activity.entity_name));

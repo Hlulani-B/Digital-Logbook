@@ -37,6 +37,11 @@ router.post('/activity', async (req, res) => {
         const result = await activityLog.getActivities(user_email, limit);
         return res.json(result);
       }
+      case 'getDigest': {
+        const period = values.period || 'daily';
+        const result = await activityLog.getDigest(user_email, period);
+        return res.json(result);
+      }
       default:
         return res.status(400).json({ error: 'Invalid function' });
     }
