@@ -388,6 +388,24 @@ export function EntryBox({
     };
   }, [started_at, ended_at, isPaused, idleWarning]);
 
+  // Batch timer actions - listen for custom events from AllEntries page
+  useEffect(() => {
+    const handleBatchAction = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.entryId !== id) return;
+
+      const action = customEvent.detail?.action;
+      if (action === 'pause' && started_at && !ended_at && !isPaused) {
+        pauseTimer();
+      } else if (action === 'stop' && started_at && !ended_at) {
+        handleStopClick();
+      }
+    };
+
+    window.addEventListener('batch-timer-action', handleBatchAction);
+    return () => window.removeEventListener('batch-timer-action', handleBatchAction);
+  }, [id, started_at, ended_at, isPaused, pauseTimer, handleStopClick]);
+
   const [draftFields, setDraftFields] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
   );
