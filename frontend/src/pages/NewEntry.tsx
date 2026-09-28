@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
-import { FiEdit } from 'react-icons/fi';
+import { FiEdit, FiClock } from 'react-icons/fi';
 import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
@@ -21,6 +21,7 @@ import {
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
+import { ManualTimeModal } from '@/components/ManualTimeModal';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -162,6 +163,8 @@ export function EntryBox({
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   const [fieldsReady, setFieldsReady] = useState(false);
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
+  const [manualTimeOpen, setManualTimeOpen] = useState(false);
+  const [manualTimeSaving, setManualTimeSaving] = useState(false);
   const applyResult = (result: any) => {
     if (result?.success !== true)
       throw new Error(result?.message || result?.error || 'Failed to save changes');
@@ -421,6 +424,43 @@ export function EntryBox({
   };
 
   // Timer actions are now handled by useTimerActions hook (startTimer, pauseTimer, resumeTimer, stopTimer)
+
+  // Manual time logging - allows users to log time worked without using the live timer
+  const handleManualTimeLog = async (startedAt: string, endedAt: string) => {
+    if (!user_email) return;
+    setManualTimeSaving(true);
+    setError(null);
+    try {
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        'done_and_dusted', // Mark as completed
+        startedAt,
+        endedAt,
+        undefined,
+        undefined,
+        undefined,
+        0, // No paused time for manual entry
+        null // Clear any paused_at
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to log time');
+        setManualTimeOpen(false);
+        return;
+      }
+      applyResult(result);
+      setManualTimeOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to log time');
+      setManualTimeOpen(false);
+    } finally {
+      setManualTimeSaving(false);
+    }
+  };
 
   // Adds a deadline target to a running task that has none (count-up → countdown)
   const [targetDays, setTargetDays] = useState<string>('');
@@ -989,18 +1029,43 @@ export function EntryBox({
           </div>
           <div className="entry-box__meta-right">
             {!started_at && !ended_at && !archived && (
-              <button
-                type="button"
-                className="entry-box__task-btn entry-box__task-btn--start"
-                onClick={startTimer}
-                disabled={saving || isActionInFlight}
-              >
-                {timerAction === 'starting'
-                  ? 'Starting…'
-                  : timerErrorAction === 'starting'
-                    ? 'Failed to start — tap to retry'
-                    : '▶ Start'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="entry-box__task-btn entry-box__task-btn--start"
+                  onClick={startTimer}
+                  disabled={saving || isActionInFlight}
+                >
+                  {timerAction === 'starting'
+                    ? 'Starting…'
+                    : timerErrorAction === 'starting'
+                      ? 'Failed to start — tap to retry'
+                      : '▶ Start'}
+                </button>
+                <button
+                  type="button"
+                  className="entry-box__task-btn entry-box__task-btn--log"
+                  onClick={() => setManualTimeOpen(true)}
+                  disabled={saving || isActionInFlight}
+                  title="Log time manually"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    color: '#374151',
+                    marginLeft: '8px',
+                  }}
+                >
+                  <FiClock size={14} />
+                  Log time
+                </button>
+              </>
             )}
             {started_at && !ended_at && (
               <div className="entry-box__task-active">
@@ -1196,6 +1261,14 @@ export function EntryBox({
           </div>
         </div>
       )}
+
+      {/* Manual Time Entry Modal */}
+      <ManualTimeModal
+        open={manualTimeOpen}
+        onClose={() => setManualTimeOpen(false)}
+        onSubmit={handleManualTimeLog}
+        saving={manualTimeSaving}
+      />
     </>
   );
 }
