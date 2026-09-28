@@ -747,6 +747,41 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
+### 39. Timer Enhancements — Presets, Auto-Stop, Analytics, Shortcuts & Mobile UX
+
+**What it does:** Fourteen improvements to the session timer: (1) **Manual Time Entry** — log time without running the live timer via Duration or Time Range modes; (2) **Auto-Stop at Target** — automatically stops countdown timers at zero with a completion sound; (3) **Timer Presets** — quick-start buttons for 25m (Pomodoro), 1h, 2h, and 4h sessions; (4) **Visual Feedback** — progress bar, color-coded urgency (green → yellow → red), and pulsing animation; (5) **Sound Notifications** — distinct audio cues for start, stop, pause, completion, and a 5-minute warning; (6) **Edit After Stop** — adjust recorded time via a modal pre-populated with original values; (7) **Running Timer Persistence** — server-authoritative timestamps with a "Restored" badge on page reload; (8) **Timer Analytics** — StatsView panel showing session count, average/longest/shortest duration; (9) **Keyboard Shortcuts** — Space to start/stop, P to pause/resume; (10) **Mobile Experience** — 44px touch targets, 2-column preset layout, full-width buttons; (11) **Stop Confirmation** — modal dialog prevents accidental stops; (12) **Paused Duration Display** — live counter showing how long the timer has been paused; (13) **Idle Detection** — tracks user activity and shows an "Idle Xm" badge after 5 minutes of inactivity; (14) **Batch Timer Actions** — pause-all and stop-all controls when multiple timers are running; (15) **Export Timer Data** — CSV download of all timer sessions from the Stats page.
+
+**Why it was implemented:** The timer was functional but lacked quality-of-life features. Users needed faster ways to start common durations, visual cues for remaining time, protection against accidental stops, and analytics to review their work patterns. Mobile users needed larger touch targets and responsive layouts.
+
+**How it works:**
+
+- Manual time entry uses `updateEntry()` with `status: 'done_and_dusted'` and calculated `started_at`/`ended_at` timestamps
+- Auto-stop monitors `entryRemainingMs()` in the tick effect; triggers `stopTimer()` and `playCompleteSound()` at zero
+- Timer presets call `updateEntry()` with `target_duration_ms` and `started_at` in a single API call
+- Progress bar width = `(remaining / target) * 100%`; color thresholds at 50% (green), 25% (yellow), and below (red)
+- Sound system uses Web Audio API (`AudioContext`) with fade-out to avoid clicks; centralized in `timerSounds.ts`
+- Edit time modal pre-populates from existing `started_at`/`ended_at` via `useEffect`
+- Persistence is server-authoritative — `started_at` timestamps survive page reloads; "Restored" badge auto-dismisses after 3 seconds
+- Timer analytics calculates durations via `entryDurationMs()` and displays in a 4-column responsive grid
+- Keyboard shortcuts use `keydown` listener with input/textarea guard to avoid conflicts
+- Mobile styles use `@media (max-width: 640px)` with `min-height: 44px` for iOS-compliant touch targets
+- Stop confirmation uses a modal dialog; "Stop All" in batch actions triggers confirmation per entry
+- Idle detection tracks `mousedown`, `mousemove`, `keydown`, `scroll`, `touchstart` events; checks every 30 seconds
+- Batch actions dispatch `CustomEvent('batch-timer-action')` from AllEntries; each EntryBox listens for its own `id`
+- CSV export generates client-side via `Blob` and `URL.createObjectURL` with proper quote escaping
+
+**Key files:**
+
+- `frontend/src/pages/NewEntry.tsx` — Timer logic, presets, auto-stop, sounds, shortcuts, idle detection, confirmation, paused duration, edit modal
+- `frontend/src/components/ManualTimeModal.tsx` — Manual time entry modal
+- `frontend/src/components/EditTimeModal.tsx` — Edit time after stop modal
+- `frontend/src/lib/timerSounds.ts` — Web Audio API sound utility
+- `frontend/src/pages/AllEntries.tsx` — Batch timer action toolbar
+- `frontend/src/pages/StatsView.tsx` — Timer analytics panel and CSV export
+- `frontend/src/index.css` — Mobile timer styles, pulse/fade animations, timer analytics grid
+
+---
+
 ## Summary
 
-The Digital Logbook implements 38 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (guided tour with voice narration, themed sign-in landing), and notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 39 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (guided tour with voice narration, themed sign-in landing), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), and timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
