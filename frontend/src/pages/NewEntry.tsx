@@ -203,6 +203,17 @@ export function EntryBox({
   const [timerText, setTimerText] = useState<string>('');
   const [autoStopped, setAutoStopped] = useState(false);
   const [warningPlayed, setWarningPlayed] = useState(false);
+  const [restored, setRestored] = useState(false);
+
+  // Mark timer as restored if it was already running on mount
+  useEffect(() => {
+    if (started_at && !ended_at && !restored) {
+      setRestored(true);
+      // Clear the restored indicator after 3 seconds
+      const timeout = setTimeout(() => setRestored(false), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [started_at, ended_at]);
   useEffect(() => {
     if (!started_at || ended_at) {
       setTimerText('');
@@ -1237,6 +1248,22 @@ export function EntryBox({
                           }}
                         >
                           Auto-stopped
+                        </span>
+                      )}
+                      {restored && (
+                        <span
+                          style={{
+                            marginLeft: '6px',
+                            padding: '2px 6px',
+                            background: '#3b82f6',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            animation: 'fadeIn 0.3s ease-in',
+                          }}
+                        >
+                          Restored
                         </span>
                       )}
                     </span>
