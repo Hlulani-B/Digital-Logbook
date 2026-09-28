@@ -1,7 +1,7 @@
 import pool from '../../db.js';
 
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
-const APP_URL = 'https://digital-logbook-bxgv.onrender.com';
+const APP_URL = 'https://digital-logbook-dhtq.onrender.com';
 const NOTIFICATION_LIMIT = 30;
 const HISTORY_PAGE_SIZE = 50;
 const HISTORY_MAX_LIMIT = 200;
