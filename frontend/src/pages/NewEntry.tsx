@@ -21,6 +21,7 @@ import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
 import { ManualTimeModal } from '@/components/ManualTimeModal';
+import { EditTimeModal } from '@/components/EditTimeModal';
 import { playCompleteSound, playWarningSound } from '@/lib/timerSounds';
 import {
   classifyEntryPayload,
@@ -543,6 +544,44 @@ export function EntryBox({
       setError(err instanceof Error ? err.message : 'Failed to start timer');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Edit time after timer is stopped
+  const [editTimeOpen, setEditTimeOpen] = useState(false);
+  const [editTimeSaving, setEditTimeSaving] = useState(false);
+
+  const handleEditTimeSave = async (startedAt: string, endedAt: string) => {
+    if (!user_email) return;
+    setEditTimeSaving(true);
+    setError(null);
+    try {
+      const result = await updateEntry(
+        user_email,
+        project_name,
+        id,
+        undefined,
+        undefined,
+        undefined,
+        'done_and_dusted',
+        startedAt,
+        endedAt,
+        undefined,
+        undefined,
+        undefined,
+        0,
+        null
+      );
+      if (result?.success === false || result?.error) {
+        setError(result.message || result.error || 'Failed to update time');
+        return;
+      }
+      applyResult(result);
+      setEditTimeOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update time');
+    } finally {
+      setEditTimeSaving(false);
     }
   };
 
@@ -1285,6 +1324,59 @@ export function EntryBox({
                 )}
               </div>
             )}
+            {/* Completed timer display with edit option */}
+            {started_at && ended_at && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  borderRadius: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: '#16a34a',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  ✓{' '}
+                  {formatTimer(
+                    entryDurationMs(
+                      { started_at, ended_at, paused_at, paused_ms, target_duration_ms },
+                      Date.now()
+                    )
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditTimeOpen(true)}
+                  disabled={saving || isActionInFlight}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    background: 'white',
+                    cursor: saving || isActionInFlight ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    color: '#374151',
+                    marginLeft: 'auto',
+                  }}
+                >
+                  <FiClock size={12} />
+                  Edit time
+                </button>
+              </div>
+            )}
             {archived && <span className="entry-box__archived-tag">Archived</span>}
           </div>
         </div>
@@ -1354,6 +1446,16 @@ export function EntryBox({
         onClose={() => setManualTimeOpen(false)}
         onSubmit={handleManualTimeLog}
         saving={manualTimeSaving}
+      />
+
+      {/* Edit Time Modal */}
+      <EditTimeModal
+        open={editTimeOpen}
+        onClose={() => setEditTimeOpen(false)}
+        onSubmit={handleEditTimeSave}
+        saving={editTimeSaving}
+        initialStartedAt={started_at}
+        initialEndedAt={ended_at}
       />
     </>
   );
