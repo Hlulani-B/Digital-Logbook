@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
@@ -259,6 +259,40 @@ export function ProjectDetailPage() {
     setViewModeState(mode);
     localStorage.setItem('project-view-mode', mode);
   };
+
+  // Deep link: /project/:name?entry=<id> — the Dashboard quick lists use it to
+  // jump straight to an entry. Cards is the only view with per-entry cards, so
+  // a focused link switches the view and briefly rings the target.
+  const [searchParams] = useSearchParams();
+  const focusEntryId = searchParams.get('entry');
+  const [highlightEntryId, setHighlightEntryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusEntryId) return;
+    setViewModeState((current) => (current === 'cards' ? current : 'cards'));
+  }, [focusEntryId]);
+
+  useEffect(() => {
+    if (!focusEntryId) return;
+    setHighlightEntryId(focusEntryId);
+    // The entry list can still be loading from cache when we land; retry briefly.
+    let attempts = 0;
+    const scrollTimer = window.setInterval(() => {
+      attempts += 1;
+      const target = document.querySelector(`[data-entry-id="${focusEntryId}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.clearInterval(scrollTimer);
+      } else if (attempts >= 25) {
+        window.clearInterval(scrollTimer);
+      }
+    }, 160);
+    const fadeTimer = window.setTimeout(() => setHighlightEntryId(null), 5000);
+    return () => {
+      window.clearInterval(scrollTimer);
+      window.clearTimeout(fadeTimer);
+    };
+  }, [focusEntryId]);
 
   // Voice
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -1017,6 +1051,7 @@ export function ProjectDetailPage() {
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
                     projectColor={projectColor}
+                    highlighted={row.id === highlightEntryId}
                   />
                 ))}
               </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { NotificationsBell } from '@/components/NotificationsBell';
@@ -51,6 +51,20 @@ import '@/pages/Calendar.css';
 import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
 import { CircularTimer } from '@/components/CircularTimer';
 import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
+
+// "Due soon" chip text for the right rail: Today / Tomorrow / short date.
+function formatRailDue(value?: string | null): string | null {
+  if (!value) return null;
+  const due = new Date(value);
+  if (isNaN(due.getTime())) return null;
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const diffDays = Math.round((dueDay.getTime() - startOfToday.getTime()) / 86400000);
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  return dueDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
 
 // ── Timer Banner Component ────────────────────────────────────────────────────
 // Small component for the Home page timer banner with pause/resume controls.
@@ -198,6 +212,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     if (showTourOffer) markTourOffered();
   }, [showTourOffer]);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -287,9 +302,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return date < today;
   }, []);
 
-  // FAB menu
-  const [fabOpen, setFabOpen] = useState(false);
-
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
 
@@ -360,6 +372,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // New entry modal
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState('');
+
+  // Cross-page handoff: the "New Entry" card on the entries page opens this
+  // page's create-item modal through router state.
+  useEffect(() => {
+    const handoff = location.state as { openNewEntry?: boolean } | null;
+    if (handoff?.openNewEntry) {
+      setNewEntryOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   // Project settings panel
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
@@ -608,7 +630,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDrawerOpen(false);
-        setFabOpen(false);
         setProjectMenuOpen(false);
       }
     };
@@ -647,16 +668,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       filtered = filtered.filter((e) => e.project_name === activeView);
     }
 
-    // Always apply "due soon" filter: only entries with due_date within 3 days
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const threeDaysFromNow = new Date(startOfToday.getTime() + 3 * 24 * 60 * 60 * 1000);
-    filtered = filtered.filter((e) => {
-      if (!e.due_date) return false;
-      const due = new Date(e.due_date as string);
-      if (isNaN(due.getTime())) return false;
-      return due >= startOfToday && due <= threeDaysFromNow;
-    });
+    // (The "Due soon" slice of this list lives in the right-hand rail; the
+    // main feed shows every entry so the page is not only a due-date view.)
 
     // Regular search — summary, project name and every field value
     if (pageSearch.trim()) {
@@ -1793,24 +1806,32 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             </div>
 
-            {/* Due Soon header: label on the left, view toggle on the right */}
-            <div className="due-soon-header-row">
-              <div className="due-soon-section-label">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-                <span>Due soon</span>
-              </div>
+            {/* Two-column split: the entries feed scrolls on the left, the
+                due-soon / projects / entries quick lists stick on the right. */}
+            <div className="dash-split">
+              <div className="dash-split__main">
+                {/* Entries header: label on the left, view toggle on the right */}
+                <div className="due-soon-header-row">
+                  <div className="due-soon-section-label">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="8" y1="6" x2="21" y2="6" />
+                      <line x1="8" y1="12" x2="21" y2="12" />
+                      <line x1="8" y1="18" x2="21" y2="18" />
+                      <line x1="3" y1="6" x2="3.01" y2="6" />
+                      <line x1="3" y1="12" x2="3.01" y2="12" />
+                      <line x1="3" y1="18" x2="3.01" y2="18" />
+                    </svg>
+                    <span>Entries</span>
+                  </div>
 
               {/* View mode toggle — right-aligned with the Due soon label,
                   hidden entirely when nothing is due soon. */}
@@ -1913,6 +1934,19 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       </div>
                     ) : (
                       <div className="projects-grid">
+                        <button
+                          type="button"
+                          className="project-card project-card--new"
+                          onClick={() => {
+                            setProjectsDrawerOpen(false);
+                            setNewProjectOpen(true);
+                          }}
+                          title="Create a new project"
+                        >
+                          <span className="project-card--new-icon">+</span>
+                          <span className="project-card-name">New Project</span>
+                          <span className="project-card-count">Start something new</span>
+                        </button>
                         {projects
                           .filter((p) => !p.archived)
                           .map((project) => {
@@ -1977,14 +2011,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <>
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
                     </svg>
                   </div>
-                  <h2 className="empty-title">Nothing due soon</h2>
-                  <p className="empty-desc">No items are due within the next 3 days.</p>
+                  <h2 className="empty-title">No entries yet</h2>
+                  <p className="empty-desc">No items to show right now.</p>
                 </div>
               </div>
             )}
@@ -2212,99 +2246,173 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 </span>
               </div>
             </div>
+              </div>
+
+              {/* Right rail — the scrollable sidebar of quick lists. */}
+              <aside
+                className="dash-rail"
+                aria-label="Due soon, projects and entries quick lists"
+              >
+                <section className="dash-rail__section">
+                  <h3 className="dash-rail__title">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>Due soon</span>
+                    <span className="dash-rail__count">{dueSoonRows.length}</span>
+                  </h3>
+                  <div className="dash-rail__list dash-rail__list--due">
+                    {dueSoonRows.length === 0 ? (
+                      <p className="dash-rail__empty">Nothing due soon.</p>
+                    ) : (
+                      dueSoonRows.map((row, i) => {
+                        const due = formatRailDue((row as any).due_date);
+                        return (
+                          <button
+                            key={`rail-due-${row.id || i}`}
+                            type="button"
+                            className="dash-rail__item"
+                            onClick={() =>
+                              navigate(
+                                `/project/${encodeURIComponent(String(row.project_name || ''))}?entry=${encodeURIComponent(String(row.id || ''))}`
+                              )
+                            }
+                            title={getEntryTitle(row as any)}
+                          >
+                            <span className="dash-rail__item-title">
+                              {getEntryTitle(row as any)}
+                            </span>
+                            <span className="dash-rail__item-meta">
+                              <span className="dash-rail__item-project">
+                                {String(row.project_name || '')}
+                              </span>
+                              {due && <span className="dash-rail__due-chip">{due}</span>}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+
+                <section className="dash-rail__section">
+                  <h3 className="dash-rail__title">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span>Projects</span>
+                    <span className="dash-rail__count">
+                      {projects.filter((p) => !p.archived).length}
+                    </span>
+                  </h3>
+                  <div className="dash-rail__list dash-rail__list--projects">
+                    {projects.filter((p) => !p.archived).length === 0 ? (
+                      <p className="dash-rail__empty">No projects yet.</p>
+                    ) : (
+                      projects
+                        .filter((p) => !p.archived)
+                        .map((project) => {
+                          const name = project.project_name as string;
+                          const count = entries.filter(
+                            (e) => e.project_name === name && !e.archived
+                          ).length;
+                          return (
+                            <button
+                              key={`rail-project-${name}`}
+                              type="button"
+                              className="dash-rail__item"
+                              onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                              title={`Open ${name}`}
+                            >
+                              <span className="dash-rail__item-title">{name}</span>
+                              <span className="dash-rail__item-meta">
+                                <span>
+                                  {count} {count === 1 ? 'entry' : 'entries'}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })
+                    )}
+                  </div>
+                </section>
+
+                <section className="dash-rail__section">
+                  <h3 className="dash-rail__title">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="8" y1="6" x2="21" y2="6" />
+                      <line x1="8" y1="12" x2="21" y2="12" />
+                      <line x1="8" y1="18" x2="21" y2="18" />
+                    </svg>
+                    <span>Entries</span>
+                    <span className="dash-rail__count">{filteredEntries.length}</span>
+                  </h3>
+                  <div className="dash-rail__list dash-rail__list--entries">
+                    {filteredEntries.length === 0 ? (
+                      <p className="dash-rail__empty">No entries to show.</p>
+                    ) : (
+                      filteredEntries.map((row, i) => {
+                        const due = formatRailDue((row as any).due_date);
+                        return (
+                          <button
+                            key={`rail-entry-${row.id || i}`}
+                            type="button"
+                            className="dash-rail__item"
+                            onClick={() =>
+                              navigate(
+                                `/project/${encodeURIComponent(String(row.project_name || ''))}?entry=${encodeURIComponent(String(row.id || ''))}`
+                              )
+                            }
+                            title={getEntryTitle(row as any)}
+                          >
+                            <span className="dash-rail__item-title">
+                              {getEntryTitle(row as any)}
+                            </span>
+                            <span className="dash-rail__item-meta">
+                              <span className="dash-rail__item-project">
+                                {String(row.project_name || '')}
+                              </span>
+                              {due && <span className="dash-rail__due-chip">{due}</span>}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+              </aside>
+            </div>
           </>
         )}
       </main>
-
-      {/* FAB */}
-      <div className="fab-container">
-        {fabOpen && (
-          <div className="fab-menu">
-            {projects.filter((p) => !p.archived).length > 0 ? (
-              <button
-                className="fab-menu-item"
-                onClick={() => {
-                  setNewEntryOpen(true);
-                  setFabOpen(false);
-                }}
-                title="Create a new item in one of your projects"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="11" x2="12" y2="17" />
-                  <line x1="9" y1="14" x2="15" y2="14" />
-                </svg>
-                New Item
-              </button>
-            ) : (
-              <div className="fab-menu-hint" title="You need to create a project first">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>Create a project first</span>
-              </div>
-            )}
-            <button
-              className="fab-menu-item"
-              onClick={() => {
-                setNewProjectOpen(true);
-                setFabOpen(false);
-              }}
-              title="Create a new project to organize your items"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-              New Project
-            </button>
-          </div>
-        )}
-        <button
-          className={`fab ${fabOpen ? 'fab-open' : ''}`}
-          onClick={() => setFabOpen(!fabOpen)}
-          aria-label="Quick actions"
-          title="Quick actions: create a new item or project"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <span className="fab-label">New</span>
-        </button>
-      </div>
 
       {/* New Project Modal */}
       {newProjectOpen && (

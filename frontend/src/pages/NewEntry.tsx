@@ -79,6 +79,33 @@ function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Collapsible entry cards: collapsed ids are remembered across reloads so the
+// compact layout sticks for the entries the user tidied up.
+const ENTRY_COLLAPSE_KEY = 'dl_entry_collapsed_v1';
+
+function readEntryCollapsed(id: string): boolean {
+  try {
+    const raw = localStorage.getItem(ENTRY_COLLAPSE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed[String(id)] === true;
+  } catch {
+    return false;
+  }
+}
+
+function persistEntryCollapsed(id: string, collapsed: boolean) {
+  try {
+    const raw = localStorage.getItem(ENTRY_COLLAPSE_KEY);
+    const parsed: Record<string, boolean> = raw ? JSON.parse(raw) : {};
+    if (collapsed) parsed[String(id)] = true;
+    else delete parsed[String(id)];
+    localStorage.setItem(ENTRY_COLLAPSE_KEY, JSON.stringify(parsed));
+  } catch {
+    /* storage unavailable — the card simply forgets its collapsed state */
+  }
+}
+
 interface EntryRow {
   id: string;
   user_email: string;
@@ -107,6 +134,8 @@ interface EntryBoxProps {
   onPriorityChanged?: (entryId: string, projectName: string, priorityValue: string) => void;
   onDelete?: (entryId: string) => void;
   projectColor?: string | null;
+  /** Briefly ringed when a deep link lands on this entry (see ProjectDetailPage). */
+  highlighted?: boolean;
 }
 
 export function EntryBox({
@@ -116,6 +145,7 @@ export function EntryBox({
   onPriorityChanged,
   onDelete,
   projectColor,
+  highlighted,
 }: EntryBoxProps) {
   const navigate = useNavigate();
   const {
@@ -149,6 +179,7 @@ export function EntryBox({
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { openNotes } = useNotes();
+  const [collapsed, setCollapsed] = useState<boolean>(() => readEntryCollapsed(String(id)));
 
   const [refPickerOpen, setRefPickerOpen] = useState<'project' | null>(null);
   const [refEntries, setRefEntries] = useState<any[]>([]);
@@ -994,11 +1025,28 @@ export function EntryBox({
     );
   }
 
+  // A running timer must stay reachable, so it pins the card open.
+  const timerRunning = Boolean(started_at && !ended_at);
+  const isCollapsed = collapsed && !timerRunning;
+  const boxClass = [
+    'entry-box',
+    archived && 'entry-box--archived',
+    isCollapsed && 'entry-box--collapsed',
+    highlighted && 'entry-box--focus',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      persistEntryCollapsed(String(id), next);
+      return next;
+    });
+  };
+
   return (
     <>
-      <div
-        className={`entry-box ${archived ? 'entry-box--archived' : ''}`}
-        style={
+      <div className={boxClass} data-entry-id={id} style={
           projectColor
             ? ({
                 '--tint': `${projectColor}18`,
@@ -1035,6 +1083,35 @@ export function EntryBox({
               >
                 <line x1="12" y1="17" x2="12" y2="22" />
                 <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+              </svg>
+            </button>
+          )}
+          {isCollapsed && dueLabel && (
+            <span className="entry-box__collapsed-due">{dueLabel}</span>
+          )}
+          {!archived && (
+            <button
+              type="button"
+              className={`entry-box__collapse-btn ${isCollapsed ? 'is-collapsed' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCollapsed();
+              }}
+              aria-expanded={!isCollapsed}
+              aria-label={isCollapsed ? 'Expand entry' : 'Collapse entry'}
+              title={isCollapsed ? 'Show all details' : 'Hide details'}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
           )}

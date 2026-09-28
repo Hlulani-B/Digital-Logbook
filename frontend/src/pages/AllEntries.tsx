@@ -206,6 +206,21 @@ export function AllEntriesPage() {
     [projects]
   );
 
+  // "New Entry" card that fronts the cards feed — jumps to the home page's
+  // create-item modal (this page has no modal of its own).
+  const newEntryCard = (
+    <button
+      type="button"
+      className="entry-card-new"
+      onClick={() => navigate('/dashboard', { state: { openNewEntry: true } })}
+      title="Create a new item"
+    >
+      <span className="entry-card-new__icon">+</span>
+      <span className="entry-card-new__title">New Entry</span>
+      <span className="entry-card-new__hint">Add something you worked on</span>
+    </button>
+  );
+
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
@@ -400,6 +415,7 @@ export function AllEntriesPage() {
         {/* Entries feed */}
         {!loading && filteredEntries.length === 0 && (
           <div className="entries-feed">
+            {newEntryCard}
             <div className="empty-state animate-in">
               <div className="empty-icon">
                 <svg
@@ -477,6 +493,7 @@ export function AllEntriesPage() {
         )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
           <div className="entries-feed">
+            {newEntryCard}
             {filteredEntries.map((row, i) => (
               <EntryBox
                 key={`entry-${row.id || i}`}
