@@ -4,6 +4,7 @@ import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -352,7 +353,7 @@ export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: Checkl
   if (!entries || entries.length === 0) {
     return (
       <div className="checklist-empty">
-        <p>No items yet</p>
+        <p>No entries yet</p>
       </div>
     );
   }
@@ -373,7 +374,7 @@ export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: Checkl
           entry={entry}
           onUpdated={onUpdated}
           onDelete={onDelete}
-          projectColor={colorMap ? colorMap[entry.project_name] || undefined : undefined}
+          projectColor={colorMap ? resolveProjectColor(entry.project_name, colorMap) : undefined}
         />
       ))}
     </div>

@@ -73,7 +73,7 @@ function renderModal(entries: CalendarEntry[] = []) {
 
 function openForm() {
   fireEvent.click(screen.getByRole('button', { name: '+ Add Task' }));
-  return screen.getByRole('form', { name: 'New Item' });
+  return screen.getByRole('form', { name: 'New Entry' });
 }
 
 async function loadProject() {
@@ -100,7 +100,7 @@ describe('CalendarDayModal adding layout', () => {
 
     const body = form.querySelector('.cdm-body') as HTMLElement;
     const footer = form.querySelector('.cdm-form-actions') as HTMLElement;
-    const addButton = screen.getByRole('button', { name: 'Add Item' });
+    const addButton = screen.getByRole('button', { name: 'Add Entry' });
     const cancelButton = screen.getByRole('button', { name: 'Cancel' });
 
     expect(body.scrollTop).toBe(0);
@@ -174,7 +174,7 @@ describe('CalendarDayModal adding layout', () => {
     expect(screen.getByLabelText('Due Date')).toHaveValue('2030-09-22T09:00');
     for (const control of [
       ...screen.getAllByRole('combobox'),
-      screen.getByRole('button', { name: 'Add Item' }),
+      screen.getByRole('button', { name: 'Add Entry' }),
       screen.getByRole('button', { name: 'Cancel' }),
     ]) {
       expect(control).toHaveStyle({ minHeight: '44px', fontSize: '1rem', flexShrink: '0' });
@@ -193,7 +193,7 @@ describe('CalendarDayModal adding layout', () => {
     renderModal();
     const form = openForm();
     const footer = form.querySelector('.cdm-form-actions');
-    expect(screen.getByRole('button', { name: 'Add Item' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add Entry' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText('Project'), { target: { value: 'Project Alpha' } });
@@ -223,7 +223,7 @@ describe('CalendarDayModal adding layout', () => {
       target: { value: '2030-09-23' },
     });
     fireEvent.change(screen.getByLabelText('detail 30'), { target: { value: 'Final value' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
 
     expect(addEntry).toHaveBeenCalledExactlyOnceWith(
       'test@example.com',
@@ -265,14 +265,14 @@ describe('CalendarDayModal adding layout', () => {
     const title = screen.getByLabelText(/item title/);
     expect(title).toBeRequired();
     expect(title).toBeInvalid();
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
     expect(addEntry).not.toHaveBeenCalled();
 
     fireEvent.change(title, { target: { value: '   ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
     expect(screen.getByText('"item_title" is required')).toBeInTheDocument();
     fireEvent.change(title, { target: { value: 'Valid title' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
     expect(screen.getByText('"confirmed" is required')).toBeInTheDocument();
     expect(addEntry).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
@@ -284,7 +284,7 @@ describe('CalendarDayModal adding layout', () => {
     const form = openForm();
     await loadProject();
     fillRequiredFields();
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Entry' }));
 
     expect(await screen.findByText('Unable to save this item')).toBeInTheDocument();
     expect(container.querySelector('.cdm-error')).toHaveStyle({
@@ -292,7 +292,7 @@ describe('CalendarDayModal adding layout', () => {
       maxHeight: '20%',
       overflowY: 'auto',
     });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Item' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Entry' })).toBeEnabled());
     expect(screen.getByLabelText(/item title/)).toHaveValue('New task');
     expect(form.querySelector('.cdm-body')).not.toContainElement(
       screen.getByRole('button', { name: 'Cancel' })
@@ -320,7 +320,7 @@ describe('CalendarDayModal adding layout', () => {
     expect(screen.queryByText('Loading fields...')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByText('Failed to load project fields')).not.toBeInTheDocument();
-    expect(screen.getByText('No items for this day.')).toBeInTheDocument();
+    expect(screen.getByText('No entries for this day.')).toBeInTheDocument();
     expect(addEntry).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(onEntryAdded).not.toHaveBeenCalled();

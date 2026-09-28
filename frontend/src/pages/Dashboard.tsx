@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { NotificationsBell } from '@/components/NotificationsBell';
@@ -7,21 +7,26 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { QuickEntryBar } from '@/components/QuickEntryBar';
-import { EntrySearchBar } from '@/components/SearchFilters';
-import { matchesTextQuery, pinFirst } from '@/lib/entryFilters';
+import { ProjectFilterBlock } from '@/components/SearchFilters';
+import {
+  applyProjectFilters,
+  defaultProjectFilters,
+  matchesTextQuery,
+  pinFirst,
+  type ProjectFilters,
+} from '@/lib/entryFilters';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ActivitySummary } from '@/components/ActivitySummary';
 import { addProject } from '@/functions/project/project.js';
-import { addField } from '@/functions/project/fields.js';
+import { addField, getFields } from '@/functions/project/fields.js';
 import { getArchives } from '@/functions/project/archives.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
-import { buildProjectColorMap, resolveProjectColor, colorForName } from '@/lib/projectColorMap';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { EntryBox } from '@/pages/NewEntry';
-import { ChecklistView } from '@/Templates/EntryTemplates/EntryChecklist';
-import EntriesByDueDateBoard from '@/Templates/ProjectTemplates/EntriesByDueDateBoard';
+import { DueSoonRail } from '@/components/DueSoonRail';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { askAI } from '@/functions/ai.js';
@@ -33,7 +38,7 @@ import { useTimerActions } from '@/hooks/useTimerActions';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
 import { TemplatePicker } from '@/components/fields/TemplatePicker';
 import type { Template } from '@/lib/templateApi';
-import { FiArchive, FiRotateCcw, FiX } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiX } from 'react-icons/fi';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import {
   type CalendarEntry,
@@ -49,22 +54,7 @@ import {
 } from '@/lib/calendar';
 import '@/pages/Calendar.css';
 import { AbandonedTimerBanner } from '@/components/AbandonedTimerBanner';
-import { CircularTimer } from '@/components/CircularTimer';
 import { startAppTour, shouldOfferTour, markTourOffered } from '@/lib/tour';
-
-// "Due soon" chip text for the right rail: Today / Tomorrow / short date.
-function formatRailDue(value?: string | null): string | null {
-  if (!value) return null;
-  const due = new Date(value);
-  if (isNaN(due.getTime())) return null;
-  const today = new Date();
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-  const diffDays = Math.round((dueDay.getTime() - startOfToday.getTime()) / 86400000);
-  if (diffDays <= 0) return 'Today';
-  if (diffDays === 1) return 'Tomorrow';
-  return dueDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-}
 
 // ── Timer Banner Component ────────────────────────────────────────────────────
 // Small component for the Home page timer banner with pause/resume controls.
@@ -78,49 +68,32 @@ interface TimerBannerProps {
 }
 
 function TimerBanner({ entry, projectName, elapsed, extraCount, onUpdated }: TimerBannerProps) {
-  const { timerAction, start, pause, resume, stop } = useTimerActions({
-    entry,
-    onUpdated,
-  });
+  const { timerAction, isActionInFlight, pause, resume } = useTimerActions({ entry, onUpdated });
   const isPaused = Boolean(entry.started_at && !entry.ended_at && entry.paused_at);
-  const isRunning = Boolean(entry.started_at && !entry.ended_at && !entry.paused_at);
-  const isCompleted = Boolean(entry.ended_at);
-
-  // Calculate elapsed milliseconds for CircularTimer
-  const elapsedMs = entryDurationMs(entry, Date.now());
-  const targetMs = entry.target_duration_ms ? Number(entry.target_duration_ms) : null;
 
   return (
     <div className="dash-timer-banner animate-in" role="status" aria-live="polite">
-      <div className="dash-timer-content">
-        <div className="dash-timer-info">
-          <span className="dash-timer-dot" />
-          <span className="dash-timer-label">
-            {timerAction === 'pending-sync'
-              ? 'Pending sync'
-              : isPaused
-                ? 'Timer paused'
-                : isCompleted
-                  ? 'Timer completed'
-                  : 'Timer running'}
-          </span>
-          <span className="dash-timer-project">{projectName}</span>
-          <span className="dash-timer-elapsed">{elapsed}</span>
-          {extraCount > 0 && <span className="dash-timer-extra">+{extraCount} more</span>}
-        </div>
-        <CircularTimer
-          elapsedMs={elapsedMs}
-          targetMs={targetMs}
-          isRunning={isRunning}
-          isPaused={isPaused}
-          isCompleted={isCompleted}
-          onStart={isPaused ? resume : start}
-          onPause={pause}
-          onStop={stop}
-          size={80}
-          strokeWidth={8}
-        />
-      </div>
+      <span className="dash-timer-dot" />
+      <span className="dash-timer-label">
+        {timerAction === 'pending-sync'
+          ? 'Pending sync'
+          : isPaused
+            ? 'Timer paused'
+            : 'Timer running'}
+      </span>
+      <span className="dash-timer-project">{projectName}</span>
+      <span className="dash-timer-elapsed">{elapsed}</span>
+      {extraCount > 0 && <span className="dash-timer-extra">+{extraCount} more</span>}
+      <button
+        type="button"
+        className="dash-timer-control"
+        onClick={isPaused ? resume : pause}
+        disabled={isActionInFlight}
+        aria-label={isPaused ? 'Resume timer' : 'Pause timer'}
+        title={isPaused ? 'Resume' : 'Pause'}
+      >
+        {timerAction === 'pausing' ? '…' : timerAction === 'resuming' ? '…' : isPaused ? '▶' : '❚❚'}
+      </button>
     </div>
   );
 }
@@ -212,7 +185,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     if (showTourOffer) markTourOffered();
   }, [showTourOffer]);
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -246,32 +218,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     localStorage.setItem('dashboard-sort-by', sortBy);
   }, [sortBy]);
 
-  // Display mode for the entries feed (cards/checklist/board) - persisted in localStorage
-  const [displayMode, setDisplayMode] = useState<'cards' | 'checklist' | 'board'>(() => {
-    const saved = localStorage.getItem('dashboard-display-mode');
-    if (saved === 'cards' || saved === 'checklist' || saved === 'board') return saved;
-    return 'cards';
-  });
-
-  // Projects live in a slide-over drawer rather than replacing the entries feed.
-  const [projectsDrawerOpen, setProjectsDrawerOpen] = useState(false);
-
   // Regular (non-AI) search over the current feed
   const [pageSearch, setPageSearch] = useState('');
-
-  useEffect(() => {
-    localStorage.setItem('dashboard-display-mode', displayMode);
-  }, [displayMode]);
-
-  // Allow closing the projects drawer with the Escape key.
-  useEffect(() => {
-    if (!projectsDrawerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setProjectsDrawerOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [projectsDrawerOpen]);
+  // Feed filters — the home feed is mixed across projects, so the panel narrows
+  // it by project-level criteria (project name, entry count, field count),
+  // matching the entries page. Field counts are read from the fields cache.
+  const [projectFilters, setProjectFilters] = useState<ProjectFilters>(() =>
+    defaultProjectFilters()
+  );
+  const [fieldCounts, setFieldCounts] = useState<Record<string, number>>({});
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -283,6 +238,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
+  // Pinned projects — localStorage-backed (like the local archived set) so pins
+  // survive reloads; pinned projects sort to the front of the home cards.
+  const [pinnedProjects, setPinnedProjects] = useState<Set<string>>(new Set());
+  // Project card delete flow — inline confirm per card
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState<string | null>(null);
+  const [deletingProject, setDeletingProject] = useState<string | null>(null);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
@@ -302,23 +263,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return date < today;
   }, []);
 
+  // FAB menu
+  const [fabOpen, setFabOpen] = useState(false);
+
   // Voice recorder
   const [voiceOpen, setVoiceOpen] = useState(false);
-
-  // The 3 most recently created (unarchived) entries, newest first. Derived
-  // straight from the live entries cache so the list survives reloads and works
-  // offline — unlike the old in-session tracker, which was empty on a fresh load.
-  const recentlyCreatedEntries = useMemo(() => {
-    return entries
-      .filter((e) => !e.archived)
-      .slice()
-      .sort((a, b) => {
-        const at = new Date((a.created_at as string) || 0).getTime();
-        const bt = new Date((b.created_at as string) || 0).getTime();
-        return bt - at;
-      })
-      .slice(0, 3);
-  }, [entries]);
 
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
@@ -358,7 +307,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       cancelled = true;
     };
   }, [email, navigate, signOut]);
-  const [, setAiEmptyMessage] = useState('No items to show right now.');
+  const [, setAiEmptyMessage] = useState('No entries to show right now.');
 
   // New project modal
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -373,18 +322,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [newEntryProject, setNewEntryProject] = useState('');
 
-  // Cross-page handoff: the "New Entry" card on the entries page opens this
-  // page's create-item modal through router state.
-  useEffect(() => {
-    const handoff = location.state as { openNewEntry?: boolean } | null;
-    if (handoff?.openNewEntry) {
-      setNewEntryOpen(true);
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, [location.pathname, location.state, navigate]);
-
   // Project settings panel
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  // Project the settings panel edits — set by the Edit button on a project card
+  const [settingsProjectName, setSettingsProjectName] = useState('');
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
@@ -623,13 +564,14 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   }, [showGreetingToast]);
 
   // Simple, static placeholder for quick entry (no AI)
-  const aiPlaceholder = 'Write what you worked on...';
+  const aiPlaceholder = 'Capture quick entry';
 
   // Close drawer on escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDrawerOpen(false);
+        setFabOpen(false);
         setProjectMenuOpen(false);
       }
     };
@@ -654,6 +596,77 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     [projects]
   );
 
+  // Field counts for the filter panel. Field definitions live per project, so
+  // each project's rows are read from the cache and only fetched when missing.
+  useEffect(() => {
+    if (!email) return;
+    const names = Array.from(
+      new Set([
+        ...projects.map((p) => p.project_name as string),
+        ...entries.map((e) => e.project_name as string),
+      ])
+    ).filter(Boolean);
+    if (names.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = {};
+      await Promise.all(
+        names.map(async (name) => {
+          try {
+            let cached = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
+            if (!cached?.data) cached = await getFields(email, name);
+            const rows = Array.isArray(cached?.data) ? cached.data : [];
+            next[name] = rows.filter((r: Record<string, unknown>) => r?.field_name).length;
+          } catch {
+            next[name] = 0;
+          }
+        })
+      );
+      if (!cancelled) setFieldCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [email, projects, entries]);
+
+  // Entry counts per project — powers the "entry count" filter
+  const entryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      const name = (e.project_name as string) || '';
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [entries]);
+
+  // Projects offered in the filter panel — anything with entries or fields
+  const projectNames = useMemo(
+    () =>
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [entryCounts, fieldCounts]
+  );
+
+  // Load pinned project names for this user (localStorage — no backend column).
+  useEffect(() => {
+    if (!email) return;
+    try {
+      const stored = localStorage.getItem(`dl_pinned_projects_${email}`);
+      setPinnedProjects(new Set(stored ? JSON.parse(stored) : []));
+    } catch {
+      setPinnedProjects(new Set());
+    }
+  }, [email]);
+
+  // Active projects with pinned ones first — drives the home-page card grid.
+  const activeProjects = useMemo(() => {
+    const active = projects.filter((p) => !p.archived);
+    const pinned = active.filter((p) => pinnedProjects.has(p.project_name as string));
+    const rest = active.filter((p) => !pinnedProjects.has(p.project_name as string));
+    return [...pinned, ...rest];
+  }, [projects, pinnedProjects]);
+
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // Use all entries (unarchived) — ALL_ENTRIES also holds archived rows, so
@@ -668,16 +681,27 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       filtered = filtered.filter((e) => e.project_name === activeView);
     }
 
-    // (The "Due soon" slice of this list lives in the right-hand rail; the
-    // main feed shows every entry so the page is not only a due-date view.)
+    // Always apply "due soon" filter: only entries with due_date within 3 days
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const threeDaysFromNow = new Date(startOfToday.getTime() + 3 * 24 * 60 * 60 * 1000);
+    filtered = filtered.filter((e) => {
+      if (!e.due_date) return false;
+      const due = new Date(e.due_date as string);
+      if (isNaN(due.getTime())) return false;
+      return due >= startOfToday && due <= threeDaysFromNow;
+    });
 
     // Regular search — summary, project name and every field value
     if (pageSearch.trim()) {
       filtered = filtered.filter((e) => matchesTextQuery(e, pageSearch));
     }
 
+    // Project filters — project name, entry count and field count
+    filtered = applyProjectFilters(filtered, projectFilters, { entryCounts, fieldCounts });
+
     return pinFirst(filtered);
-  }, [entries, activeView, pageSearch]);
+  }, [entries, activeView, pageSearch, projectFilters, entryCounts, fieldCounts]);
 
   // In-progress entries (started but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
@@ -705,7 +729,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when there are no items to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
+          `Generate a motivating message for when there are no entries to show. Make it 3-4 sentences long. If the tone is casual or cynical, roast the user playfully and be funny ΓÇö tease them about being lazy, having nothing to do, or wasting their day. Be witty and entertaining. ${tone}`
         );
         if (!cancelled && result.success && result.response) {
           setAiEmptyMessage(parseAIResponse(result.response));
@@ -849,16 +873,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !email) return;
 
-    const projectName = newProjectName.trim();
-
-    // Client-side duplicate check against existing projects
-    if (
-      projects.some((p) => (p.project_name as string)?.toLowerCase() === projectName.toLowerCase())
-    ) {
-      setNewProjectError('A project with this name already exists.');
-      return;
-    }
-
     // Validate fields before creating project
     const nonEmptyFields = projectFields.filter((f) => f.field_name.trim());
     if (nonEmptyFields.length > 0) {
@@ -885,17 +899,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     setNewProjectError(null);
 
     try {
-      const result = await addProject(
-        email,
-        projectName,
-        newProjectDescription.trim() || undefined
-      );
-
-      // Server rejected (e.g. duplicate name that slipped past client check)
-      if (result?.success === false) {
-        setNewProjectError(result.message || 'Failed to create project');
-        return;
-      }
+      const projectName = newProjectName.trim();
+      await addProject(email, projectName, newProjectDescription.trim() || undefined);
 
       // Immediately add the project to local state so the entry picker sees it
       setProjects((prev) => {
@@ -978,6 +983,46 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const { archiveProject } = await import('@/functions/project/archives.js');
       await archiveProject(email, projectName);
     } catch {}
+  };
+
+  // Pin/unpin a project — local-only ordering, persisted per user.
+  const togglePinProject = (projectName: string) => {
+    if (!email) return;
+    setPinnedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectName)) next.delete(projectName);
+      else next.add(projectName);
+      try {
+        localStorage.setItem(`dl_pinned_projects_${email}`, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Delete a project (project-service cascades its entries server-side).
+  const handleDeleteProject = async (projectName: string) => {
+    if (!email || deletingProject) return;
+    setDeletingProject(projectName);
+    setArchiveError(null);
+    try {
+      const { deleteProject } = await import('@/functions/project/project.js');
+      const result = await deleteProject(email, projectName);
+      if (result?.success === false) {
+        throw new Error(result.message || 'Failed to delete project');
+      }
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Failed to delete project');
+      setDeletingProject(null);
+      setConfirmDeleteProject(null);
+      return;
+    }
+    // Drop it from the in-memory lists immediately; deleteProject already
+    // updated the IndexedDB cache optimistically.
+    setProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    setArchivedProjects((prev) => prev.filter((p) => p.project_name !== projectName));
+    setDeletingProject(null);
+    setConfirmDeleteProject(null);
+    await loadData();
   };
 
   const handleUnarchiveProject = async (projectName: string) => {
@@ -1235,7 +1280,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Items
+            All Entries
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -1281,52 +1326,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
-            data-tour="drawer-kanban"
-            onClick={() => {
-              navigate('/kanban');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            Kanban
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-timeline"
-            onClick={() => {
-              navigate('/timeline');
-              setDrawerOpen(false);
-            }}
-            title="See a chronological timeline of all your items across projects"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <polyline points="8 8 12 4 16 8" />
-              <polyline points="8 16 12 20 16 16" />
-            </svg>
-            Timeline
-          </button>
-          <button
-            className="drawer-item"
             data-tour="drawer-import-export"
             onClick={() => {
               navigate('/data-portability');
@@ -1350,32 +1349,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </button>
           <button
             className="drawer-item"
-            onClick={() => {
-              navigate('/data-disclaimer-info');
-              setDrawerOpen(false);
-            }}
-            title="Learn how your data is stored and how AI is used"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Disclaimer
-          </button>
-          <button
-            className="drawer-item"
             data-tour="drawer-stats"
             onClick={() => {
               navigate('/stats');
               setDrawerOpen(false);
             }}
-            title="View statistics and insights about your items"
+            title="View statistics and insights about your entries"
           >
             <svg
               width="16"
@@ -1411,122 +1390,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
             Activity Log
-          </button>
-        </div>
-
-        <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title" data-tour="drawer-projects">
-            Projects
-          </p>
-          <div className="drawer-project-list">
-            {projects
-              .filter((p) => !p.archived)
-              .map((project) => {
-                const name = project.project_name as string;
-                const count = entries.filter((e) => e.project_name === name).length;
-                const projColor = (project.project_color as string) || colorForName(name);
-                return (
-                  <div
-                    key={name}
-                    className={`drawer-item ${activeView === name ? 'active' : ''}`}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigate(`/project/${encodeURIComponent(name)}`);
-                        setDrawerOpen(false);
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: 'none',
-                        border: 'none',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: projColor,
-                          flexShrink: 0,
-                        }}
-                      />
-                      {name}
-                      <span className="drawer-badge">{count}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleArchiveProject(name)}
-                      title="Archive project"
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(139, 115, 85, 0.3)',
-                        color: 'var(--text-secondary, #6b7280)',
-                        borderRadius: '0.4rem',
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                      }}
-                    >
-                      <FiArchive size={12} />
-                      Archive
-                    </button>
-                  </div>
-                );
-              })}
-            {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet. Create one below.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="drawer-footer">
-          <button
-            className="btn-primary drawer-new-btn"
-            data-tour="drawer-new-project"
-            onClick={() => {
-              setNewProjectOpen(true);
-              setDrawerOpen(false);
-            }}
-            title="Create a new project to organize your items"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Project
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              navigate('/projects');
-              setDrawerOpen(false);
-            }}
-            style={{ marginTop: '0.5rem', width: '100%' }}
-            title="View and manage all your projects"
-          >
-            Manage Projects
           </button>
         </div>
       </aside>
@@ -1710,23 +1573,54 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             {archivedProjects.length === 0 ? (
               <p className="archives-empty-line">No archived projects</p>
             ) : (
-              <div className="archived-projects-grid">
+              /* Same card format as the home page, but read-only: no pin,
+                 archive or delete — only Unarchive to restore the project. */
+              <div className="projects-grid">
                 {archivedProjects.map((project, i) => {
                   const name = project.project_name as string;
+                  const count = entries.filter((e) => e.project_name === name).length;
+                  const inMotionCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'in_motion'
+                  ).length;
+                  const doneCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'done_and_dusted'
+                  ).length;
+                  const cardAccent = resolveProjectColor(name, dashColorMap);
                   return (
-                    <div key={`archived-${name}-${i}`} className="glass archived-project-card">
-                      <FiArchive size={18} className="archived-project-icon" />
-                      <div className="archived-project-info">
-                        <span className="archived-project-name">{name}</span>
-                        <span className="archived-project-status">Archived · read-only</span>
+                    <div
+                      key={`archived-${name}-${i}`}
+                      className="project-card project-card--archived"
+                      style={{
+                        borderLeft: `3px solid ${cardAccent}`,
+                        background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
+                      }}
+                    >
+                      <div className="project-card-header">
+                        <h3 className="project-card-name">{name}</h3>
+                        <span className="project-card-count">{count} entries</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleUnarchiveProject(name)}
-                        className="btn-secondary archived-project-unarchive"
-                      >
-                        <FiRotateCcw size={13} /> Unarchive
-                      </button>
+                      <div className="project-card-stats">
+                        {inMotionCount > 0 && (
+                          <span className="project-card-stat project-card-stat--active">
+                            {inMotionCount} in progress
+                          </span>
+                        )}
+                        {doneCount > 0 && (
+                          <span className="project-card-stat project-card-stat--done">
+                            {doneCount} done
+                          </span>
+                        )}
+                      </div>
+                      <div className="project-card-actions">
+                        <button
+                          type="button"
+                          className="project-card-action-btn"
+                          onClick={() => handleUnarchiveProject(name)}
+                          title="Restore this project"
+                        >
+                          <FiRotateCcw size={12} /> Unarchive
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -1770,32 +1664,24 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           </div>
         ) : (
           <>
-            {/* Display mode + Sort controls */}
-            <div className="feed-controls-row">
-              <div className="feed-view-toggle">
-                <button
-                  className={`feed-view-btn ${projectsDrawerOpen ? 'active' : ''}`}
-                  onClick={() => setProjectsDrawerOpen(true)}
-                >
-                  Projects
-                </button>
-              </div>
-            </div>
-
-            {/* Search + AI quick-add bar */}
+            {/* Search + AI quick-add bar — project-level filters match the
+                entries page so the funnel icon is available on Home too. */}
             <div className="search-ai-row">
-              <EntrySearchBar
-                value={pageSearch}
-                onChange={setPageSearch}
-                placeholder="Search items..."
+              <ProjectFilterBlock
+                query={pageSearch}
+                onQueryChange={setPageSearch}
+                placeholder="Search entries..."
+                projectNames={projectNames}
+                filters={projectFilters}
+                onFiltersChange={setProjectFilters}
               />
               <div data-tour="quick-entry" className="search-ai-row__ai">
                 <QuickEntryBar
                   onEntryCreated={(info) => {
                     loadData();
-                    // Only navigate when there's exactly one clear target —
-                    // for multi-match we intentionally stop here and let the
-                    // "Recently created" section drive navigation.
+                    // Only navigate when there's exactly one clear target — a
+                    // multi-match spread across projects must not yank the user
+                    // into an arbitrary one.
                     if ((info?.created?.length ?? 0) === 1 && info?.projectName) {
                       navigate(`/project/${encodeURIComponent(info.projectName)}`);
                     }
@@ -1806,316 +1692,190 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             </div>
 
-            {/* Two-column split: the entries feed scrolls on the left, the
-                due-soon / projects / entries quick lists stick on the right. */}
+            {/* Two-column split: projects + calendar on the left, the due-soon
+                quick list on the right. */}
             <div className="dash-split">
               <div className="dash-split__main">
-                {/* Entries header: label on the left, view toggle on the right */}
-                <div className="due-soon-header-row">
-                  <div className="due-soon-section-label">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                      <line x1="3" y1="6" x2="3.01" y2="6" />
-                      <line x1="3" y1="12" x2="3.01" y2="12" />
-                      <line x1="3" y1="18" x2="3.01" y2="18" />
-                    </svg>
-                    <span>Entries</span>
-                  </div>
-
-              {/* View mode toggle — right-aligned with the Due soon label,
-                  hidden entirely when nothing is due soon. */}
-              {!loading && filteredEntries.length > 0 && (
-                <div className="feed-view-group due-soon-view-toggle">
-                  <span className="feed-view-label">View:</span>
-                  <div className="feed-view-toggle">
-                    <button
-                      className={`feed-view-btn ${displayMode === 'cards' ? 'active' : ''}`}
-                      onClick={() => setDisplayMode('cards')}
-                    >
-                      Cards
-                    </button>
-                    <button
-                      className={`feed-view-btn ${displayMode === 'checklist' ? 'active' : ''}`}
-                      onClick={() => setDisplayMode('checklist')}
-                    >
-                      Checklist
-                    </button>
-                    <button
-                      className={`feed-view-btn ${displayMode === 'board' ? 'active' : ''}`}
-                      onClick={() => setDisplayMode('board')}
-                    >
-                      Board
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Loading */}
-            {loading && (
-              <div className="feed-loading">
+            {/* Projects — inline card grid with quick actions */}
+            <section className="home-projects animate-in" data-tour="home-projects">
+              <div className="page-switcher-row">
                 <div
-                  className="animate-spin spinner-circle"
-                  style={{
-                    width: 24,
-                    height: 24,
-                  }}
-                />
-                <p>Loading items...</p>
-              </div>
-            )}
-
-            {/* Projects slide-over drawer — opens over the dashboard so the
-                entries feed keeps its place instead of being replaced. */}
-            {projectsDrawerOpen && (
-              <div
-                className="projects-drawer-overlay"
-                role="presentation"
-                onClick={() => setProjectsDrawerOpen(false)}
-              >
-                <aside
-                  className="projects-drawer"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Your projects"
-                  onClick={(e) => e.stopPropagation()}
+                  className="feed-view-toggle"
+                  role="group"
+                  aria-label="Switch between entries and projects"
                 >
-                  <div className="projects-drawer-header">
-                    <h2 className="projects-grid-title">Your Projects</h2>
-                    <button
-                      type="button"
-                      className="projects-drawer-close"
-                      aria-label="Close projects"
-                      onClick={() => setProjectsDrawerOpen(false)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="projects-drawer-body">
-                    {projects.filter((p) => !p.archived).length === 0 ? (
-                      <div className="empty-state animate-in">
-                        <div className="empty-icon">
-                          <svg
-                            width="48"
-                            height="48"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                          </svg>
-                        </div>
-                        <h2 className="empty-title">No projects yet</h2>
-                        <p className="empty-desc">Create your first project to get started.</p>
-                        <button
-                          className="btn-primary"
-                          onClick={() => {
-                            setProjectsDrawerOpen(false);
-                            setNewProjectOpen(true);
-                          }}
-                          style={{ marginTop: '1rem' }}
-                        >
-                          + New Project
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="projects-grid">
-                        <button
-                          type="button"
-                          className="project-card project-card--new"
-                          onClick={() => {
-                            setProjectsDrawerOpen(false);
-                            setNewProjectOpen(true);
-                          }}
-                          title="Create a new project"
-                        >
-                          <span className="project-card--new-icon">+</span>
-                          <span className="project-card-name">New Project</span>
-                          <span className="project-card-count">Start something new</span>
-                        </button>
-                        {projects
-                          .filter((p) => !p.archived)
-                          .map((project) => {
-                            const name = project.project_name as string;
-                            const count = entries.filter((e) => e.project_name === name).length;
-                            const inMotionCount = entries.filter(
-                              (e) => e.project_name === name && e.status === 'in_motion'
-                            ).length;
-                            const doneCount = entries.filter(
-                              (e) => e.project_name === name && e.status === 'done_and_dusted'
-                            ).length;
-                            return (
-                              <button
-                                key={name}
-                                className="project-card"
-                                onClick={() => {
-                                  setProjectsDrawerOpen(false);
-                                  navigate(`/project/${encodeURIComponent(name)}`);
-                                }}
-                              >
-                                <div className="project-card-header">
-                                  <h3 className="project-card-name">{name}</h3>
-                                  <span className="project-card-count">{count} entries</span>
-                                </div>
-                                <div className="project-card-stats">
-                                  {inMotionCount > 0 && (
-                                    <span className="project-card-stat project-card-stat--active">
-                                      {inMotionCount} in progress
-                                    </span>
-                                  )}
-                                  {doneCount > 0 && (
-                                    <span className="project-card-stat project-card-stat--done">
-                                      {doneCount} done
-                                    </span>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </div>
-                </aside>
-              </div>
-            )}
-
-            {/* Entries feed. Each display mode gets its own wrapper: cards
-                use the multi-column .entries-feed grid, but board and
-                checklist need full-width containers or the card grid squeezes
-                them into one narrow track and they stack vertically. */}
-            {!loading && filteredEntries.length === 0 && (
-              <div className="entries-feed">
-                <div className="empty-state animate-in">
-                  <div className="empty-icon">
-                    <svg
-                      width="48"
-                      height="48"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                    </svg>
-                  </div>
-                  <h2 className="empty-title">No entries yet</h2>
-                  <p className="empty-desc">No items to show right now.</p>
-                </div>
-              </div>
-            )}
-
-            {displayMode === 'checklist' && !loading && filteredEntries.length > 0 && (
-              <div className="dashboard-checklist-grid">
-                <ChecklistView
-                  entries={filteredEntries.map((r) => ({
-                    id: r.id as string,
-                    user_email: r.user_email as string,
-                    project_name: r.project_name as string,
-                    summary: (r.summary as string) || null,
-                    due_date: (r.due_date as string) || null,
-                    status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                    entries: r.entries as Record<string, unknown> | string | null,
-                    started_at: (r.started_at as string) || null,
-                  }))}
-                  onUpdated={() => loadData()}
-                  onDelete={() => loadData()}
-                  colorMap={dashColorMap}
-                />
-              </div>
-            )}
-
-            {displayMode === 'board' && !loading && filteredEntries.length > 0 && (
-              <div className="dashboard-board-grid">
-                <EntriesByDueDateBoard
-                  entries={filteredEntries.map((r) => ({
-                    id: r.id as string,
-                    user_email: r.user_email as string,
-                    project_name: r.project_name as string,
-                    summary: (r.summary as string) || null,
-                    due_date: (r.due_date as string) || null,
-                    status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                    entries: r.entries as Record<string, unknown> | string | null,
-                    started_at: (r.started_at as string) || null,
-                  }))}
-                  onUpdated={() => loadData()}
-                  onDelete={() => loadData()}
-                  colorMap={dashColorMap}
-                />
-              </div>
-            )}
-
-            {displayMode === 'cards' && !loading && filteredEntries.length > 0 && (
-              <div className="entries-feed">
-                {filteredEntries.map((row, i) => (
-                  <EntryBox
-                    key={`entry-${row.id || i}`}
-                    entry={row as any}
-                    onUpdated={() => loadData()}
-                    onPriorityChanged={handleSetPriority}
-                    onDelete={() => loadData()}
-                    projectColor={resolveProjectColor(
-                      (row.project_name as string) || '',
-                      dashColorMap
-                    )}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Recently created — the 3 newest entries, listed under Due soon. */}
-            {!loading && recentlyCreatedEntries.length > 0 && (
-              <div className="recent-section">
-                <div className="due-soon-section-label">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <button
+                    type="button"
+                    className="feed-view-btn active"
+                    aria-current="page"
+                    onClick={() => navigate('/dashboard')}
+                    title="Back to projects"
                   >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  <span>Recently created</span>
-                </div>
-                <div className="recent-list">
-                  {recentlyCreatedEntries.map((e, i) => (
-                    <button
-                      key={`recent-created-${e.id || i}`}
-                      className="recent-item"
-                      onClick={() =>
-                        navigate(`/project/${encodeURIComponent(String(e.project_name))}`)
-                      }
-                      title={getEntryTitle(e as any)}
-                    >
-                      <span className="recent-item-title">{getEntryTitle(e as any)}</span>
-                      <span className="recent-item-project">{e.project_name as string}</span>
-                    </button>
-                  ))}
+                    Projects
+                  </button>
+                  <button
+                    type="button"
+                    className="feed-view-btn"
+                    onClick={() => navigate('/entries')}
+                    title="Browse all entries"
+                  >
+                    Entries
+                  </button>
                 </div>
               </div>
-            )}
+              <div className="projects-grid">
+                {/* Create-new-project card leads the grid so it is always first. */}
+                <button
+                  type="button"
+                  className="project-card project-card--add"
+                  data-tour="home-new-project"
+                  onClick={() => setNewProjectOpen(true)}
+                  title="Create a new project"
+                >
+                  <span className="project-card-add-plus" aria-hidden>
+                    +
+                  </span>
+                  <span className="project-card-add-label">Add New Project</span>
+                </button>
+                {activeProjects.map((project) => {
+                  const name = project.project_name as string;
+                  const count = entries.filter((e) => e.project_name === name).length;
+                  const inMotionCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'in_motion'
+                  ).length;
+                  const doneCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'done_and_dusted'
+                  ).length;
+                  const isPinned = pinnedProjects.has(name);
+                  const isConfirmingDelete = confirmDeleteProject === name;
+                  const cardAccent = resolveProjectColor(name, dashColorMap);
+                  return (
+                    <div
+                      key={name}
+                      className={`project-card project-card--actionable ${isPinned ? 'is-pinned' : ''}`}
+                      style={{
+                        borderLeft: `3px solid ${cardAccent}`,
+                        background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/project/${encodeURIComponent(name)}`);
+                        }
+                      }}
+                    >
+                      <div className="project-card-header">
+                        <h3 className="project-card-name">{name}</h3>
+                        <span className="project-card-count">{count} entries</span>
+                      </div>
+                      <div className="project-card-stats">
+                        {inMotionCount > 0 && (
+                          <span className="project-card-stat project-card-stat--active">
+                            {inMotionCount} in progress
+                          </span>
+                        )}
+                        {doneCount > 0 && (
+                          <span className="project-card-stat project-card-stat--done">
+                            {doneCount} done
+                          </span>
+                        )}
+                      </div>
+                      {isConfirmingDelete ? (
+                        <div
+                          className="project-card-confirm"
+                          role="group"
+                          aria-label="Confirm project deletion"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <span className="project-card-confirm-text">Delete this project?</span>
+                          <button
+                            type="button"
+                            className="project-card-confirm-yes"
+                            disabled={deletingProject === name}
+                            onClick={() => handleDeleteProject(name)}
+                          >
+                            {deletingProject === name ? 'Deleting…' : 'Yes, delete'}
+                          </button>
+                          <button
+                            type="button"
+                            className="project-card-confirm-cancel"
+                            onClick={() => setConfirmDeleteProject(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          className="project-card-actions"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className="project-card-action-btn"
+                            onClick={() => {
+                              setSettingsProjectName(name);
+                              setProjectSettingsOpen(true);
+                            }}
+                            title="Edit project"
+                          >
+                            <FiEdit2 size={12} />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
+                            aria-pressed={isPinned}
+                            onClick={() => togglePinProject(name)}
+                            title={isPinned ? 'Unpin project' : 'Pin project'}
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill={isPinned ? 'currentColor' : 'none'}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <line x1="12" y1="17" x2="12" y2="22" />
+                              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+                            </svg>
+                            {isPinned ? 'Pinned' : 'Pin'}
+                          </button>
+                          <button
+                            type="button"
+                            className="project-card-action-btn"
+                            onClick={() => handleArchiveProject(name)}
+                            title="Archive project"
+                          >
+                            <FiArchive size={12} />
+                            Archive
+                          </button>
+                          <button
+                            type="button"
+                            className="project-card-action-btn project-card-action-btn--danger"
+                            onClick={() => setConfirmDeleteProject(name)}
+                            title="Delete project"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Due-soon feed removed — the same entries now live in the right rail. */}
+
+            {/* Entries feed removed — the due-soon entries live in the right rail. */}
 
             {/* Calendar Section */}
             <div className="dashboard-calendar-section">
@@ -2248,171 +2008,81 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             </div>
               </div>
 
-              {/* Right rail — the scrollable sidebar of quick lists. */}
-              <aside
-                className="dash-rail"
-                aria-label="Due soon, projects and entries quick lists"
-              >
-                <section className="dash-rail__section">
-                  <h3 className="dash-rail__title">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span>Due soon</span>
-                    <span className="dash-rail__count">{dueSoonRows.length}</span>
-                  </h3>
-                  <div className="dash-rail__list dash-rail__list--due">
-                    {dueSoonRows.length === 0 ? (
-                      <p className="dash-rail__empty">Nothing due soon.</p>
-                    ) : (
-                      dueSoonRows.map((row, i) => {
-                        const due = formatRailDue((row as any).due_date);
-                        return (
-                          <button
-                            key={`rail-due-${row.id || i}`}
-                            type="button"
-                            className="dash-rail__item"
-                            onClick={() =>
-                              navigate(
-                                `/project/${encodeURIComponent(String(row.project_name || ''))}?entry=${encodeURIComponent(String(row.id || ''))}`
-                              )
-                            }
-                            title={getEntryTitle(row as any)}
-                          >
-                            <span className="dash-rail__item-title">
-                              {getEntryTitle(row as any)}
-                            </span>
-                            <span className="dash-rail__item-meta">
-                              <span className="dash-rail__item-project">
-                                {String(row.project_name || '')}
-                              </span>
-                              {due && <span className="dash-rail__due-chip">{due}</span>}
-                            </span>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </section>
-
-                <section className="dash-rail__section">
-                  <h3 className="dash-rail__title">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <span>Projects</span>
-                    <span className="dash-rail__count">
-                      {projects.filter((p) => !p.archived).length}
-                    </span>
-                  </h3>
-                  <div className="dash-rail__list dash-rail__list--projects">
-                    {projects.filter((p) => !p.archived).length === 0 ? (
-                      <p className="dash-rail__empty">No projects yet.</p>
-                    ) : (
-                      projects
-                        .filter((p) => !p.archived)
-                        .map((project) => {
-                          const name = project.project_name as string;
-                          const count = entries.filter(
-                            (e) => e.project_name === name && !e.archived
-                          ).length;
-                          return (
-                            <button
-                              key={`rail-project-${name}`}
-                              type="button"
-                              className="dash-rail__item"
-                              onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
-                              title={`Open ${name}`}
-                            >
-                              <span className="dash-rail__item-title">{name}</span>
-                              <span className="dash-rail__item-meta">
-                                <span>
-                                  {count} {count === 1 ? 'entry' : 'entries'}
-                                </span>
-                              </span>
-                            </button>
-                          );
-                        })
-                    )}
-                  </div>
-                </section>
-
-                <section className="dash-rail__section">
-                  <h3 className="dash-rail__title">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                    </svg>
-                    <span>Entries</span>
-                    <span className="dash-rail__count">{filteredEntries.length}</span>
-                  </h3>
-                  <div className="dash-rail__list dash-rail__list--entries">
-                    {filteredEntries.length === 0 ? (
-                      <p className="dash-rail__empty">No entries to show.</p>
-                    ) : (
-                      filteredEntries.map((row, i) => {
-                        const due = formatRailDue((row as any).due_date);
-                        return (
-                          <button
-                            key={`rail-entry-${row.id || i}`}
-                            type="button"
-                            className="dash-rail__item"
-                            onClick={() =>
-                              navigate(
-                                `/project/${encodeURIComponent(String(row.project_name || ''))}?entry=${encodeURIComponent(String(row.id || ''))}`
-                              )
-                            }
-                            title={getEntryTitle(row as any)}
-                          >
-                            <span className="dash-rail__item-title">
-                              {getEntryTitle(row as any)}
-                            </span>
-                            <span className="dash-rail__item-meta">
-                              <span className="dash-rail__item-project">
-                                {String(row.project_name || '')}
-                              </span>
-                              {due && <span className="dash-rail__due-chip">{due}</span>}
-                            </span>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </section>
-              </aside>
+              <DueSoonRail entries={filteredEntries} />
             </div>
           </>
         )}
       </main>
+
+      {/* FAB */}
+      <div className="fab-container">
+        {fabOpen && (
+          <div className="fab-menu">
+            {projects.filter((p) => !p.archived).length > 0 ? (
+              <button
+                className="fab-menu-item"
+                onClick={() => {
+                  setNewEntryOpen(true);
+                  setFabOpen(false);
+                }}
+                title="Create a new entry in one of your projects"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                New Entry
+              </button>
+            ) : (
+              <div className="fab-menu-hint" title="You need to create a project first">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Create a project first</span>
+              </div>
+            )}
+          </div>
+        )}
+        <button
+          className={`fab ${fabOpen ? 'fab-open' : ''}`}
+          onClick={() => setFabOpen(!fabOpen)}
+          aria-label="Quick actions"
+          title="Quick actions: create a new entry"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="fab-label">New</span>
+        </button>
+      </div>
 
       {/* New Project Modal */}
       {newProjectOpen && (
@@ -2666,7 +2336,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           >
             {!newEntryProject ? (
               <>
-                <h2 className="modal-title">New Item</h2>
+                <h2 className="modal-title">New Entry</h2>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Select a project:
                 </p>
@@ -2762,9 +2432,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       {/* Project Settings Panel */}
       <ProjectSettingsPanel
         open={projectSettingsOpen}
-        projectName={activeView}
+        projectName={settingsProjectName}
         userEmail={email}
-        currentColor={dashColorMap[activeView] || null}
+        currentColor={dashColorMap[settingsProjectName] || null}
         onClose={() => setProjectSettingsOpen(false)}
         onProjectUpdated={() => {
           setActiveView('all');

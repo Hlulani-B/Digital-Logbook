@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotes } from '@/context/NotesContext';
-import { FiEdit, FiClock } from 'react-icons/fi';
+import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
-import { getProjectsByEmail } from '../functions/project/project.js';
 import { isOverdue, getOverdueText } from '../functions/dashboard/overdue.js';
 import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/dashboard/stats.js';
 import { FieldEditor } from '@/components/fields/FieldEditors';
@@ -21,9 +20,6 @@ import {
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
-import { ManualTimeModal } from '@/components/ManualTimeModal';
-import { EditTimeModal } from '@/components/EditTimeModal';
-import { playCompleteSound, playWarningSound } from '@/lib/timerSounds';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -77,33 +73,6 @@ function formatDate(value?: string | null): string | null {
 
 function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-// Collapsible entry cards: collapsed ids are remembered across reloads so the
-// compact layout sticks for the entries the user tidied up.
-const ENTRY_COLLAPSE_KEY = 'dl_entry_collapsed_v1';
-
-function readEntryCollapsed(id: string): boolean {
-  try {
-    const raw = localStorage.getItem(ENTRY_COLLAPSE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
-    return parsed[String(id)] === true;
-  } catch {
-    return false;
-  }
-}
-
-function persistEntryCollapsed(id: string, collapsed: boolean) {
-  try {
-    const raw = localStorage.getItem(ENTRY_COLLAPSE_KEY);
-    const parsed: Record<string, boolean> = raw ? JSON.parse(raw) : {};
-    if (collapsed) parsed[String(id)] = true;
-    else delete parsed[String(id)];
-    localStorage.setItem(ENTRY_COLLAPSE_KEY, JSON.stringify(parsed));
-  } catch {
-    /* storage unavailable — the card simply forgets its collapsed state */
-  }
 }
 
 interface EntryRow {
@@ -179,12 +148,10 @@ export function EntryBox({
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { openNotes } = useNotes();
-  const [collapsed, setCollapsed] = useState<boolean>(() => readEntryCollapsed(String(id)));
+  // Cards start collapsed — the bottom toggle reveals the rest of the fields.
+  const [collapsed, setCollapsed] = useState(true);
 
-  const [refPickerOpen, setRefPickerOpen] = useState<'project' | null>(null);
   const [refEntries, setRefEntries] = useState<any[]>([]);
-  const [refProjects, setRefProjects] = useState<any[]>([]);
-  const [refLoading, setRefLoading] = useState(false);
   const [calcField, setCalcField] = useState<string | null>(null);
 
   // Pin — reserved `_pinned` key in the entries payload; pinned entries sort to the top
@@ -196,19 +163,6 @@ export function EntryBox({
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   const [fieldsReady, setFieldsReady] = useState(false);
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
-  const [manualTimeOpen, setManualTimeOpen] = useState(false);
-  const [manualTimeSaving, setManualTimeSaving] = useState(false);
-  const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
-
-  // Confirm before stopping timer
-  const handleStopClick = () => {
-    setStopConfirmOpen(true);
-  };
-
-  const handleConfirmStop = () => {
-    setStopConfirmOpen(false);
-    stopTimer();
-  };
   const applyResult = (result: any) => {
     if (result?.success !== true)
       throw new Error(result?.message || result?.error || 'Failed to save changes');
@@ -247,34 +201,6 @@ export function EntryBox({
   // moment they were paused (anchor = paused_at) and show a Paused badge.
   const isPaused = Boolean(started_at && !ended_at && paused_at);
   const [timerText, setTimerText] = useState<string>('');
-  const [pausedDurationText, setPausedDurationText] = useState<string>('');
-  const [autoStopped, setAutoStopped] = useState(false);
-  const [warningPlayed, setWarningPlayed] = useState(false);
-  const [restored, setRestored] = useState(false);
-
-  // Timer actions (start/pause/resume/stop) with in-flight and failure state
-  // Must be declared before useEffects that use these functions
-  const {
-    timerAction,
-    timerError,
-    timerErrorAction,
-    isActionInFlight,
-    start: startTimer,
-    pause: pauseTimer,
-    resume: resumeTimer,
-    stop: stopTimer,
-    clearError: clearTimerError,
-  } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
-
-  // Mark timer as restored if it was already running on mount
-  useEffect(() => {
-    if (started_at && !ended_at && !restored) {
-      setRestored(true);
-      // Clear the restored indicator after 3 seconds
-      const timeout = setTimeout(() => setRestored(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [started_at, ended_at]);
   useEffect(() => {
     if (!started_at || ended_at) {
       setTimerText('');
@@ -284,172 +210,14 @@ export function EntryBox({
     const tick = () => {
       const now = Date.now();
       const remaining = entryRemainingMs(liveEntry, now);
-
-      // Auto-stop when countdown reaches zero
-      if (target_duration_ms != null && remaining !== null && remaining <= 0 && !autoStopped) {
-        setAutoStopped(true);
-        // Play completion sound
-        playCompleteSound();
-        // Auto-stop the timer
-        stopTimer();
-        setTimerText('00:00:00');
-        return;
-      }
-
-      // 5-minute warning
-      if (
-        target_duration_ms != null &&
-        remaining !== null &&
-        remaining <= 300000 && // 5 minutes in ms
-        remaining > 0 &&
-        !warningPlayed
-      ) {
-        setWarningPlayed(true);
-        playWarningSound();
-      }
-
       setTimerText(
         remaining != null ? formatTimer(remaining) : formatTimer(entryDurationMs(liveEntry, now))
       );
-
-      // Update paused duration text
-      if (isPaused && paused_at) {
-        const pauseStart = new Date(paused_at).getTime();
-        const pausedMs = now - pauseStart;
-        setPausedDurationText(formatTimer(pausedMs));
-      } else {
-        setPausedDurationText('');
-      }
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [
-    started_at,
-    ended_at,
-    paused_at,
-    paused_ms,
-    target_duration_ms,
-    autoStopped,
-    warningPlayed,
-    stopTimer,
-  ]);
-
-  // Reset auto-stopped and warning flags when timer is manually started
-  useEffect(() => {
-    if (started_at && !ended_at) {
-      setAutoStopped(false);
-      setWarningPlayed(false);
-    }
-  }, [started_at, ended_at]);
-
-  // Keyboard shortcuts for timer control
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input/textarea
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable ||
-        saving ||
-        isActionInFlight
-      ) {
-        return;
-      }
-
-      // Space: Start or Stop timer
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (!started_at && !ended_at) {
-          startTimer();
-        } else if (started_at && !ended_at && !isPaused) {
-          stopTimer();
-        }
-      }
-
-      // P: Pause or Resume (only when timer is running)
-      if (e.code === 'KeyP' && started_at && !ended_at) {
-        e.preventDefault();
-        if (isPaused) {
-          resumeTimer();
-        } else {
-          pauseTimer();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    started_at,
-    ended_at,
-    isPaused,
-    saving,
-    isActionInFlight,
-    startTimer,
-    stopTimer,
-    pauseTimer,
-    resumeTimer,
-  ]);
-
-  // Idle detection - track user activity and show notification after inactivity
-  const [idleMinutes, setIdleMinutes] = useState(0);
-  const [idleWarning, setIdleWarning] = useState(false);
-  const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
-
-  useEffect(() => {
-    if (!started_at || ended_at || isPaused) return;
-
-    let lastActivity = Date.now();
-    let idleInterval: ReturnType<typeof setInterval>;
-
-    const updateActivity = () => {
-      lastActivity = Date.now();
-      setIdleWarning(false);
-      setIdleMinutes(0);
-    };
-
-    const checkIdle = () => {
-      const idleTime = Date.now() - lastActivity;
-      const minutes = Math.floor(idleTime / 60000);
-      setIdleMinutes(minutes);
-
-      if (idleTime >= IDLE_THRESHOLD_MS && !idleWarning) {
-        setIdleWarning(true);
-      }
-    };
-
-    // Listen for activity events
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-    events.forEach((event) => window.addEventListener(event, updateActivity));
-
-    // Check idle status every 30 seconds
-    idleInterval = setInterval(checkIdle, 30000);
-
-    return () => {
-      events.forEach((event) => window.removeEventListener(event, updateActivity));
-      clearInterval(idleInterval);
-    };
-  }, [started_at, ended_at, isPaused, idleWarning]);
-
-  // Batch timer actions - listen for custom events from AllEntries page
-  useEffect(() => {
-    const handleBatchAction = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail?.entryId !== id) return;
-
-      const action = customEvent.detail?.action;
-      if (action === 'pause' && started_at && !ended_at && !isPaused) {
-        pauseTimer();
-      } else if (action === 'stop' && started_at && !ended_at) {
-        handleStopClick();
-      }
-    };
-
-    window.addEventListener('batch-timer-action', handleBatchAction);
-    return () => window.removeEventListener('batch-timer-action', handleBatchAction);
-  }, [id, started_at, ended_at, isPaused, pauseTimer, handleStopClick]);
+  }, [started_at, ended_at, paused_at, paused_ms, target_duration_ms]);
 
   const [draftFields, setDraftFields] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
@@ -461,6 +229,19 @@ export function EntryBox({
     priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
   );
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
+
+  // Timer actions (start/pause/resume/stop) with in-flight and failure state
+  const {
+    timerAction,
+    timerError,
+    timerErrorAction,
+    isActionInFlight,
+    start: startTimer,
+    pause: pauseTimer,
+    resume: resumeTimer,
+    stop: stopTimer,
+    clearError: clearTimerError,
+  } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -486,7 +267,7 @@ export function EntryBox({
     '_pinned',
   ]);
   const entryFields = Object.entries(parsedEntries || {}).filter(
-    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_') && !key.startsWith('_')
+    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
   );
   const dueLabel = formatDate(due_date);
 
@@ -600,10 +381,10 @@ export function EntryBox({
     setMenuOpen(false);
     try {
       const result = await deleteEntryById(user_email, id);
-      if (result?.success === false) throw new Error(result.message || 'Failed to delete item');
+      if (result?.success === false) throw new Error(result.message || 'Failed to delete entry');
       onDelete?.(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete item');
+      setError(err instanceof Error ? err.message : 'Failed to delete entry');
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -641,125 +422,6 @@ export function EntryBox({
   };
 
   // Timer actions are now handled by useTimerActions hook (startTimer, pauseTimer, resumeTimer, stopTimer)
-
-  // Manual time logging - allows users to log time worked without using the live timer
-  const handleManualTimeLog = async (startedAt: string, endedAt: string) => {
-    if (!user_email) return;
-    setManualTimeSaving(true);
-    setError(null);
-    try {
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        'done_and_dusted', // Mark as completed
-        startedAt,
-        endedAt,
-        undefined,
-        undefined,
-        undefined,
-        0, // No paused time for manual entry
-        null // Clear any paused_at
-      );
-      if (result?.success === false || result?.error) {
-        setError(result.message || result.error || 'Failed to log time');
-        setManualTimeOpen(false);
-        return;
-      }
-      applyResult(result);
-      setManualTimeOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to log time');
-      setManualTimeOpen(false);
-    } finally {
-      setManualTimeSaving(false);
-    }
-  };
-
-  // Timer presets - quick start with common durations
-  const TIMER_PRESETS = [
-    { label: '25m', minutes: 25, color: '#ef4444' }, // Pomodoro
-    { label: '1h', minutes: 60, color: '#3b82f6' },
-    { label: '2h', minutes: 120, color: '#8b5cf6' },
-    { label: '4h', minutes: 240, color: '#10b981' },
-  ];
-
-  const handlePresetStart = async (minutes: number) => {
-    if (!user_email || started_at || saving || isActionInFlight) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const targetMs = Math.round(minutes * 60000);
-      const now = new Date().toISOString();
-      // Set target duration and start the timer in one call
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        'in_motion',
-        now,
-        undefined,
-        undefined,
-        undefined,
-        targetMs,
-        undefined,
-        undefined
-      );
-      if (result?.success === false || result?.error) {
-        setError(result.message || result.error || 'Failed to start timer');
-        return;
-      }
-      applyResult(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start timer');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Edit time after timer is stopped
-  const [editTimeOpen, setEditTimeOpen] = useState(false);
-  const [editTimeSaving, setEditTimeSaving] = useState(false);
-
-  const handleEditTimeSave = async (startedAt: string, endedAt: string) => {
-    if (!user_email) return;
-    setEditTimeSaving(true);
-    setError(null);
-    try {
-      const result = await updateEntry(
-        user_email,
-        project_name,
-        id,
-        undefined,
-        undefined,
-        undefined,
-        'done_and_dusted',
-        startedAt,
-        endedAt,
-        undefined,
-        undefined,
-        undefined,
-        0,
-        null
-      );
-      if (result?.success === false || result?.error) {
-        setError(result.message || result.error || 'Failed to update time');
-        return;
-      }
-      applyResult(result);
-      setEditTimeOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update time');
-    } finally {
-      setEditTimeSaving(false);
-    }
-  };
 
   // Adds a deadline target to a running task that has none (count-up → countdown)
   const [targetDays, setTargetDays] = useState<string>('');
@@ -802,32 +464,6 @@ export function EntryBox({
     } finally {
       setSaving(false);
     }
-  };
-
-  const openProjectRefPicker = async () => {
-    setRefLoading(true);
-    setRefPickerOpen('project');
-    try {
-      const result = await getProjectsByEmail(user_email);
-      const projects = result?.projects || result?.data || [];
-      setRefProjects(projects);
-    } catch {}
-    setRefLoading(false);
-  };
-
-  const selectProjectRef = async (project: any) => {
-    const ref = { project_name: project.project_name };
-    const newEntries = { ...parsedEntries, _project_ref: ref };
-    await updateEntry(user_email, project_name, id, newEntries);
-    setRefPickerOpen(null);
-    onUpdated?.({ ...entry, entries: newEntries });
-  };
-
-  const removeProjectRef = async () => {
-    const newEntries = { ...parsedEntries };
-    delete newEntries._project_ref;
-    await updateEntry(user_email, project_name, id, newEntries);
-    onUpdated?.({ ...entry, entries: newEntries });
   };
 
   const togglePin = async () => {
@@ -933,7 +569,7 @@ export function EntryBox({
           <div className="entry-box__fields--editing">
             {payloadState.kind !== 'object' ? (
               <div className="entry-box__field--editing">
-                <label className="entry-box__field-key">Item content</label>
+                <label className="entry-box__field-key">Entry content</label>
                 <span>{formatEntryValue(payloadState.value)}</span>
               </div>
             ) : (
@@ -1036,17 +672,13 @@ export function EntryBox({
   ]
     .filter(Boolean)
     .join(' ');
-  const toggleCollapsed = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      persistEntryCollapsed(String(id), next);
-      return next;
-    });
-  };
 
   return (
     <>
-      <div className={boxClass} data-entry-id={id} style={
+      <div
+        className={boxClass}
+        data-entry-id={id}
+        style={
           projectColor
             ? ({
                 '--tint': `${projectColor}18`,
@@ -1083,35 +715,6 @@ export function EntryBox({
               >
                 <line x1="12" y1="17" x2="12" y2="22" />
                 <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
-              </svg>
-            </button>
-          )}
-          {isCollapsed && dueLabel && (
-            <span className="entry-box__collapsed-due">{dueLabel}</span>
-          )}
-          {!archived && (
-            <button
-              type="button"
-              className={`entry-box__collapse-btn ${isCollapsed ? 'is-collapsed' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleCollapsed();
-              }}
-              aria-expanded={!isCollapsed}
-              aria-label={isCollapsed ? 'Expand entry' : 'Collapse entry'}
-              title={isCollapsed ? 'Show all details' : 'Hide details'}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
           )}
@@ -1272,47 +875,6 @@ export function EntryBox({
 
         {safeSummary && <p className="entry-box__summary">{safeSummary}</p>}
 
-        {/* Project reference area */}
-        <div className="entry-box__project-ref-area">
-          {!!parsedEntries._project_ref && (
-            <div className="entry-box__ref-row">
-              <span className="entry-box__ref-label">Project ref:</span>
-              <button
-                type="button"
-                className="entry-box__ref-link"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const ref = parsedEntries._project_ref as any;
-                  navigate(`/project/${encodeURIComponent(ref.project_name)}`);
-                }}
-              >
-                📁 {(parsedEntries._project_ref as any).project_name}
-              </button>
-              <button
-                type="button"
-                className="entry-box__ref-remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeProjectRef();
-                }}
-                title="Remove reference"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          <button
-            type="button"
-            className="entry-box__ref-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              openProjectRefPicker();
-            }}
-          >
-            + Project Reference
-          </button>
-        </div>
-
         {entryFields.length > 0 && (
           <table className="entry-box__table">
             <tbody>
@@ -1374,202 +936,31 @@ export function EntryBox({
           </div>
           <div className="entry-box__meta-right">
             {!started_at && !ended_at && !archived && (
-              <>
-                {/* Timer Presets */}
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '4px',
-                    marginBottom: '8px',
-                    width: '100%',
-                  }}
-                >
-                  {TIMER_PRESETS.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => handlePresetStart(preset.minutes)}
-                      disabled={saving || isActionInFlight}
-                      title={`Start ${preset.label} timer`}
-                      style={{
-                        flex: 1,
-                        padding: '6px 8px',
-                        border: 'none',
-                        borderRadius: '6px',
-                        background: preset.color,
-                        color: 'white',
-                        cursor: saving || isActionInFlight ? 'not-allowed' : 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        opacity: saving || isActionInFlight ? 0.6 : 1,
-                        transition: 'opacity 0.2s',
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="entry-box__task-btn entry-box__task-btn--start"
-                  onClick={startTimer}
-                  disabled={saving || isActionInFlight}
-                  title="Start timer (Space)"
-                >
-                  {timerAction === 'starting'
-                    ? 'Starting…'
-                    : timerErrorAction === 'starting'
-                      ? 'Failed to start — tap to retry'
-                      : '▶ Start'}
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__task-btn entry-box__task-btn--log"
-                  onClick={() => setManualTimeOpen(true)}
-                  disabled={saving || isActionInFlight}
-                  title="Log time manually"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    color: '#374151',
-                    marginLeft: '8px',
-                  }}
-                >
-                  <FiClock size={14} />
-                  Log time
-                </button>
-              </>
+              <button
+                type="button"
+                className="entry-box__task-btn entry-box__task-btn--start"
+                onClick={startTimer}
+                disabled={saving || isActionInFlight}
+              >
+                {timerAction === 'starting'
+                  ? 'Starting…'
+                  : timerErrorAction === 'starting'
+                    ? 'Failed to start — tap to retry'
+                    : '▶ Start'}
+              </button>
             )}
             {started_at && !ended_at && (
-              <div
-                className="entry-box__task-active"
-                style={{
-                  animation: !isPaused ? 'timer-pulse 2s ease-in-out infinite' : undefined,
-                }}
-              >
+              <div className="entry-box__task-active">
                 {timerAction === 'pending-sync' && (
                   <span className="entry-box__task-pending">Pending sync</span>
                 )}
                 {isPaused && timerAction !== 'pending-sync' && (
-                  <span className="entry-box__task-paused">
-                    Paused{' '}
-                    {pausedDurationText && (
-                      <span style={{ opacity: 0.7, marginLeft: '4px' }}>
-                        ({pausedDurationText})
-                      </span>
-                    )}
-                  </span>
+                  <span className="entry-box__task-paused">Paused</span>
                 )}
                 {timerText && (
-                  <div style={{ width: '100%' }}>
-                    {/* Progress bar for countdown mode */}
-                    {target_duration_ms != null && (
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '6px',
-                          background: '#e5e7eb',
-                          borderRadius: '3px',
-                          marginBottom: '6px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${Math.max(0, Math.min(100, ((Number(target_duration_ms) - entryDurationMs({ started_at, ended_at, paused_at, paused_ms, target_duration_ms }, Date.now())) / Number(target_duration_ms)) * 100))}%`,
-                            background: (() => {
-                              const remaining = entryRemainingMs(
-                                { started_at, ended_at, paused_at, paused_ms, target_duration_ms },
-                                Date.now()
-                              );
-                              if (remaining === null) return '#3b82f6';
-                              const pct = remaining / Number(target_duration_ms);
-                              if (pct > 0.5) return '#10b981'; // Green: >50% remaining
-                              if (pct > 0.25) return '#f59e0b'; // Yellow: 25-50% remaining
-                              return '#ef4444'; // Red: <25% remaining
-                            })(),
-                            transition: 'width 1s linear, background 0.3s',
-                            borderRadius: '3px',
-                          }}
-                        />
-                      </div>
-                    )}
-                    <span
-                      className="entry-box__task-elapsed"
-                      style={{
-                        color: (() => {
-                          if (target_duration_ms == null) return undefined;
-                          const remaining = entryRemainingMs(
-                            { started_at, ended_at, paused_at, paused_ms, target_duration_ms },
-                            Date.now()
-                          );
-                          if (remaining === null) return undefined;
-                          const pct = remaining / Number(target_duration_ms);
-                          if (pct > 0.5) return '#10b981';
-                          if (pct > 0.25) return '#f59e0b';
-                          return '#ef4444';
-                        })(),
-                        fontWeight: target_duration_ms != null ? 600 : undefined,
-                      }}
-                    >
-                      {target_duration_ms != null ? `${timerText} left` : timerText}
-                      {autoStopped && target_duration_ms != null && (
-                        <span
-                          style={{
-                            marginLeft: '6px',
-                            padding: '2px 6px',
-                            background: '#10b981',
-                            color: 'white',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Auto-stopped
-                        </span>
-                      )}
-                      {restored && (
-                        <span
-                          style={{
-                            marginLeft: '6px',
-                            padding: '2px 6px',
-                            background: '#3b82f6',
-                            color: 'white',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            animation: 'fadeIn 0.3s ease-in',
-                          }}
-                        >
-                          Restored
-                        </span>
-                      )}
-                      {idleWarning && (
-                        <span
-                          style={{
-                            marginLeft: '6px',
-                            padding: '2px 6px',
-                            background: '#f59e0b',
-                            color: 'white',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                          }}
-                          title={`No activity for ${idleMinutes} minutes`}
-                        >
-                          Idle {idleMinutes}m
-                        </span>
-                      )}
-                    </span>
-                  </div>
+                  <span className="entry-box__task-elapsed">
+                    {target_duration_ms != null ? `${timerText} left` : timerText}
+                  </span>
                 )}
                 {isPaused ? (
                   <button
@@ -1577,7 +968,6 @@ export function EntryBox({
                     className="entry-box__task-btn entry-box__task-btn--resume"
                     onClick={resumeTimer}
                     disabled={saving || (isActionInFlight && timerAction !== 'resuming')}
-                    title="Resume timer (P)"
                   >
                     {timerAction === 'resuming'
                       ? 'Resuming…'
@@ -1591,7 +981,6 @@ export function EntryBox({
                     className="entry-box__task-btn entry-box__task-btn--pause"
                     onClick={pauseTimer}
                     disabled={saving || (isActionInFlight && timerAction !== 'pausing')}
-                    title="Pause timer (P)"
                   >
                     {timerAction === 'pausing'
                       ? 'Pausing…'
@@ -1603,9 +992,8 @@ export function EntryBox({
                 <button
                   type="button"
                   className="entry-box__task-btn entry-box__task-btn--end"
-                  onClick={handleStopClick}
+                  onClick={stopTimer}
                   disabled={saving || (isActionInFlight && timerAction !== 'stopping')}
-                  title="Stop timer (Space)"
                 >
                   {timerAction === 'stopping'
                     ? 'Stopping…'
@@ -1656,59 +1044,6 @@ export function EntryBox({
                 )}
               </div>
             )}
-            {/* Completed timer display with edit option */}
-            {started_at && ended_at && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  background: '#f0fdf4',
-                  border: '1px solid #86efac',
-                  borderRadius: '6px',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#16a34a',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  ✓{' '}
-                  {formatTimer(
-                    entryDurationMs(
-                      { started_at, ended_at, paused_at, paused_ms, target_duration_ms },
-                      Date.now()
-                    )
-                  )}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setEditTimeOpen(true)}
-                  disabled={saving || isActionInFlight}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    background: 'white',
-                    cursor: saving || isActionInFlight ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    color: '#374151',
-                    marginLeft: 'auto',
-                  }}
-                >
-                  <FiClock size={12} />
-                  Edit time
-                </button>
-              </div>
-            )}
             {archived && <span className="entry-box__archived-tag">Archived</span>}
           </div>
         </div>
@@ -1722,6 +1057,41 @@ export function EntryBox({
           <FiEdit className="entry-box__view-notes-icon" />
           View Notes
         </button>
+
+        {/* Collapse toggle — sits at the bottom of the card and hides or
+            reveals the field table, timer controls and notes button. */}
+        {!archived && (
+          <div className="entry-box__collapse-row">
+            {isCollapsed && dueLabel && (
+              <span className="entry-box__collapsed-due">{dueLabel}</span>
+            )}
+            <button
+              type="button"
+              className={`entry-box__collapse-btn ${isCollapsed ? 'is-collapsed' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCollapsed((prev) => !prev);
+              }}
+              aria-expanded={!isCollapsed}
+              aria-label={isCollapsed ? 'Expand entry' : 'Collapse entry'}
+              title={isCollapsed ? 'Show all details' : 'Hide details'}
+            >
+              <span>{isCollapsed ? 'Show details' : 'Hide details'}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {timerErrorAction !== null && (
           <div className="entry-box__error entry-box__error--timer">
@@ -1738,43 +1108,6 @@ export function EntryBox({
         )}
         {error && <div className="entry-box__error">{error}</div>}
       </div>
-
-      {/* Project Reference Picker Modal */}
-      {refPickerOpen && (
-        <div className="modal-overlay" onClick={() => setRefPickerOpen(null)}>
-          <div className="ref-picker-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ref-picker-header">
-              <h3>Select a Project</h3>
-              <button
-                type="button"
-                className="ref-picker-close"
-                onClick={() => setRefPickerOpen(null)}
-              >
-                ×
-              </button>
-            </div>
-            {refLoading ? (
-              <div className="ref-picker-loading">Loading...</div>
-            ) : (
-              <div className="ref-picker-list">
-                {refProjects.map((p: any) => (
-                  <button
-                    key={p.project_name}
-                    type="button"
-                    className="ref-picker-item"
-                    onClick={() => selectProjectRef(p)}
-                  >
-                    <span className="ref-picker-item-project">{p.project_name}</span>
-                  </button>
-                ))}
-                {refProjects.length === 0 && (
-                  <div className="ref-picker-empty">No projects found</div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Calculation Picker Modal */}
       {calcField && (
@@ -1803,110 +1136,6 @@ export function EntryBox({
                 onClick={() => doCalculation('average')}
               >
                 Average
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manual Time Entry Modal */}
-      <ManualTimeModal
-        open={manualTimeOpen}
-        onClose={() => setManualTimeOpen(false)}
-        onSubmit={handleManualTimeLog}
-        saving={manualTimeSaving}
-      />
-
-      {/* Edit Time Modal */}
-      <EditTimeModal
-        open={editTimeOpen}
-        onClose={() => setEditTimeOpen(false)}
-        onSubmit={handleEditTimeSave}
-        saving={editTimeSaving}
-        initialStartedAt={started_at}
-        initialEndedAt={ended_at}
-      />
-
-      {/* Stop Confirmation Modal */}
-      {stopConfirmOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0, 0, 0, 0.4)',
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setStopConfirmOpen(false);
-          }}
-        >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '360px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
-              textAlign: 'center',
-            }}
-          >
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                background: '#fef2f2',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}
-            >
-              <span style={{ fontSize: '24px' }}>⏱️</span>
-            </div>
-            <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>Stop Timer?</h3>
-            <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: '14px' }}>
-              Are you sure you want to stop the timer? This will record the worked time.
-            </p>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setStopConfirmOpen(false)}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  background: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: '#374151',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmStop}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: '#dc2626',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: 'white',
-                }}
-              >
-                Stop Timer
               </button>
             </div>
           </div>

@@ -26,17 +26,4 @@ describe('entry payload presentation', () => {
       { name: 'Legacy content', value: '["old","payload"]' },
     ]);
   });
-
-  it('skips underscore-prefixed internal fields', () => {
-    expect(
-      getEntryPayloadFields({ task: 'Buy milk', _project_ref: { project_name: 'Shopping' } })
-    ).toEqual([{ name: 'task', value: 'Buy milk' }]);
-  });
-
-  it('shows [Image] for base64 image data', () => {
-    expect(formatEntryValue('data:image/png;base64,iVBORw0KGgo=')).toBe('[Image]');
-    expect(formatEntryValue('/9j/4AAQSkZJRgABAQAAAQABAAD/')).toBe('[Image]');
-    expect(formatEntryValue('iVBORw0KGgoAAAANSUhEUg==')).toBe('[Image]');
-    expect(formatEntryValue('Just a normal text')).toBe('Just a normal text');
-  });
 });

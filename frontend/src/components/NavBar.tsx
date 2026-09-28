@@ -7,24 +7,18 @@ import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { startAppTour } from '@/lib/tour';
 
 interface NavBarProps {
-  projects?: Array<Record<string, unknown>>;
   entries?: Array<Record<string, unknown>>;
   activeView?: string;
-  onNewProject?: () => void;
 }
 
-export function NavBar({
-  entries: entriesProp = [],
-  activeView = 'all',
-  onNewProject,
-}: NavBarProps) {
+export function NavBar({ entries: entriesProp = [], activeView = 'all' }: NavBarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Load entries from IndexedDB directly (local-first)
+  // Load entries from IndexedDB directly (local-first) — drives the Home badge
   const [entries, setEntries] = useState<Array<Record<string, unknown>>>(() =>
     Array.isArray(entriesProp) && entriesProp.length > 0 ? entriesProp : []
   );
@@ -46,9 +40,9 @@ export function NavBar({
     };
     loadData();
 
-    // Re-read when mutations write new entries to cache
-    const unsubs = [cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData())];
-    return () => unsubs.forEach((u) => u());
+    // Re-read when syncAllData or mutations write new entries to cache
+    const unsub = cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, () => loadData());
+    return () => unsub();
   }, [user?.email]);
 
   // Use props if provided, otherwise use IndexedDB data
@@ -312,7 +306,7 @@ export function NavBar({
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            All Items
+            All Entries
           </button>
           <button
             className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
@@ -355,51 +349,6 @@ export function NavBar({
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
             Calendar
-          </button>
-          <button
-            data-tour="drawer-kanban"
-            className={`drawer-item ${isActive('/kanban') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/kanban');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            Kanban
-          </button>
-          <button
-            data-tour="drawer-timeline"
-            className={`drawer-item ${isActive('/timeline') ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/timeline');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <polyline points="8 8 12 4 16 8" />
-              <polyline points="8 16 12 20 16 16" />
-            </svg>
-            Timeline
           </button>
           <button
             data-tour="drawer-import-export"
@@ -464,40 +413,6 @@ export function NavBar({
               <polyline points="12 6 12 12 16 14" />
             </svg>
             Activity Log
-          </button>
-        </div>
-
-        <div className="drawer-footer">
-          <button
-            data-tour="drawer-new-project"
-            className="btn-primary drawer-new-btn"
-            onClick={() => {
-              if (onNewProject) onNewProject();
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Project
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              navigate('/projects');
-              setDrawerOpen(false);
-            }}
-            style={{ marginTop: '0.5rem', width: '100%' }}
-          >
-            Manage Projects
           </button>
         </div>
       </aside>

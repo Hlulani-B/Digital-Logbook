@@ -5,6 +5,7 @@ import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 import { AddEntry } from '@/pages/AddEntry';
+import { DueSoonRail } from '@/components/DueSoonRail';
 import VoiceFeature from '@/pages/VoiceFeature';
 import { EntryBox } from '@/pages/NewEntry';
 import {
@@ -29,6 +30,7 @@ import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { SearchFilterBlock } from '@/components/SearchFilters';
 import { getFields } from '@/functions/project/fields.js';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 import { normalizeField } from '@/lib/fieldSchema';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import {
@@ -114,6 +116,10 @@ export function ProjectDetailPage() {
 
   // Project colour (loaded from cached projects)
   const [projectColor, setProjectColor] = useState<string | null>(null);
+
+  // Pin — the same localStorage list the home cards use, so pinning here also
+  // floats this project to the top of the home page.
+  const [projectPinned, setProjectPinned] = useState(false);
 
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -226,6 +232,39 @@ export function ProjectDetailPage() {
     return () => unsub();
   }, [email, projectName]);
 
+  // Load this project's pinned state (localStorage — no backend column)
+  useEffect(() => {
+    if (!email || !projectName) return;
+    try {
+      const stored = localStorage.getItem(`dl_pinned_projects_${email}`);
+      setProjectPinned(new Set(stored ? JSON.parse(stored) : []).has(projectName));
+    } catch {
+      setProjectPinned(false);
+    }
+  }, [email, projectName]);
+
+  const toggleProjectPin = () => {
+    if (!email || !projectName) return;
+    setProjectPinned((prev) => {
+      const next = !prev;
+      try {
+        const key = `dl_pinned_projects_${email}`;
+        const stored = JSON.parse(localStorage.getItem(key) || '[]');
+        const set = new Set(Array.isArray(stored) ? stored : []);
+        if (next) set.add(projectName);
+        else set.delete(projectName);
+        localStorage.setItem(key, JSON.stringify([...set]));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Colour shown on this project's entry cards — the project's custom colour,
+  // or the same name-derived accent every other page gives it.
+  const projectAccent = projectName
+    ? resolveProjectColor(projectName, projectColor ? { [projectName]: projectColor } : {})
+    : null;
+
   // Search
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
@@ -260,9 +299,9 @@ export function ProjectDetailPage() {
     localStorage.setItem('project-view-mode', mode);
   };
 
-  // Deep link: /project/:name?entry=<id> — the Dashboard quick lists use it to
-  // jump straight to an entry. Cards is the only view with per-entry cards, so
-  // a focused link switches the view and briefly rings the target.
+  // Deep link: /project/:name?entry=<id> — the due-soon rail jumps straight to
+  // an entry. Cards is the only view with per-entry cards, so a focused link
+  // switches the view and briefly rings the target.
   const [searchParams] = useSearchParams();
   const focusEntryId = searchParams.get('entry');
   const [highlightEntryId, setHighlightEntryId] = useState<string | null>(null);
@@ -305,7 +344,7 @@ export function ProjectDetailPage() {
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
-    'No items to show yet. Add your first item above!'
+    'No entries to show yet. Add your first entry above!'
   );
   // Reactive preference — swaps an already-shown AI empty message back to the
   // static line the instant "AI messages" is toggled off in Settings.
@@ -313,7 +352,7 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     if (!aiMessagesOn) {
-      setAiEmptyMessage('No items to show yet. Add your first item above!');
+      setAiEmptyMessage('No entries to show yet. Add your first entry above!');
     }
   }, [aiMessagesOn]);
 
@@ -332,7 +371,7 @@ export function ProjectDetailPage() {
       (async () => {
         const tone = getToneInstruction();
         const result = await askAI(
-          `Generate a motivating message for when a project has no items to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
+          `Generate a motivating message for when a project has no entries to show. Make it 2-3 sentences. The project is "${projectName}". If the tone is casual or cynical, roast the user playfully. ${tone}`
         );
         // Re-check on resolve — the toggle may have been flipped during the request
         if (!cancelled && getAiMessagesEnabled() && result.success && result.response) {
@@ -515,7 +554,7 @@ export function ProjectDetailPage() {
       setQuickMessageType('success');
       await loadEntries();
     } else {
-      setQuickMessage(result.message || 'Failed to create item');
+      setQuickMessage(result.message || 'Failed to create entry');
       setQuickMessageType('error');
     }
   };
@@ -542,6 +581,10 @@ export function ProjectDetailPage() {
       <main className="dash-main">
         <Header title={projectName || 'Project'} entries={entries} />
 
+        {/* Two-column split: the entries feed on the left, the due-soon quick
+            list on the right. */}
+        <div className="dash-split">
+          <div className="dash-split__main">
         {/* Sort controls + view toggle */}
         <div className="feed-controls-row">
           <div className="feed-sort-group">
@@ -699,6 +742,36 @@ export function ProjectDetailPage() {
             <FiSettings size={12} />
             Settings
           </button>
+
+          {/* Pin — floats this project to the top of the home page */}
+          <button
+            type="button"
+            className={`sort-btn ${projectPinned ? 'is-pinned' : ''}`}
+            onClick={toggleProjectPin}
+            aria-pressed={projectPinned}
+            aria-label={projectPinned ? 'Unpin project' : 'Pin project'}
+            title={
+              projectPinned
+                ? 'Unpin — the project leaves the top of the home list'
+                : 'Pin to the top of the home list'
+            }
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill={projectPinned ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="17" x2="12" y2="22" />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+            </svg>
+            {projectPinned ? 'Pinned' : 'Pin'}
+          </button>
         </div>
 
         {/* Search + per-field filters, with the AI quick-add bar beside it */}
@@ -744,8 +817,8 @@ export function ProjectDetailPage() {
                   type="button"
                   className="quick-entry-voice"
                   onClick={() => setVoiceOpen(true)}
-                  aria-label="Voice item"
-                  title={!isOnline ? 'Voice item is not available offline' : 'Record a voice item'}
+                  aria-label="Voice entry"
+                  title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
                   disabled={!isOnline}
                   style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
@@ -794,6 +867,18 @@ export function ProjectDetailPage() {
           </div>
         </div>
 
+        {/* "New Entry" card — opens the entry form for this project directly. */}
+        <button
+          type="button"
+          className="entry-card-new"
+          onClick={() => setNewEntryOpen(true)}
+          title="Create a new entry in this project"
+        >
+          <span className="entry-card-new__icon">+</span>
+          <span className="entry-card-new__title">New Entry</span>
+          <span className="entry-card-new__hint">Add an entry to {projectName}</span>
+        </button>
+
         {/* Loading — only show if no cached data */}
         {loading && entries.length === 0 && (
           <div className="feed-loading">
@@ -804,7 +889,7 @@ export function ProjectDetailPage() {
                 height: 24,
               }}
             />
-            <p>Loading items...</p>
+            <p>Loading entries...</p>
           </div>
         )}
 
@@ -830,7 +915,7 @@ export function ProjectDetailPage() {
                 </div>
                 <h2 className="empty-title">No results found</h2>
                 <p className="empty-desc">
-                  No items in {projectName} match "{searchQuery}".
+                  No entries in {projectName} match "{searchQuery}".
                 </p>
               </div>
             ) : viewMode === 'checklist' ? (
@@ -847,7 +932,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -863,7 +948,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : (
               <div className="entries-feed">
@@ -874,7 +959,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
-                    projectColor={projectColor}
+                    projectColor={projectAccent}
                   />
                 ))}
               </div>
@@ -905,7 +990,7 @@ export function ProjectDetailPage() {
                     <line x1="9" y1="14" x2="15" y2="14" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No items yet</h2>
+                <h2 className="empty-title">No entries yet</h2>
                 <p className="empty-desc">{aiEmptyMessage}</p>
               </div>
             ) : feedEntries.length === 0 ? (
@@ -924,9 +1009,9 @@ export function ProjectDetailPage() {
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                   </svg>
                 </div>
-                <h2 className="empty-title">No items match your filters</h2>
+                <h2 className="empty-title">No entries match your filters</h2>
                 <p className="empty-desc">
-                  No items in {projectName} match the current field filters.
+                  No entries in {projectName} match the current field filters.
                 </p>
                 <button
                   type="button"
@@ -995,6 +1080,7 @@ export function ProjectDetailPage() {
                   }
                 }}
                 projectNames={projectName ? [projectName] : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
                 onDeleteSelected={async (ids: string[]) => {
                   if (!email) return;
                   // Optimistic: remove from local state immediately
@@ -1023,7 +1109,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
@@ -1039,7 +1125,7 @@ export function ProjectDetailPage() {
                 }))}
                 onUpdated={() => loadEntries()}
                 onDelete={() => loadEntries()}
-                colorMap={projectColor && projectName ? { [projectName]: projectColor } : undefined}
+                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
               />
             ) : (
               <div className="entries-grid">
@@ -1050,7 +1136,7 @@ export function ProjectDetailPage() {
                     onUpdated={() => loadEntries()}
                     onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
-                    projectColor={projectColor}
+                    projectColor={projectAccent}
                     highlighted={row.id === highlightEntryId}
                   />
                 ))}
@@ -1058,6 +1144,10 @@ export function ProjectDetailPage() {
             )}
           </div>
         )}
+              </div>
+
+              <DueSoonRail entries={dueSoonEntries} />
+            </div>
 
         {/* FAB — only New Entry (project is already known) */}
         <div className="fab-container">

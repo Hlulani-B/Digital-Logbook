@@ -333,24 +333,25 @@ function buildSteps(): DriveStep[] {
     }),
     liveStep({
       path: '/dashboard',
-      element: '[data-tour="drawer-projects"]',
+      element: '[data-tour="home-projects"]',
       title: 'Projects',
       description:
         'Group related entries under a project — like a module or a client. ' +
-        'Each project gets its own page and colour.',
-      drawer: 'open',
-      side: 'right',
+        'Each project gets its own page and colour. Click a card to open it, or pin it to keep it on top. ' +
+        'Use the Entries / Projects switch to jump between the full entries list and this page.',
+      drawer: 'close',
+      side: 'bottom',
       align: 'start',
     }),
     liveStep({
       path: '/dashboard',
-      element: '[data-tour="drawer-new-project"]',
+      element: '[data-tour="home-new-project"]',
       title: 'Create &amp; manage projects',
       description:
-        'Create a new project from here, or open Manage Projects to rename, recolour, and archive. ' +
+        'Add a new project from this card, then pin, archive, or delete any project right here on your home page. ' +
         'Archived projects are never lost — they move to Archives.',
-      drawer: 'open',
-      side: 'right',
+      drawer: 'close',
+      side: 'top',
       align: 'start',
     }),
     liveStep({
