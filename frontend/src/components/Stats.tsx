@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
 import { useNow } from '@/hooks/useNow';
 import { askAI } from '@/functions/ai.js';
@@ -18,7 +19,10 @@ interface StatsProps {
 
 export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsProps) {
   const [statsOpen, setStatsOpen] = useState(false);
+  const [statsMenuOpen, setStatsMenuOpen] = useState(false);
   const [reflection, setReflection] = useState('');
+  const statsMenuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   // Defensive: ensure entries/projects are always arrays
   const safeEntries = Array.isArray(entries) ? entries : [];
   const safeProjects = Array.isArray(projects) ? projects : [];
@@ -29,6 +33,25 @@ export function Stats({ entries, projects, dueSoonCount, activeProject }: StatsP
   useEffect(() => {
     if (!aiMessagesOn) setReflection('');
   }, [aiMessagesOn]);
+
+  // Close the stats menu on outside click or Escape
+  useEffect(() => {
+    if (!statsMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (statsMenuRef.current && !statsMenuRef.current.contains(event.target as Node)) {
+        setStatsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setStatsMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [statsMenuOpen]);
 
   // Generate AI reflection when stats panel is opened
   useEffect(() => {
@@ -153,7 +176,7 @@ Make it insightful and encouraging. ${tone}`;
   }, [safeEntries, activeProject]);
 
   return (
-    <div className="feed-stats-box">
+    <div className="feed-stats-box" ref={statsMenuRef}>
       {statsOpen ? (
         <div className="feed-stats-panel">
           <div className="feed-stats-panel-header">
@@ -252,21 +275,82 @@ Make it insightful and encouraging. ${tone}`;
           )}
         </div>
       ) : (
-        <button className="feed-stats-btn" onClick={() => setStatsOpen(true)}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+        <>
+          <button
+            type="button"
+            className="feed-stats-btn"
+            aria-haspopup="menu"
+            aria-expanded={statsMenuOpen}
+            aria-label="Stats options"
+            onClick={() => setStatsMenuOpen((prev) => !prev)}
           >
-            <line x1="18" y1="20" x2="18" y2="10" />
-            <line x1="12" y1="20" x2="12" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="14" />
-          </svg>
-          {activeProject ? 'Project Stats' : 'Global Stats'}
-        </button>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            Stats
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {statsMenuOpen && (
+            <div className="toolbar-dropdown__menu toolbar-dropdown__menu--right" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="toolbar-dropdown__option"
+                onClick={() => {
+                  setStatsMenuOpen(false);
+                  setStatsOpen(true);
+                }}
+              >
+                Quick Stats
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="toolbar-dropdown__option"
+                onClick={() => {
+                  setStatsMenuOpen(false);
+                  navigate('/stats');
+                }}
+              >
+                Global Stats
+              </button>
+              {activeProject && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="toolbar-dropdown__option"
+                  onClick={() => {
+                    setStatsMenuOpen(false);
+                    navigate(`/stats?project=${encodeURIComponent(activeProject)}`);
+                  }}
+                >
+                  {activeProject} Stats
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

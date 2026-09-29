@@ -549,67 +549,11 @@ export function ProjectDetailPage() {
       <div className="bg-mesh" />
       <NavBar entries={entries} activeView="all" />
       <main className="dash-main">
-        <Header title={projectName || 'Project'} entries={entries} />
-
-        {/* Two-column split: the entries feed on the left, the due-soon quick
-            list on the right. */}
-        <div className="dash-split">
-          <div className="dash-split__main">
-        {/* Sort controls + view toggle */}
-        <div className="feed-controls-row">
-          <div className="feed-sort-group">
-            <span className="feed-sort-label">Sort:</span>
-            <ToolbarDropdown
-              value={sortBy}
-              onChange={setSortBy}
-              options={[
-                { value: 'date', label: 'Date' },
-                { value: 'priority', label: 'Priority' },
-              ]}
-            />
-          </div>
-
-          {/* View toggle — Cards / Table / Checklist / Board */}
-          <div className="feed-view-group">
-            <span className="feed-view-label">View:</span>
-            <ToolbarDropdown
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { value: 'cards', label: 'Cards' },
-                { value: 'table', label: 'Table' },
-                { value: 'checklist', label: 'Checklist' },
-                { value: 'board', label: 'Board' },
-              ]}
-            />
-          </div>
-
-          {/* Stats — opens the stats dashboard scoped to this project */}
-          <button
-            type="button"
-            className="feed-stats-btn"
-            onClick={() =>
-              projectName && navigate(`/stats?project=${encodeURIComponent(projectName)}`)
-            }
-            aria-label={`Open ${projectName} stats`}
-            title={`Open the stats dashboard for ${projectName}`}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            {projectName} Stats
-          </button>
-
-        </div>
+        <Header
+          title={projectName || 'Project'}
+          entries={entries}
+          activeProject={projectName}
+        />
 
         {/* Search + per-field filters, with the AI quick-add bar beside it */}
         <div className="search-ai-row">
@@ -701,6 +645,43 @@ export function ProjectDetailPage() {
             {quickMessage && (
               <div className={`quick-entry-message ${quickMessageType}`}>{quickMessage}</div>
             )}
+          </div>
+        </div>
+
+        {/* Two-column split: the entries feed on the left, the due-soon quick
+            list on the right. */}
+        <div className="dash-split">
+          <div className="dash-split__main">
+        {/* Sort + View controls, right-aligned like the Entries page */}
+        <div className="page-switcher-row">
+          <div className="page-switcher-controls" style={{ marginLeft: 'auto' }}>
+            {/* View toggle — Cards / Table / Checklist / Board */}
+            <div className="feed-view-group">
+              <span className="feed-view-label">View:</span>
+              <ToolbarDropdown
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: 'cards', label: 'Cards' },
+                  { value: 'table', label: 'Table' },
+                  { value: 'checklist', label: 'Checklist' },
+                  { value: 'board', label: 'Board' },
+                ]}
+              />
+            </div>
+
+            <div className="feed-sort-group">
+              <span className="feed-sort-label">Sort:</span>
+              <ToolbarDropdown
+                value={sortBy}
+                onChange={setSortBy}
+                menuAlign="right"
+                options={[
+                  { value: 'date', label: 'Date' },
+                  { value: 'priority', label: 'Priority' },
+                ]}
+              />
+            </div>
           </div>
         </div>
 
