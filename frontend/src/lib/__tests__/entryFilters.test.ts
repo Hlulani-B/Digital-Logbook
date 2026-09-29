@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeFilterCount,
+  activeProjectFilterCount,
   applyFieldFilters,
+  applyProjectFilters,
+  defaultProjectFilters,
   isPinnedEntry,
   matchesTextQuery,
   pinFirst,
+  projectMatchesSearch,
   type FieldFilters,
 } from '../entryFilters';
 
@@ -116,8 +120,74 @@ describe('matchesTextQuery', () => {
     expect(matchesTextQuery(entry, 'burger')).toBe(false);
   });
 
+  it('matches field names even when no value contains the query', () => {
+    const named = makeEntry(
+      'c',
+      { Ingredients: 'Flour', Notes: 'x' },
+      { summary: 'Baking', project_name: 'Kitchen' }
+    );
+    expect(matchesTextQuery(named, 'ingredients')).toBe(true);
+    expect(matchesTextQuery(named, 'ingr')).toBe(true);
+    expect(matchesTextQuery(named, 'protein')).toBe(false);
+  });
+
   it('ignores reserved keys', () => {
     const withReserved = makeEntry('b', { _project_ref: { project_name: 'Secret' } });
     expect(matchesTextQuery(withReserved, 'secret')).toBe(false);
+    // The reserved key's own name is not searchable either.
+    expect(matchesTextQuery(withReserved, 'project_ref')).toBe(false);
+  });
+});
+
+describe('project filters', () => {
+  const rows = [
+    { id: 'a', project_name: 'Alpha' },
+    { id: 'b', project_name: 'Beta' },
+    { id: 'c', project_name: 'Gamma' },
+  ];
+  const counts = {
+    entryCounts: { Alpha: 3, Beta: 1, Gamma: 0 },
+    fieldCounts: { Alpha: 2, Beta: 0, Gamma: 4 },
+    fieldTypes: { Alpha: ['text', 'integer'], Beta: [], Gamma: ['date'] },
+  };
+
+  it('filters by field type', () => {
+    const filters = { ...defaultProjectFilters(), fieldType: 'date' };
+    expect(applyProjectFilters(rows, filters, counts).map((r) => r.id)).toEqual(['c']);
+  });
+
+  it('matches a project when any of its fields uses the type', () => {
+    const filters = { ...defaultProjectFilters(), fieldType: 'integer' };
+    expect(applyProjectFilters(rows, filters, counts).map((r) => r.id)).toEqual(['a']);
+  });
+
+  it('counts the field type among the active filters', () => {
+    expect(activeProjectFilterCount({ ...defaultProjectFilters(), fieldType: 'text' })).toBe(1);
+  });
+
+  it('combines the field type with the count filters (AND logic)', () => {
+    const filters = {
+      ...defaultProjectFilters(),
+      entryCount: { mode: 'above' as const, value: '0', min: '', max: '' },
+      fieldType: 'text',
+    };
+    expect(applyProjectFilters(rows, filters, counts).map((r) => r.id)).toEqual(['a']);
+  });
+});
+
+describe('projectMatchesSearch', () => {
+  it('matches the project name', () => {
+    expect(projectMatchesSearch('Food Log', [], 'food')).toBe(true);
+    expect(projectMatchesSearch('Food Log', [], 'steps')).toBe(false);
+  });
+
+  it('matches any of the project field names', () => {
+    expect(projectMatchesSearch('Food Log', ['Calories', 'Meal type'], 'meal')).toBe(true);
+    expect(projectMatchesSearch('Food Log', ['Calories'], 'cal')).toBe(true);
+    expect(projectMatchesSearch('Food Log', ['Calories'], 'steps')).toBe(false);
+  });
+
+  it('treats an empty query as a match', () => {
+    expect(projectMatchesSearch('Food Log', [], '  ')).toBe(true);
   });
 });

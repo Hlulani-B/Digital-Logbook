@@ -310,7 +310,7 @@ export function ProjectDetailPage() {
   const isOnline = useNetworkStatus();
 
   // Static placeholder for quick add (no AI generation)
-  const quickAddPlaceholder = 'Write what you worked on...';
+  const quickAddPlaceholder = 'Capture quick entry';
 
   // AI empty message
   const [aiEmptyMessage, setAiEmptyMessage] = useState(
@@ -648,10 +648,6 @@ export function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Two-column split: the entries feed on the left, the due-soon quick
-            list on the right. */}
-        <div className="dash-split">
-          <div className="dash-split__main">
         {/* Sort + View controls, right-aligned like the Entries page */}
         <div className="page-switcher-row">
           <div className="page-switcher-controls" style={{ marginLeft: 'auto' }}>
@@ -685,7 +681,9 @@ export function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* "New Entry" card — opens the entry form for this project directly. */}
+        {/* "New Entry" card — opens the entry form for this project directly.
+            It sits above the split so the due-soon rail starts below it,
+            beside the entries. */}
         <button
           type="button"
           className="entry-card-new"
@@ -697,6 +695,10 @@ export function ProjectDetailPage() {
           <span className="entry-card-new__hint">Add an entry to {projectName}</span>
         </button>
 
+        {/* Two-column split: the entries feed on the left, the due-soon quick
+            list on the right. */}
+        <div className="dash-split">
+          <div className="dash-split__main">
         {/* Loading — only show if no cached data */}
         {loading && entries.length === 0 && (
           <div className="feed-loading">

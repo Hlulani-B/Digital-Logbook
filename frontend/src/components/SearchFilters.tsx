@@ -6,6 +6,7 @@ import {
   activeProjectFilterCount,
   defaultFilterState,
   defaultProjectFilters,
+  fieldTypeLabel,
   type FieldFilters,
   type FieldFilterState,
   type NumericFilterMode,
@@ -231,12 +232,21 @@ interface ProjectFilterBlockProps {
   projectNames: string[];
   filters: ProjectFilters;
   onFiltersChange: (filters: ProjectFilters) => void;
+  /**
+   * Show the project-name criterion. The projects tab hides it (the cards are
+   * already projects, so the criterion would be meaningless there).
+   */
+  showProjectName?: boolean;
+  /** Field types used across the projects — options for the field-type filter. */
+  fieldTypeOptions?: string[];
 }
 
 /**
  * Search bar for the all-entries feed. Entries there are mixed across projects,
  * so instead of per-project field filters the panel narrows the feed by
- * project-level criteria: the project's name, its entry count and its field count.
+ * project-level criteria: the project's name, its entry count, its field count
+ * and the field types it defines. The same panel drives the projects tab, where
+ * every criterion applies to the project cards instead of the entries.
  */
 export function ProjectFilterBlock({
   query,
@@ -245,6 +255,8 @@ export function ProjectFilterBlock({
   projectNames,
   filters,
   onFiltersChange,
+  showProjectName = true,
+  fieldTypeOptions,
 }: ProjectFilterBlockProps) {
   const [open, setOpen] = useState(false);
   const count = activeProjectFilterCount(filters);
@@ -267,7 +279,9 @@ export function ProjectFilterBlock({
       {open && (
         <div className="filter-panel">
           <div className="filter-panel__head">
-            <span className="filter-panel__title">Filter entries</span>
+            <span className="filter-panel__title">
+              {showProjectName ? 'Filter entries' : 'Filter projects'}
+            </span>
             {count > 0 && (
               <button
                 type="button"
@@ -279,30 +293,34 @@ export function ProjectFilterBlock({
             )}
           </div>
           <p className="filter-panel__note">
-            Entry count and field count apply to each entry's project.
+            {showProjectName
+              ? "Entry count, field count and field type apply to each entry's project."
+              : 'Entry count, field count and field type apply to each project.'}
           </p>
 
-          <div className="filter-row">
-            <label className="filter-row__label" htmlFor="project-filter-name">
-              Project name
-            </label>
-            <div className="filter-row__controls">
-              <select
-                id="project-filter-name"
-                className="filter-select"
-                value={filters.projectName}
-                onChange={(e) => onFiltersChange({ ...filters, projectName: e.target.value })}
-                aria-label="Project name filter"
-              >
-                <option value="">All projects</option>
-                {projectNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+          {showProjectName && (
+            <div className="filter-row">
+              <label className="filter-row__label" htmlFor="project-filter-name">
+                Project name
+              </label>
+              <div className="filter-row__controls">
+                <select
+                  id="project-filter-name"
+                  className="filter-select"
+                  value={filters.projectName}
+                  onChange={(e) => onFiltersChange({ ...filters, projectName: e.target.value })}
+                  aria-label="Project name filter"
+                >
+                  <option value="">All projects</option>
+                  {projectNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           <CountFilterRow
             id="entry-count"
@@ -318,6 +336,30 @@ export function ProjectFilterBlock({
             state={filters.fieldCount}
             onChange={(patch) => patchCount('fieldCount', patch)}
           />
+
+          {fieldTypeOptions && fieldTypeOptions.length > 0 && (
+            <div className="filter-row">
+              <label className="filter-row__label" htmlFor="project-filter-field-type">
+                Field type
+              </label>
+              <div className="filter-row__controls">
+                <select
+                  id="project-filter-field-type"
+                  className="filter-select"
+                  value={filters.fieldType}
+                  onChange={(e) => onFiltersChange({ ...filters, fieldType: e.target.value })}
+                  aria-label="Field type filter"
+                >
+                  <option value="">Any type</option>
+                  {fieldTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {fieldTypeLabel(type)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

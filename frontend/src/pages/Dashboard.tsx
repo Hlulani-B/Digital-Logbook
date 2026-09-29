@@ -13,6 +13,7 @@ import {
   defaultProjectFilters,
   matchesTextQuery,
   pinFirst,
+  projectMatchesSearch,
   type ProjectFilters,
 } from '@/lib/entryFilters';
 import { ActivityFeed } from '@/components/ActivityFeed';
@@ -25,6 +26,7 @@ import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
+import { normalizeField } from '@/lib/fieldSchema';
 import { EntryBox } from '@/pages/NewEntry';
 import { DueSoonRail } from '@/components/DueSoonRail';
 import { AddEntry } from '@/pages/AddEntry';
@@ -227,6 +229,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     defaultProjectFilters()
   );
   const [fieldCounts, setFieldCounts] = useState<Record<string, number>>({});
+  // Field data types and field names per project — the field-type filter and
+  // the projects-tab search (project name or any of its field names).
+  const [fieldTypes, setFieldTypes] = useState<Record<string, string[]>>({});
+  const [fieldNames, setFieldNames] = useState<Record<string, string[]>>({});
 
   // Data state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -592,8 +598,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     [projects]
   );
 
-  // Field counts for the filter panel. Field definitions live per project, so
-  // each project's rows are read from the cache and only fetched when missing.
+  // Field counts, field types and field names for the filters and the
+  // projects-tab search. Field definitions live per project, so each project's
+  // rows are read from the cache and only fetched when missing.
   useEffect(() => {
     if (!email) return;
     const names = Array.from(
@@ -605,20 +612,33 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     if (names.length === 0) return;
     let cancelled = false;
     (async () => {
-      const next: Record<string, number> = {};
+      const nextCounts: Record<string, number> = {};
+      const nextTypes: Record<string, string[]> = {};
+      const nextNames: Record<string, string[]> = {};
       await Promise.all(
         names.map(async (name) => {
           try {
             let cached = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
             if (!cached?.data) cached = await getFields(email, name);
             const rows = Array.isArray(cached?.data) ? cached.data : [];
-            next[name] = rows.filter((r: Record<string, unknown>) => r?.field_name).length;
+            const fields = rows.filter((r: Record<string, unknown>) => r?.field_name);
+            nextCounts[name] = fields.length;
+            nextTypes[name] = Array.from(
+              new Set(fields.map((r: Record<string, unknown>) => normalizeField(r).data_type))
+            );
+            nextNames[name] = fields.map((r: Record<string, unknown>) => String(r.field_name));
           } catch {
-            next[name] = 0;
+            nextCounts[name] = 0;
+            nextTypes[name] = [];
+            nextNames[name] = [];
           }
         })
       );
-      if (!cancelled) setFieldCounts(next);
+      if (!cancelled) {
+        setFieldCounts(nextCounts);
+        setFieldTypes(nextTypes);
+        setFieldNames(nextNames);
+      }
     })();
     return () => {
       cancelled = true;
@@ -663,6 +683,36 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     return [...pinned, ...rest];
   }, [projects, pinnedProjects]);
 
+  // Every field type used across the projects — the field-type filter options
+  const fieldTypeOptions = useMemo(
+    () =>
+      Array.from(new Set(Object.values(fieldTypes).flat()))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [fieldTypes]
+  );
+
+  // Project cards after the regular search and the filters. Search matches the
+  // project name or any of its field names; the filter criteria (entry count,
+  // field count, field type) apply to each project — same as the entries page.
+  const visibleProjects = useMemo(() => {
+    let list = applyProjectFilters(activeProjects, projectFilters, {
+      entryCounts,
+      fieldCounts,
+      fieldTypes,
+    });
+    if (pageSearch.trim()) {
+      list = list.filter((p) =>
+        projectMatchesSearch(
+          (p.project_name as string) || '',
+          fieldNames[(p.project_name as string) || ''] ?? [],
+          pageSearch
+        )
+      );
+    }
+    return list;
+  }, [activeProjects, projectFilters, entryCounts, fieldCounts, fieldTypes, fieldNames, pageSearch]);
+
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
     // Use all entries (unarchived) — ALL_ENTRIES also holds archived rows, so
@@ -693,11 +743,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       filtered = filtered.filter((e) => matchesTextQuery(e, pageSearch));
     }
 
-    // Project filters — project name, entry count and field count
-    filtered = applyProjectFilters(filtered, projectFilters, { entryCounts, fieldCounts });
+    // Project filters — project name, entry count, field count, field type
+    filtered = applyProjectFilters(filtered, projectFilters, {
+      entryCounts,
+      fieldCounts,
+      fieldTypes,
+    });
 
     return pinFirst(filtered);
-  }, [entries, activeView, pageSearch, projectFilters, entryCounts, fieldCounts]);
+  }, [entries, activeView, pageSearch, projectFilters, entryCounts, fieldCounts, fieldTypes]);
 
   // In-progress entries (started but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
@@ -1648,10 +1702,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <ProjectFilterBlock
                 query={pageSearch}
                 onQueryChange={setPageSearch}
-                placeholder="Search entries..."
+                placeholder="Search projects or entries..."
                 projectNames={projectNames}
                 filters={projectFilters}
                 onFiltersChange={setProjectFilters}
+                showProjectName={false}
+                fieldTypeOptions={fieldTypeOptions}
               />
               <div data-tour="quick-entry" className="search-ai-row__ai">
                 <QuickEntryBar
@@ -1670,37 +1726,40 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             </div>
 
+            {/* Page switcher: Projects / Entries — sits above the split so the
+                due-soon rail's top lines up with the project cards. */}
+            <div className="page-switcher-row">
+              <div
+                className="feed-view-toggle"
+                role="group"
+                aria-label="Switch between entries and projects"
+              >
+                <button
+                  type="button"
+                  className="feed-view-btn active"
+                  aria-current="page"
+                  onClick={() => navigate('/dashboard')}
+                  title="Back to projects"
+                >
+                  Projects
+                </button>
+                <button
+                  type="button"
+                  className="feed-view-btn"
+                  onClick={() => navigate('/entries')}
+                  title="Browse all entries"
+                >
+                  Entries
+                </button>
+              </div>
+            </div>
+
             {/* Two-column split: projects + calendar on the left, the due-soon
                 quick list on the right. */}
             <div className="dash-split">
               <div className="dash-split__main">
             {/* Projects — inline card grid with quick actions */}
             <section className="home-projects animate-in" data-tour="home-projects">
-              <div className="page-switcher-row">
-                <div
-                  className="feed-view-toggle"
-                  role="group"
-                  aria-label="Switch between entries and projects"
-                >
-                  <button
-                    type="button"
-                    className="feed-view-btn active"
-                    aria-current="page"
-                    onClick={() => navigate('/dashboard')}
-                    title="Back to projects"
-                  >
-                    Projects
-                  </button>
-                  <button
-                    type="button"
-                    className="feed-view-btn"
-                    onClick={() => navigate('/entries')}
-                    title="Browse all entries"
-                  >
-                    Entries
-                  </button>
-                </div>
-              </div>
               <div className="projects-grid">
                 {/* Create-new-project card leads the grid so it is always first. */}
                 <button
@@ -1715,7 +1774,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   </span>
                   <span className="project-card-add-label">Add New Project</span>
                 </button>
-                {activeProjects.map((project) => {
+                {visibleProjects.map((project) => {
                   const name = project.project_name as string;
                   const count = entries.filter((e) => e.project_name === name).length;
                   const inMotionCount = entries.filter(
@@ -1849,6 +1908,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   );
                 })}
               </div>
+              {visibleProjects.length === 0 && (
+                <p className="projects-empty-note">No projects match your search or filters.</p>
+              )}
             </section>
 
             {/* Due-soon feed removed — the same entries now live in the right rail. */}

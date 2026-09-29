@@ -329,6 +329,49 @@ describe('AllEntriesPage', () => {
     await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
   });
 
+  it("filters the feed by the entry's project field type", async () => {
+    mockFeed({
+      entries: feedEntries,
+      projects: feedProjects,
+      fields: {
+        Alpha: [
+          { field_name: 'Calories', data_type: 'integer' },
+          { field_name: 'Food Name', data_type: 'text' },
+        ],
+        Beta: [{ field_name: 'Steps', data_type: 'integer' }],
+      },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(4));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await waitFor(() => expect(screen.getByLabelText('Field type filter')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Field type filter'), { target: { value: 'text' } });
+
+    // Only Alpha defines a text field — Beta's rows are filtered out
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(3));
+    expect(screen.getByRole('button', { name: 'Filters (1 active)' })).toBeTruthy();
+  });
+
+  it('searches entries by field name as well as by value', async () => {
+    mockFeed({
+      entries: [
+        { id: 'a1', project_name: 'Alpha', entries: { Calories: 200 } },
+        { id: 'a2', project_name: 'Alpha', entries: { Steps: 5000 } },
+      ],
+      projects: [{ project_name: 'Alpha' }],
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(2));
+
+    fireEvent.change(screen.getByPlaceholderText('Search entries...'), {
+      target: { value: 'calories' },
+    });
+
+    // "Calories" is the only entry with a matching field name or value
+    await waitFor(() => expect(screen.getAllByTestId('entry-box')).toHaveLength(1));
+  });
+
   it('clears every active filter', async () => {
     mockFeed({ entries: feedEntries, projects: feedProjects });
     renderPage();

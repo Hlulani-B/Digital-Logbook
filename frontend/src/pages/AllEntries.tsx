@@ -31,6 +31,7 @@ import { TimelineView } from '@/pages/Timeline';
 import { type EntryPayload } from '@/lib/entryPayload';
 import { type CalendarEntry } from '@/lib/calendar';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
+import { normalizeField } from '@/lib/fieldSchema';
 import { ToolbarDropdown } from '@/components/ToolbarDropdown';
 
 type Entry = Record<string, unknown>;
@@ -97,6 +98,8 @@ export function AllEntriesPage() {
   );
   // Field counts per project — read from the fields cache, fetched when missing.
   const [fieldCounts, setFieldCounts] = useState<Record<string, number>>({});
+  // Field data types per project — powers the field-type filter.
+  const [fieldTypes, setFieldTypes] = useState<Record<string, string[]>>({});
 
   // Static placeholder for quick entry (no AI) — kept in sync with the home page
   const aiPlaceholder = 'Capture quick entry';
@@ -203,8 +206,9 @@ export function AllEntriesPage() {
     return () => unsubs.forEach((unsub) => unsub());
   }, [email, reload]);
 
-  // Field counts for the filter panel. Field definitions live per project, so
-  // each project's rows are read from the cache and only fetched when missing.
+  // Field counts and field types for the filter panel. Field definitions live
+  // per project, so each project's rows are read from the cache and only
+  // fetched when missing.
   useEffect(() => {
     if (!email) return;
     const names = Array.from(
@@ -216,20 +220,29 @@ export function AllEntriesPage() {
     if (names.length === 0) return;
     let cancelled = false;
     (async () => {
-      const next: Record<string, number> = {};
+      const nextCounts: Record<string, number> = {};
+      const nextTypes: Record<string, string[]> = {};
       await Promise.all(
         names.map(async (name) => {
           try {
             let cached = await cacheGet(CACHE_STORES.FIELDS, `${email}:${name}`);
             if (!cached?.data) cached = await getFields(email, name);
             const rows = Array.isArray(cached?.data) ? cached.data : [];
-            next[name] = rows.filter((r: Record<string, unknown>) => r?.field_name).length;
+            const fields = rows.filter((r: Record<string, unknown>) => r?.field_name);
+            nextCounts[name] = fields.length;
+            nextTypes[name] = Array.from(
+              new Set(fields.map((r: Record<string, unknown>) => normalizeField(r).data_type))
+            );
           } catch {
-            next[name] = 0;
+            nextCounts[name] = 0;
+            nextTypes[name] = [];
           }
         })
       );
-      if (!cancelled) setFieldCounts(next);
+      if (!cancelled) {
+        setFieldCounts(nextCounts);
+        setFieldTypes(nextTypes);
+      }
     })();
     return () => {
       cancelled = true;
@@ -261,6 +274,15 @@ export function AllEntriesPage() {
     [entryCounts, fieldCounts]
   );
 
+  // Every field type used across the projects — the field-type filter options
+  const fieldTypeOptions = useMemo(
+    () =>
+      Array.from(new Set(Object.values(fieldTypes).flat()))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [fieldTypes]
+  );
+
   const activeFilters = activeProjectFilterCount(projectFilters);
 
   const filteredEntries = useMemo(() => {
@@ -271,8 +293,12 @@ export function AllEntriesPage() {
       filtered = filtered.filter((e) => matchesTextQuery(e, searchQuery));
     }
 
-    // Apply project filters — project name, entry count, field count
-    filtered = applyProjectFilters(filtered, projectFilters, { entryCounts, fieldCounts });
+    // Apply project filters — project name, entry count, field count, field type
+    filtered = applyProjectFilters(filtered, projectFilters, {
+      entryCounts,
+      fieldCounts,
+      fieldTypes,
+    });
 
     // Apply sort
     if (sortBy === 'priority') {
@@ -291,7 +317,7 @@ export function AllEntriesPage() {
     }
 
     return pinFirst(filtered);
-  }, [entries, searchQuery, sortBy, projectFilters, entryCounts, fieldCounts]);
+  }, [entries, searchQuery, sortBy, projectFilters, entryCounts, fieldCounts, fieldTypes]);
 
   // Entries due within the next 3 days — the same window the home page uses;
   // it feeds the right-hand due-soon rail.
@@ -350,6 +376,7 @@ export function AllEntriesPage() {
             projectNames={projectNames}
             filters={projectFilters}
             onFiltersChange={setProjectFilters}
+            fieldTypeOptions={fieldTypeOptions}
           />
 
           {/* Quick Entry Bar */}
@@ -372,10 +399,6 @@ export function AllEntriesPage() {
           </div>
         </div>
 
-        {/* Two-column split: entries on the left, the due-soon quick list on
-            the right. */}
-        <div className="dash-split">
-          <div className="dash-split__main">
         {/* Page switcher: Entries / Projects */}
         <div className="page-switcher-row">
           <div
@@ -438,6 +461,14 @@ export function AllEntriesPage() {
           </div>
         </div>
 
+        {/* "New Entry" card — fronts the split so the due-soon rail starts
+            below it, beside the entries. */}
+        {newEntryCard}
+
+        {/* Two-column split: entries on the left, the due-soon quick list on
+            the right. */}
+        <div className="dash-split">
+          <div className="dash-split__main">
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
@@ -449,7 +480,6 @@ export function AllEntriesPage() {
         {/* Entries feed */}
         {!loading && filteredEntries.length === 0 && (
           <div className="entries-feed">
-            {newEntryCard}
             <div className="empty-state animate-in">
               <div className="empty-icon">
                 <svg
@@ -555,7 +585,6 @@ export function AllEntriesPage() {
         )}
         {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
           <div className="entries-feed">
-            {newEntryCard}
             {filteredEntries.map((row, i) => (
               <EntryBox
                 key={`entry-${row.id || i}`}
