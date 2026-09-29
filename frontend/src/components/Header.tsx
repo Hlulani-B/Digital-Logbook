@@ -9,6 +9,8 @@ interface HeaderProps {
   entries?: Array<Record<string, unknown>>;
   projects?: Array<Record<string, unknown>>;
   dueSoonCount?: number;
+  /** When set, Stats scopes its quick panel to this project and offers its stats link */
+  activeProject?: string;
 }
 
 export function Header({
@@ -16,6 +18,7 @@ export function Header({
   entries = [],
   projects = [],
   dueSoonCount = 0,
+  activeProject,
 }: HeaderProps) {
   const { user, deleteAccount, resetPassword } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -81,7 +84,12 @@ export function Header({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <h1 className="feed-title">{title}</h1>
           </div>
-          <Stats entries={entries} projects={projects} dueSoonCount={dueSoonCount} />
+          <Stats
+            entries={entries}
+            projects={projects}
+            dueSoonCount={dueSoonCount}
+            activeProject={activeProject}
+          />
         </div>
       </div>
 

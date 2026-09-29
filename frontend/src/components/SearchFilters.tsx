@@ -1,22 +1,28 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 import { isNumericField } from '@/lib/fieldSchema';
 import {
   activeFilterCount,
+  activeProjectFilterCount,
   defaultFilterState,
+  defaultProjectFilters,
+  fieldTypeLabel,
   type FieldFilters,
   type FieldFilterState,
   type NumericFilterMode,
+  type ProjectFilters,
 } from '@/lib/entryFilters';
 
 interface EntrySearchBarProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Extra control rendered inside the bar, at its end (e.g. the filter icon). */
+  trailing?: ReactNode;
 }
 
 /** The regular (non-AI) search bar used across the dashboard and project views. */
-export function EntrySearchBar({ value, onChange, placeholder }: EntrySearchBarProps) {
+export function EntrySearchBar({ value, onChange, placeholder, trailing }: EntrySearchBarProps) {
   return (
     <div className="feed-search-bar">
       <svg
@@ -37,7 +43,42 @@ export function EntrySearchBar({ value, onChange, placeholder }: EntrySearchBarP
         onChange={(e) => onChange(e.target.value)}
         className="feed-search-input"
       />
+      {trailing}
     </div>
+  );
+}
+
+interface FilterIconButtonProps {
+  open: boolean;
+  count: number;
+  onToggle: () => void;
+}
+
+/** Small funnel button at the end of the search bar — toggles the filter panel. */
+function FilterIconButton({ open, count, onToggle }: FilterIconButtonProps) {
+  return (
+    <button
+      type="button"
+      className={`search-filter-btn ${open ? 'is-open' : ''} ${count > 0 ? 'has-filters' : ''}`}
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={count > 0 ? `Filters (${count} active)` : 'Filters'}
+      title={count > 0 ? `${count} filter${count === 1 ? '' : 's'} active` : 'Filters'}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+      {count > 0 && <span className="search-filter-btn__count">{count}</span>}
+    </button>
   );
 }
 
@@ -77,44 +118,19 @@ export function SearchFilterBlock({
 
   return (
     <div className="search-filter-block">
-      <EntrySearchBar value={query} onChange={onQueryChange} placeholder={placeholder} />
+      <EntrySearchBar
+        value={query}
+        onChange={onQueryChange}
+        placeholder={placeholder}
+        trailing={
+          showFilters ? (
+            <FilterIconButton open={open} count={count} onToggle={() => setOpen((v) => !v)} />
+          ) : undefined
+        }
+      />
 
       {showFilters && (
         <>
-          <button
-            type="button"
-            className={`filter-toggle ${open ? 'is-open' : ''} ${count > 0 ? 'has-filters' : ''}`}
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
-            Filters{count > 0 ? ` (${count})` : ''}
-            <svg
-              className="filter-toggle__chevron"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
           {open && (
             <div className="filter-panel">
               <div className="filter-panel__head">
@@ -204,6 +220,210 @@ export function SearchFilterBlock({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+interface ProjectFilterBlockProps {
+  query: string;
+  onQueryChange: (value: string) => void;
+  placeholder?: string;
+  /** Every project offered in the project filter (derived from the loaded entries). */
+  projectNames: string[];
+  filters: ProjectFilters;
+  onFiltersChange: (filters: ProjectFilters) => void;
+  /**
+   * Show the project-name criterion. The projects tab hides it (the cards are
+   * already projects, so the criterion would be meaningless there).
+   */
+  showProjectName?: boolean;
+  /** Field types used across the projects — options for the field-type filter. */
+  fieldTypeOptions?: string[];
+}
+
+/**
+ * Search bar for the all-entries feed. Entries there are mixed across projects,
+ * so instead of per-project field filters the panel narrows the feed by
+ * project-level criteria: the project's name, its entry count, its field count
+ * and the field types it defines. The same panel drives the projects tab, where
+ * every criterion applies to the project cards instead of the entries.
+ */
+export function ProjectFilterBlock({
+  query,
+  onQueryChange,
+  placeholder,
+  projectNames,
+  filters,
+  onFiltersChange,
+  showProjectName = true,
+  fieldTypeOptions,
+}: ProjectFilterBlockProps) {
+  const [open, setOpen] = useState(false);
+  const count = activeProjectFilterCount(filters);
+
+  const patchCount = (key: 'entryCount' | 'fieldCount', patch: Partial<FieldFilterState>) => {
+    onFiltersChange({ ...filters, [key]: { ...filters[key], ...patch } });
+  };
+
+  return (
+    <div className="search-filter-block">
+      <EntrySearchBar
+        value={query}
+        onChange={onQueryChange}
+        placeholder={placeholder}
+        trailing={
+          <FilterIconButton open={open} count={count} onToggle={() => setOpen((v) => !v)} />
+        }
+      />
+
+      {open && (
+        <div className="filter-panel">
+          <div className="filter-panel__head">
+            <span className="filter-panel__title">
+              {showProjectName ? 'Filter entries' : 'Filter projects'}
+            </span>
+            {count > 0 && (
+              <button
+                type="button"
+                className="filter-panel__clear"
+                onClick={() => onFiltersChange(defaultProjectFilters())}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          <p className="filter-panel__note">
+            {showProjectName
+              ? "Entry count, field count and field type apply to each entry's project."
+              : 'Entry count, field count and field type apply to each project.'}
+          </p>
+
+          {showProjectName && (
+            <div className="filter-row">
+              <label className="filter-row__label" htmlFor="project-filter-name">
+                Project name
+              </label>
+              <div className="filter-row__controls">
+                <select
+                  id="project-filter-name"
+                  className="filter-select"
+                  value={filters.projectName}
+                  onChange={(e) => onFiltersChange({ ...filters, projectName: e.target.value })}
+                  aria-label="Project name filter"
+                >
+                  <option value="">All projects</option>
+                  {projectNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <CountFilterRow
+            id="entry-count"
+            label="Entry count"
+            hint="Number of entries in the entry's project"
+            state={filters.entryCount}
+            onChange={(patch) => patchCount('entryCount', patch)}
+          />
+          <CountFilterRow
+            id="field-count"
+            label="Field count"
+            hint="Number of fields defined on the entry's project"
+            state={filters.fieldCount}
+            onChange={(patch) => patchCount('fieldCount', patch)}
+          />
+
+          {fieldTypeOptions && fieldTypeOptions.length > 0 && (
+            <div className="filter-row">
+              <label className="filter-row__label" htmlFor="project-filter-field-type">
+                Field type
+              </label>
+              <div className="filter-row__controls">
+                <select
+                  id="project-filter-field-type"
+                  className="filter-select"
+                  value={filters.fieldType}
+                  onChange={(e) => onFiltersChange({ ...filters, fieldType: e.target.value })}
+                  aria-label="Field type filter"
+                >
+                  <option value="">Any type</option>
+                  {fieldTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {fieldTypeLabel(type)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface CountFilterRowProps {
+  id: string;
+  label: string;
+  hint: string;
+  state: FieldFilterState;
+  onChange: (patch: Partial<FieldFilterState>) => void;
+}
+
+/** One numeric criterion (above / below / between) in the entries filter panel. */
+function CountFilterRow({ id, label, hint, state, onChange }: CountFilterRowProps) {
+  return (
+    <div className="filter-row" title={hint}>
+      <label className="filter-row__label" htmlFor={`${id}-mode`}>
+        {label}
+      </label>
+      <div className="filter-row__controls">
+        <select
+          id={`${id}-mode`}
+          className="filter-select"
+          value={state.mode}
+          onChange={(e) => onChange({ mode: e.target.value as NumericFilterMode })}
+          aria-label={`${label} filter type`}
+        >
+          <option value="above">Above</option>
+          <option value="below">Below</option>
+          <option value="between">Between</option>
+        </select>
+        {state.mode === 'between' ? (
+          <>
+            <input
+              className="filter-input filter-input--num"
+              type="number"
+              placeholder="Min"
+              value={state.min}
+              onChange={(e) => onChange({ min: e.target.value })}
+              aria-label={`${label} minimum`}
+            />
+            <span className="filter-row__dash">–</span>
+            <input
+              className="filter-input filter-input--num"
+              type="number"
+              placeholder="Max"
+              value={state.max}
+              onChange={(e) => onChange({ max: e.target.value })}
+              aria-label={`${label} maximum`}
+            />
+          </>
+        ) : (
+          <input
+            className="filter-input filter-input--num"
+            type="number"
+            placeholder="Value"
+            value={state.value}
+            onChange={(e) => onChange({ value: e.target.value })}
+            aria-label={`${label} value`}
+          />
+        )}
+      </div>
     </div>
   );
 }

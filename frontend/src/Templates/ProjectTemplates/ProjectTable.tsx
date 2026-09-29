@@ -4,6 +4,7 @@ import { FiEdit } from 'react-icons/fi';
 import { classifyEntryPayload, formatEntryValue, cleanSummaryText } from '@/lib/entryPayload';
 import './ProjectTable.css';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 
 /* Hook to detect mobile width (< 600px) */
 function useIsMobile() {
@@ -104,9 +105,7 @@ function entryFieldColumns(rows: any[]): EntryFieldColumn[] {
     }
 
     for (const key of Object.keys(payload.value)) {
-      // Skip internal/underscore-prefixed fields (e.g. _project_ref, _entry_ref, _pinned)
-      if (SKIP.has(key) || key.startsWith('_')) continue;
-      keys.add(key);
+      if (!SKIP.has(key)) keys.add(key);
     }
   }
 
@@ -786,7 +785,7 @@ export default function ProjectTaskTable({
           hideHeader={projectNames?.length === 1}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
-          projectColor={colorMap ? colorMap[project.name] || undefined : undefined}
+          projectColor={colorMap ? resolveProjectColor(project.name, colorMap) : undefined}
         />
       ))}
     </div>

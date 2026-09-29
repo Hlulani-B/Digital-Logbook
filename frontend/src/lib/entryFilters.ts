@@ -59,8 +59,9 @@ export function pinFirst<T extends Record<string, unknown>>(rows: T[]): T[] {
 }
 
 /**
- * Regular (non-AI) search: matches against the summary, the project name and
- * every visible field value in the entry payload (reserved `_` keys excluded).
+ * Regular (non-AI) search: matches against the summary, the project name,
+ * every field NAME in the entry payload and every visible field value
+ * (reserved `_` keys excluded).
  */
 export function matchesTextQuery(row: Record<string, unknown>, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -71,6 +72,8 @@ export function matchesTextQuery(row: Record<string, unknown>, query: string): b
 
   for (const [key, value] of Object.entries(getPayloadObject(row))) {
     if (key.startsWith('_')) continue;
+    // The field name is part of the search space too.
+    if (key.toLowerCase().includes(q)) return true;
     if (value == null) continue;
     if (typeof value === 'object') {
       try {
@@ -124,4 +127,98 @@ export function applyFieldFilters<T extends Record<string, unknown>>(
     const payload = getPayloadObject(row);
     return active.every(([field, filter]) => matchesFilter(payload[field], filter));
   });
+}
+
+/**
+ * Filters for the all-entries feed. Entries there are mixed across projects, so
+ * instead of per-project field filters the criteria are project-level: the
+ * project's name, how many entries it has, how many fields it defines and
+ * which field types those fields use.
+ */
+export interface ProjectFilters {
+  /** Selected project name ('' = every project) */
+  projectName: string;
+  /** Number of entries in the entry's project */
+  entryCount: FieldFilterState;
+  /** Number of fields defined on the entry's project */
+  fieldCount: FieldFilterState;
+  /** Data type one of the entry's project fields must use ('' = any type) */
+  fieldType: string;
+}
+
+/** Per-project metadata — entry counts, field counts and field types. */
+export interface ProjectCounts {
+  entryCounts: Record<string, number>;
+  fieldCounts: Record<string, number>;
+  /** Data types of the fields each project defines */
+  fieldTypes: Record<string, string[]>;
+}
+
+export function defaultProjectFilters(): ProjectFilters {
+  const numeric = (): FieldFilterState => ({ mode: 'above', value: '', min: '', max: '' });
+  return { projectName: '', entryCount: numeric(), fieldCount: numeric(), fieldType: '' };
+}
+
+/** Number of active project criteria — drives the badge on the filter icon. */
+export function activeProjectFilterCount(filters: ProjectFilters): number {
+  let count = filters.projectName.trim() === '' ? 0 : 1;
+  if (filters.fieldType.trim() !== '') count += 1;
+  if (isFilterActive(filters.entryCount)) count += 1;
+  if (isFilterActive(filters.fieldCount)) count += 1;
+  return count;
+}
+
+/** Friendly label for a field data type — "entity_link" → "Entity link". */
+export function fieldTypeLabel(type: string): string {
+  return type
+    .split(/[\s_]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/** Apply every active project filter (AND logic) to a list of entries. */
+export function applyProjectFilters<T extends Record<string, unknown>>(
+  rows: T[],
+  filters: ProjectFilters,
+  counts: ProjectCounts
+): T[] {
+  const name = filters.projectName.trim().toLowerCase();
+  const type = filters.fieldType.trim().toLowerCase();
+  const entryActive = isFilterActive(filters.entryCount);
+  const fieldActive = isFilterActive(filters.fieldCount);
+  if (!name && !type && !entryActive && !fieldActive) return rows;
+
+  return rows.filter((row) => {
+    const project = typeof row.project_name === 'string' ? row.project_name : '';
+    if (name && project.toLowerCase() !== name) return false;
+    // A project matches a type filter when at least one of its fields uses it.
+    if (type) {
+      const types = counts.fieldTypes?.[project] ?? [];
+      if (!types.some((t) => t.toLowerCase() === type)) return false;
+    }
+    // Unknown counts fall back to 0 — a project with no cached fields has none.
+    if (entryActive && !matchesFilter(counts.entryCounts[project] ?? 0, filters.entryCount)) {
+      return false;
+    }
+    if (fieldActive && !matchesFilter(counts.fieldCounts[project] ?? 0, filters.fieldCount)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Projects-tab search: matches the project name or any field name defined on
+ * the project — the same "field names are searchable" rule entry search uses.
+ */
+export function projectMatchesSearch(
+  projectName: string,
+  fieldNames: string[],
+  query: string
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (projectName.toLowerCase().includes(q)) return true;
+  return fieldNames.some((name) => name.toLowerCase().includes(q));
 }

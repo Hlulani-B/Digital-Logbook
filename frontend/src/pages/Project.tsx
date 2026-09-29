@@ -206,20 +206,10 @@ export function ProjectsPage() {
   const handleCreateProject = async () => {
     const trimmed = newProjectName.trim();
     if (!trimmed || !email) return;
-
-    // Client-side duplicate check
-    if (projects.some((p) => p.project_name.toLowerCase() === trimmed.toLowerCase())) {
-      setError('A project with this name already exists.');
-      return;
-    }
-
     setSaving(true);
     try {
       const result = await addProject(email, trimmed, '');
-      if (result?.success === false) {
-        setError(result.message || 'Could not create project');
-        return;
-      }
+      if (result?.error) throw new Error(result.error);
       setNewProjectName('');
       setCreating(false);
       await loadProjects();
@@ -245,25 +235,11 @@ export function ProjectsPage() {
       setEditingName(null);
       return;
     }
-
-    // Client-side duplicate check (exclude the project being renamed)
-    if (
-      projects.some(
-        (p) => p.project_name !== oldName && p.project_name.toLowerCase() === trimmed.toLowerCase()
-      )
-    ) {
-      setEditError('A project with this name already exists.');
-      return;
-    }
-
     setSaving(true);
     setEditError(null);
     try {
       const result = await editProjectName(email, trimmed, oldName);
-      if (result?.success === false) {
-        setEditError(result.message || 'Could not rename project');
-        return;
-      }
+      if (result?.error) throw new Error(result.error);
       setEditingName(null);
       await loadProjects();
     } catch (err) {
@@ -338,7 +314,7 @@ export function ProjectsPage() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar projects={projects as Array<Record<string, unknown>>} activeView="all" />
+      <NavBar activeView="all" />
       <main className="dash-main">
         <Header title="Your Projects" projects={projects as Array<Record<string, unknown>>} />
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
@@ -1022,7 +998,7 @@ export function ProjectsPage() {
                           padding: '1.5rem',
                         }}
                       >
-                        Loading items...
+                        Loading entries...
                       </p>
                     ) : archivedEntries.length === 0 ? (
                       <p
@@ -1032,7 +1008,7 @@ export function ProjectsPage() {
                           padding: '2rem 0',
                         }}
                       >
-                        No items in this project.
+                        No entries in this project.
                       </p>
                     ) : (
                       <div style={{ display: 'grid', gap: '0.5rem' }}>
