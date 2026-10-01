@@ -151,6 +151,10 @@ export function EntryBox({
   // Cards start collapsed — the bottom toggle reveals the rest of the fields.
   const [collapsed, setCollapsed] = useState(true);
 
+  // Focus mode — when enabled, navigating to /focus with this entry
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusDuration, setFocusDuration] = useState(25); // minutes, default Pomodoro
+
   const [refEntries, setRefEntries] = useState<any[]>([]);
   const [calcField, setCalcField] = useState<string | null>(null);
 
@@ -242,6 +246,38 @@ export function EntryBox({
     stop: stopTimer,
     clearError: clearTimerError,
   } = useTimerActions({ entry, onUpdated: onUpdated as (entry: any) => void });
+
+  // Focus mode: start timer then navigate to focus page
+  const handleStartWithFocus = async () => {
+    const targetMs = focusDuration * 60 * 1000;
+    const now = new Date().toISOString();
+    const startedEntry = { ...entry, started_at: now, target_duration_ms: targetMs };
+    await startTimer();
+    try {
+      await updateEntry(
+        entry.user_email,
+        entry.project_name,
+        entry.id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        targetMs
+      );
+    } catch {
+      /* offline */
+    }
+    if (focusMode) {
+      setTimeout(() => {
+        const entryData = encodeURIComponent(JSON.stringify(startedEntry));
+        navigate(`/focus?entryId=${entry.id}&entry=${entryData}`);
+      }, 300);
+    }
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -520,6 +556,8 @@ export function EntryBox({
     setCalcField(null);
   };
 
+  const isEntryOverdue = isOverdue(due_date ?? null, status);
+
   if (isEditing) {
     return (
       <div className="entry-box entry-box--editing entry-form">
@@ -530,7 +568,7 @@ export function EntryBox({
                 className="entry-box__priority-select"
                 value={draftPriorityValue}
                 onChange={(e) => setDraftPriorityValue(e.target.value)}
-                disabled={saving}
+                disabled={saving || isEntryOverdue}
               >
                 {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -542,7 +580,7 @@ export function EntryBox({
                 className="entry-box__status-select"
                 value={draftStatus}
                 onChange={(e) => setDraftStatus(e.target.value as EntryStatus)}
-                disabled={saving}
+                disabled={saving || isEntryOverdue}
               >
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -832,6 +870,7 @@ export function EntryBox({
                 }
                 onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={isEntryOverdue}
               >
                 <option value="0">Urgent & important</option>
                 <option value="1">Urgent, not important</option>
@@ -846,7 +885,7 @@ export function EntryBox({
               value={status}
               onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
               onClick={(e) => e.stopPropagation()}
-              disabled={saving || archived}
+              disabled={saving || archived || isEntryOverdue}
             >
               {Object.entries(STATUS_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -936,18 +975,67 @@ export function EntryBox({
           </div>
           <div className="entry-box__meta-right">
             {!started_at && !ended_at && !archived && (
-              <button
-                type="button"
-                className="entry-box__task-btn entry-box__task-btn--start"
-                onClick={startTimer}
-                disabled={saving || isActionInFlight}
-              >
-                {timerAction === 'starting'
-                  ? 'Starting…'
-                  : timerErrorAction === 'starting'
-                    ? 'Failed to start — tap to retry'
-                    : '▶ Start'}
-              </button>
+              <>
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                    marginRight: '0.5rem',
+                    cursor: 'pointer',
+                  }}
+                  title="Open full-screen focus mode when timer starts"
+                >
+                  <input
+                    type="checkbox"
+                    checked={focusMode}
+                    onChange={(e) => setFocusMode(e.target.checked)}
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                  Focus
+                </label>
+                {focusMode && (
+                  <select
+                    value={focusDuration}
+                    onChange={(e) => setFocusDuration(Number(e.target.value))}
+                    style={{
+                      padding: '0.3rem 0.5rem',
+                      fontSize: '0.75rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      marginRight: '0.5rem',
+                      fontFamily: 'inherit',
+                    }}
+                    title="Focus duration"
+                  >
+                    <option value={15}>15 min</option>
+                    <option value={25}>25 min</option>
+                    <option value={30}>30 min</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>60 min</option>
+                    <option value={90}>90 min</option>
+                    <option value={120}>2 hrs</option>
+                  </select>
+                )}
+                <button
+                  type="button"
+                  className="entry-box__task-btn entry-box__task-btn--start"
+                  onClick={focusMode ? handleStartWithFocus : startTimer}
+                  disabled={saving || isActionInFlight}
+                >
+                  {timerAction === 'starting'
+                    ? 'Starting…'
+                    : timerErrorAction === 'starting'
+                      ? 'Failed to start — tap to retry'
+                      : focusMode
+                        ? ` Start ${focusDuration}min`
+                        : '▶ Start'}
+                </button>
+              </>
             )}
             {started_at && !ended_at && (
               <div className="entry-box__task-active">
