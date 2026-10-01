@@ -520,6 +520,8 @@ export function EntryBox({
     setCalcField(null);
   };
 
+  const isEntryOverdue = isOverdue(due_date ?? null, status);
+
   if (isEditing) {
     return (
       <div className="entry-box entry-box--editing entry-form">
@@ -530,7 +532,7 @@ export function EntryBox({
                 className="entry-box__priority-select"
                 value={draftPriorityValue}
                 onChange={(e) => setDraftPriorityValue(e.target.value)}
-                disabled={saving}
+                disabled={saving || isEntryOverdue}
               >
                 {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -542,7 +544,7 @@ export function EntryBox({
                 className="entry-box__status-select"
                 value={draftStatus}
                 onChange={(e) => setDraftStatus(e.target.value as EntryStatus)}
-                disabled={saving}
+                disabled={saving || isEntryOverdue}
               >
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -832,6 +834,7 @@ export function EntryBox({
                 }
                 onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={isEntryOverdue}
               >
                 <option value="0">Urgent & important</option>
                 <option value="1">Urgent, not important</option>
@@ -846,7 +849,7 @@ export function EntryBox({
               value={status}
               onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
               onClick={(e) => e.stopPropagation()}
-              disabled={saving || archived}
+              disabled={saving || archived || isEntryOverdue}
             >
               {Object.entries(STATUS_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
