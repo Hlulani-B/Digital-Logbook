@@ -34,6 +34,7 @@ import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
 import { NotesPage } from '@/pages/NotesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { CreateTemplate } from '@/pages/CreateTemplate';
+import FocusMode from '@/pages/FocusMode';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -302,6 +303,7 @@ export function App() {
                   }
                 />
                 <Route path="/today" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/focus" element={<FocusMode />} />
                 <Route
                   path="/timeline"
                   element={
