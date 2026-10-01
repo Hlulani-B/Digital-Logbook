@@ -2616,6 +2616,14 @@ label {
   color: var(--text-muted);
 }
 
+/* Mobile: make placeholders more visible */
+@media (max-width: 480px) {
+  .field-input::placeholder {
+    color: #6b6b66;
+    opacity: 1;
+  }
+}
+
 .field-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -9335,4 +9343,28 @@ img {
 .dl-tour-popover .tour-voice-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ========== PROJECT FIELD ROW - MOBILE ========== */
+@media (max-width: 480px) {
+  .project-field-row {
+    grid-template-columns: 1fr auto auto !important;
+    gap: 0.35rem !important;
+  }
+  .project-field-name-input {
+    font-size: 0.85rem !important;
+    padding: 0.5rem 0.6rem !important;
+  }
+  .project-field-row select.field-input {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 1.5rem 0.4rem 0.5rem !important;
+  }
+  .project-field-row label {
+    font-size: 0.75rem !important;
+  }
+  .project-field-row button {
+    padding: 0.3rem !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
 }

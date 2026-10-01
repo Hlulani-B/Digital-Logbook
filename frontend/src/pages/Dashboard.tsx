@@ -2376,7 +2376,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       placeholder="Column name"
                       value={field.field_name}
                       onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
-                      className="field-input"
+                      className="field-input project-field-name-input"
                     />
                     <select
                       value={field.data_type}
