@@ -268,8 +268,8 @@ export function AllEntriesPage() {
   // Projects offered in the filter panel — anything with entries or fields
   const projectNames = useMemo(
     () =>
-      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
-        (a, b) => a.localeCompare(b)
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort((a, b) =>
+        a.localeCompare(b)
       ),
     [entryCounts, fieldCounts]
   );
@@ -469,141 +469,141 @@ export function AllEntriesPage() {
             the right. */}
         <div className="dash-split">
           <div className="dash-split__main">
-        {/* Loading */}
-        {loading && (
-          <div className="feed-loading">
-            <div className="animate-spin spinner-circle" style={{ width: 24, height: 24 }} />
-            <p>Loading entries...</p>
-          </div>
-        )}
-
-        {/* Entries feed */}
-        {!loading && filteredEntries.length === 0 && (
-          <div className="entries-feed">
-            <div className="empty-state animate-in">
-              <div className="empty-icon">
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
+            {/* Loading */}
+            {loading && (
+              <div className="feed-loading">
+                <div className="animate-spin spinner-circle" style={{ width: 24, height: 24 }} />
+                <p>Loading entries...</p>
               </div>
-              <h2 className="empty-title">
-                {searchQuery
-                  ? 'No results found'
-                  : activeFilters > 0
-                    ? 'No entries match your filters'
-                    : 'No entries yet'}
-              </h2>
-              <p className="empty-desc">
-                {searchQuery
-                  ? `No entries match "${searchQuery}". Try a different search term.`
-                  : activeFilters > 0
-                    ? 'Try widening or clearing the filters.'
-                    : 'No entries to show right now.'}
-              </p>
-              {activeFilters > 0 && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setProjectFilters(defaultProjectFilters())}
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-        {!loading && filteredEntries.length > 0 && displayMode === 'board' && (
-          <div className="allentries-board-grid">
-            <EntriesByDueDateBoard
-              entries={filteredEntries.map((r) => ({
-                id: r.id as string,
-                user_email: r.user_email as string,
-                project_name: r.project_name as string,
-                summary: (r.summary as string) || null,
-                due_date: (r.due_date as string) || null,
-                status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                entries: r.entries as EntryPayload,
-                started_at: (r.started_at as string) || null,
-              }))}
-              onUpdated={() => loadData()}
-              onDelete={() => loadData()}
-              colorMap={colorMap}
-            />
-          </div>
-        )}
-        {!loading && filteredEntries.length > 0 && displayMode === 'checklist' && (
-          <div className="allentries-checklist-grid">
-            <ChecklistView
-              entries={filteredEntries.map((r) => ({
-                id: r.id as string,
-                user_email: r.user_email as string,
-                project_name: r.project_name as string,
-                summary: (r.summary as string) || null,
-                due_date: (r.due_date as string) || null,
-                status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                entries: r.entries as EntryPayload,
-                started_at: (r.started_at as string) || null,
-              }))}
-              onUpdated={() => loadData()}
-              onDelete={() => loadData()}
-              colorMap={colorMap}
-            />
-          </div>
-        )}
-        {!loading && filteredEntries.length > 0 && displayMode === 'table' && (
-          <ProjectTaskTable
-            rows={filteredEntries}
-            onUpdate={async () => {
-              await loadData();
-            }}
-            onDeleteSelected={async () => {
-              await loadData();
-            }}
-            colorMap={colorMap}
-          />
-        )}
-        {!loading && filteredEntries.length > 0 && displayMode === 'kanban' && (
-          <KanbanBoardView
-            entries={filteredEntries as unknown as CalendarEntry[]}
-            email={email}
-            colorMap={colorMap}
-            onUpdated={() => loadData()}
-          />
-        )}
-        {!loading && filteredEntries.length > 0 && displayMode === 'timeline' && (
-          <TimelineView entries={filteredEntries as unknown as CalendarEntry[]} />
-        )}
-        {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
-          <div className="entries-feed">
-            {filteredEntries.map((row, i) => (
-              <EntryBox
-                key={`entry-${row.id || i}`}
-                entry={row as any}
-                onUpdated={() => loadData()}
-                onPriorityChanged={handleSetPriority}
-                onDelete={() => loadData()}
-                projectColor={resolveProjectColor(
-                  (row.project_name as string) || '',
-                  buildProjectColorMap(projects as Array<Record<string, unknown>>)
-                )}
+            )}
+
+            {/* Entries feed */}
+            {!loading && filteredEntries.length === 0 && (
+              <div className="entries-feed">
+                <div className="empty-state animate-in">
+                  <div className="empty-icon">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </div>
+                  <h2 className="empty-title">
+                    {searchQuery
+                      ? 'No results found'
+                      : activeFilters > 0
+                        ? 'No entries match your filters'
+                        : 'No entries yet'}
+                  </h2>
+                  <p className="empty-desc">
+                    {searchQuery
+                      ? `No entries match "${searchQuery}". Try a different search term.`
+                      : activeFilters > 0
+                        ? 'Try widening or clearing the filters.'
+                        : 'No entries to show right now.'}
+                  </p>
+                  {activeFilters > 0 && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setProjectFilters(defaultProjectFilters())}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {!loading && filteredEntries.length > 0 && displayMode === 'board' && (
+              <div className="allentries-board-grid">
+                <EntriesByDueDateBoard
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as EntryPayload,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={colorMap}
+                />
+              </div>
+            )}
+            {!loading && filteredEntries.length > 0 && displayMode === 'checklist' && (
+              <div className="allentries-checklist-grid">
+                <ChecklistView
+                  entries={filteredEntries.map((r) => ({
+                    id: r.id as string,
+                    user_email: r.user_email as string,
+                    project_name: r.project_name as string,
+                    summary: (r.summary as string) || null,
+                    due_date: (r.due_date as string) || null,
+                    status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                    entries: r.entries as EntryPayload,
+                    started_at: (r.started_at as string) || null,
+                  }))}
+                  onUpdated={() => loadData()}
+                  onDelete={() => loadData()}
+                  colorMap={colorMap}
+                />
+              </div>
+            )}
+            {!loading && filteredEntries.length > 0 && displayMode === 'table' && (
+              <ProjectTaskTable
+                rows={filteredEntries}
+                onUpdate={async () => {
+                  await loadData();
+                }}
+                onDeleteSelected={async () => {
+                  await loadData();
+                }}
+                colorMap={colorMap}
               />
-            ))}
-          </div>
-        )}
+            )}
+            {!loading && filteredEntries.length > 0 && displayMode === 'kanban' && (
+              <KanbanBoardView
+                entries={filteredEntries as unknown as CalendarEntry[]}
+                email={email}
+                colorMap={colorMap}
+                onUpdated={() => loadData()}
+              />
+            )}
+            {!loading && filteredEntries.length > 0 && displayMode === 'timeline' && (
+              <TimelineView entries={filteredEntries as unknown as CalendarEntry[]} />
+            )}
+            {!loading && filteredEntries.length > 0 && displayMode === 'cards' && (
+              <div className="entries-feed">
+                {filteredEntries.map((row, i) => (
+                  <EntryBox
+                    key={`entry-${row.id || i}`}
+                    entry={row as any}
+                    onUpdated={() => loadData()}
+                    onPriorityChanged={handleSetPriority}
+                    onDelete={() => loadData()}
+                    projectColor={resolveProjectColor(
+                      (row.project_name as string) || '',
+                      buildProjectColorMap(projects as Array<Record<string, unknown>>)
+                    )}
+                  />
+                ))}
               </div>
+            )}
+          </div>
 
-              <DueSoonRail entries={dueSoonEntries} />
-            </div>
+          <DueSoonRail entries={dueSoonEntries} />
+        </div>
       </main>
 
       {/* New Entry Modal — pick a project, then fill in the entry form */}

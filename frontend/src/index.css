@@ -2616,6 +2616,14 @@ label {
   color: var(--text-muted);
 }
 
+/* Mobile: make placeholders more visible */
+@media (max-width: 480px) {
+  .field-input::placeholder {
+    color: #6b6b66;
+    opacity: 1;
+  }
+}
+
 .field-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -4237,6 +4245,31 @@ img {
   color: var(--text, #37352f);
   word-break: break-word;
   font-size: 0.95rem;
+}
+
+/* Mobile: stack field key and value vertically */
+@media (max-width: 480px) {
+  .entry-box__table {
+    table-layout: auto;
+  }
+  .entry-box__row {
+    display: block;
+    padding: 0.5rem 0;
+  }
+  .entry-box__field-key {
+    display: block;
+    width: 100%;
+    padding: 0 0 0.25rem 0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #6b6b66);
+  }
+  .entry-box__field-value {
+    display: block;
+    padding: 0;
+    font-size: 0.9rem;
+  }
 }
 
 .entry-box__meta {
@@ -9268,6 +9301,29 @@ img {
   color: var(--accent);
 }
 
+/* ========== PROJECT FIELD ROW - MOBILE ========== */
+@media (max-width: 480px) {
+  .project-field-row {
+    grid-template-columns: 1fr auto auto !important;
+    gap: 0.35rem !important;
+  }
+  .project-field-name-input {
+    font-size: 0.85rem !important;
+    padding: 0.5rem 0.6rem !important;
+  }
+  .project-field-row select.field-input {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 1.5rem 0.4rem 0.5rem !important;
+  }
+  .project-field-row label {
+    font-size: 0.75rem !important;
+  }
+  .project-field-row button {
+    padding: 0.3rem !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+}
 /* ========== TWO-COLUMN SPLIT WITH DUE-SOON RAIL ========== */
 .dash-split {
   display: grid;

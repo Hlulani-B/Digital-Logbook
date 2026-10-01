@@ -658,8 +658,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Projects offered in the filter panel — anything with entries or fields
   const projectNames = useMemo(
     () =>
-      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort(
-        (a, b) => a.localeCompare(b)
+      Array.from(new Set([...Object.keys(entryCounts), ...Object.keys(fieldCounts)])).sort((a, b) =>
+        a.localeCompare(b)
       ),
     [entryCounts, fieldCounts]
   );
@@ -711,7 +711,15 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       );
     }
     return list;
-  }, [activeProjects, projectFilters, entryCounts, fieldCounts, fieldTypes, fieldNames, pageSearch]);
+  }, [
+    activeProjects,
+    projectFilters,
+    entryCounts,
+    fieldCounts,
+    fieldTypes,
+    fieldNames,
+    pageSearch,
+  ]);
 
   // Filtered entries ΓÇö uses provided sort/search/archive functions
   const filteredEntries = useMemo(() => {
@@ -1758,294 +1766,303 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                 quick list on the right. */}
             <div className="dash-split">
               <div className="dash-split__main">
-            {/* Projects — inline card grid with quick actions */}
-            <section className="home-projects animate-in" data-tour="home-projects">
-              <div className="projects-grid">
-                {/* Create-new-project card leads the grid so it is always first. */}
-                <button
-                  type="button"
-                  className="project-card project-card--add"
-                  data-tour="home-new-project"
-                  onClick={() => setNewProjectOpen(true)}
-                  title="Create a new project"
-                >
-                  <span className="project-card-add-plus" aria-hidden>
-                    +
-                  </span>
-                  <span className="project-card-add-label">Add New Project</span>
-                </button>
-                {visibleProjects.map((project) => {
-                  const name = project.project_name as string;
-                  const count = entries.filter((e) => e.project_name === name).length;
-                  const inMotionCount = entries.filter(
-                    (e) => e.project_name === name && e.status === 'in_motion'
-                  ).length;
-                  const doneCount = entries.filter(
-                    (e) => e.project_name === name && e.status === 'done_and_dusted'
-                  ).length;
-                  const isPinned = pinnedProjects.has(name);
-                  const isConfirmingDelete = confirmDeleteProject === name;
-                  const cardAccent = resolveProjectColor(name, dashColorMap);
-                  return (
-                    <div
-                      key={name}
-                      className={`project-card project-card--actionable ${isPinned ? 'is-pinned' : ''}`}
-                      style={{
-                        borderLeft: `3px solid ${cardAccent}`,
-                        background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          navigate(`/project/${encodeURIComponent(name)}`);
-                        }
-                      }}
+                {/* Projects — inline card grid with quick actions */}
+                <section className="home-projects animate-in" data-tour="home-projects">
+                  <div className="projects-grid">
+                    {/* Create-new-project card leads the grid so it is always first. */}
+                    <button
+                      type="button"
+                      className="project-card project-card--add"
+                      data-tour="home-new-project"
+                      onClick={() => setNewProjectOpen(true)}
+                      title="Create a new project"
                     >
-                      <div className="project-card-header">
-                        <h3 className="project-card-name">{name}</h3>
-                        <span className="project-card-count">{count} entries</span>
-                      </div>
-                      <div className="project-card-stats">
-                        {inMotionCount > 0 && (
-                          <span className="project-card-stat project-card-stat--active">
-                            {inMotionCount} in progress
-                          </span>
-                        )}
-                        {doneCount > 0 && (
-                          <span className="project-card-stat project-card-stat--done">
-                            {doneCount} done
-                          </span>
-                        )}
-                      </div>
-                      {isConfirmingDelete ? (
+                      <span className="project-card-add-plus" aria-hidden>
+                        +
+                      </span>
+                      <span className="project-card-add-label">Add New Project</span>
+                    </button>
+                    {visibleProjects.map((project) => {
+                      const name = project.project_name as string;
+                      const count = entries.filter((e) => e.project_name === name).length;
+                      const inMotionCount = entries.filter(
+                        (e) => e.project_name === name && e.status === 'in_motion'
+                      ).length;
+                      const doneCount = entries.filter(
+                        (e) => e.project_name === name && e.status === 'done_and_dusted'
+                      ).length;
+                      const isPinned = pinnedProjects.has(name);
+                      const isConfirmingDelete = confirmDeleteProject === name;
+                      const cardAccent = resolveProjectColor(name, dashColorMap);
+                      return (
                         <div
-                          className="project-card-confirm"
-                          role="group"
-                          aria-label="Confirm project deletion"
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
+                          key={name}
+                          className={`project-card project-card--actionable ${isPinned ? 'is-pinned' : ''}`}
+                          style={{
+                            borderLeft: `3px solid ${cardAccent}`,
+                            background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              navigate(`/project/${encodeURIComponent(name)}`);
+                            }
+                          }}
                         >
-                          <span className="project-card-confirm-text">Delete this project?</span>
-                          <button
-                            type="button"
-                            className="project-card-confirm-yes"
-                            disabled={deletingProject === name}
-                            onClick={() => handleDeleteProject(name)}
-                          >
-                            {deletingProject === name ? 'Deleting…' : 'Yes, delete'}
-                          </button>
-                          <button
-                            type="button"
-                            className="project-card-confirm-cancel"
-                            onClick={() => setConfirmDeleteProject(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div
-                          className="project-card-actions"
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            className="project-card-action-btn"
-                            onClick={() => {
-                              setSettingsProjectName(name);
-                              setProjectSettingsOpen(true);
-                            }}
-                            title="Edit project"
-                          >
-                            <FiEdit2 size={12} />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
-                            aria-pressed={isPinned}
-                            onClick={() => togglePinProject(name)}
-                            title={isPinned ? 'Unpin project' : 'Pin project'}
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 24 24"
-                              fill={isPinned ? 'currentColor' : 'none'}
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <line x1="12" y1="17" x2="12" y2="22" />
-                              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
-                            </svg>
-                            {isPinned ? 'Pinned' : 'Pin'}
-                          </button>
-                          <button
-                            type="button"
-                            className="project-card-action-btn"
-                            onClick={() => handleArchiveProject(name)}
-                            title="Archive project"
-                          >
-                            <FiArchive size={12} />
-                            Archive
-                          </button>
-                          <button
-                            type="button"
-                            className="project-card-action-btn project-card-action-btn--danger"
-                            onClick={() => setConfirmDeleteProject(name)}
-                            title="Delete project"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {visibleProjects.length === 0 && (
-                <p className="projects-empty-note">No projects match your search or filters.</p>
-              )}
-            </section>
-
-            {/* Due-soon feed removed — the same entries now live in the right rail. */}
-
-            {/* Entries feed removed — the due-soon entries live in the right rail. */}
-
-            {/* Calendar Section */}
-            <div className="dashboard-calendar-section">
-              <div className="calendar-toolbar" style={{ marginBottom: '0.5rem' }}>
-                <div className="calendar-nav">
-                  <button
-                    type="button"
-                    className="btn-icon"
-                    onClick={() => setCalDate((d) => addMonths(d, -1))}
-                    aria-label="Previous month"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setCalDate(new Date())}
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-                  >
-                    Today
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon"
-                    onClick={() => setCalDate((d) => addMonths(d, 1))}
-                    aria-label="Next month"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                </div>
-                <h2 className="calendar-period" style={{ fontSize: '1rem', fontWeight: 600 }}>
-                  {formatMonthYear(calDate)}
-                </h2>
-              </div>
-              <div className="calendar-grid">
-                {calHeaderDays.map((day) => (
-                  <div key={day.toISOString()} className="calendar-header-cell">
-                    {formatShortDay(day)}
-                  </div>
-                ))}
-                {calDays.map((day) => {
-                  const isCurrentMonth = day.getMonth() === calDate.getMonth();
-                  const dayEntries = getEntriesForDay(calEntries, day);
-                  const isToday = isSameDay(day, new Date());
-                  const dayOverdue = isCalDayOverdue(day);
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={[
-                        'calendar-day',
-                        !isCurrentMonth && 'calendar-day--outside',
-                        isToday && 'calendar-day--today',
-                        dayOverdue && 'calendar-day--overdue',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                    >
-                      <div className="calendar-day-header">
-                        <span className="calendar-day-number">{formatDayNumber(day)}</span>
-                        {isToday && <span className="calendar-day-today-label">Today</span>}
-                      </div>
-                      <div className="calendar-day-entries">
-                        {dayEntries.slice(0, 3).map((entry) => {
-                          const entryColor = resolveProjectColor(
-                            entry.project_name || '',
-                            dashColorMap
-                          );
-                          return (
+                          <div className="project-card-header">
+                            <h3 className="project-card-name">{name}</h3>
+                            <span className="project-card-count">{count} entries</span>
+                          </div>
+                          <div className="project-card-stats">
+                            {inMotionCount > 0 && (
+                              <span className="project-card-stat project-card-stat--active">
+                                {inMotionCount} in progress
+                              </span>
+                            )}
+                            {doneCount > 0 && (
+                              <span className="project-card-stat project-card-stat--done">
+                                {doneCount} done
+                              </span>
+                            )}
+                          </div>
+                          {isConfirmingDelete ? (
                             <div
-                              key={entry.id}
-                              className={[
-                                'calendar-entry',
-                                entry.status === 'done_and_dusted' && 'calendar-entry--completed',
-                                isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') &&
-                                  'calendar-entry--overdue',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                              title={getEntryTitle(entry)}
-                              onClick={() =>
-                                navigate(`/project/${encodeURIComponent(entry.project_name)}`)
-                              }
-                              style={{ borderLeft: `3px solid ${entryColor}` }}
+                              className="project-card-confirm"
+                              role="group"
+                              aria-label="Confirm project deletion"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
                             >
-                              <span className="calendar-entry-title">{getEntryTitle(entry)}</span>
-                              <span className="calendar-entry-project">{entry.project_name}</span>
+                              <span className="project-card-confirm-text">
+                                Delete this project?
+                              </span>
+                              <button
+                                type="button"
+                                className="project-card-confirm-yes"
+                                disabled={deletingProject === name}
+                                onClick={() => handleDeleteProject(name)}
+                              >
+                                {deletingProject === name ? 'Deleting…' : 'Yes, delete'}
+                              </button>
+                              <button
+                                type="button"
+                                className="project-card-confirm-cancel"
+                                onClick={() => setConfirmDeleteProject(null)}
+                              >
+                                Cancel
+                              </button>
                             </div>
-                          );
-                        })}
-                        {dayEntries.length > 3 && (
-                          <span className="calendar-more-label">+{dayEntries.length - 3} more</span>
-                        )}
-                      </div>
+                          ) : (
+                            <div
+                              className="project-card-actions"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="project-card-action-btn"
+                                onClick={() => {
+                                  setSettingsProjectName(name);
+                                  setProjectSettingsOpen(true);
+                                }}
+                                title="Edit project"
+                              >
+                                <FiEdit2 size={12} />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
+                                aria-pressed={isPinned}
+                                onClick={() => togglePinProject(name)}
+                                title={isPinned ? 'Unpin project' : 'Pin project'}
+                              >
+                                <svg
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 24 24"
+                                  fill={isPinned ? 'currentColor' : 'none'}
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <line x1="12" y1="17" x2="12" y2="22" />
+                                  <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+                                </svg>
+                                {isPinned ? 'Pinned' : 'Pin'}
+                              </button>
+                              <button
+                                type="button"
+                                className="project-card-action-btn"
+                                onClick={() => handleArchiveProject(name)}
+                                title="Archive project"
+                              >
+                                <FiArchive size={12} />
+                                Archive
+                              </button>
+                              <button
+                                type="button"
+                                className="project-card-action-btn project-card-action-btn--danger"
+                                onClick={() => setConfirmDeleteProject(name)}
+                                title="Delete project"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {visibleProjects.length === 0 && (
+                    <p className="projects-empty-note">No projects match your search or filters.</p>
+                  )}
+                </section>
+
+                {/* Due-soon feed removed — the same entries now live in the right rail. */}
+
+                {/* Entries feed removed — the due-soon entries live in the right rail. */}
+
+                {/* Calendar Section */}
+                <div className="dashboard-calendar-section">
+                  <div className="calendar-toolbar" style={{ marginBottom: '0.5rem' }}>
+                    <div className="calendar-nav">
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={() => setCalDate((d) => addMonths(d, -1))}
+                        aria-label="Previous month"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setCalDate(new Date())}
+                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={() => setCalDate((d) => addMonths(d, 1))}
+                        aria-label="Next month"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="calendar-legend">
-                <span className="calendar-legend-item">
-                  <span className="calendar-legend-dot calendar-legend-dot--overdue" />
-                  Overdue
-                </span>
-                <span className="calendar-legend-item">
-                  <span className="calendar-legend-dot calendar-legend-dot--completed" />
-                  Completed
-                </span>
-                <span className="calendar-legend-item">
-                  <span className="calendar-legend-dot calendar-legend-dot--upcoming" />
-                  Upcoming
-                </span>
-              </div>
-            </div>
+                    <h2 className="calendar-period" style={{ fontSize: '1rem', fontWeight: 600 }}>
+                      {formatMonthYear(calDate)}
+                    </h2>
+                  </div>
+                  <div className="calendar-grid">
+                    {calHeaderDays.map((day) => (
+                      <div key={day.toISOString()} className="calendar-header-cell">
+                        {formatShortDay(day)}
+                      </div>
+                    ))}
+                    {calDays.map((day) => {
+                      const isCurrentMonth = day.getMonth() === calDate.getMonth();
+                      const dayEntries = getEntriesForDay(calEntries, day);
+                      const isToday = isSameDay(day, new Date());
+                      const dayOverdue = isCalDayOverdue(day);
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          className={[
+                            'calendar-day',
+                            !isCurrentMonth && 'calendar-day--outside',
+                            isToday && 'calendar-day--today',
+                            dayOverdue && 'calendar-day--overdue',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        >
+                          <div className="calendar-day-header">
+                            <span className="calendar-day-number">{formatDayNumber(day)}</span>
+                            {isToday && <span className="calendar-day-today-label">Today</span>}
+                          </div>
+                          <div className="calendar-day-entries">
+                            {dayEntries.slice(0, 3).map((entry) => {
+                              const entryColor = resolveProjectColor(
+                                entry.project_name || '',
+                                dashColorMap
+                              );
+                              return (
+                                <div
+                                  key={entry.id}
+                                  className={[
+                                    'calendar-entry',
+                                    entry.status === 'done_and_dusted' &&
+                                      'calendar-entry--completed',
+                                    isOverdue(entry.due_date ?? null, entry.status ?? 'up_next') &&
+                                      'calendar-entry--overdue',
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ')}
+                                  title={getEntryTitle(entry)}
+                                  onClick={() =>
+                                    navigate(`/project/${encodeURIComponent(entry.project_name)}`)
+                                  }
+                                  style={{ borderLeft: `3px solid ${entryColor}` }}
+                                >
+                                  <span className="calendar-entry-title">
+                                    {getEntryTitle(entry)}
+                                  </span>
+                                  <span className="calendar-entry-project">
+                                    {entry.project_name}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {dayEntries.length > 3 && (
+                              <span className="calendar-more-label">
+                                +{dayEntries.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="calendar-legend">
+                    <span className="calendar-legend-item">
+                      <span className="calendar-legend-dot calendar-legend-dot--overdue" />
+                      Overdue
+                    </span>
+                    <span className="calendar-legend-item">
+                      <span className="calendar-legend-dot calendar-legend-dot--completed" />
+                      Completed
+                    </span>
+                    <span className="calendar-legend-item">
+                      <span className="calendar-legend-dot calendar-legend-dot--upcoming" />
+                      Upcoming
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <DueSoonRail entries={filteredEntries} />
@@ -2124,7 +2141,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       placeholder="Column name"
                       value={field.field_name}
                       onChange={(e) => updateProjectField(index, { field_name: e.target.value })}
-                      className="field-input"
+                      className="field-input project-field-name-input"
                     />
                     <select
                       value={field.data_type}

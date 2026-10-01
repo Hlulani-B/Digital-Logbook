@@ -87,9 +87,7 @@ export function ToolbarDropdown<T extends string>({
               type="button"
               role="option"
               aria-selected={option.value === value}
-              className={`toolbar-dropdown__option ${
-                option.value === value ? 'is-active' : ''
-              }`}
+              className={`toolbar-dropdown__option ${option.value === value ? 'is-active' : ''}`}
               onClick={() => {
                 onChange(option.value);
                 setOpen(false);

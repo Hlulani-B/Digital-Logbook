@@ -549,11 +549,7 @@ export function ProjectDetailPage() {
       <div className="bg-mesh" />
       <NavBar entries={entries} activeView="all" />
       <main className="dash-main">
-        <Header
-          title={projectName || 'Project'}
-          entries={entries}
-          activeProject={projectName}
-        />
+        <Header title={projectName || 'Project'} entries={entries} activeProject={projectName} />
 
         {/* Search + per-field filters, with the AI quick-add bar beside it */}
         <div className="search-ai-row">
@@ -599,7 +595,9 @@ export function ProjectDetailPage() {
                   className="quick-entry-voice"
                   onClick={() => setVoiceOpen(true)}
                   aria-label="Voice entry"
-                  title={!isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'}
+                  title={
+                    !isOnline ? 'Voice entry is not available offline' : 'Record a voice entry'
+                  }
                   disabled={!isOnline}
                   style={!isOnline ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
@@ -699,275 +697,282 @@ export function ProjectDetailPage() {
             list on the right. */}
         <div className="dash-split">
           <div className="dash-split__main">
-        {/* Loading — only show if no cached data */}
-        {loading && entries.length === 0 && (
-          <div className="feed-loading">
-            <div
-              className="animate-spin spinner-circle"
-              style={{
-                width: 24,
-                height: 24,
-              }}
-            />
-            <p>Loading entries...</p>
-          </div>
-        )}
-
-        {/* Search results */}
-        {searchQuery && (
-          <>
-            {filteredEntries.length === 0 ? (
-              <div className="empty-state animate-in">
-                <div className="empty-icon">
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </div>
-                <h2 className="empty-title">No results found</h2>
-                <p className="empty-desc">
-                  No entries in {projectName} match "{searchQuery}".
-                </p>
-              </div>
-            ) : viewMode === 'checklist' ? (
-              <ChecklistView
-                entries={filteredEntries.map((r) => ({
-                  id: r.id as string,
-                  user_email: r.user_email as string,
-                  project_name: r.project_name as string,
-                  summary: (r.summary as string) || null,
-                  due_date: (r.due_date as string) || null,
-                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as EntryPayload,
-                  started_at: (r.started_at as string) || null,
-                }))}
-                onUpdated={() => loadEntries()}
-                onDelete={() => loadEntries()}
-                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
-              />
-            ) : viewMode === 'board' ? (
-              <EntriesByDueDateBoard
-                entries={filteredEntries.map((r) => ({
-                  id: r.id as string,
-                  user_email: r.user_email as string,
-                  project_name: r.project_name as string,
-                  summary: (r.summary as string) || null,
-                  due_date: (r.due_date as string) || null,
-                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as EntryPayload,
-                  started_at: (r.started_at as string) || null,
-                }))}
-                onUpdated={() => loadEntries()}
-                onDelete={() => loadEntries()}
-                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
-              />
-            ) : (
-              <div className="entries-feed">
-                {filteredEntries.map((row, i) => (
-                  <EntryBox
-                    key={`search-${row.id || i}`}
-                    entry={row as any}
-                    onUpdated={() => loadEntries()}
-                    onPriorityChanged={handleSetPriority}
-                    onDelete={() => loadEntries()}
-                    projectColor={projectAccent}
-                  />
-                ))}
+            {/* Loading — only show if no cached data */}
+            {loading && entries.length === 0 && (
+              <div className="feed-loading">
+                <div
+                  className="animate-spin spinner-circle"
+                  style={{
+                    width: 24,
+                    height: 24,
+                  }}
+                />
+                <p>Loading entries...</p>
               </div>
             )}
-          </>
-        )}
 
-        {entryError && <p role="alert">{entryError}</p>}
-        {/* All entries */}
-        {!searchQuery && (
-          <div className="project-content">
-            {!loading && entries.length === 0 ? (
-              <div className="empty-state animate-in">
-                <div className="empty-icon">
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="12" y1="11" x2="12" y2="17" />
-                    <line x1="9" y1="14" x2="15" y2="14" />
-                  </svg>
-                </div>
-                <h2 className="empty-title">No entries yet</h2>
-                <p className="empty-desc">{aiEmptyMessage}</p>
-              </div>
-            ) : feedEntries.length === 0 ? (
-              <div className="empty-state animate-in">
-                <div className="empty-icon">
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                  </svg>
-                </div>
-                <h2 className="empty-title">No entries match your filters</h2>
-                <p className="empty-desc">
-                  No entries in {projectName} match the current field filters.
-                </p>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ marginTop: '0.75rem' }}
-                  onClick={() => setFieldFilters({})}
-                >
-                  Clear filters
-                </button>
-              </div>
-            ) : viewMode === 'table' ? (
-              <ProjectTaskTable
-                rows={feedEntries}
-                onUpdate={async (id: string, patch: Record<string, any>) => {
-                  console.log('[onUpdate] Called with id:', id, 'patch:', patch);
-                  // Find the entry being updated
-                  const row = entries.find((r) => r.id === id);
-                  if (!row || !email) {
-                    console.log('[onUpdate] Missing row or email:', { row: !!row, email: !!email });
-                    return;
-                  }
-                  setEntryError(null);
-                  // Map priority from raw value to friendly label for database
-                  const mappedPatch = { ...patch };
-                  if (patch.priority !== undefined) {
-                    mappedPatch.priority = toFriendlyPriority(patch.priority);
-                  }
-                  const dbPriority =
-                    mappedPatch.priority !== undefined
-                      ? toFriendlyPriority(mappedPatch.priority)
-                      : undefined;
-                  // Update local state immediately for instant UI
-                  setEntries((prev) =>
-                    prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r))
-                  );
-                  try {
-                    console.log(
-                      '[onUpdate] Calling updateEntry with mapped patch:',
-                      mappedPatch,
-                      'dbPriority:',
-                      dbPriority
-                    );
-                    const result = await updateEntry(
-                      email,
-                      row.project_name,
-                      id,
-                      mappedPatch.entries,
-                      mappedPatch.due_date,
-                      dbPriority,
-                      mappedPatch.status,
-                      mappedPatch.started_at,
-                      mappedPatch.ended_at
-                    );
-                    console.log('[onUpdate] updateEntry result:', result);
-                    if (result?.success !== true)
-                      throw new Error(result?.message || 'Failed to save entry');
-                    const confirmed = Array.isArray(result.data) ? result.data[0] : result.data;
-                    if (confirmed)
-                      setEntries((prev) => prev.map((r) => (r.id === id ? confirmed : r)));
-                    // No need to call loadEntries() - updateEntry already updated the cache
-                  } catch (err) {
-                    console.error('[onUpdate] Update failed:', err);
-                    setEntryError(err instanceof Error ? err.message : 'Failed to save entry');
-                    // Rollback local state on failure
-                    setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
-                  }
-                }}
-                projectNames={projectName ? [projectName] : undefined}
-                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
-                onDeleteSelected={async (ids: string[]) => {
-                  if (!email) return;
-                  // Optimistic: remove from local state immediately
-                  setEntries((prev) => prev.filter((r) => !ids.includes(r.id as string)));
-                  // Delete each entry on the server
-                  for (const id of ids) {
-                    try {
-                      await deleteEntryById(email, id);
-                    } catch (err) {
-                      console.error('[onDeleteSelected] Failed to delete', id, err);
-                    }
-                  }
-                }}
-              />
-            ) : viewMode === 'checklist' ? (
-              <ChecklistView
-                entries={feedEntries.map((r) => ({
-                  id: r.id as string,
-                  user_email: r.user_email as string,
-                  project_name: r.project_name as string,
-                  summary: (r.summary as string) || null,
-                  due_date: (r.due_date as string) || null,
-                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as EntryPayload,
-                  started_at: (r.started_at as string) || null,
-                }))}
-                onUpdated={() => loadEntries()}
-                onDelete={() => loadEntries()}
-                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
-              />
-            ) : viewMode === 'board' ? (
-              <EntriesByDueDateBoard
-                entries={feedEntries.map((r) => ({
-                  id: r.id as string,
-                  user_email: r.user_email as string,
-                  project_name: r.project_name as string,
-                  summary: (r.summary as string) || null,
-                  due_date: (r.due_date as string) || null,
-                  status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
-                  entries: r.entries as EntryPayload,
-                  started_at: (r.started_at as string) || null,
-                }))}
-                onUpdated={() => loadEntries()}
-                onDelete={() => loadEntries()}
-                colorMap={projectName ? { [projectName]: projectAccent } : undefined}
-              />
-            ) : (
-              <div className="entries-grid">
-                {feedEntries.map((row, i) => (
-                  <EntryBox
-                    key={`entry-${row.id || i}`}
-                    entry={row as any}
+            {/* Search results */}
+            {searchQuery && (
+              <>
+                {filteredEntries.length === 0 ? (
+                  <div className="empty-state animate-in">
+                    <div className="empty-icon">
+                      <svg
+                        width="48"
+                        height="48"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </div>
+                    <h2 className="empty-title">No results found</h2>
+                    <p className="empty-desc">
+                      No entries in {projectName} match "{searchQuery}".
+                    </p>
+                  </div>
+                ) : viewMode === 'checklist' ? (
+                  <ChecklistView
+                    entries={filteredEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status:
+                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as EntryPayload,
+                      started_at: (r.started_at as string) || null,
+                    }))}
                     onUpdated={() => loadEntries()}
-                    onPriorityChanged={handleSetPriority}
                     onDelete={() => loadEntries()}
-                    projectColor={projectAccent}
-                    highlighted={row.id === highlightEntryId}
+                    colorMap={projectName ? { [projectName]: projectAccent } : undefined}
                   />
-                ))}
+                ) : viewMode === 'board' ? (
+                  <EntriesByDueDateBoard
+                    entries={filteredEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status:
+                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as EntryPayload,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadEntries()}
+                    onDelete={() => loadEntries()}
+                    colorMap={projectName ? { [projectName]: projectAccent } : undefined}
+                  />
+                ) : (
+                  <div className="entries-feed">
+                    {filteredEntries.map((row, i) => (
+                      <EntryBox
+                        key={`search-${row.id || i}`}
+                        entry={row as any}
+                        onUpdated={() => loadEntries()}
+                        onPriorityChanged={handleSetPriority}
+                        onDelete={() => loadEntries()}
+                        projectColor={projectAccent}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {entryError && <p role="alert">{entryError}</p>}
+            {/* All entries */}
+            {!searchQuery && (
+              <div className="project-content">
+                {!loading && entries.length === 0 ? (
+                  <div className="empty-state animate-in">
+                    <div className="empty-icon">
+                      <svg
+                        width="48"
+                        height="48"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="12" y1="11" x2="12" y2="17" />
+                        <line x1="9" y1="14" x2="15" y2="14" />
+                      </svg>
+                    </div>
+                    <h2 className="empty-title">No entries yet</h2>
+                    <p className="empty-desc">{aiEmptyMessage}</p>
+                  </div>
+                ) : feedEntries.length === 0 ? (
+                  <div className="empty-state animate-in">
+                    <div className="empty-icon">
+                      <svg
+                        width="48"
+                        height="48"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                      </svg>
+                    </div>
+                    <h2 className="empty-title">No entries match your filters</h2>
+                    <p className="empty-desc">
+                      No entries in {projectName} match the current field filters.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ marginTop: '0.75rem' }}
+                      onClick={() => setFieldFilters({})}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                ) : viewMode === 'table' ? (
+                  <ProjectTaskTable
+                    rows={feedEntries}
+                    onUpdate={async (id: string, patch: Record<string, any>) => {
+                      console.log('[onUpdate] Called with id:', id, 'patch:', patch);
+                      // Find the entry being updated
+                      const row = entries.find((r) => r.id === id);
+                      if (!row || !email) {
+                        console.log('[onUpdate] Missing row or email:', {
+                          row: !!row,
+                          email: !!email,
+                        });
+                        return;
+                      }
+                      setEntryError(null);
+                      // Map priority from raw value to friendly label for database
+                      const mappedPatch = { ...patch };
+                      if (patch.priority !== undefined) {
+                        mappedPatch.priority = toFriendlyPriority(patch.priority);
+                      }
+                      const dbPriority =
+                        mappedPatch.priority !== undefined
+                          ? toFriendlyPriority(mappedPatch.priority)
+                          : undefined;
+                      // Update local state immediately for instant UI
+                      setEntries((prev) =>
+                        prev.map((r) => (r.id === id ? { ...r, ...mappedPatch } : r))
+                      );
+                      try {
+                        console.log(
+                          '[onUpdate] Calling updateEntry with mapped patch:',
+                          mappedPatch,
+                          'dbPriority:',
+                          dbPriority
+                        );
+                        const result = await updateEntry(
+                          email,
+                          row.project_name,
+                          id,
+                          mappedPatch.entries,
+                          mappedPatch.due_date,
+                          dbPriority,
+                          mappedPatch.status,
+                          mappedPatch.started_at,
+                          mappedPatch.ended_at
+                        );
+                        console.log('[onUpdate] updateEntry result:', result);
+                        if (result?.success !== true)
+                          throw new Error(result?.message || 'Failed to save entry');
+                        const confirmed = Array.isArray(result.data) ? result.data[0] : result.data;
+                        if (confirmed)
+                          setEntries((prev) => prev.map((r) => (r.id === id ? confirmed : r)));
+                        // No need to call loadEntries() - updateEntry already updated the cache
+                      } catch (err) {
+                        console.error('[onUpdate] Update failed:', err);
+                        setEntryError(err instanceof Error ? err.message : 'Failed to save entry');
+                        // Rollback local state on failure
+                        setEntries((prev) => prev.map((r) => (r.id === id ? row : r)));
+                      }
+                    }}
+                    projectNames={projectName ? [projectName] : undefined}
+                    colorMap={projectName ? { [projectName]: projectAccent } : undefined}
+                    onDeleteSelected={async (ids: string[]) => {
+                      if (!email) return;
+                      // Optimistic: remove from local state immediately
+                      setEntries((prev) => prev.filter((r) => !ids.includes(r.id as string)));
+                      // Delete each entry on the server
+                      for (const id of ids) {
+                        try {
+                          await deleteEntryById(email, id);
+                        } catch (err) {
+                          console.error('[onDeleteSelected] Failed to delete', id, err);
+                        }
+                      }
+                    }}
+                  />
+                ) : viewMode === 'checklist' ? (
+                  <ChecklistView
+                    entries={feedEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status:
+                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as EntryPayload,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadEntries()}
+                    onDelete={() => loadEntries()}
+                    colorMap={projectName ? { [projectName]: projectAccent } : undefined}
+                  />
+                ) : viewMode === 'board' ? (
+                  <EntriesByDueDateBoard
+                    entries={feedEntries.map((r) => ({
+                      id: r.id as string,
+                      user_email: r.user_email as string,
+                      project_name: r.project_name as string,
+                      summary: (r.summary as string) || null,
+                      due_date: (r.due_date as string) || null,
+                      status:
+                        (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
+                      entries: r.entries as EntryPayload,
+                      started_at: (r.started_at as string) || null,
+                    }))}
+                    onUpdated={() => loadEntries()}
+                    onDelete={() => loadEntries()}
+                    colorMap={projectName ? { [projectName]: projectAccent } : undefined}
+                  />
+                ) : (
+                  <div className="entries-grid">
+                    {feedEntries.map((row, i) => (
+                      <EntryBox
+                        key={`entry-${row.id || i}`}
+                        entry={row as any}
+                        onUpdated={() => loadEntries()}
+                        onPriorityChanged={handleSetPriority}
+                        onDelete={() => loadEntries()}
+                        projectColor={projectAccent}
+                        highlighted={row.id === highlightEntryId}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-              </div>
 
-              <DueSoonRail entries={dueSoonEntries} />
-            </div>
+          <DueSoonRail entries={dueSoonEntries} />
+        </div>
 
         {/* New Entry Modal — project is pre-set */}
         {newEntryOpen && (
