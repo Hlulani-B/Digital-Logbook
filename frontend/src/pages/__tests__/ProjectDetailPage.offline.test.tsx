@@ -91,8 +91,8 @@ describe('ProjectDetailPage offline', () => {
       </NotesProvider>
     );
 
-    // Open the New item modal and fill the single column.
-    fireEvent.click(screen.getByText('New'));
+    // Open the New item modal from the New Entry card and fill the single column.
+    fireEvent.click(await screen.findByRole('button', { name: /New Entry/ }));
     const input = await waitFor(() => {
       // Find the input by its label text (field name is 'task')
       const label = screen.getByText('task', { selector: 'label' });
@@ -116,4 +116,47 @@ describe('ProjectDetailPage offline', () => {
     expect((stored?.data || []).map((e: any) => e.id)).toHaveLength(1);
     expect((stored.data as any[])[0]._optimistic).toBe(true);
   }, 120000);
+
+  it('shows the field filter button inside the search bar and opens the panel', async () => {
+    render(
+      <NotesProvider>
+        <MemoryRouter initialEntries={[`/project/${PROJECT}`]}>
+          <Routes>
+            <Route path="/project/:projectName" element={<ProjectDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </NotesProvider>
+    );
+
+    // The funnel button lives at the end of the search bar itself
+    const filterButton = await screen.findByRole('button', { name: 'Filters' });
+    fireEvent.click(filterButton);
+
+    expect(await screen.findByText('Filter by field')).toBeTruthy();
+    // The cached 'task' field gets its own filter input
+    expect(screen.getByLabelText('task contains')).toBeTruthy();
+  });
+
+  it('tints entry cards with the project accent colour', async () => {
+    const { colorForName } = await import('@/lib/projectColorMap');
+    await cacheSet(CACHE_STORES.ENTRIES, `${EMAIL}:${PROJECT}`, {
+      success: true,
+      data: [{ id: 'e1', project_name: PROJECT, entries: { task: 'hello' } }],
+    });
+
+    const { container } = render(
+      <NotesProvider>
+        <MemoryRouter initialEntries={[`/project/${PROJECT}`]}>
+          <Routes>
+            <Route path="/project/:projectName" element={<ProjectDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </NotesProvider>
+    );
+
+    await waitFor(() => expect(container.querySelector('.entry-box')).toBeTruthy());
+    const card = container.querySelector('.entry-box') as HTMLElement;
+    // No custom colour is cached — the accent falls back to the name hash
+    expect(card.getAttribute('style')).toContain(colorForName(PROJECT));
+  });
 });

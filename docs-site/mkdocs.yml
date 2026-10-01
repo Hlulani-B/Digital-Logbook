@@ -88,12 +88,15 @@ nav:
   - Meetings:
       - Sprint 1: Meetings/sprint-one-meetings.md
       - Sprint 2: Meetings/sprint-two-meetings.md
+      - Sprint 3: Meetings/sprint-three-meetings.md
   - Stakeholder Interactions:
       - Sprint 1: Stakeholder_Interactions/sprint-one.md
       - Sprint 2: Stakeholder_Interactions/sprint-two.md
+      - Sprint 3: Stakeholder_Interactions/sprint-three.md
   - User Stories:
       - Sprint 1: User_Stories/sprint-one.md
       - Sprint 2: User_Stories/sprint-two.md
+      - Sprint 3: User_Stories/sprint-three.md
   - Project Management:
       - Development Log: Project_Management/log.md
       - Methodology & Git Workflow: Project_Management/methodology.md

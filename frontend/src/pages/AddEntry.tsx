@@ -229,22 +229,22 @@ export function AddEntry({
       );
 
       if (result?.success === false) {
-        throw new Error((result as any).message || 'Failed to add item');
+        throw new Error((result as any).message || 'Failed to add entry');
       }
 
       onAdded?.(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add item');
+      setError(err instanceof Error ? err.message : 'Failed to add entry');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <form className="add-entry entry-form" onSubmit={handleSubmit} aria-label="New Item">
+    <form className="add-entry entry-form" onSubmit={handleSubmit} aria-label="New Entry">
       <div className="entry-form__body">
         <div className="add-entry__header">
-          <h2 className="add-entry__title">New Item</h2>
+          <h2 className="add-entry__title">New Entry</h2>
           <span className="add-entry__project">{project_name}</span>
         </div>
 
@@ -480,7 +480,7 @@ export function AddEntry({
           className="add-entry__btn add-entry__btn--submit"
           disabled={saving || loadingFields || !fieldsReady}
         >
-          {saving ? 'Adding...' : 'Add Item'}
+          {saving ? 'Adding...' : 'Add Entry'}
         </button>
       </div>
     </form>

@@ -625,7 +625,7 @@ function FieldAnalysisDetail({
         <>
           <p className="analysis-note">
             {stat.comparison.excluded} entries excluded for missing or invalid comparison values or
-            dates. Each legend item is a {compareDef?.field_name} category.
+            dates. Each legend entry is a {compareDef?.field_name} category.
           </p>
           <MatrixChart
             matrix={stat.comparison.display}
@@ -1064,7 +1064,7 @@ export function StatsView() {
     return (
       <div className="dash-layout">
         <div className="bg-mesh" />
-        <NavBar projects={projects} entries={entries} activeView="all" />
+        <NavBar entries={entries} activeView="all" />
         <main className="dash-main">
           <Header
             title={statsTitle}
@@ -1092,7 +1092,7 @@ export function StatsView() {
   return (
     <div className="dash-layout">
       <div className="bg-mesh" />
-      <NavBar projects={projects} entries={entries} activeView="all" />
+      <NavBar entries={entries} activeView="all" />
       <main className="dash-main">
         <Header
           title={statsTitle}
@@ -1321,124 +1321,6 @@ export function StatsView() {
                   </div>
                 </div>
               </div>
-
-              {/* Timer Analytics */}
-              {(() => {
-                const timerEntries = scopedEntries.filter((e) => e.started_at && e.ended_at);
-                if (timerEntries.length === 0) return null;
-
-                const durations = timerEntries.map((e) => entryDurationMs(e, now));
-                const totalTimerMs = durations.reduce((sum, d) => sum + d, 0);
-                const avgDurationMs = totalTimerMs / durations.length;
-                const maxDurationMs = Math.max(...durations);
-                const minDurationMs = Math.min(...durations);
-
-                // Find longest session entry
-                const longestEntry = timerEntries.find(
-                  (e) => entryDurationMs(e, now) === maxDurationMs
-                );
-                const longestEntryName =
-                  longestEntry?.summary ||
-                  (longestEntry?.entries as Record<string, unknown>)?.task_name ||
-                  'Untitled';
-
-                return (
-                  <div className="stats-panel glass">
-                    <h3 className="stats-panel-title">Timer Analytics</h3>
-                    <div className="timer-analytics">
-                      <div className="timer-stat">
-                        <span className="timer-stat-value">{timerEntries.length}</span>
-                        <span className="timer-stat-label">Sessions</span>
-                      </div>
-                      <div className="timer-stat">
-                        <span className="timer-stat-value">{formatDuration(avgDurationMs)}</span>
-                        <span className="timer-stat-label">Avg Session</span>
-                      </div>
-                      <div className="timer-stat">
-                        <span className="timer-stat-value">{formatDuration(maxDurationMs)}</span>
-                        <span className="timer-stat-label">Longest</span>
-                        <span className="timer-stat-sub">
-                          {String(longestEntryName).slice(0, 30)}
-                        </span>
-                      </div>
-                      <div className="timer-stat">
-                        <span className="timer-stat-value">{formatDuration(minDurationMs)}</span>
-                        <span className="timer-stat-label">Shortest</span>
-                      </div>
-                    </div>
-                    {/* Export Timer Data Button */}
-                    <div style={{ marginTop: '16px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const headers = [
-                            'Entry',
-                            'Project',
-                            'Started',
-                            'Ended',
-                            'Duration (ms)',
-                            'Duration',
-                            'Paused (ms)',
-                            'Target (ms)',
-                          ];
-                          const rows = timerEntries.map((e) => {
-                            const duration = entryDurationMs(e, now);
-                            const name =
-                              (e.summary as string) ||
-                              ((e.entries as Record<string, unknown>)?.task_name as string) ||
-                              'Untitled';
-                            return [
-                              `"${String(name).replace(/"/g, '""')}"`,
-                              `"${String(e.project_name || '').replace(/"/g, '""')}"`,
-                              e.started_at || '',
-                              e.ended_at || '',
-                              duration,
-                              formatDuration(duration),
-                              Number(e.paused_ms) || 0,
-                              Number(e.target_duration_ms) || 0,
-                            ].join(',');
-                          });
-                          const csv = [headers.join(','), ...rows].join('\n');
-                          const blob = new Blob([csv], { type: 'text/csv' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `timer-sessions-${new Date().toISOString().split('T')[0]}.csv`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        style={{
-                          padding: '8px 16px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '6px',
-                          background: 'white',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          color: '#374151',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        Export Timer Data
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* Built-in activity uses entry creation dates, independently of field analysis. */}
               {plotOptions.length > 0 && selectedPlot && (
