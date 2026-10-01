@@ -20,5 +20,9 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,md,yml,yaml,html}": "prettier --write"
+  },
+  "dependencies": {
+    "i18next": "^26.4.2",
+    "react-i18next": "^17.0.15"
   }
 }
