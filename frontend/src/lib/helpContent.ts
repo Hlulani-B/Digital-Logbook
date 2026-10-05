@@ -260,7 +260,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         id: 'report-bug',
         title: '🐛 Report a Bug',
         content:
-          'Found a bug? We want to fix it!\n\n**To report a bug:**\n1. Note what you were doing when the bug occurred\n2. Take a screenshot if possible\n3. Note your browser and device type\n4. Use the **Report a Bug** button below to open a bug report\n\n**What to include:**\n- Steps to reproduce the issue\n- Expected behaviour vs. actual behaviour\n- Screenshots or screen recordings\n- Browser name and version\n- Whether you were online or offline',
+          'Found a bug? We want to fix it!\n\n**To report a bug:**\n1. Note what you were doing when the bug occurred\n2. Take a screenshot if possible\n3. Note your browser and device type\n4. Use the **Report a Bug** button in the sidebar to open the bug report form\n5. Fill in the details and click **Send Report**\n\n**What to include:**\n- Steps to reproduce the issue\n- Expected behaviour vs. actual behaviour\n- Screenshots or screen recordings\n- Browser name and version\n- Whether you were online or offline\n\nYour report will be sent directly to our team via email.',
         keywords: ['bug', 'report', 'error', 'issue', 'problem'],
       },
       {
