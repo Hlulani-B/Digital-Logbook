@@ -50,6 +50,7 @@ export default function HelpCentre() {
   };
 
   const handleBackToList = () => {
+    setActiveArticle(null);
     setMobileShowArticle(false);
   };
 
