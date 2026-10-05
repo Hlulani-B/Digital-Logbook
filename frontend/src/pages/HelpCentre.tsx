@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FiSearch, FiX, FiChevronRight, FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
 import { HELP_CATEGORIES, searchArticles } from '@/lib/helpContent';
-import BugReportModal from '@/components/BugReportModal';
 import './HelpCentre.css';
 
 export default function HelpCentre() {
@@ -17,7 +16,6 @@ export default function HelpCentre() {
   );
   const [activeArticle, setActiveArticle] = useState<string | null>(initialArticle || null);
   const [mobileShowArticle, setMobileShowArticle] = useState(false);
-  const [showBugModal, setShowBugModal] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const searchResults = useMemo(() => searchArticles(searchQuery), [searchQuery]);
@@ -161,7 +159,7 @@ export default function HelpCentre() {
             <div className="help-centre__sidebar-actions">
               <button
                 className="help-centre__action-btn help-centre__action-btn--bug"
-                onClick={() => setShowBugModal(true)}
+                onClick={() => navigate('/report-bug')}
               >
                 <FiMessageSquare size={16} />
                 Report a Bug
@@ -252,8 +250,6 @@ export default function HelpCentre() {
           </div>
         </div>
       )}
-
-      {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
     </div>
   );
 }
