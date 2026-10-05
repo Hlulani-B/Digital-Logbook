@@ -28,8 +28,27 @@ export function classifyEntryPayload(value: unknown): EntryPayloadState {
   return { kind: 'opaque', value };
 }
 
+/** Detect strings that look like base64-encoded image data. */
+export function isBase64Image(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const v = value.trim();
+  if (v.startsWith('data:image/')) return true;
+  // Common base64 signatures for image formats
+  if (
+    v.startsWith('/9j/') ||
+    v.startsWith('iVBOR') ||
+    v.startsWith('R0lGOD') ||
+    v.startsWith('UklGR')
+  )
+    return true;
+  // Heuristic: very long string (>200 chars) that looks like base64
+  if (v.length > 200 && /^[A-Za-z0-9+/]+=*$/.test(v)) return true;
+  return false;
+}
+
 export function formatEntryValue(value: unknown): string {
   if (value == null) return 'Not recorded';
+  if (isBase64Image(value)) return '[Image]';
   if (typeof value === 'string') return value.trim() || 'Not recorded';
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 
