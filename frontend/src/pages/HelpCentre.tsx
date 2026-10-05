@@ -4,6 +4,129 @@ import { FiSearch, FiX, FiChevronRight, FiArrowLeft, FiMessageSquare } from 'rea
 import { HELP_CATEGORIES, searchArticles } from '@/lib/helpContent';
 import './HelpCentre.css';
 
+// SVG icon components matching NavBar style
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  rocket: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    </svg>
+  ),
+  compass: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
+  ),
+  shield: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+  stethoscope: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3" />
+      <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4" />
+      <circle cx="20" cy="10" r="2" />
+    </svg>
+  ),
+  lock: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  ),
+  'help-circle': (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  'book-open': (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  ),
+  zap: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  mail: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  ),
+};
+
 export default function HelpCentre() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -149,7 +272,7 @@ export default function HelpCentre() {
                 className={`help-centre__cat-btn ${activeCategory === cat.id ? 'active' : ''}`}
                 onClick={() => handleCategoryChange(cat.id)}
               >
-                <span className="help-centre__cat-icon">{cat.icon}</span>
+                <span className="help-centre__cat-icon">{CATEGORY_ICONS[cat.icon]}</span>
                 <span className="help-centre__cat-label">{cat.title}</span>
                 <span className="help-centre__cat-count">{cat.articles.length}</span>
               </button>
@@ -233,7 +356,7 @@ export default function HelpCentre() {
             ) : (
               <div className="help-centre__article-list">
                 <h2 className="help-centre__category-title">
-                  {currentCategory?.icon} {currentCategory?.title}
+                  {CATEGORY_ICONS[currentCategory?.icon || '']} {currentCategory?.title}
                 </h2>
                 {currentCategory?.articles.map((article) => (
                   <button

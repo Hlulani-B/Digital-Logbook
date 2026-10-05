@@ -8,7 +8,7 @@ export interface HelpArticle {
 export interface HelpCategory {
   id: string;
   title: string;
-  icon: string;
+  icon: string; // icon name matching CATEGORY_ICONS map
   articles: HelpArticle[];
 }
 
@@ -16,7 +16,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'getting-started',
     title: 'Getting Started',
-    icon: '🚀',
+    icon: 'rocket',
     articles: [
       {
         id: 'welcome',
@@ -44,7 +44,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'how-to-guides',
     title: 'How-To Guides',
-    icon: '🧭',
+    icon: 'compass',
     articles: [
       {
         id: 'using-focus-mode',
@@ -107,7 +107,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'roles-permissions',
     title: 'Roles & Permissions',
-    icon: '🛡️',
+    icon: 'shield',
     articles: [
       {
         id: 'user-roles',
@@ -128,7 +128,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'troubleshooting',
     title: 'Troubleshooting',
-    icon: '🩺',
+    icon: 'stethoscope',
     articles: [
       {
         id: 'entries-not-saving',
@@ -163,7 +163,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'account-privacy',
     title: 'Account & Privacy',
-    icon: '🔒',
+    icon: 'lock',
     articles: [
       {
         id: 'account-settings',
@@ -184,7 +184,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'faq',
     title: 'FAQ',
-    icon: '💡',
+    icon: 'help-circle',
     articles: [
       {
         id: 'faq-free',
@@ -226,7 +226,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'glossary',
     title: 'Glossary',
-    icon: '📖',
+    icon: 'book-open',
     articles: [
       {
         id: 'glossary-terms',
@@ -240,7 +240,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'release-notes',
     title: 'Release Notes',
-    icon: '🆕',
+    icon: 'zap',
     articles: [
       {
         id: 'release-latest',
@@ -254,7 +254,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: 'contact',
     title: 'Contact & Feedback',
-    icon: '✉️',
+    icon: 'shield',
     articles: [
       {
         id: 'report-bug',
