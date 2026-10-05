@@ -35,6 +35,7 @@ import { NotesPage } from '@/pages/NotesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { CreateTemplate } from '@/pages/CreateTemplate';
 import FocusMode from '@/pages/FocusMode';
+import HelpCentre from '@/pages/HelpCentre';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -317,6 +318,14 @@ export function App() {
                   element={
                     <ProtectedRoute>
                       <NotificationsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/help"
+                  element={
+                    <ProtectedRoute>
+                      <HelpCentre />
                     </ProtectedRoute>
                   }
                 />
