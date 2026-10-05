@@ -782,6 +782,58 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
+## Onboarding & Support
+
+### 40. Help Centre
+
+**What it does:** A full-screen `/help` page accessible from the drawer navigation on every page. Nine categories with 25 articles cover Getting Started, How-To Guides, Roles & Permissions, Troubleshooting, Account & Privacy, FAQ, Glossary, Release Notes, and Contact & Feedback. Features client-side keyword search, a category sidebar with article counts (horizontal tabs on mobile), keyboard shortcuts (`/` to focus search, `Esc` to clear), theme-aware styling, deep-link support via `?article=` and `?category=` URL params, and a "Report a Bug" button that opens an in-app form.
+
+**Why it was implemented:** Users needed a self-service knowledge base to find answers without leaving the app. The Help Centre reduces support burden and helps new users get up to speed quickly.
+
+**How it works:**
+
+- Content is stored as TypeScript data structures in `helpContent.ts` with keyword-tagged articles for search
+- `searchArticles()` performs case-insensitive matching across titles, content, and keywords
+- The sidebar shows category icons (emojis) and article counts; clicking a category filters the article list
+- Clicking an article opens its content in the main area; "Back to [category]" deselects the article
+- On mobile (≤768px), the sidebar becomes horizontal scrollable tabs and the article view overlays the list
+- URL search params allow deep linking to specific articles or categories
+
+**Key files:**
+
+- `frontend/src/lib/helpContent.ts` — 9 categories, 25 articles, search function
+- `frontend/src/pages/HelpCentre.tsx` — Full help centre page component
+- `frontend/src/pages/HelpCentre.css` — Theme-aware, mobile-responsive styles
+- `frontend/src/App.tsx` — `/help` protected route
+- `frontend/src/components/NavBar.tsx` — Help Centre drawer nav button
+- `frontend/src/pages/Dashboard.tsx` — Help Centre drawer nav button
+
+---
+
+### 41. In-App Bug Report Form
+
+**What it does:** Replaces the external Gitea issues link with an in-app modal form that sends bug reports via email to the team. The form captures a title, description, steps to reproduce, and optional email address. Browser info (user agent, screen size, current URL) is auto-attached. On submit, FormSubmit.co forwards the report to `admin@codacaine.com`. Shows animated success/error states. Mobile-responsive bottom-sheet on phones (≤480px). Escape key closes the modal.
+
+**Why it was implemented:** The previous "Report a Bug" link opened Gitea in a new tab, requiring users to have a Gitea account. An in-app form lowers the barrier to reporting bugs and delivers reports directly to the team's email inbox.
+
+**How it works:**
+
+- Clicking "Report a Bug" in the Help Centre sidebar opens `BugReportModal`
+- The form validates that title and description are non-empty before enabling submit
+- On submit, a `FormData` payload is POSTed to `https://formsubmit.co/ajax/admin@codacaine.com`
+- FormSubmit.co sends the first submission as a confirmation email; subsequent submissions go straight to inbox
+- Success state shows a checkmark icon and confirmation message; error state shows a retry message
+- Modal uses CSS animations (fade-in overlay, slide-up content) and closes on overlay click or Escape key
+
+**Key files:**
+
+- `frontend/src/components/BugReportModal.tsx` — Modal form component with FormSubmit.co integration
+- `frontend/src/components/BugReportModal.css` — Modal styles with mobile bottom-sheet
+- `frontend/src/pages/HelpCentre.tsx` — Opens modal on "Report a Bug" button click
+- `frontend/src/lib/helpContent.ts` — Updated "Report a Bug" article content
+
+---
+
 ## Summary
 
-The Digital Logbook implements 39 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (guided tour with voice narration, themed sign-in landing), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), and timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 41 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (guided tour with voice narration, themed sign-in landing), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
