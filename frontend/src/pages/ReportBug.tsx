@@ -14,7 +14,6 @@ export default function ReportBug() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [steps, setSteps] = useState('');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -44,7 +43,7 @@ export default function ReportBug() {
       formData.append('subject', `Bug Report: ${title}`);
       formData.append(
         'message',
-        `Title: ${title}\n\nDescription:\n${description}\n\nSteps to Reproduce:\n${steps || 'Not provided'}\n\n---\nBrowser Info: ${browserInfo}`
+        `Title: ${title}\n\nDescription:\n${description}\n\n---\nBrowser Info: ${browserInfo}`
       );
       formData.append('_captcha', 'false');
       formData.append('_template', 'table');
@@ -159,18 +158,6 @@ export default function ReportBug() {
           </div>
 
           <div className="report-bug__field">
-            <label htmlFor="bug-steps">Steps to Reproduce</label>
-            <textarea
-              id="bug-steps"
-              value={steps}
-              onChange={(e) => setSteps(e.target.value)}
-              placeholder={'1. Go to...\n2. Click on...\n3. See error...'}
-              rows={4}
-              disabled={status === 'submitting'}
-            />
-          </div>
-
-          <div className="report-bug__field">
             <label htmlFor="bug-email">Your Email (optional)</label>
             <input
               id="bug-email"
@@ -221,7 +208,6 @@ export default function ReportBug() {
           </h3>
           <ul>
             <li>Describe what you were doing when the bug occurred</li>
-            <li>Include steps to reproduce the issue</li>
             <li>Mention expected behaviour vs. actual behaviour</li>
             <li>Attach screenshots or screen recordings if possible</li>
             <li>Note your browser name and version</li>
