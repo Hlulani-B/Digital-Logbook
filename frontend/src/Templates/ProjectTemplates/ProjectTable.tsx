@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
-import { classifyEntryPayload, formatEntryValue, cleanSummaryText } from '@/lib/entryPayload';
+import {
+  classifyEntryPayload,
+  formatEntryValue,
+  cleanSummaryText,
+  isBase64Image,
+} from '@/lib/entryPayload';
 import './ProjectTable.css';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { resolveProjectColor } from '@/lib/projectColorMap';
@@ -228,10 +233,43 @@ function EntryFieldValue({
   }
 
   const value = payload.value[column.name];
-  if (typeof value === 'string' || value == null) {
+  if (value == null) {
     return (
       <EditableText
-        value={value ?? ''}
+        value=""
+        onSave={(nextValue) => onSave(column.name, nextValue)}
+        placeholder="Not recorded"
+      />
+    );
+  }
+
+  // Render base64 image strings as thumbnails, not editable text
+  if (isBase64Image(value)) {
+    const src =
+      typeof value === 'string' && value.startsWith('data:image/')
+        ? value
+        : `data:image/jpeg;base64,${String(value)}`;
+    return (
+      <span className="ptt-readonly-value">
+        <img
+          src={src}
+          alt="Entry image"
+          style={{
+            maxWidth: '60px',
+            maxHeight: '60px',
+            objectFit: 'cover',
+            borderRadius: '4px',
+            border: '1px solid var(--border, #e5e7eb)',
+          }}
+        />
+      </span>
+    );
+  }
+
+  if (typeof value === 'string') {
+    return (
+      <EditableText
+        value={value}
         onSave={(nextValue) => onSave(column.name, nextValue)}
         placeholder="Not recorded"
       />
