@@ -49,7 +49,7 @@ export default function ReportBug() {
       formData.append('_template', 'table');
       formData.append('_subject', `Bug Report: ${title}`);
 
-      const res = await fetch('https://formsubmit.co/ajax/admin@codacaine.com', {
+      const res = await fetch('https://formsubmit.co/ajax/2673619@students.wits.ac.za', {
         method: 'POST',
         headers: { Accept: 'application/json' },
         body: formData,
