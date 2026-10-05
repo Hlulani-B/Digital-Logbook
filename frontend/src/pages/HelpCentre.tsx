@@ -63,7 +63,11 @@ export default function HelpCentre() {
     <div className="help-centre">
       {/* Header */}
       <header className="help-centre__header">
-        <button className="help-centre__back" onClick={() => navigate(-1)} title="Go back">
+        <button
+          className="help-centre__back"
+          onClick={() => navigate('/dashboard')}
+          title="Go back"
+        >
           <FiArrowLeft size={20} />
         </button>
         <div className="help-centre__title-group">
