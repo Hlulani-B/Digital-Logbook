@@ -554,14 +554,15 @@
   background: #ffffff;
   border: 1px solid rgba(74, 60, 40, 0.1);
   border-radius: 16px;
+  position: relative;
+  overflow: hidden;
   transition:
-    transform 0.3s,
     border-color 0.3s,
     box-shadow 0.3s;
+  will-change: transform;
 }
 
 .lp-about-card:hover {
-  transform: translateY(-4px);
   border-color: rgba(74, 60, 40, 0.18);
   box-shadow: 0 8px 32px rgba(74, 60, 40, 0.06);
 }
@@ -609,14 +610,15 @@
   background: #ffffff;
   border: 1px solid rgba(74, 60, 40, 0.1);
   border-radius: 16px;
+  position: relative;
+  overflow: hidden;
   transition:
-    transform 0.3s,
     border-color 0.3s,
     box-shadow 0.3s;
+  will-change: transform;
 }
 
 .lp-feature-card:hover {
-  transform: translateY(-4px);
   border-color: rgba(74, 60, 40, 0.18);
   box-shadow: 0 8px 32px rgba(74, 60, 40, 0.06);
 }
@@ -636,6 +638,35 @@
 .lp-feature-icon svg {
   width: 24px;
   height: 24px;
+}
+
+/* ── Interactive Card Effects ───────────────────── */
+.lp-card-spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.3s ease;
+}
+
+.lp-card-interactive > *:not(.lp-card-spotlight) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Floating icon animation */
+@keyframes lp-icon-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.lp-icon-float {
+  animation: lp-icon-float 3s ease-in-out infinite;
 }
 
 .lp-feature-card h3 {
