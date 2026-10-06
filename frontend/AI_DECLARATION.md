@@ -2,23 +2,23 @@
 
 ## Student Details
 
-| Field              | Value                                                                                        |
-| ------------------ | -------------------------------------------------------------------------------------------- |
-| **Name**           | Nasiphi Ntontela                                                                             |
-| **Student Number** | 2673619                                                                                      |
-| **Project**        | Codacaine — Digital Logbook                                                                  |
-| **Date**           | 13 August 2026 (updated 3 September 2026, updated 12 September 2026, updated 5 October 2026) |
+| Field              | Value                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **Name**           | Nasiphi Ntontela                                                                                                     |
+| **Student Number** | 2673619                                                                                                              |
+| **Project**        | Codacaine — Digital Logbook                                                                                          |
+| **Date**           | 13 August 2026 (updated 3 September 2026, updated 12 September 2026, updated 5 October 2026, updated 6 October 2026) |
 
 ---
 
 ## AI Tool Used
 
-| Field                | Value                                                                                                                                   |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                                                                                     |
-| **Underlying Model** | Not disclosed by the tool                                                                                                               |
-| **Access Method**    | VS Code extension (Qoder IDE)                                                                                                           |
-| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026, continued 11–12 September 2026, continued 5 October 2026 (extended multi-turn sessions) |
+| Field                | Value                                                                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                                                                                       |
+| **Underlying Model** | Not disclosed by the tool                                                                                                                 |
+| **Access Method**    | VS Code extension (Qoder IDE)                                                                                                             |
+| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026, continued 11–12 September 2026, continued 5–6 October 2026 (extended multi-turn sessions) |
 
 ---
 
@@ -71,6 +71,13 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested sophisticated emojis on Help Centre category icons and article titles for visual scanning
 - I reported that the Help Centre back button was not working and requested it navigate to the dashboard
 - I reported that the "Back to category" button in article view was not deselecting the article on desktop
+- I requested a public landing page at `/` with a typing demo, animated stats, feature cards, and team section to introduce the product before sign-in
+- I requested the landing page colours match the sign-in form's warm beige/brown palette
+- I requested the About, About Us, and Features sections be removed from the sign-in page since they were duplicated on the landing page
+- I requested the three About highlight cards be moved to the landing page
+- I requested all landing page cards be dynamic and creative with interactive effects
+- I requested an AI-generated tech-savvy hero image related to a digital logbook for the landing page
+- I requested the "Get Started" button text be more readable against its dark background
 
 ### 2. Code Generation (AI-Assisted)
 
@@ -125,6 +132,8 @@ The AI generated the following code based on my instructions:
 | `src/pages/HelpCentre.css`                                  | Help Centre styles: theme-aware, mobile-responsive with horizontal tabs on phones                                | AI generated from my design direction |
 | `src/components/BugReportModal.tsx`                         | In-app bug report modal with FormSubmit.co email integration, auto-captured browser info, success/error states   | AI generated from my requirements     |
 | `src/components/BugReportModal.css`                         | Bug report modal styles with fade/slide animations and mobile bottom-sheet                                       | AI generated from my design direction |
+| `src/pages/Landing.tsx`                                     | Public landing page with hero, typing demo, interactive cards, stats, ticker, team, CTA, and footer              | AI generated from my requirements     |
+| `src/pages/landing.css`                                     | Landing page styles with warm beige/brown palette, scroll-reveal animations, and interactive card effects        | AI generated from my design direction |
 | `.env.example`                                              | Environment variable template                                                                                    | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
@@ -200,4 +209,4 @@ The AI was used as a **code generation and technical guidance tool** under my di
 ---
 
 **Signed:** Nasiphi Ntontela  
-**Date:** 12 September 2026
+**Date:** 6 October 2026
