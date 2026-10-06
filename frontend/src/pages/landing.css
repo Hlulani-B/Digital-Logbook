@@ -532,6 +532,71 @@
   margin-bottom: 3rem;
 }
 
+/* ── About Cards ────────────────────────────────── */
+.lp-about-section {
+  padding-top: 2rem;
+}
+
+.lp-about-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .lp-about-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lp-about-card {
+  padding: 2rem;
+  background: #ffffff;
+  border: 1px solid rgba(74, 60, 40, 0.1);
+  border-radius: 16px;
+  transition:
+    transform 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+.lp-about-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(74, 60, 40, 0.18);
+  box-shadow: 0 8px 32px rgba(74, 60, 40, 0.06);
+}
+
+.lp-about-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(74, 60, 40, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.lp-about-card-icon svg {
+  width: 24px;
+  height: 24px;
+  color: #3f3628;
+}
+
+.lp-about-card h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #3f3628;
+}
+
+.lp-about-card p {
+  font-size: 0.9375rem;
+  color: #6e6350;
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* ── Features Grid ──────────────────────────────── */
 .lp-features-grid {
   display: grid;
