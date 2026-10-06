@@ -465,36 +465,45 @@ export default function Landing() {
 
         {/* Hero */}
         <section className="lp-hero">
-          <div className="lp-hero-badge lp-reveal">
-            <span className="lp-hero-badge-dot" />
-            Built by Codacaine Team
-          </div>
-          <h1 className="lp-reveal lp-d1">
-            Your work,
-            <br />
-            <span className="lp-gradient-text">logged beautifully.</span>
-          </h1>
-          <p className="lp-reveal lp-d2">
-            The Digital Logbook turns scattered tasks, deadlines and notes into one calm, searchable
-            workspace. Type naturally and let it organise itself.
-          </p>
-          <div className="lp-hero-actions lp-reveal lp-d3">
-            <Link to="/signin" className="lp-btn lp-btn-primary">
-              Get Started
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </Link>
-            <a href="#lp-features" className="lp-btn lp-btn-secondary">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polygon points="10 8 16 12 10 16 10 8" />
-              </svg>
-              See Features
-            </a>
-          </div>
+          <div className="lp-hero-split">
+            <div className="lp-hero-content">
+              <div className="lp-hero-badge lp-reveal">
+                <span className="lp-hero-badge-dot" />
+                Built by Codacaine Team
+              </div>
+              <h1 className="lp-reveal lp-d1">
+                Your work,
+                <br />
+                <span className="lp-gradient-text">logged beautifully.</span>
+              </h1>
+              <p className="lp-reveal lp-d2">
+                The Digital Logbook turns scattered tasks, deadlines and notes into one calm,
+                searchable workspace. Type naturally and let it organise itself.
+              </p>
+              <div className="lp-hero-actions lp-reveal lp-d3">
+                <Link to="/signin" className="lp-btn lp-btn-primary">
+                  Get Started
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </Link>
+                <a href="#lp-features" className="lp-btn lp-btn-secondary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polygon points="10 8 16 12 10 16 10 8" />
+                  </svg>
+                  See Features
+                </a>
+              </div>
 
-          <TypingDemo />
+              <TypingDemo />
+            </div>
+
+            <div className="lp-hero-image lp-reveal lp-d2">
+              <img src="/hero-image.png" alt="Digital Logbook Dashboard" className="lp-hero-img" />
+              <div className="lp-hero-img-glow" />
+            </div>
+          </div>
         </section>
 
         {/* About — three highlight cards */}
