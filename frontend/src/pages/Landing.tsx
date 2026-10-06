@@ -500,40 +500,6 @@ export default function Landing() {
             </div>
 
             <div className="lp-hero-image lp-reveal lp-d2">
-              <div className="lp-gold-beam-container">
-                {/* Central beam */}
-                <div className="lp-gold-beam" />
-                {/* Light rays */}
-                <div className="lp-gold-rays">
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="lp-gold-ray"
-                      style={{
-                        transform: `rotate(${i * 30}deg)`,
-                        animationDelay: `${i * 0.15}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-                {/* Sparkles */}
-                <div className="lp-gold-sparkles">
-                  {Array.from({ length: 20 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="lp-gold-sparkle"
-                      style={{
-                        left: `${Math.random() * 100}%`,
-                        top: `${Math.random() * 100}%`,
-                        animationDelay: `${Math.random() * 3}s`,
-                        animationDuration: `${2 + Math.random() * 2}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-                {/* Base glow */}
-                <div className="lp-gold-base-glow" />
-              </div>
               <img src="/hero-image.png" alt="Digital Logbook Dashboard" className="lp-hero-img" />
             </div>
           </div>
