@@ -834,6 +834,31 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
+### 42. Public Landing Page
+
+**What it does:** A standalone marketing landing page at `/` that introduces the Digital Logbook before sign-in. Features a split hero with a typing demo that cycles natural-language phrases on the left and an AI-generated isometric dashboard illustration on the right. Below the hero: three interactive About cards (Plan visually, Never miss a deadline, Own your data) with mouse-following spotlight and 3D tilt effects, a "What's New" infinite ticker, six feature cards with the same interactive effects, animated stats counters, a team section, a call-to-action box, and a footer. All styled with the warm beige/brown palette to match the sign-in form. The sign-in page (`/signin`) is a clean split-screen auth form with no duplicated marketing content.
+
+**Why it was implemented:** Visitors needed a compelling first impression before committing to sign up. The landing page showcases the product's value proposition, key features, and team — reducing friction for new users. Moving marketing content off the sign-in page keeps the auth flow focused and clean.
+
+**How it works:**
+
+- `Landing.tsx` is mounted at `/` outside `PublicRoute` in `App.tsx`, so both authenticated and unauthenticated users see it
+- `useReveal()` uses `IntersectionObserver` to trigger scroll-reveal animations as sections enter the viewport
+- `useCounters()` animates stat numbers from 0 to their target values when the stats section becomes visible
+- `useCardTilt()` tracks mouse position over each card to render a radial spotlight overlay and apply up to 16deg of 3D tilt via `perspective(800px)`
+- `TypingDemo` cycles four natural-language phrases with a realistic typing/deleting animation
+- The hero image (`hero-image.png`) was AI-generated as an isometric dashboard illustration
+- The warm beige/brown palette (`#f5f1e6` background, `#3f3628` text, `#6e6350`/`#8b7f68` buttons) matches the sign-in form's right panel
+
+**Key files:**
+
+- `frontend/src/pages/Landing.tsx` — Landing page component with all sections
+- `frontend/src/pages/landing.css` — Self-contained landing page styles (lp- prefix)
+- `frontend/src/App.tsx` — Route split: `/` → Landing, `/signin` → SignIn
+- `frontend/public/hero-image.png` — AI-generated isometric dashboard illustration
+
+---
+
 ## Summary
 
-The Digital Logbook implements 41 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (guided tour with voice narration, themed sign-in landing), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 42 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
