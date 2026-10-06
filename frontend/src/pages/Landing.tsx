@@ -214,6 +214,41 @@ function useCounters() {
   }, []);
 }
 
+/**
+ * Mouse-following spotlight + 3D tilt for interactive cards.
+ * Returns ref + style props to spread onto the card element.
+ */
+function useCardTilt() {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [spotlight, setSpotlight] = useState({ x: 50, y: 50, opacity: 0 });
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setSpotlight({ x, y, opacity: 1 });
+    // Tilt: max 8 degrees, based on cursor position relative to center
+    const ry = ((e.clientX - rect.left) / rect.width - 0.5) * 16;
+    const rx = (0.5 - (e.clientY - rect.top) / rect.height) * 16;
+    setTilt({ rx, ry });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setSpotlight((s) => ({ ...s, opacity: 0 }));
+    setTilt({ rx: 0, ry: 0 });
+  }, []);
+
+  const cardStyle: React.CSSProperties = {
+    transform: `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
+    transition: 'transform 0.15s ease-out',
+  };
+
+  return { cardRef, spotlight, cardStyle, handleMouseMove, handleMouseLeave };
+}
+
 function TypingDemo() {
   const [text, setText] = useState('');
   const [showResult, setShowResult] = useState(false);
@@ -325,6 +360,77 @@ function TypingDemo() {
   );
 }
 
+/** Shared interactive card with spotlight + 3D tilt + floating animation */
+function InteractiveCard({
+  className,
+  children,
+  delay,
+}: {
+  className: string;
+  children: React.ReactNode;
+  delay: number;
+}) {
+  const { cardRef, spotlight, cardStyle, handleMouseMove, handleMouseLeave } = useCardTilt();
+  return (
+    <div
+      ref={cardRef}
+      className={`${className} lp-reveal lp-d${delay} lp-card-interactive`}
+      style={cardStyle}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Spotlight overlay */}
+      <div
+        className="lp-card-spotlight"
+        style={{
+          background: `radial-gradient(300px circle at ${spotlight.x}% ${spotlight.y}%, rgba(74, 60, 40, 0.06), transparent 60%)`,
+          opacity: spotlight.opacity,
+        }}
+      />
+      {children}
+    </div>
+  );
+}
+
+function AboutCard({
+  card,
+  delay,
+}: {
+  card: { icon: React.ReactNode; title: string; desc: string };
+  delay: number;
+}) {
+  return (
+    <InteractiveCard className="lp-about-card" delay={delay}>
+      <div
+        className="lp-about-card-icon lp-icon-float"
+        style={{ animationDelay: `${delay * 0.3}s` }}
+      >
+        {card.icon}
+      </div>
+      <h3>{card.title}</h3>
+      <p>{card.desc}</p>
+    </InteractiveCard>
+  );
+}
+
+function FeatureCard({
+  card,
+  delay,
+}: {
+  card: { icon: React.ReactNode; title: string; desc: string };
+  delay: number;
+}) {
+  return (
+    <InteractiveCard className="lp-feature-card" delay={delay}>
+      <div className="lp-feature-icon lp-icon-float" style={{ animationDelay: `${delay * 0.2}s` }}>
+        {card.icon}
+      </div>
+      <h3>{card.title}</h3>
+      <p>{card.desc}</p>
+    </InteractiveCard>
+  );
+}
+
 export default function Landing() {
   useReveal();
   useCounters();
@@ -403,11 +509,7 @@ export default function Landing() {
             </p>
             <div className="lp-about-grid">
               {ABOUT_CARDS.map((c, i) => (
-                <div className={`lp-about-card lp-reveal lp-d${i + 1}`} key={c.title}>
-                  <div className="lp-about-card-icon">{c.icon}</div>
-                  <h3>{c.title}</h3>
-                  <p>{c.desc}</p>
-                </div>
+                <AboutCard key={c.title} card={c} delay={i + 1} />
               ))}
             </div>
           </div>
@@ -442,11 +544,7 @@ export default function Landing() {
 
             <div className="lp-features-grid">
               {FEATURES.map((f, i) => (
-                <div className={`lp-feature-card lp-reveal lp-d${(i % 3) + 1}`} key={f.title}>
-                  <div className="lp-feature-icon">{f.icon}</div>
-                  <h3>{f.title}</h3>
-                  <p>{f.desc}</p>
-                </div>
+                <FeatureCard key={f.title} card={f} delay={(i % 3) + 1} />
               ))}
             </div>
 
