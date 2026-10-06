@@ -199,32 +199,145 @@
     0 4px 16px rgba(74, 60, 40, 0.1);
 }
 
-.lp-hero-img-glow {
+/* ── Golden Beam Effect ─────────────────────────── */
+.lp-gold-beam-container {
   position: absolute;
-  width: 90%;
-  height: 90%;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse,
-    rgba(212, 168, 67, 0.25) 0%,
-    rgba(196, 149, 42, 0.12) 30%,
-    rgba(184, 134, 11, 0.05) 60%,
-    transparent 70%
-  );
+  inset: 0;
   z-index: 1;
-  filter: blur(30px);
-  animation: lp-gold-pulse 3s ease-in-out infinite;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-@keyframes lp-gold-pulse {
+/* Central vertical beam */
+.lp-gold-beam {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(
+    to top,
+    rgba(255, 215, 0, 0.9) 0%,
+    rgba(255, 193, 7, 0.6) 20%,
+    rgba(255, 160, 0, 0.3) 50%,
+    transparent 100%
+  );
+  filter: blur(2px);
+  animation: lp-beam-pulse 2s ease-in-out infinite;
+}
+
+@keyframes lp-beam-pulse {
   0%,
   100% {
-    opacity: 0.5;
-    transform: scale(1);
+    opacity: 0.8;
+    width: 4px;
   }
   50% {
     opacity: 1;
-    transform: scale(1.08);
+    width: 6px;
+  }
+}
+
+/* Light rays */
+.lp-gold-rays {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+.lp-gold-ray {
+  position: absolute;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  height: 200px;
+  background: linear-gradient(
+    to top,
+    rgba(255, 215, 0, 0.6) 0%,
+    rgba(255, 193, 7, 0.2) 50%,
+    transparent 100%
+  );
+  transform-origin: bottom center;
+  animation: lp-ray-shoot 3s ease-out infinite;
+  opacity: 0;
+}
+
+@keyframes lp-ray-shoot {
+  0% {
+    opacity: 0;
+    height: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    height: 300px;
+  }
+}
+
+/* Sparkles */
+.lp-gold-sparkles {
+  position: absolute;
+  inset: 0;
+}
+
+.lp-gold-sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: lp-sparkle-float 3s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes lp-sparkle-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0);
+  }
+}
+
+/* Base glow - bright light source at bottom */
+.lp-gold-base-glow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 40%;
+  background: radial-gradient(
+    ellipse at bottom,
+    rgba(255, 215, 0, 0.4) 0%,
+    rgba(255, 193, 7, 0.2) 30%,
+    rgba(255, 160, 0, 0.1) 60%,
+    transparent 100%
+  );
+  filter: blur(20px);
+  animation: lp-base-glow-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes lp-base-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
   }
 }
 
