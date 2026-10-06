@@ -288,13 +288,14 @@
 }
 
 .lp-btn-primary {
-  background: linear-gradient(135deg, #3f3628, #5c5240);
-  color: white;
+  background: linear-gradient(135deg, #6e6350, #8b7f68);
+  color: #fffdf6;
   box-shadow: 0 4px 24px rgba(74, 60, 40, 0.2);
 }
 
 .lp-btn-primary:hover {
   transform: translateY(-2px);
+  background: linear-gradient(135deg, #8b7f68, #a09480);
   box-shadow: 0 8px 32px rgba(74, 60, 40, 0.25);
 }
 
