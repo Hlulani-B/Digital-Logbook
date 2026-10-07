@@ -71,12 +71,11 @@ lines.push('');
 
 const markdown = lines.join('\n');
 
-// Write to step summary if the env var is set (CI environment)
+// Always print to stdout (visible in step logs for both GitHub and Gitea)
+console.log(markdown);
+
+// Also write to step summary if the env var is set (GitHub Actions)
 const stepSummary = process.env.GITHUB_STEP_SUMMARY;
 if (stepSummary) {
   appendFileSync(stepSummary, markdown);
-  console.log('Coverage table written to $GITHUB_STEP_SUMMARY');
-} else {
-  // Local mode — just print it
-  console.log(markdown);
 }
