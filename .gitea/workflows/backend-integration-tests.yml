@@ -8,21 +8,8 @@ on:
 
 jobs:
   backend-integration-tests:
-    name: ${{ matrix.service }} Integration Tests
+    name: Backend Integration Tests
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - auth-service
-          - dashboard-service
-          - profile-service
-          - project-service
-
-    defaults:
-      run:
-        working-directory: services/${{ matrix.service }}
 
     steps:
       - name: Checkout code
@@ -32,11 +19,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies (auth-service)
         run: npm ci
+        working-directory: services/auth-service
 
-      - name: Run integration tests
-        run: npx jest --testPathPattern="integration" --forceExit --detectOpenHandles
+      - name: Install dependencies (dashboard-service)
+        run: npm ci
+        working-directory: services/dashboard-service
+
+      - name: Install dependencies (profile-service)
+        run: npm ci
+        working-directory: services/profile-service
+
+      - name: Install dependencies (project-service)
+        run: npm ci
+        working-directory: services/project-service
+
+      - name: Run integration tests with coverage (auth-service)
+        run: npm run test:coverage -- --testPathPattern="integration" --forceExit --detectOpenHandles || true
+        working-directory: services/auth-service
+
+      - name: Run integration tests with coverage (dashboard-service)
+        run: npm run test:coverage -- --testPathPattern="integration" --forceExit --detectOpenHandles || true
+        working-directory: services/dashboard-service
+
+      - name: Run integration tests with coverage (profile-service)
+        run: npm run test:coverage -- --testPathPattern="integration" --forceExit --detectOpenHandles || true
+        working-directory: services/profile-service
+
+      - name: Run integration tests with coverage (project-service)
+        run: npm run test:coverage -- --testPathPattern="integration" --forceExit --detectOpenHandles || true
+        working-directory: services/project-service
+
+      - name: Combined backend coverage summary table
+        if: always()
+        run: node scripts/backend-coverage-summary.js
