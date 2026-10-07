@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { getPref, setPref, PREFERENCES_CHANGED_EVENT } from '@/functions/preferences';
 
 export type Theme =
   | 'light'
@@ -32,14 +33,14 @@ const VALID_THEMES: Theme[] = [
   'solarized',
   'darkpink',
 ];
-const STORAGE_KEY = 'dl_theme';
+const PREF_KEY = 'theme';
+
+function asTheme(value: unknown): Theme | null {
+  return VALID_THEMES.includes(value as Theme) ? (value as Theme) : null;
+}
 
 function getInitialTheme(): Theme {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && VALID_THEMES.includes(stored as Theme)) return stored as Theme;
-  } catch {}
-  return 'light';
+  return asTheme(getPref(PREF_KEY)) ?? 'light';
 }
 
 function applyTheme(theme: Theme) {
@@ -57,9 +58,18 @@ export function useTheme() {
     applyTheme(theme);
   }, [theme]);
 
+  // Re-read when the active user's preference row finishes loading (login,
+  // session restore) or changes elsewhere, so the applied theme always matches
+  // the logged-in account rather than whoever last used this browser.
+  useEffect(() => {
+    const sync = () => setThemeState(getInitialTheme());
+    window.addEventListener(PREFERENCES_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(PREFERENCES_CHANGED_EVENT, sync);
+  }, []);
+
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem(STORAGE_KEY, newTheme);
+    void setPref(PREF_KEY, newTheme);
     applyTheme(newTheme);
   }, []);
 
