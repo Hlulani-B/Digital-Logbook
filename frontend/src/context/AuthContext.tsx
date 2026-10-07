@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { User, Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { clearUserCache } from '@/lib/cache';
+import { initPreferences, resetPreferences } from '@/functions/preferences';
 import { disconnectSSE } from '@/lib/sse';
 
 // Dev mode bypass - creates mock user for local testing
@@ -78,6 +79,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Keep the per-user preferences store in sync with the authenticated email:
+  // load that user's row on sign-in (and on the initial session restore), and
+  // drop back to defaults when the email changes or the user signs out, so one
+  // account's settings never show through to the next user on this device.
+  const email = state.user?.email;
+  useEffect(() => {
+    if (email) {
+      initPreferences(email);
+    } else if (!state.loading) {
+      resetPreferences();
+    }
+  }, [email, state.loading]);
 
   const signInWithGoogle = async () => {
     if (DEV_MODE) {

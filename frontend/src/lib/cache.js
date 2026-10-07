@@ -28,6 +28,7 @@ const TABLES = {
   NOTES: 'notes',
   ACTIVITY: 'activity',
   CACHE_META: 'cache_meta',
+  USER_PREFERENCES: 'user_preferences',
 };
 
 // DDL for every store above. This is applied on EVERY database open — not only
@@ -42,7 +43,12 @@ const SCHEMA_SQL = Object.values(TABLES)
       ? `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, created_at INTEGER);`
       : table === TABLES.CACHE_META
         ? `CREATE TABLE IF NOT EXISTS ${table} (key TEXT PRIMARY KEY, timestamp INTEGER);`
-        : `CREATE TABLE IF NOT EXISTS ${table} (key TEXT PRIMARY KEY, data TEXT);`
+        : // Per-user preferences are keyed by the owner's email, NOT the generic
+          // `key` column, so one account's settings can never be read back for
+          // another on a shared browser/device. See functions/preferences.ts.
+          table === TABLES.USER_PREFERENCES
+          ? `CREATE TABLE IF NOT EXISTS ${table} (user_email TEXT PRIMARY KEY, data TEXT, updated_at INTEGER);`
+          : `CREATE TABLE IF NOT EXISTS ${table} (key TEXT PRIMARY KEY, data TEXT);`
   )
   .join('\n');
 
@@ -460,6 +466,13 @@ export async function clearUserCache(email) {
       console.warn('[Cache] Could not clear notes for user:', err);
     }
     db.run(`DELETE FROM ${TABLES.CACHE_META} WHERE key = ? OR key LIKE ?`, [email, `${email}:%`]);
+    // Preferences live in their own table keyed by the owner's email; wipe the
+    // row so the next person on this device starts from defaults, not ours.
+    try {
+      db.run(`DELETE FROM ${TABLES.USER_PREFERENCES} WHERE user_email = ?`, [email]);
+    } catch (err) {
+      console.warn('[Cache] Could not clear preferences for user:', err);
+    }
 
     // Persist to IndexedDB
     persistDB(db);
