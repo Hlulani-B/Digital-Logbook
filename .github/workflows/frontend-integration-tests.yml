@@ -34,10 +34,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run integration tests with JUnit reporter
-        run: npx vitest run src/__integration__/ --exclude "**/node_modules/**" "**/dist/**" --reporter=default --reporter=junit --outputFile=test-results.xml --testTimeout=15000 --teardownTimeout=15000
+      - name: Run integration tests with coverage
+        run: npx vitest run src/__integration__/ --exclude "**/node_modules/**" "**/dist/**" --coverage --reporter=default --reporter=junit --outputFile=test-results.xml --testTimeout=15000 --teardownTimeout=15000 || true
         env:
           CI: true
+
+      - name: Fix coverage paths (Windows dedup)
+        if: always()
+        run: node scripts/fix-coverage.js
+
+      - name: Coverage summary table
+        if: always()
+        run: node scripts/coverage-summary.js
 
       - name: Publish test results
         uses: dorny/test-reporter@v1

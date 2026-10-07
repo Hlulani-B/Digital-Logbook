@@ -26,6 +26,7 @@ import {
   toISODate,
 } from '@/lib/calendar';
 import './Calendar.css';
+import { usePref, setPref } from '@/functions/preferences';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 
@@ -220,19 +221,16 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  // Persist view in localStorage
-  const [view, setView] = useState<CalendarView>(() => {
-    const saved = localStorage.getItem('calendar-view');
-    if (saved === 'month' || saved === 'week') return saved;
-    return 'month';
-  });
+  // Persist view per-user in the local preferences store
+  const rawView = usePref('calendar_view');
+  const view = (rawView === 'week' ? 'week' : 'month') as CalendarView;
+  const setView = useCallback((next: CalendarView) => {
+    void setPref('calendar_view', next);
+  }, []);
   const isMobile = useIsMobile();
   // On phones, always render as week view regardless of user preference
   const effectiveView: CalendarView = isMobile ? 'week' : view;
 
-  useEffect(() => {
-    localStorage.setItem('calendar-view', view);
-  }, [view]);
   const [dragging, setDragging] = useState<DragState>(null);
   const [updating, setUpdating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);

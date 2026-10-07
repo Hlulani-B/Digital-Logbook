@@ -35,6 +35,9 @@ import { NotesPage } from '@/pages/NotesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { CreateTemplate } from '@/pages/CreateTemplate';
 import FocusMode from '@/pages/FocusMode';
+import HelpCentre from '@/pages/HelpCentre';
+import ReportBug from '@/pages/ReportBug';
+import Landing from '@/pages/Landing';
 
 function ThemeInitializer({ children }: { children: React.ReactNode }) {
   useTheme(); // applies data-theme on mount
@@ -131,14 +134,7 @@ export function App() {
             <DataSyncInitializer>
               <OfflineBanner />
               <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <PublicRoute>
-                      <SignIn />
-                    </PublicRoute>
-                  }
-                />
+                <Route path="/" element={<Landing />} />
                 <Route
                   path="/signin"
                   element={
@@ -317,6 +313,22 @@ export function App() {
                   element={
                     <ProtectedRoute>
                       <NotificationsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/help"
+                  element={
+                    <ProtectedRoute>
+                      <HelpCentre />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/report-bug"
+                  element={
+                    <ProtectedRoute>
+                      <ReportBug />
                     </ProtectedRoute>
                   }
                 />

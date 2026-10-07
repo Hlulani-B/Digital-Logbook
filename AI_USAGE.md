@@ -6,12 +6,12 @@ This repository uses AI-assisted development for the frontend authentication mod
 
 ## Quick Reference
 
-| Item                        | Location                                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------------------------ |
-| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                             |
-| **Student**                 | Nasiphi Ntontela (2673619)                                                                             |
-| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                |
-| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration |
+| Item                        | Location                                                                                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                                                                                 |
+| **Student**                 | Nasiphi Ntontela (2673619)                                                                                                                                 |
+| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                                                                    |
+| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration, Help Centre & bug report form, public landing page |
 
 ---
 
@@ -45,6 +45,10 @@ The following frontend features were implemented with AI acting as a code-genera
   - Due-date notification system: hourly pg_cron scan (`generate_due_notifications()`), per-entry due-soon (24h) and overdue email alerts via Brevo API, and an in-app bell feed with unread badge in the dashboard header
   - Live password-requirements checklist on sign-up (length, uppercase, lowercase, number, explicit special-character set) with disabled submit until all rules pass
   - Guided tour (driver.js) with element-anchored steps and live navigation between views, friendly voice narration via the Web Speech API with a persisted mute toggle, and auto-advance paced to the narration finishing so speech is never cut off
+  - Help Centre (`/help`) with 9 categories, 25 articles, client-side keyword search, category sidebar with emoji icons, keyboard shortcuts (`/` focus, `Esc` clear), theme-aware styling, deep-link URL params, and mobile-responsive layout
+  - In-app bug report form modal that sends reports via email to admin@codacaine.com using FormSubmit.co, with auto-captured browser info, success/error states, and mobile bottom-sheet
+  - Public landing page at `/` with split hero (typing demo + AI-generated dashboard illustration), interactive About and Feature cards with mouse-following spotlight and 3D tilt effects, animated stats counters, "What's New" ticker, team section, CTA, and footer — warm beige/brown palette matching the sign-in form
+  - Sign-in page cleanup: removed duplicated marketing sections (About, About Us, Features) now shown on the landing page, leaving a clean split-screen auth form
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)

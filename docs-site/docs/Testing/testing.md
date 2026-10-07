@@ -162,6 +162,8 @@ jobs:
 
 Each workflow appears separately in the Gitea Actions UI. If any test fails, the pipeline fails and the push is flagged.
 
+The frontend unit tests workflow also runs **coverage** and writes a colour-coded Markdown table to the Gitea Actions job summary via `$GITHUB_STEP_SUMMARY`. This table shows overall coverage (statements, branches, functions, lines) and a collapsible per-file breakdown — no external badge service required.
+
 ### Mocking Approach
 
 | Dependency             | Mock strategy                           | Reason                                                               |
@@ -178,7 +180,9 @@ Each workflow appears separately in the Gitea Actions UI. If any test fails, the
 
 ### Coverage Expectations
 
-Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful coverage** of business logic and critical user flows, not 100% line coverage:
+Coverage is measured with `@vitest/coverage-v8` (frontend) and Jest `--coverage` (backend). The frontend enforces a **70% minimum threshold** across all metrics — the coverage command exits non-zero if any threshold is missed. Current frontend coverage stands at **87.5% lines, 82.1% branches, 89.8% functions** (see [Coverage Report](#coverage-report) above).
+
+The target is **meaningful coverage** of business logic and critical user flows:
 
 - **Pure functions** (stats, overdue, streaks, search, tone) — fully covered
 - **Shared components** (NavBar, Header, ProfileMenu, Stats, AppShell) — render + interaction tests
@@ -226,90 +230,418 @@ Coverage is measured with `@vitest/coverage-v8`. The target is **meaningful cove
 
 ## Full Test Inventory
 
-### Frontend Unit Tests (31 files, 397 tests)
+> **Last updated:** Sprint 3 — all counts verified by static analysis of `it()` / `test()` calls across every test file.
 
-| Test file                                            | What it covers                                                                           | # tests |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------- |
-| `functions/dashboard/__tests__/stats.test.js`        | `formatDuration`, `formatInterval`, `calculateTotalTimeTracked`, `calculateProjectStats` | 18      |
-| `functions/dashboard/__tests__/overdue.test.js`      | `isOverdue`, `getOverdueText`                                                            | 12      |
-| `functions/dashboard/__tests__/streaks.test.js`      | `calculateStreaks`, `streakLabel`                                                        | 9       |
-| `functions/dashboard/__tests__/search.test.js`       | `searchAll`, `searchProject`, `searchProjects`                                           | 7       |
-| `functions/__tests__/tone.test.ts`                   | `getTone`, `setTone`, `getToneInstruction`, `TONE_OPTIONS`                               | 11      |
-| `functions/__tests__/aiMessages.test.ts`             | AI messages enabled/disabled toggle                                                      | 3       |
-| `lib/__tests__/api.test.ts`                          | `request()` (auth headers, errors, JSON), `api.*.health()`                               | 8       |
-| `lib/__tests__/cache.test.js`                        | `cacheGet`, `cacheSet`, `cacheSubscribe`, `cacheDelete`                                  | 12      |
-| `lib/__tests__/sse.test.js`                          | SSE connect, disconnect, event dispatch                                                  | 8       |
-| `lib/__tests__/sse.integration.test.js`              | SSE → cache invalidation end-to-end flow                                                 | 8       |
-| `lib/__tests__/calendar.test.ts`                     | Calendar date calculations                                                               | 6       |
-| `lib/__tests__/today.test.ts`                        | Today view filtering logic                                                               | 5       |
-| `lib/__tests__/kanban.test.ts`                       | Kanban board grouping                                                                    | 4       |
-| `lib/__tests__/timeline.test.ts`                     | Timeline sorting                                                                         | 4       |
-| `lib/__tests__/validation.test.ts`                   | Input validation rules                                                                   | 7       |
-| `lib/__tests__/import-export.test.ts`                | Data import/export                                                                       | 5       |
-| `lib/__tests__/migrations.test.ts`                   | IndexedDB schema migrations                                                              | 4       |
-| `context/__tests__/AuthContext.test.tsx`             | Sign-in, sign-up, OAuth, password reset, delete/restore                                  | 12      |
-| `hooks/__tests__/useInactivityLogout.test.tsx`       | Inactivity logout timer                                                                  | 4       |
-| `components/__tests__/ProtectedRoute.test.tsx`       | Auth gating, loading state, redirect                                                     | 5       |
-| `components/__tests__/QuickEntryBar.test.tsx`        | Form submission, success/error, voice, Enter key                                         | 11      |
-| `components/__tests__/ProfileMenu.test.tsx`          | Dropdown, avatar, keyboard, outside click                                                | 12      |
-| `components/__tests__/NavBar.test.tsx`               | Navigation, drawer, projects, settings event                                             | 19      |
-| `components/__tests__/Header.test.tsx`               | Title, settings event listener, Stats integration                                        | 8       |
-| `components/__tests__/Stats.test.tsx`                | Panel open/close, counts, activeProject                                                  | 10      |
-| `components/__tests__/AppShell.test.tsx`             | Layout, navigation, drawer                                                               | 10      |
-| `pages/__tests__/AllEntries.test.tsx`                | Display modes, sort, localStorage persistence                                            | 13      |
-| `pages/__tests__/SignIn.test.tsx`                    | Form fields, OAuth, mode toggle                                                          | 14      |
-| `Templates/__tests__/EntryChecklist.test.tsx`        | Card rendering, status, ChecklistView                                                    | 11      |
-| `Templates/__tests__/EntriesByDueDateBoard.test.tsx` | Columns, sorting, deleted entries                                                        | 8       |
-| `Templates/__tests__/ProjectTable.test.tsx`          | Summaries, statuses, priorities, dates                                                   | 8       |
+### Frontend Unit Tests (57 files, ~553 tests)
 
-### Frontend Integration Tests (5 files, 47 tests)
+Tests run with **Vitest** + **jsdom** + **@testing-library/react**. All external dependencies (Supabase, `fetch`, IndexedDB) are mocked.
 
-| Test file                                              | What it covers                                                                               | # tests |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------- |
-| `__integration__/cache.integration.test.js`            | IndexedDB round-trips, subscriptions, timestamps, `clearUserCache` isolation                 | 14      |
-| `__integration__/entries-crud.integration.test.js`     | Optimistic add/update/delete, rollback on server failure, dual cache updates                 | 11      |
-| `__integration__/sync-service.integration.test.js`     | `syncAllData` populates all stores, error resilience, `computeDueSoon`, `syncProjectEntries` | 10      |
-| `__integration__/auth-cache.integration.test.js`       | Sign-out clears cache, SSE disconnect, delete account flow, user isolation                   | 4       |
-| `__integration__/use-cached-data.integration.test.tsx` | Hook reads cache immediately, background fetch, reactive updates, convenience hooks          | 8       |
+#### Library / Utility Tests (`src/lib/__tests__/`)
 
-### Backend Tests (25 files)
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `api.test.ts` | `request()` auth headers, error handling, JSON parsing; `api.*.health()` | 8 |
+| `attachmentApi.test.ts` | `createAttachmentLease`, `uploadAttachment`, `finalizeAttachment`, `getAttachment`, `getAttachmentDownloadUrl`, `uploadAndFinalize` | 10 |
+| `cache.test.js` | `cacheGet`, `cacheSet`, `cacheSubscribe`, `cacheDelete` | 12 |
+| `cache-upgrade.test.js` | IndexedDB schema upgrade path | 1 |
+| `calendar.test.ts` | Calendar date calculations, month navigation, day metadata | 23 |
+| `entryFilters.test.ts` | `defaultFilterState`, `isFilterActive`, `activeFilterCount`, `matchesTextQuery`, `applyFieldFilters`, `pinFirst`, `applyProjectFilters`, `fieldTypeLabel`, `projectMatchesSearch` | 19 |
+| `entryPayload.test.ts` | `classifyEntryPayload` — object, string and legacy states | 4 |
+| `fieldContracts.test.ts` | Field definition shape validation, data-type contracts | 13 |
+| `fieldMigration.test.ts` | Field schema migration transforms | 17 |
+| `fieldPermissions.test.ts` | Per-role field visibility and edit rights | 23 |
+| `fieldVersioning.test.ts` | Field version tracking and rollback | 13 |
+| `fieldVisibility.test.ts` | Conditional field show/hide rules | 28 |
+| `helpContent.test.ts` | `HELP_CATEGORIES` structure, `getAllArticles`, `searchArticles` by title/keyword/content | 12 |
+| `import-export.test.ts` | JSON/CSV/Markdown/iCal export, import with field mapping | 34 |
+| `kanban.test.ts` | Kanban board grouping by status | 22 |
+| `migrations.test.ts` | IndexedDB schema migrations | 24 |
+| `projectColorMap.test.ts` | `buildProjectColorMap`, `colorForName` hash, `resolveProjectColor` fallback | 11 |
+| `recentlyCreated.test.ts` | `getRecentlyCreated`, `trackCreatedEntry`, `clearRecentlyCreated`, dedup, cap, events | 14 |
+| `recentlyViewed.test.ts` | `getRecentlyViewed`, `trackViewedEntry`, `trackViewedProject`, `clearRecentlyViewed`, dedup, cap, events | 15 |
+| `sse.test.js` | SSE connect, disconnect, event dispatch, reconnect | 14 |
+| `templateApi.test.ts` | `listTemplates`, `getTemplate`, `createTemplate`, error handling | 7 |
+| `thresholds.test.ts` | `checkThresholds` for numeric, float, date and currency fields | 14 |
+| `timeline.test.ts` | Timeline sorting, date range calculations | 16 |
+| `timerAbandonment.test.ts` | `checkAbandonedTimers` (running/paused thresholds), `formatDuration` | 16 |
+| `validation.test.ts` | Input validation rules, required fields, length limits | 18 |
 
-| Service           | Test file                                            | What it covers                                       |
-| ----------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| auth-service      | `src/__tests__/index.test.js`                        | Health endpoint, Supabase auth integration           |
-| auth-service      | `src/__tests__/cors.integration.test.js`             | CORS middleware integration                          |
-| dashboard-service | `src/__tests__/daemon.test.js`                       | Health ping daemon (table creation, insert, consume) |
-| dashboard-service | `src/__tests__/healthPing.test.js`                   | `/service/health-ping` endpoint                      |
-| dashboard-service | `src/__tests__/search.test.js`                       | Search endpoint                                      |
-| dashboard-service | `src/__tests__/search.integration.test.js`           | Search integration with database                     |
-| profile-service   | `src/__tests__/login.test.js`                        | User login/check endpoint                            |
-| profile-service   | `src/__tests__/profile.test.js`                      | Profile CRUD                                         |
-| profile-service   | `src/__tests__/user-lifecycle.integration.test.js`   | User lifecycle integration                           |
-| project-service   | `src/__tests__/entries.test.js`                      | Entry CRUD endpoints                                 |
-| project-service   | `src/__tests__/project.test.js`                      | Project CRUD endpoints                               |
-| project-service   | `src/__tests__/field.test.js`                        | Custom field management                              |
-| project-service   | `src/__tests__/archives.test.js`                     | Archive/unarchive endpoints                          |
-| project-service   | `src/__tests__/priority.test.js`                     | Priority update endpoint                             |
-| project-service   | `src/__tests__/activityLog.test.js`                  | Activity log endpoints                               |
-| project-service   | `src/__tests__/getDate.test.js`                      | Date formatting utility                              |
-| project-service   | `src/__tests__/natural_language.test.js`             | NL parsing                                           |
-| project-service   | `src/__tests__/openapi.test.js`                      | OpenAPI spec validation                              |
-| project-service   | `src/__tests__/sse.integration.test.js`              | SSE connection and event broadcasting                |
-| project-service   | `src/__tests__/sseRegistry.test.js`                  | SSE client registry                                  |
-| project-service   | `src/__tests__/compressor.test.js`                   | Entry compression utility                            |
-| project-service   | `src/__tests__/entries-activity.integration.test.js` | Entry activity integration                           |
-| project-service   | `src/__tests__/notes_crud.test.js`                   | Notes CRUD endpoints                                 |
-| project-service   | `src/__tests__/notifications.test.js`                | Notification endpoints                               |
-| project-service   | `src/__tests__/store.test.js`                        | Store utility functions                              |
+#### Dashboard Function Tests (`src/functions/dashboard/__tests__/`)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `stats.test.js` | `formatDuration`, `formatInterval`, `calculateTotalTimeTracked`, `calculateProjectStats` | 32 |
+| `fieldStats.test.js` | Per-field statistics: numeric aggregation, date bucketing, multiselect counting, text search, grouping | 70 |
+| `overdue.test.js` | `isOverdue`, `getOverdueText` | 12 |
+| `streaks.test.js` | `calculateStreaks`, `streakLabel` | 10 |
+| `search.test.js` | `searchAll`, `searchProject`, `searchProjects` | 6 |
+
+#### Other Frontend Function Tests (`src/functions/__tests__/`)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `tone.test.ts` | `getTone`, `setTone`, `getToneInstruction`, `TONE_OPTIONS` | 13 |
+| `aiMessages.test.ts` | AI messages enabled/disabled toggle | 13 |
+| `preferences.test.ts` | User preference get/set/clear with localStorage | 7 |
+
+#### Component Tests (`src/components/__tests__/`)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `AppShell.test.tsx` | Layout, navigation, drawer | 10 |
+| `Header.test.tsx` | Title, settings event listener, Stats integration | 8 |
+| `NavBar.test.tsx` | Navigation, drawer, projects, settings event | 10 |
+| `ProfileMenu.test.tsx` | Dropdown, avatar, keyboard, outside click | 12 |
+| `ProtectedRoute.test.tsx` | Auth gating, loading state, redirect | 5 |
+| `QuickEntryBar.test.tsx` | Form submission, success/error, voice, Enter key | 12 |
+| `Stats.test.tsx` | Panel open/close, counts, activeProject | 13 |
+| `TemplatePicker.test.tsx` | Template loading, selection, error handling, scope filtering | 5 |
+
+#### Page Tests (`src/pages/__tests__/`)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `AddEntry.test.tsx` | Entry creation form, field rendering, submission | 8 |
+| `AllEntries.test.tsx` | Display modes, sort, localStorage persistence | 13 |
+| `CalendarDayModal.test.tsx` | Day detail modal, entry list, drag reschedule | 8 |
+| `DataPortability.test.tsx` | Export format selection, import flow | 2 |
+| `NewEntry.layout.test.tsx` | Form layout, field visibility, conditional sections | 7 |
+| `NotesPage.test.tsx` | Note creation, reference linking (entry/project) | 4 |
+| `ProjectDetailPage.offline.test.tsx` | Offline indicator, queued operations | 1 |
+| `SignIn.test.tsx` | Form fields, OAuth, mode toggle | 16 |
+| `StatsView.test.tsx` | Field analysis, daily sums, charts, grouping, search | 17 |
+
+#### Other Frontend Tests
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `context/__tests__/AuthContext.test.tsx` | Sign-in, sign-up, OAuth, password reset, delete/restore | 13 |
+| `hooks/__tests__/useInactivityLogout.test.tsx` | Inactivity logout timer | 3 |
+
+#### Template Tests (`src/Templates/__tests__/`)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `EntriesByDueDateBoard.test.tsx` | Columns, sorting, deleted entries | 8 |
+| `EntryChecklist.test.tsx` | Card rendering, status, ChecklistView | 12 |
+| `EntryChecklist.layout.test.tsx` | Layout variants, responsive behaviour | 5 |
+| `ProjectTable.test.tsx` | Summaries, statuses, priorities, dates | 9 |
+
+### Frontend Integration Tests (8 files, ~64 tests)
+
+Integration tests use **fake-indexeddb** to provide a real IndexedDB implementation in jsdom. They verify that multiple modules work together correctly.
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `__integration__/cache.integration.test.js` | IndexedDB round-trips, subscriptions, timestamps, `clearUserCache` isolation | 14 |
+| `__integration__/entries-crud.integration.test.js` | Optimistic add/update/delete, rollback on server failure, dual cache updates | 12 |
+| `__integration__/sync-service.integration.test.js` | `syncAllData` populates all stores, error resilience, `computeDueSoon`, `syncProjectEntries` | 10 |
+| `__integration__/auth-cache.integration.test.js` | Sign-out clears cache, SSE disconnect, delete account flow, user isolation | 4 |
+| `__integration__/use-cached-data.integration.test.tsx` | Hook reads cache immediately, background fetch, reactive updates, convenience hooks | 8 |
+| `__integration__/fields.integration.test.js` | Field CRUD through the cache layer, schema propagation | 3 |
+| `__integration__/offline-display.integration.test.js` | Offline indicator display, queued mutation replay | 5 |
+| `lib/__tests__/sse.integration.test.js` | SSE → cache invalidation end-to-end flow | 8 |
+
+### Backend Tests (28 files, ~374 tests)
+
+All backend services use **Jest** + **supertest** for HTTP endpoint testing. Database calls are mocked with `jest.mock()` wrapping `pg.Pool`.
+
+#### Auth Service (2 files, ~10 tests)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `index.test.js` | Health endpoint, Supabase auth integration, session validation | 5 |
+| `cors.integration.test.js` | CORS middleware — allowed origins, methods, headers, preflight | 5 |
+
+#### Dashboard Service (4 files, ~46 tests)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `search.test.js` | Search endpoint — text matching, project filter, pagination, sorting | 22 |
+| `daemon.test.js` | Health ping daemon — table creation, insert, consume, interval scheduling | 12 |
+| `healthPing.test.js` | `/service/health-ping` endpoint — response shape, timestamp recording | 6 |
+| `search.integration.test.js` | Search integration with database — end-to-end query execution | 6 |
+
+#### Profile Service (3 files, ~22 tests)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `profile.test.js` | Profile CRUD — create, read, update name/username/avatar, delete | 14 |
+| `login.test.js` | User login/check endpoint — new user creation, existing user lookup | 4 |
+| `user-lifecycle.integration.test.js` | Full user lifecycle — create → update → delete → verify cascade | 4 |
+
+#### Project Service (19 files, ~296 tests)
+
+| Test file | What it covers | # tests |
+| --- | --- | --- |
+| `entries.test.js` | Entry CRUD endpoints — create, read, update, delete, list with filters | 28 |
+| `notes_crud.test.js` | Notes CRUD — create text/link/image notes, update, delete, list by entry | 30 |
+| `getDate.test.js` | Date formatting utilities — relative dates, ISO parsing, timezone handling | 42 |
+| `natural_language.test.js` | Natural language parsing — date extraction, priority detection, project matching | 22 |
+| `field.test.js` | Custom field management — create, update, delete, reorder, type validation | 11 |
+| `project.test.js` | Project CRUD — create, read, update, delete, field definitions | 11 |
+| `archives.test.js` | Archive/unarchive endpoints — cascade to entries, toggle, list archived | 15 |
+| `compressor.test.js` | Entry compression utility — payload minification, round-trip fidelity | 15 |
+| `templates.test.js` | Template CRUD — built-in listing, personal create/update/delete, fork | 15 |
+| `notifications.test.js` | Notification endpoints — create, list, mark read, preferences | 17 |
+| `priority.test.js` | Priority update endpoint — single and bulk priority changes | 13 |
+| `sseRegistry.test.js` | SSE client registry — connect, disconnect, broadcast, cleanup | 14 |
+| `openapi.test.js` | OpenAPI spec validation — schema correctness, endpoint documentation | 12 |
+| `activityLog.test.js` | Activity log endpoints — record, list, filter by project/date | 8 |
+| `store.test.js` | Store utility functions — key-value operations, expiry | 11 |
+| `migrate-templates.test.js` | Template migration — seed built-in templates, version tracking | 9 |
+| `fieldSchema.contract.test.js` | Field schema contract — data type validation, default rules | 7 |
+| `sse.integration.test.js` | SSE connection and event broadcasting — end-to-end with registry | 12 |
+| `entries-activity.integration.test.js` | Entry activity integration — create entry triggers activity log | 5 |
 
 ### Summary
 
-| Category                   | Files  | Tests    |
-| -------------------------- | ------ | -------- |
-| Frontend unit tests        | 31     | 397      |
-| Frontend integration tests | 5      | 47       |
-| Backend tests              | 25     | —        |
-| **Total**                  | **61** | **444+** |
+| Category | Files | Tests |
+| --- | --- | --- |
+| Frontend unit tests | 57 | ~553 |
+| Frontend integration tests | 8 | ~64 |
+| Backend — auth-service | 2 | ~10 |
+| Backend — dashboard-service | 4 | ~46 |
+| Backend — profile-service | 3 | ~22 |
+| Backend — project-service | 19 | ~296 |
+| **Total** | **93** | **~991** |
+
+---
+
+## Coverage Report
+
+### Frontend Coverage
+
+Frontend coverage is measured with **@vitest/coverage-v8** scoped to `src/lib/**` — the pure-logic utility layer. UI pages and components are exercised by the backend service suites and integration specs rather than unit tests, so including them would measure rendering rather than logic.
+
+| Metric | Coverage | Covered / Total |
+| --- | --- | --- |
+| Statements | 🟢 87.5% | 7,440 / 8,502 |
+| Branches | 🟢 82.1% | 2,628 / 3,202 |
+| Functions | 🟢 89.8% | 404 / 450 |
+| Lines | 🟢 87.5% | 7,440 / 8,502 |
+
+**Threshold:** 70% across all metrics (enforced — the coverage command exits non-zero if any threshold is missed).
+
+#### Per-file Breakdown (files below 80%)
+
+| File | Lines | Notes |
+| --- | --- | --- |
+| `profileService.ts` | 0% | Pure re-export barrel (8 lines) — no logic to test |
+| `templateApi.ts` | 41% | CRUD wrappers around `fetch` — partially covered by `templateApi.test.ts` |
+| `supabase.ts` | 54% | Client initialisation — guarded by env vars, hard to reach all branches in jsdom |
+| `entryPayload.ts` | 78% | `classifyEntryPayload` edge cases for legacy payloads |
+| `cache.js` | 78% | SQLite persistence layer — core paths covered, edge error branches remaining |
+| `newEntryDates.ts` | 79% | Natural-language date parsing — most branches covered, exotic formats remaining |
+
+All other `src/lib/` files are at **80% or above**, with many at 90–100%.
+
+#### Coverage Infrastructure
+
+On Windows, the v8 coverage provider emits duplicate path entries (both `c:\...` and `C:\...`) for every file, which halves the reported percentages. A post-processing script (`frontend/scripts/fix-coverage.js`) deduplicates the paths by normalising to lowercase, keeping the entry with actual coverage data, and recomputing the totals. The CI workflow runs this script automatically after generating the coverage report.
+
+A second script (`frontend/scripts/coverage-summary.js`) reads the deduplicated `coverage-summary.json` and writes a Markdown table to `$GITHUB_STEP_SUMMARY`, which Gitea Actions renders directly in the job summary — no badge, just a colour-coded per-file breakdown table.
+
+### Backend Coverage
+
+Backend coverage is measured with **Jest** (`--coverage`) scoped via `collectCoverageFrom` to `src/functions/**` in each service. Routes, middleware and the server bootstrap are deliberately excluded — they are thin HTTP adapters over the tested functions.
+
+| Service | Statements | Branches | Functions | Lines |
+| --- | --- | --- | --- | --- |
+| auth-service | 🟢 93.9% | 🟡 85.7% | 🟢 80.0% | 🟢 93.8% |
+| dashboard-service | 🟢 91.7% | 🟡 61.9% | 🟢 100% | 🟢 97.1% |
+| profile-service | 🟡 61.7% | 🟡 47.5% | 🟡 66.7% | 🟡 63.0% |
+| project-service | 🟡 64.6% | 🟡 56.4% | 🟡 65.5% | 🟡 67.2% |
+
+Profile-service and project-service have lower branch coverage because their error-handling paths (database constraint violations, concurrent writes) require a live database to exercise fully — these are covered by the integration test suites instead.
+
+---
+
+## How Tests Were Written
+
+### Frontend Testing Methodology
+
+#### Test Organisation
+
+Frontend tests follow a **co-located `__tests__/` directory** pattern — every source directory has a sibling `__tests__/` folder containing its test files. This keeps tests close to the code they verify while remaining excluded from production builds.
+
+```
+src/
+├── lib/              →  src/lib/__tests__/
+├── components/       →  src/components/__tests__/
+├── pages/            →  src/pages/__tests__/
+├── functions/        →  src/functions/__tests__/
+├── Templates/        →  src/Templates/__tests__/
+├── context/          →  src/context/__tests__/
+├── hooks/            →  src/hooks/__tests__/
+└── __integration__/  (top-level, separate from unit tests)
+```
+
+#### Pure Logic Tests (src/lib)
+
+The `src/lib/` directory contains pure functions with no React dependency — these are the easiest to test and carry the highest coverage.
+
+**Pattern:** Import the function, call it with known inputs, assert the output.
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { checkAbandonedTimers, formatDuration } from '../timerAbandonment';
+
+describe('checkAbandonedTimers', () => {
+  it('detects a running timer beyond 2 hours', () => {
+    const entry = makeEntry({
+      started_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    });
+    const result = checkAbandonedTimers([entry]);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('timer_running_long');
+  });
+});
+```
+
+**Key techniques:**
+- **Factory functions** (`makeEntry()`) generate test data with sensible defaults and per-test overrides
+- **Fixed timestamps** ensure deterministic results regardless of when tests run
+- **Edge cases** are tested explicitly: empty inputs, null fields, invalid dates, boundary values
+
+#### localStorage-based Module Tests
+
+Modules like `recentlyCreated.ts` and `recentlyViewed.ts` store data in `localStorage`. Tests exercise the full read/write/clear lifecycle:
+
+```typescript
+beforeEach(() => { window.localStorage.clear(); });
+
+it('caps at 3 items', () => {
+  trackCreatedEntry({ entryId: 'a', projectName: 'P', title: 'A' });
+  trackCreatedEntry({ entryId: 'b', projectName: 'P', title: 'B' });
+  trackCreatedEntry({ entryId: 'c', projectName: 'P', title: 'C' });
+  trackCreatedEntry({ entryId: 'd', projectName: 'P', title: 'D' });
+  const stored = getStored();
+  expect(stored).toHaveLength(3);
+  expect(stored.map(e => e.entryId)).toEqual(['d', 'c', 'b']);
+});
+```
+
+#### API Wrapper Tests
+
+API wrappers (`attachmentApi.ts`, `templateApi.ts`, `api.ts`) are tested by mocking `fetch` and the Supabase session:
+
+```typescript
+const mockFetch = vi.fn();
+beforeEach(() => { vi.stubGlobal('fetch', mockFetch); });
+
+it('sends POST with auth header', async () => {
+  mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockLease) });
+  const result = await createAttachmentLease(1, 'field-1', mockFile);
+  expect(mockFetch).toHaveBeenCalledWith(
+    expect.stringContaining('/leases'),
+    expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer test-token' }) })
+  );
+});
+```
+
+#### Component Tests
+
+React component tests use `@testing-library/react` with `MemoryRouter` for routing and `vi.mock()` for dependencies:
+
+```tsx
+it('renders the project name on each card', () => {
+  render(<ChecklistEntryCard entry={sampleEntry} />);
+  expect(screen.getByText('TestProject')).toBeTruthy();
+});
+```
+
+**Key techniques:**
+- **`MemoryRouter`** wraps components that use `useNavigate` or `<Link>`
+- **`vi.mock()`** replaces Supabase, AuthContext and child components
+- **`userEvent`** simulates clicks, typing and keyboard shortcuts
+- **`screen.getByRole` / `screen.getByText`** query the rendered DOM semantically
+
+#### Integration Tests
+
+Integration tests live in `src/__integration__/` and use `fake-indexeddb/auto` to provide a real IndexedDB in jsdom. They verify cross-module data flow:
+
+```javascript
+import 'fake-indexeddb/auto';
+import { cacheSet, cacheGet, cacheSubscribe } from '../cache';
+
+it('notifies subscribers when cacheSet writes a new value', async () => {
+  const listener = vi.fn();
+  cacheSubscribe('entries', 'user@test.com', listener);
+  await cacheSet('entries', 'user@test.com', [{ id: 1 }]);
+  expect(listener).toHaveBeenCalledWith([{ id: 1 }]);
+});
+```
+
+### Backend Testing Methodology
+
+#### Test Organisation
+
+Each backend service has a `src/__tests__/` directory containing both unit and integration tests. Unit tests mock the database pool; integration tests use a real (or mocked) database connection.
+
+#### HTTP Endpoint Tests
+
+Backend endpoint tests use **supertest** to make HTTP requests against the Express app without starting a real server:
+
+```javascript
+const request = require('supertest');
+const app = require('../index');
+
+describe('GET /service/health', () => {
+  it('returns 200 with service name', async () => {
+    const res = await request(app).get('/service/health');
+    expect(res.status).toBe(200);
+    expect(res.body.service).toBe('auth');
+  });
+});
+```
+
+#### Database Mocking
+
+All unit tests mock `pg.Pool` to avoid requiring a live database:
+
+```javascript
+const mockQuery = jest.fn();
+jest.mock('pg', () => ({
+  Pool: jest.fn(() => ({ query: mockQuery })),
+}));
+
+beforeEach(() => { mockQuery.mockReset(); });
+
+it('returns entries from the database', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test' }] });
+  const res = await request(app).get('/service/entries/project/TestProject');
+  expect(res.body.entries).toHaveLength(1);
+});
+```
+
+#### Natural Language Parsing Tests
+
+The `natural_language.test.js` suite (22 tests) verifies the NL parser that extracts dates, priorities and project names from free-text input:
+
+```javascript
+it('extracts "due Friday" as a date', () => {
+  const result = parseNaturalLanguage('studied chapter 5, due Friday');
+  expect(result.date).toBeTruthy();
+  expect(result.project).toBeFalsy(); // no project mentioned
+});
+```
+
+#### SSE Registry Tests
+
+The SSE registry tests verify client connection management, event broadcasting and cleanup:
+
+```javascript
+it('broadcasts to all connected clients', () => {
+  const client1 = { write: jest.fn() };
+  const client2 = { write: jest.fn() };
+  registry.add('project-A', client1);
+  registry.add('project-A', client2);
+  registry.broadcast('project-A', { type: 'entry_updated', id: 42 });
+  expect(client1.write).toHaveBeenCalled();
+  expect(client2.write).toHaveBeenCalled();
+});
+```
 
 ---
 

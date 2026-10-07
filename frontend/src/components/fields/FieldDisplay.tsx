@@ -49,8 +49,37 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         </div>
       );
     }
-    case 'file':
+    case 'file': {
+      if (typeof value !== 'object' || value === null)
+        return <div className="field-display">—</div>;
+      const { attachmentId } = value as any;
+      return (
+        <div className="field-display field-display-attachment">
+          <span>📎 {attachmentId.slice(0, 8)}...</span>
+        </div>
+      );
+    }
     case 'image': {
+      // Handle raw base64 image strings
+      if (typeof value === 'string') {
+        const src = value.startsWith('data:image/') ? value : `data:image/jpeg;base64,${value}`;
+        return (
+          <div className="field-display field-display-image">
+            <img
+              src={src}
+              alt="Entry image"
+              style={{
+                maxWidth: '80px',
+                maxHeight: '80px',
+                objectFit: 'cover',
+                borderRadius: '6px',
+                border: '1px solid var(--border, #e5e7eb)',
+              }}
+            />
+          </div>
+        );
+      }
+      // Handle { attachmentId } object shape
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
       const { attachmentId } = value as any;

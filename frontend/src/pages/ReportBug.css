@@ -1,0 +1,441 @@
+/* Report Bug Page */
+.report-bug {
+  min-height: 100vh;
+  background: var(--bg, #fafafa);
+  color: var(--text, #1f2937);
+}
+
+/* Header */
+.report-bug__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.report-bug__back {
+  background: none;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text, #1f2937);
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.report-bug__back:hover {
+  background: var(--border, #f3f4f6);
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+}
+
+.report-bug__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.report-bug__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text, #1f2937);
+}
+
+.report-bug__title-icon {
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.report-bug__subtitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-muted, #6b7280);
+}
+
+/* Layout */
+.report-bug__layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 2rem;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Form */
+.report-bug__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.report-bug__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.report-bug__field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text, #1f2937);
+}
+
+.report-bug__required {
+  color: #ef4444;
+}
+
+.report-bug__field input,
+.report-bug__field textarea {
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  background: var(--bg, #fafafa);
+  color: var(--text, #1f2937);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  resize: vertical;
+}
+
+.report-bug__field input:focus,
+.report-bug__field textarea:focus {
+  outline: none;
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  background: var(--surface, #fff);
+}
+
+.report-bug__field input::placeholder,
+.report-bug__field textarea::placeholder {
+  color: var(--text-muted, #9ca3af);
+}
+
+.report-bug__field input:disabled,
+.report-bug__field textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-bug__error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+
+.report-bug__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+/* Buttons */
+.report-bug__btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1.5px solid transparent;
+}
+
+.report-bug__btn--secondary {
+  background: var(--surface, #fff);
+  color: var(--text, #1f2937);
+  border-color: var(--border, #d1d5db);
+}
+
+.report-bug__btn--secondary:hover:not(:disabled) {
+  background: var(--border, #f3f4f6);
+  border-color: #9ca3af;
+}
+
+.report-bug__btn--primary {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  border-color: var(--accent, #6366f1);
+}
+
+.report-bug__btn--primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.report-bug__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-bug__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: report-spin 0.6s linear infinite;
+}
+
+@keyframes report-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tips sidebar */
+.report-bug__tips {
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+}
+
+.report-bug__tips h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text, #1f2937);
+}
+
+.report-bug__tips h3 svg {
+  color: var(--accent, #6366f1);
+}
+
+.report-bug__tips ul {
+  margin: 0;
+  padding: 0 0 1.5rem 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.report-bug__tips li {
+  font-size: 0.875rem;
+  color: var(--text-muted, #4b5563);
+  padding-left: 1.25rem;
+  position: relative;
+  line-height: 1.5;
+}
+
+.report-bug__tips li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent, #6366f1);
+  opacity: 0.5;
+}
+
+.report-bug__browser-info {
+  padding-top: 1.25rem;
+}
+
+.report-bug__browser-info h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text, #1f2937);
+}
+
+.report-bug__browser-info h4 svg {
+  color: var(--text-muted, #6b7280);
+}
+
+.report-bug__browser-note {
+  font-size: 0.8125rem;
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+.report-bug__copy-btn {
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--bg, #f3f4f6);
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-muted, #4b5563);
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.report-bug__copy-btn:hover {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  border-color: var(--accent, #6366f1);
+}
+
+/* Success state */
+.report-bug__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  text-align: center;
+  padding: 2rem;
+  animation: report-fade-in 0.4s ease;
+}
+
+@keyframes report-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.report-bug__success-icon-wrap {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #f0fdf4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  animation: report-scale-in 0.5s ease 0.1s both;
+}
+
+@keyframes report-scale-in {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.report-bug__success-icon-wrap svg {
+  color: #22c55e;
+}
+
+.report-bug__success h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text, #1f2937);
+}
+
+.report-bug__success > p {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.report-bug__success-sub {
+  font-size: 0.9375rem !important;
+  margin-top: 0.25rem !important;
+}
+
+.report-bug__success-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .report-bug__layout {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .report-bug__header {
+    padding: 1rem;
+  }
+
+  .report-bug__title {
+    font-size: 1.25rem;
+  }
+
+  .report-bug__form {
+    padding: 1.25rem;
+  }
+
+  .report-bug__tips {
+    position: static;
+  }
+
+  .report-bug__success-actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .report-bug__success-actions .report-bug__btn {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .report-bug__header {
+    padding: 0.75rem;
+  }
+
+  .report-bug__title {
+    font-size: 1.125rem;
+  }
+
+  .report-bug__subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .report-bug__form {
+    padding: 1rem;
+  }
+
+  .report-bug__actions {
+    flex-direction: column-reverse;
+  }
+
+  .report-bug__actions .report-bug__btn {
+    justify-content: center;
+  }
+}

@@ -2,23 +2,23 @@
 
 ## Student Details
 
-| Field              | Value                                                                |
-| ------------------ | -------------------------------------------------------------------- |
-| **Name**           | Nasiphi Ntontela                                                     |
-| **Student Number** | 2673619                                                              |
-| **Project**        | Codacaine — Digital Logbook                                          |
-| **Date**           | 13 August 2026 (updated 3 September 2026, updated 12 September 2026) |
+| Field              | Value                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **Name**           | Nasiphi Ntontela                                                                                                     |
+| **Student Number** | 2673619                                                                                                              |
+| **Project**        | Codacaine — Digital Logbook                                                                                          |
+| **Date**           | 13 August 2026 (updated 3 September 2026, updated 12 September 2026, updated 5 October 2026, updated 6 October 2026) |
 
 ---
 
 ## AI Tool Used
 
-| Field                | Value                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                                                           |
-| **Underlying Model** | Not disclosed by the tool                                                                                     |
-| **Access Method**    | VS Code extension (Qoder IDE)                                                                                 |
-| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026, continued 11–12 September 2026 (extended multi-turn sessions) |
+| Field                | Value                                                                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tool**             | Qoder (AI Coding Assistant integrated with VS Code)                                                                                       |
+| **Underlying Model** | Not disclosed by the tool                                                                                                                 |
+| **Access Method**    | VS Code extension (Qoder IDE)                                                                                                             |
+| **Session Duration** | 12–13 August 2026, continued 20–23 August 2026, continued 11–12 September 2026, continued 5–6 October 2026 (extended multi-turn sessions) |
 
 ---
 
@@ -66,6 +66,18 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I decided the branch strategy (Authentication branch) and deployment approach
 - I requested an interactive guided tour that walks new users through the app, with a friendly AI voice narrating each step and hands-free auto-advance between steps
 - I reported that the tour narration repeated step titles aloud and that the voice was cut off before finishing reading, and requested both be fixed
+- I requested a Help Centre page with searchable articles, category navigation, keyboard shortcuts, and mobile-responsive layout
+- I requested an in-app bug report form that sends emails to the team instead of linking to external issue trackers
+- I requested sophisticated emojis on Help Centre category icons and article titles for visual scanning
+- I reported that the Help Centre back button was not working and requested it navigate to the dashboard
+- I reported that the "Back to category" button in article view was not deselecting the article on desktop
+- I requested a public landing page at `/` with a typing demo, animated stats, feature cards, and team section to introduce the product before sign-in
+- I requested the landing page colours match the sign-in form's warm beige/brown palette
+- I requested the About, About Us, and Features sections be removed from the sign-in page since they were duplicated on the landing page
+- I requested the three About highlight cards be moved to the landing page
+- I requested all landing page cards be dynamic and creative with interactive effects
+- I requested an AI-generated tech-savvy hero image related to a digital logbook for the landing page
+- I requested the "Get Started" button text be more readable against its dark background
 
 ### 2. Code Generation (AI-Assisted)
 
@@ -115,6 +127,13 @@ The AI generated the following code based on my instructions:
 | `src/components/NotificationsBell.tsx`                      | In-app notification bell with unread badge and dropdown feed                                                     | AI generated from my requirements     |
 | `src/functions/project/notifications.js`                    | Client wrappers for the notification feed endpoints                                                              | AI generated                          |
 | `src/lib/tour.ts`                                           | Guided tour engine: driver.js step definitions, live navigation, speech-synthesis narration, auto-advance pacing | AI generated from my requirements     |
+| `src/lib/helpContent.ts`                                    | Help Centre content: 9 categories, 25 articles, keyword search function                                          | AI generated from my requirements     |
+| `src/pages/HelpCentre.tsx`                                  | Full Help Centre page with search, category sidebar, article view, and bug report modal trigger                  | AI generated from my requirements     |
+| `src/pages/HelpCentre.css`                                  | Help Centre styles: theme-aware, mobile-responsive with horizontal tabs on phones                                | AI generated from my design direction |
+| `src/components/BugReportModal.tsx`                         | In-app bug report modal with FormSubmit.co email integration, auto-captured browser info, success/error states   | AI generated from my requirements     |
+| `src/components/BugReportModal.css`                         | Bug report modal styles with fade/slide animations and mobile bottom-sheet                                       | AI generated from my design direction |
+| `src/pages/Landing.tsx`                                     | Public landing page with hero, typing demo, interactive cards, stats, ticker, team, CTA, and footer              | AI generated from my requirements     |
+| `src/pages/landing.css`                                     | Landing page styles with warm beige/brown palette, scroll-reveal animations, and interactive card effects        | AI generated from my design direction |
 | `.env.example`                                              | Environment variable template                                                                                    | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
@@ -190,4 +209,4 @@ The AI was used as a **code generation and technical guidance tool** under my di
 ---
 
 **Signed:** Nasiphi Ntontela  
-**Date:** 12 September 2026
+**Date:** 6 October 2026
