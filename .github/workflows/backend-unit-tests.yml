@@ -13,21 +13,8 @@ permissions:
 
 jobs:
   backend-unit-tests:
-    name: ${{ matrix.service }} Unit Tests
+    name: Backend Unit Tests
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - auth-service
-          - dashboard-service
-          - profile-service
-          - project-service
-
-    defaults:
-      run:
-        working-directory: services/${{ matrix.service }}
 
     steps:
       - name: Checkout code
@@ -37,24 +24,61 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies (auth-service)
         run: npm ci
+        working-directory: services/auth-service
 
-      - name: Run unit tests (exclude integration)
-        run: npx jest --testPathIgnorePatterns="integration" --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles
+      - name: Install dependencies (dashboard-service)
+        run: npm ci
+        working-directory: services/dashboard-service
+
+      - name: Install dependencies (profile-service)
+        run: npm ci
+        working-directory: services/profile-service
+
+      - name: Install dependencies (project-service)
+        run: npm ci
+        working-directory: services/project-service
+
+      - name: Run tests with coverage (auth-service)
+        run: npm run test:coverage -- --testPathIgnorePatterns="integration" --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles || true
+        working-directory: services/auth-service
         env:
           JEST_JUNIT_OUTPUT_DIR: ./
           JEST_JUNIT_OUTPUT_NAME: test-results.xml
 
-      - name: Publish test results
-        uses: dorny/test-reporter@v1
+      - name: Run tests with coverage (dashboard-service)
+        run: npm run test:coverage -- --testPathIgnorePatterns="integration" --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles || true
+        working-directory: services/dashboard-service
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./
+          JEST_JUNIT_OUTPUT_NAME: test-results.xml
+
+      - name: Run tests with coverage (profile-service)
+        run: npm run test:coverage -- --testPathIgnorePatterns="integration" --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles || true
+        working-directory: services/profile-service
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./
+          JEST_JUNIT_OUTPUT_NAME: test-results.xml
+
+      - name: Run tests with coverage (project-service)
+        run: npm run test:coverage -- --testPathIgnorePatterns="integration" --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles || true
+        working-directory: services/project-service
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./
+          JEST_JUNIT_OUTPUT_NAME: test-results.xml
+
+      - name: Combined backend coverage summary table
         if: always()
+        run: node scripts/backend-coverage-summary.js
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
         with:
-          name: ${{ matrix.service }} Unit Tests
-          path: services/${{ matrix.service }}/test-results.xml
+          name: Backend Unit Tests
+          path: services/*/test-results.xml
           reporter: jest-junit
           fail-on-error: false
 
@@ -62,6 +86,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.service }}-unit-test-results
-          path: services/${{ matrix.service }}/test-results.xml
+          name: backend-unit-test-results
+          path: services/*/test-results.xml
           retention-days: 30
