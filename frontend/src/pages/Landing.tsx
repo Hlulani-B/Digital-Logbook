@@ -435,6 +435,21 @@ export default function Landing() {
   useReveal();
   useCounters();
 
+  // Hero video: alternate between two videos for seamless loop
+  const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
+  const video1Ref = useRef<HTMLVideoElement>(null);
+  const video2Ref = useRef<HTMLVideoElement>(null);
+
+  const handleVideo1End = useCallback(() => {
+    setActiveVideo(2);
+    video2Ref.current?.play();
+  }, []);
+
+  const handleVideo2End = useCallback(() => {
+    setActiveVideo(1);
+    video1Ref.current?.play();
+  }, []);
+
   const tickerItems = [...TICKER_ITEMS, ...TICKER_ITEMS];
 
   return (
@@ -500,7 +515,28 @@ export default function Landing() {
             </div>
 
             <div className="lp-hero-image lp-reveal lp-d2">
-              <img src="/hero-image.png" alt="Digital Logbook Dashboard" className="lp-hero-img" />
+              <div className="lp-hero-video-container">
+                <video
+                  ref={video1Ref}
+                  src="/video1.mp4"
+                  autoPlay
+                  muted
+                  playsInline
+                  onEnded={handleVideo1End}
+                  className="lp-hero-video"
+                  style={{ opacity: activeVideo === 1 ? 1 : 0 }}
+                />
+                <video
+                  ref={video2Ref}
+                  src="/video2.mp4"
+                  muted
+                  playsInline
+                  onEnded={handleVideo2End}
+                  className="lp-hero-video"
+                  style={{ opacity: activeVideo === 2 ? 1 : 0 }}
+                />
+              </div>
+              <div className="lp-hero-video-overlay" />
             </div>
           </div>
         </section>

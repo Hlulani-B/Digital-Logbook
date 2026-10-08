@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { checkUser } from '../functions/profile/login.js';
@@ -84,21 +84,6 @@ export function SignIn() {
     const id = setInterval(checkRestored, 5_000);
     return () => clearInterval(id);
   }, [restoreEmail, restoreDetected]);
-
-  // Video background: alternate between two videos for seamless loop
-  const [activeVideo, setActiveVideo] = useState<1 | 2>(1);
-  const video1Ref = useRef<HTMLVideoElement>(null);
-  const video2Ref = useRef<HTMLVideoElement>(null);
-
-  const handleVideo1End = useCallback(() => {
-    setActiveVideo(2);
-    video2Ref.current?.play();
-  }, []);
-
-  const handleVideo2End = useCallback(() => {
-    setActiveVideo(1);
-    video1Ref.current?.play();
-  }, []);
 
   const showRestorePrompt = (userEmail: string, scheduledAt: string) => {
     setRestoreEmail(userEmail);
@@ -322,39 +307,9 @@ export function SignIn() {
 
   return (
     <div className="signin-page">
-      <div className="split-auth">
-        {/* Left panel — video showcase */}
-        <div className="split-left">
-          <div className="split-video-container">
-            <video
-              ref={video1Ref}
-              src="/video1.mp4"
-              autoPlay
-              muted
-              playsInline
-              onEnded={handleVideo1End}
-              className="split-video"
-              style={{ opacity: activeVideo === 1 ? 1 : 0 }}
-            />
-            <video
-              ref={video2Ref}
-              src="/video2.mp4"
-              muted
-              playsInline
-              onEnded={handleVideo2End}
-              className="split-video"
-              style={{ opacity: activeVideo === 2 ? 1 : 0 }}
-            />
-          </div>
-          <div className="split-video-overlay" />
-          <div className="split-video-caption">
-            <h2>Digital Logbook</h2>
-            <p>Track your time, own your progress</p>
-          </div>
-        </div>
-
-        {/* Right panel — form */}
-        <div className="split-right">
+      <div className="split-auth split-auth-form-only">
+        {/* Form panel — full width */}
+        <div className="split-right split-right-full">
           <div className="split-form-wrapper">
             <h1 className="auth-title">Welcome</h1>
             <p className="auth-subtitle">
