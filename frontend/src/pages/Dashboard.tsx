@@ -35,6 +35,7 @@ import { askAI } from '@/functions/ai.js';
 import { getToneInstruction } from '@/functions/tone';
 import { useAiMessagesEnabled } from '@/functions/aiMessages';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
+import { isDueSoon } from '@/functions/dashboard/overdue.js';
 import { useNow } from '@/hooks/useNow';
 import { useTimerActions } from '@/hooks/useTimerActions';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
@@ -238,7 +239,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dueSoonRows, setDueSoonRows] = useState<Entry[]>([]);
+  // Global due-soon count, derived live from the shared eligibility rule so
+  // the Stats card, the AI greeting and the rail can never disagree with the
+  // displayed entries — even between due-soon cache recomputes.
+  const dueSoonCount = useMemo(
+    () =>
+      entries.filter((e) =>
+        isDueSoon(e.due_date as string | null, e.status as string | null, e.archived as boolean)
+      ).length,
+    [entries]
+  );
   // Archive state
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
   const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
@@ -349,10 +359,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     console.log('[Dashboard] loadData START, email=', email, 'seq=', seq);
     try {
       console.log('[Dashboard] Reading cache...', { seq });
-      const [cachedEntries, cachedProjects, cachedDueSoon] = await Promise.all([
+      const [cachedEntries, cachedProjects] = await Promise.all([
         cacheGet(CACHE_STORES.ALL_ENTRIES, email),
         cacheGet(CACHE_STORES.PROJECTS, email),
-        cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
       ]);
       // A newer loadData call has started since our await — bail without
       // touching state so the fresher call wins cleanly.
@@ -367,9 +376,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         '[Dashboard] Cache read done. entries:',
         !!cachedEntries?.data,
         'projects:',
-        !!(cachedProjects?.data || cachedProjects?.projects),
-        'dueSoon:',
-        !!cachedDueSoon?.data
+        !!(cachedProjects?.data || cachedProjects?.projects)
       );
       // Apply whatever is already cached — instant, zero-spinner render.
       const applyProjectsCache = (row: Record<string, unknown> | null) => {
@@ -394,8 +401,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       };
       const applyCacheRows = (
         eRow: Record<string, unknown> | null,
-        pRow: Record<string, unknown> | null,
-        dRow: Record<string, unknown> | null
+        pRow: Record<string, unknown> | null
       ) => {
         if (eRow?.data) {
           const next = (Array.isArray(eRow.data) ? eRow.data : []) as Entry[];
@@ -404,10 +410,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           setEntries((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
         }
         if (pRow?.data || pRow?.projects) applyProjectsCache(pRow);
-        if (dRow?.data) setDueSoonRows(Array.isArray(dRow.data) ? (dRow.data as Entry[]) : []);
       };
 
-      applyCacheRows(cachedEntries, cachedProjects, cachedDueSoon);
+      applyCacheRows(cachedEntries, cachedProjects);
 
       // A *missing* row (cacheGet returned null — not an empty array) means the
       // store was never populated OR was just invalidated by a mutation/SSE
@@ -425,10 +430,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         }
         console.log('[Dashboard] Cache rows missing — force syncAllData (bypass throttle)...');
         await syncAllData(email, { force: true });
-        const [freshEntries, freshProjects, freshDueSoon] = await Promise.all([
+        const [freshEntries, freshProjects] = await Promise.all([
           cacheGet(CACHE_STORES.ALL_ENTRIES, email),
           cacheGet(CACHE_STORES.PROJECTS, email),
-          cacheGet(CACHE_STORES.ENTRIES, `${email}:due-soon`),
         ]);
         // syncAllData + the re-read are long-running; a subscriber-triggered
         // reload may have overtaken us. Only the newest call commits.
@@ -439,7 +443,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
           });
           return;
         }
-        applyCacheRows(freshEntries, freshProjects, freshDueSoon);
+        applyCacheRows(freshEntries, freshProjects);
       }
     } catch (err) {
       console.error('[Dashboard] loadData exception:', err);
@@ -484,7 +488,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     const unsubs = [
       cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
       cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
-      cacheSubscribe(CACHE_STORES.ENTRIES, `${email}:due-soon`, reload),
     ];
     return () => unsubs.forEach((unsub) => unsub());
   }, [email, reload]);
@@ -533,7 +536,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       const hour = new Date().getHours();
       const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
       const entryCount = entries.length;
-      const dueCount = dueSoonRows.length;
+      const dueCount = dueSoonCount;
       let cancelled = false;
 
       (async () => {
@@ -556,7 +559,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       setAiGreeting("Welcome! Let's get you started.");
       setShowGreetingToast(true);
     }
-  }, [aiMessagesOn, loading, projects, entries, dueSoonRows]);
+  }, [aiMessagesOn, loading, projects, entries, dueSoonCount]);
 
   // Auto-dismiss greeting toast after 30 seconds
   useEffect(() => {
@@ -735,16 +738,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       filtered = filtered.filter((e) => e.project_name === activeView);
     }
 
-    // Always apply "due soon" filter: only entries with due_date within 3 days
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const threeDaysFromNow = new Date(startOfToday.getTime() + 3 * 24 * 60 * 60 * 1000);
-    filtered = filtered.filter((e) => {
-      if (!e.due_date) return false;
-      const due = new Date(e.due_date as string);
-      if (isNaN(due.getTime())) return false;
-      return due >= startOfToday && due <= threeDaysFromNow;
-    });
+    // Always apply "due soon" filter through the shared eligibility rule —
+    // identical to the rail, the Stats count and the sync cache, so completed
+    // or archived entries can never linger as due soon.
+    filtered = filtered.filter((e) =>
+      isDueSoon(e.due_date as string | null, e.status as string | null, e.archived as boolean)
+    );
 
     // Regular search — summary, project name and every field value
     if (pageSearch.trim()) {
@@ -1595,7 +1594,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <Stats
                 entries={entries}
                 projects={projects}
-                dueSoonCount={dueSoonRows.length}
+                dueSoonCount={dueSoonCount}
                 activeProject={isProjectView ? activeView : undefined}
               />
             </div>

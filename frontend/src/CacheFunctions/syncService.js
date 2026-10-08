@@ -56,7 +56,7 @@ import { getActivities } from '@/functions/activity.js';
 // ── Pure compute functions (no server calls) ────────────────────
 import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
 import { calculateStreaks } from '@/functions/dashboard/streaks.js';
-import { getOverdueText } from '@/functions/dashboard/overdue.js';
+import { getOverdueText, isDueSoon } from '@/functions/dashboard/overdue.js';
 
 // ── Cache layer ─────────────────────────────────────────────────
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache.js';
@@ -517,15 +517,12 @@ async function _doSync(email, onProgress, epoch = syncEpoch) {
  */
 export function computeDueSoon(entries) {
   if (!Array.isArray(entries)) return [];
-  const now = new Date();
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-  return entries.filter((entry) => {
-    if (!entry.due_date) return false;
-    const due = new Date(entry.due_date);
-    if (isNaN(due.getTime())) return false;
-    return due >= now && due <= threeDaysFromNow;
-  });
+  // Shared eligibility rule (same predicate as the Dashboard rail, the Stats
+  // count and the project page split) — a completed, archived or past-due
+  // entry can never sit in the due-soon cache.
+  return entries.filter(
+    (entry) => entry?.deleted !== true && isDueSoon(entry.due_date, entry.status, entry.archived)
+  );
 }
 
 /**
