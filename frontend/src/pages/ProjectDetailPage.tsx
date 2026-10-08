@@ -19,7 +19,7 @@ import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { trackViewedProject } from '@/lib/recentlyViewed';
 import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { setPriority } from '@/functions/project/priority.js';
-import { isDueSoon } from '@/functions/dashboard/overdue.js';
+import { isDueSoon, isActiveEntry } from '@/functions/dashboard/overdue.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 import { getToneInstruction } from '@/functions/tone';
@@ -348,10 +348,11 @@ export function ProjectDetailPage() {
     const other: Entry[] = [];
 
     for (const entry of source) {
-      // Archived entries belong to the Archives view, not the active feed —
-      // this also makes an offline archive disappear immediately, since the
-      // optimistic write flips `archived` on this project's ENTRIES cache.
-      if (entry.archived) continue;
+      // Archived and deleted entries belong to the Archives view, not the
+      // active feed — this also makes an offline archive disappear
+      // immediately, since the optimistic write flips `archived` on this
+      // project's ENTRIES cache.
+      if (!isActiveEntry(entry)) continue;
       // Shared eligibility rule — same predicate as the Dashboard rail and
       // the due-soon cache, so a completed or past-due entry never lands in
       // the due-soon section.
@@ -367,6 +368,15 @@ export function ProjectDetailPage() {
 
   const filteredEntries =
     searchResults !== null ? searchResults : [...dueSoonEntries, ...otherEntries];
+
+  // The default (non-search) views select from this instead of the raw cache
+  // rows: archived/deleted entries must not linger as faded cards in Table,
+  // Checklist, Board or Cards. Order-preserving on purpose — unlike the
+  // due-soon split above, this list must not reorder the default views.
+  const activeEntries = useMemo(
+    () => (entries as Entry[]).filter((e) => isActiveEntry(e)),
+    [entries]
+  );
 
   // Priority handler
   const handleSetPriority = async (
@@ -820,7 +830,7 @@ export function ProjectDetailPage() {
         {/* All entries */}
         {!searchQuery && (
           <div className="project-content">
-            {!loading && entries.length === 0 ? (
+            {!loading && activeEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
                   <svg
@@ -844,7 +854,7 @@ export function ProjectDetailPage() {
               </div>
             ) : viewMode === 'table' ? (
               <ProjectTaskTable
-                rows={entries}
+                rows={activeEntries}
                 onUpdate={async (id: string, patch: Record<string, any>) => {
                   console.log('[onUpdate] Called with id:', id, 'patch:', patch);
                   // Find the entry being updated
@@ -916,7 +926,7 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'checklist' ? (
               <ChecklistView
-                entries={entries.map((r) => ({
+                entries={activeEntries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,
                   project_name: r.project_name as string,
@@ -932,7 +942,7 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
-                entries={entries.map((r) => ({
+                entries={activeEntries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,
                   project_name: r.project_name as string,
@@ -948,7 +958,7 @@ export function ProjectDetailPage() {
               />
             ) : (
               <div className="entries-grid">
-                {entries.map((row, i) => (
+                {activeEntries.map((row, i) => (
                   <EntryBox
                     key={`entry-${row.id || i}`}
                     entry={row as any}
