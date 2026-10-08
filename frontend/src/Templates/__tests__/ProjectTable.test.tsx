@@ -77,8 +77,17 @@ describe('ProjectTaskTable', () => {
     // Check that option text includes the status labels
     const allOptions = Array.from(document.querySelectorAll('.ptt-select-status option'));
     const optionTexts = allOptions.map((o) => o.textContent);
+    expect(optionTexts).toContain('Up Next');
     expect(optionTexts).toContain('In Motion');
     expect(optionTexts).toContain('Done & Dusted');
+  });
+
+  it('shows the overdue badge only on active rows past due (same rule as cards)', () => {
+    renderTable(sampleRows);
+    const badges = Array.from(document.querySelectorAll('.ptt-overdue-badge'));
+    // e1 (in_motion) and e2 (up_next) are past due; e3 is done_and_dusted.
+    expect(badges.length).toBe(2);
+    expect(badges.map((b) => b.textContent).every((t) => t?.startsWith('Overdue'))).toBe(true);
   });
 
   it('renders priority labels as select options', () => {

@@ -377,4 +377,54 @@ describe('EntryBox inline edit layout', () => {
     );
     expect(screen.queryByText('Delete this entry?')).not.toBeInTheDocument();
   });
+
+  it('treats overdue as a warning only: priority and status stay editable and the entry can be completed', async () => {
+    const pastDue = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const overdueEntry = { ...sampleEntry, due_date: pastDue, status: 'up_next' as const };
+    mocks.updateEntry.mockResolvedValueOnce({
+      success: true,
+      data: { ...overdueEntry, status: 'done_and_dusted' },
+    });
+    const { container } = renderBox(overdueEntry);
+    await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());
+
+    // The overdue warning is shown, but no control is gated by it.
+    expect(element(container, '.entry-box__tag--overdue')).toHaveTextContent('Overdue');
+    const card = element(container, '.entry-box');
+    expect(element(card, '.entry-box__priority-select')).toBeEnabled();
+    expect(element(card, '.entry-box__status-select')).toBeEnabled();
+
+    // Overdue Up Next → Done & Dusted stays available on the card itself.
+    fireEvent.change(element(card, '.entry-box__status-select'), {
+      target: { value: 'done_and_dusted' },
+    });
+    await waitFor(() =>
+      expect(mocks.updateEntry).toHaveBeenCalledExactlyOnceWith(
+        overdueEntry.user_email,
+        overdueEntry.project_name,
+        overdueEntry.id,
+        undefined,
+        undefined,
+        undefined,
+        'done_and_dusted'
+      )
+    );
+  });
+
+  it('keeps overdue entries editable in the inline editor and never flags archived entries overdue', async () => {
+    const pastDue = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { container } = renderBox({ ...sampleEntry, due_date: pastDue });
+    await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());
+    openEdit();
+    const body = element(container, '.entry-form__body');
+    const [editPriority, editStatus] = within(body).getAllByRole('combobox');
+    expect(editPriority).toBeEnabled();
+    expect(editStatus).toBeEnabled();
+
+    // Archived entries are never currently overdue — no badge even past due.
+    cleanup();
+    const archived = renderBox({ ...sampleEntry, due_date: pastDue, archived: true });
+    await waitFor(() => expect(archived.container.querySelector('.field-display')).not.toBeNull());
+    expect(archived.container.querySelector('.entry-box__tag--overdue')).toBeNull();
+  });
 });

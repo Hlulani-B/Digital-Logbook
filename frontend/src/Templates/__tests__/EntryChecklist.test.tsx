@@ -92,6 +92,21 @@ describe('ChecklistEntryCard', () => {
     const card = screen.getByText('Fix login bug').closest('.checklist-card');
     expect(card?.getAttribute('data-status')).toBe('in_motion');
   });
+
+  it('shows the overdue badge for active entries past due (same rule as cards)', () => {
+    renderCard(sampleEntry);
+    const badge = document.querySelector('.checklist-overdue-badge');
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toMatch(/^Overdue/);
+  });
+
+  it('does not show the overdue badge for done entries or archived entries', () => {
+    const { unmount } = renderCard(doneEntry);
+    expect(document.querySelector('.checklist-overdue-badge')).toBeNull();
+    unmount();
+    renderCard({ ...sampleEntry, archived: true });
+    expect(document.querySelector('.checklist-overdue-badge')).toBeNull();
+  });
 });
 
 describe('ChecklistView', () => {
