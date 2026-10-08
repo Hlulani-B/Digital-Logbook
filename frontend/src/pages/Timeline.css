@@ -212,6 +212,14 @@
   fill: #f97316;
 }
 
+/* Overdue deadline styling — dashed red stroke so it stays readable
+   on top of any status/priority fill (same warning state as other views). */
+.timeline-bar--overdue {
+  stroke: #ef4444;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+
 .timeline-bar-label {
   fill: white;
   font-size: 11px;

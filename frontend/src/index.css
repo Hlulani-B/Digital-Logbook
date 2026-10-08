@@ -7234,6 +7234,26 @@ img {
   margin: 0;
 }
 
+/* Overdue badge — same derived warning state as the cards' overdue tag */
+.checklist-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(183, 76, 64, 0.12);
+  color: #b74c40;
+  border: 1px solid rgba(183, 76, 64, 0.2);
+}
+[data-theme='dark'] .checklist-overdue-badge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
 .checklist-card-notes-btn {
   align-self: flex-start;
   display: flex;
