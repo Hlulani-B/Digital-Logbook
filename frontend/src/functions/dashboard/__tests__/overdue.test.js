@@ -1,44 +1,67 @@
 import { describe, it, expect } from 'vitest';
 import { isOverdue, getOverdueText } from '../overdue';
 
-describe('isOverdue', () => {
+const PAST = () => new Date(Date.now() - 86400000).toISOString();
+const FUTURE = () => new Date(Date.now() + 86400000).toISOString();
+
+describe('isOverdue — shared lifecycle rule', () => {
+  // Spec scenarios 1–6: the derived overdue state depends on due date,
+  // status and archived only — never on which view renders the entry.
+  it('1. Up Next + future due → not overdue', () => {
+    expect(isOverdue(FUTURE(), 'up_next')).toBe(false);
+  });
+
+  it('2. In Motion + future due → not overdue', () => {
+    expect(isOverdue(FUTURE(), 'in_motion')).toBe(false);
+  });
+
+  it('3. Up Next + past due → overdue', () => {
+    expect(isOverdue(PAST(), 'up_next')).toBe(true);
+  });
+
+  it('4. In Motion + past due → overdue', () => {
+    expect(isOverdue(PAST(), 'in_motion')).toBe(true);
+  });
+
+  it('5. Done & Dusted + past due → NOT currently overdue', () => {
+    expect(isOverdue(PAST(), 'done_and_dusted')).toBe(false);
+  });
+
+  it('6. Archived + past due + Up Next → NOT currently overdue', () => {
+    expect(isOverdue(PAST(), 'up_next', true)).toBe(false);
+  });
+
+  // 10. Completion removes the current overdue state (status drives it).
+  it('completion transitions remove the overdue state', () => {
+    expect(isOverdue(PAST(), 'up_next')).toBe(true);
+    expect(isOverdue(PAST(), 'done_and_dusted')).toBe(false);
+  });
+
+  it('missing status behaves like the up_next default', () => {
+    expect(isOverdue(PAST(), null)).toBe(true);
+    expect(isOverdue(PAST(), undefined)).toBe(true);
+    expect(isOverdue(FUTURE(), null)).toBe(false);
+  });
+
   it('returns false when dueDate is null', () => {
     expect(isOverdue(null, null)).toBe(false);
+    expect(isOverdue(null, 'up_next')).toBe(false);
   });
 
   it('returns false when dueDate is empty string', () => {
     expect(isOverdue('', null)).toBe(false);
   });
 
-  it('returns false when status is done_and_dusted', () => {
-    const pastDate = new Date(Date.now() - 86400000).toISOString();
-    expect(isOverdue(pastDate, 'done_and_dusted')).toBe(false);
-  });
-
-  it('returns false for a future date', () => {
-    const futureDate = new Date(Date.now() + 86400000).toISOString();
-    expect(isOverdue(futureDate, 'in_progress')).toBe(false);
-  });
-
-  it('returns true for a past date with non-done status', () => {
-    const pastDate = new Date(Date.now() - 86400000).toISOString();
-    expect(isOverdue(pastDate, 'in_progress')).toBe(true);
-  });
-
-  it('returns true for a past date with null status', () => {
-    const pastDate = new Date(Date.now() - 86400000).toISOString();
-    expect(isOverdue(pastDate, null)).toBe(true);
-  });
-
   it('returns false for invalid date string', () => {
-    expect(isOverdue('not-a-date', 'in_progress')).toBe(false);
+    expect(isOverdue('not-a-date', 'in_motion')).toBe(false);
   });
 });
 
-describe('getOverdueText', () => {
+describe('getOverdueText — shared lifecycle rule', () => {
   it('returns null when not overdue', () => {
-    const futureDate = new Date(Date.now() + 86400000).toISOString();
-    expect(getOverdueText(futureDate, 'in_progress')).toBeNull();
+    expect(getOverdueText(FUTURE(), 'up_next')).toBeNull();
+    expect(getOverdueText(PAST(), 'done_and_dusted')).toBeNull();
+    expect(getOverdueText(PAST(), 'up_next', true)).toBeNull();
   });
 
   it('returns null when dueDate is null', () => {
@@ -47,16 +70,16 @@ describe('getOverdueText', () => {
 
   it('returns "Overdue today" for a date earlier today', () => {
     const earlierToday = new Date(Date.now() - 3600000).toISOString();
-    expect(getOverdueText(earlierToday, 'in_progress')).toBe('Overdue today');
+    expect(getOverdueText(earlierToday, 'in_motion')).toBe('Overdue today');
   });
 
   it('returns "Overdue by 1 day" for yesterday', () => {
     const yesterday = new Date(Date.now() - 86400000 * 1.5).toISOString();
-    expect(getOverdueText(yesterday, 'in_progress')).toBe('Overdue by 1 day');
+    expect(getOverdueText(yesterday, 'in_motion')).toBe('Overdue by 1 day');
   });
 
   it('returns "Overdue by N days" for older dates', () => {
     const fiveDaysAgo = new Date(Date.now() - 86400000 * 5.5).toISOString();
-    expect(getOverdueText(fiveDaysAgo, 'in_progress')).toBe('Overdue by 5 days');
+    expect(getOverdueText(fiveDaysAgo, 'in_motion')).toBe('Overdue by 5 days');
   });
 });
