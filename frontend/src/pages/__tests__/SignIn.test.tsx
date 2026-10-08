@@ -115,9 +115,9 @@ describe('SignIn', () => {
     expect(screen.queryByText('Forgot password?')).toBeNull();
   });
 
-  it('renders the Digital Logbook caption', () => {
+  it('renders the Plannar caption', () => {
     renderSignIn();
-    expect(screen.getByText('Digital Logbook')).toBeTruthy();
+    expect(screen.getByText('Plannar')).toBeTruthy();
     expect(screen.getByText('Track your time, own your progress')).toBeTruthy();
   });
 

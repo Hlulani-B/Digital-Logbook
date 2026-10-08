@@ -351,7 +351,7 @@ function TypingDemo() {
                 </svg>
                 2h logged
               </span>
-              <span className="lp-typing-card-project">Digital Logbook project</span>
+              <span className="lp-typing-card-project">Plannar project</span>
             </div>
           </div>
         </div>
@@ -467,7 +467,7 @@ export default function Landing() {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </div>
-            Digital Logbook
+            Plannar
           </div>
           <div className="lp-nav-links">
             <a href="#lp-features">Features</a>
@@ -492,8 +492,8 @@ export default function Landing() {
                 <span className="lp-gradient-text">logged beautifully.</span>
               </h1>
               <p className="lp-reveal lp-d2">
-                The Digital Logbook turns scattered tasks, deadlines and notes into one calm,
-                searchable workspace. Type naturally and let it organise itself.
+                The Plannar turns scattered tasks, deadlines and notes into one calm, searchable
+                workspace. Type naturally and let it organise itself.
               </p>
               <div className="lp-hero-actions lp-reveal lp-d3">
                 <Link to="/signin" className="lp-btn lp-btn-primary">
@@ -547,9 +547,9 @@ export default function Landing() {
             <div className="lp-section-tag lp-reveal">About</div>
             <h2 className="lp-section-title lp-reveal lp-d1">Your work, logged beautifully.</h2>
             <p className="lp-section-lead lp-reveal lp-d2">
-              The Digital Logbook turns scattered tasks, deadlines and notes into one calm,
-              searchable timeline. Type naturally — &ldquo;worked on the login feature for 2
-              hours&rdquo; — and it files itself under the right project with the right due date.
+              The Plannar turns scattered tasks, deadlines and notes into one calm, searchable
+              timeline. Type naturally — &ldquo;worked on the login feature for 2 hours&rdquo; — and
+              it files itself under the right project with the right due date.
             </p>
             <div className="lp-about-grid">
               {ABOUT_CARDS.map((c, i) => (
@@ -641,9 +641,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <footer className="lp-footer">
-          &copy; 2026 Codacaine. Digital Logbook — All rights reserved.
-        </footer>
+        <footer className="lp-footer">&copy; 2026 Codacaine. Plannar — All rights reserved.</footer>
       </div>
     </div>
   );
