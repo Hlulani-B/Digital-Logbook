@@ -200,10 +200,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     defaultView
   );
 
-  // Sort state - persisted per-user in the local preferences store (control
-  // removed from the display; the persisted value is kept in case it returns)
-  const sortBy = usePref('dashboard_sort_by') as 'priority' | 'date';
-
   // Display mode for the entries feed (cards/checklist/board) - persisted per-user
   const rawDisplayMode = usePref('dashboard_display_mode');
   const displayMode = (
@@ -275,7 +271,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       })
       .slice(0, 3);
   }, [entries]);
-
 
   // AI-generated messages
   const [aiGreeting, setAiGreeting] = useState('');
