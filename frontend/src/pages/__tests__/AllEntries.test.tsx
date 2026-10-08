@@ -3,6 +3,9 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AllEntriesPage } from '../AllEntries';
 import { initPreferences } from '@/functions/preferences';
+import { cacheGet } from '@/lib/cache';
+import { EntryBox } from '@/pages/NewEntry';
+import ProjectTaskTable from '@/Templates/ProjectTemplates/ProjectTable';
 
 // In-memory stand-in for the per-user preferences table (SQLite via cache).
 const prefRows: Record<string, string> = {};
@@ -186,5 +189,97 @@ describe('AllEntriesPage', () => {
     renderPage();
     const priorityBtn = screen.getByText('Priority');
     expect(priorityBtn.className).toContain('active');
+  });
+});
+
+describe('AllEntriesPage archive filtering (Batch 3 — active-view consistency)', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    for (const key of Object.keys(prefRows)) delete prefRows[key];
+    await initPreferences('test@test.com');
+  });
+
+  function renderPage() {
+    return render(
+      <MemoryRouter initialEntries={['/entries']}>
+        <AllEntriesPage />
+      </MemoryRouter>
+    );
+  }
+
+  function seedCache(
+    entryRows: Array<Record<string, unknown>>,
+    projectRows: Array<Record<string, unknown>>
+  ) {
+    vi.mocked(cacheGet).mockImplementation(async (store: unknown) =>
+      store === 'projects' ? { data: projectRows } : { data: entryRows }
+    );
+  }
+
+  const activeProject = { project_name: 'Alpha', archived: false };
+  const archivedProject = { project_name: 'OldProject', archived: true };
+
+  function row(overrides: Record<string, unknown>) {
+    return {
+      project_name: 'Alpha',
+      due_date: '2030-01-01T10:00:00Z',
+      status: 'up_next',
+      archived: false,
+      deleted: false,
+      ...overrides,
+    };
+  }
+
+  function renderedEntryIds() {
+    return vi
+      .mocked(EntryBox)
+      .mock.calls.map((call) => (call[0] as { entry: { id?: string } }).entry?.id);
+  }
+
+  it('excludes archived, deleted, and archived-project entries from the cards view', async () => {
+    seedCache(
+      [
+        row({ id: '1', summary: 'Active entry' }),
+        row({ id: '2', summary: 'Archived entry', archived: true }),
+        row({ id: '3', summary: 'Entry of archived project', project_name: 'OldProject' }),
+        row({ id: '4', summary: 'Deleted entry', deleted: true }),
+      ],
+      [activeProject, archivedProject]
+    );
+    renderPage();
+    // Cards is the default mode — each rendered card receives its entry via props.
+    await waitFor(() => expect(vi.mocked(EntryBox).mock.calls.length).toBeGreaterThan(0));
+    const renderedIds = renderedEntryIds();
+    expect(renderedIds).toContain('1');
+    expect(renderedIds).not.toContain('2');
+    expect(renderedIds).not.toContain('3');
+    expect(renderedIds).not.toContain('4');
+  });
+
+  it('excludes the same rows from the table view', async () => {
+    seedCache(
+      [
+        row({ id: '1', summary: 'Active entry' }),
+        row({ id: '2', summary: 'Archived entry', archived: true }),
+        row({ id: '3', summary: 'Entry of archived project', project_name: 'OldProject' }),
+      ],
+      [activeProject, archivedProject]
+    );
+    renderPage();
+    fireEvent.click(screen.getByText('Table'));
+    await waitFor(() => expect(vi.mocked(ProjectTaskTable).mock.calls.length).toBeGreaterThan(0));
+    const calls = vi.mocked(ProjectTaskTable).mock.calls;
+    const lastCall = calls[calls.length - 1][0] as { rows: Array<{ id: string }> };
+    const ids = lastCall.rows.map((r) => r.id);
+    expect(ids).toContain('1');
+    expect(ids).not.toContain('2');
+    expect(ids).not.toContain('3');
+  });
+
+  it('returns a restored entry to active views once its archive flag clears', async () => {
+    seedCache([row({ id: '2', summary: 'Restored entry', archived: false })], [activeProject]);
+    renderPage();
+    await waitFor(() => expect(vi.mocked(EntryBox).mock.calls.length).toBeGreaterThan(0));
+    expect(renderedEntryIds()).toContain('2');
   });
 });

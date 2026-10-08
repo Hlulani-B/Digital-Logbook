@@ -17,6 +17,7 @@ import VoiceFeature from '@/pages/VoiceFeature';
 import { type EntryPayload } from '@/lib/entryPayload';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { usePref, setPref } from '@/functions/preferences';
+import { isActiveEntry } from '@/functions/dashboard/overdue.js';
 
 type Entry = Record<string, unknown>;
 
@@ -163,9 +164,24 @@ export function AllEntriesPage() {
     loadData();
   };
 
+  // Names of archived projects — their entries are excluded from active views
+  // along with individually archived entries (both stay visible in Archives).
+  const archivedProjectNames = useMemo(
+    () =>
+      new Set(
+        (projects as Array<Record<string, unknown>>)
+          .filter((p) => p.archived === true)
+          .map((p) => (p.project_name as string) || '')
+      ),
+    [projects]
+  );
+
   // Filtered entries
   const filteredEntries = useMemo(() => {
-    let filtered = [...entries];
+    // Active views only — no archived, deleted, or archived-project entries.
+    let filtered = (entries as Entry[]).filter((e) =>
+      isActiveEntry(e, archivedProjectNames.has((e.project_name as string) || ''))
+    );
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -194,7 +210,7 @@ export function AllEntriesPage() {
     }
 
     return filtered;
-  }, [entries, searchQuery, sortBy]);
+  }, [entries, archivedProjectNames, searchQuery, sortBy]);
 
   const colorMap = useMemo(
     () => buildProjectColorMap(projects as Array<Record<string, unknown>>),

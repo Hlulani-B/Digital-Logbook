@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isOverdue, getOverdueText } from '../overdue';
+import { isOverdue, getOverdueText, isActiveEntry } from '../overdue';
 
 const PAST = () => new Date(Date.now() - 86400000).toISOString();
 const FUTURE = () => new Date(Date.now() + 86400000).toISOString();
@@ -81,5 +81,32 @@ describe('getOverdueText — shared lifecycle rule', () => {
   it('returns "Overdue by N days" for older dates', () => {
     const fiveDaysAgo = new Date(Date.now() - 86400000 * 5.5).toISOString();
     expect(getOverdueText(fiveDaysAgo, 'in_motion')).toBe('Overdue by 5 days');
+  });
+});
+
+describe('isActiveEntry — shared active-view rule', () => {
+  it('a normal active entry appears in active views', () => {
+    expect(isActiveEntry({ archived: false, deleted: false })).toBe(true);
+  });
+
+  it('an individually archived entry is excluded', () => {
+    expect(isActiveEntry({ archived: true, deleted: false })).toBe(false);
+  });
+
+  it('a deleted entry is excluded', () => {
+    expect(isActiveEntry({ archived: false, deleted: true })).toBe(false);
+  });
+
+  it('an entry of an archived project is excluded', () => {
+    expect(isActiveEntry({ archived: false, deleted: false }, true)).toBe(false);
+  });
+
+  it('a missing/null entry row is excluded', () => {
+    expect(isActiveEntry(null)).toBe(false);
+  });
+
+  it('missing flags behave like false (active entry)', () => {
+    expect(isActiveEntry({})).toBe(true);
+    expect(isActiveEntry({}, false)).toBe(true);
   });
 });
