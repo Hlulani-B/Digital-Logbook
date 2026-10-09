@@ -92,6 +92,21 @@ describe('ChecklistEntryCard', () => {
     const card = screen.getByText('Fix login bug').closest('.checklist-card');
     expect(card?.getAttribute('data-status')).toBe('in_motion');
   });
+
+  it('renders a styled overdue warning only for active past-due entries', () => {
+    const pastDue = new Date(Date.now() - 86400000).toISOString();
+    const { unmount } = renderCard({ ...sampleEntry, due_date: pastDue });
+    expect(document.querySelector('.checklist-overdue-badge')?.textContent).toMatch(/^Overdue/);
+    unmount();
+    renderCard({ ...doneEntry, due_date: pastDue });
+    expect(document.querySelector('.checklist-overdue-badge')).toBeNull();
+  });
+
+  it('does not show the warning for archived entries', () => {
+    const pastDue = new Date(Date.now() - 86400000).toISOString();
+    renderCard({ ...sampleEntry, due_date: pastDue, archived: true });
+    expect(document.querySelector('.checklist-overdue-badge')).toBeNull();
+  });
 });
 
 describe('ChecklistView', () => {

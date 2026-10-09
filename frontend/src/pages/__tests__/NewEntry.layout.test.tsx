@@ -354,6 +354,27 @@ describe('EntryBox inline edit layout', () => {
     expect(container.querySelector('.entry-box__table')?.textContent).not.toContain('_project_ref');
   });
 
+  it('keeps overdue entries editable and allows completion', async () => {
+    const pastDue = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const overdueEntry = { ...sampleEntry, due_date: pastDue, status: 'up_next' as const };
+    mocks.updateEntry.mockResolvedValueOnce({
+      success: true,
+      data: { ...overdueEntry, status: 'done_and_dusted' },
+    });
+    const { container } = renderBox(overdueEntry);
+    await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());
+
+    const card = element(container, '.entry-box');
+    expect(element(card, '.entry-box__priority-select')).toBeEnabled();
+    expect(element(card, '.entry-box__status-select')).toBeEnabled();
+    expect(element(card, '.entry-box__tag--overdue')).toHaveTextContent('Overdue');
+
+    fireEvent.change(element(card, '.entry-box__status-select'), {
+      target: { value: 'done_and_dusted' },
+    });
+    await waitFor(() => expect(mocks.updateEntry).toHaveBeenCalled());
+  });
+
   it('keeps delete confirmation inline in the ordinary menu with cancel and delete callbacks', async () => {
     const { container, onDelete } = renderBox();
     await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());

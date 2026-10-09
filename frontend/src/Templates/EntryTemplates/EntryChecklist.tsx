@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
+import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
 import { resolveProjectColor } from '@/lib/projectColorMap';
@@ -17,6 +18,7 @@ interface ChecklistEntry {
   status?: EntryStatus;
   entries?: EntryPayload;
   started_at?: string | null;
+  archived?: boolean;
   _timerPending?: boolean;
 }
 
@@ -200,7 +202,14 @@ export default function ChecklistEntryCard({
             <p className={`checklist-summary ${isDone ? 'checklist-summary--done' : ''}`}>
               {getSummary(entry)}
             </p>
-            <p className="checklist-due">{formatDate(entry.due_date)}</p>
+            <p className="checklist-due">
+              {formatDate(entry.due_date)}
+              {isOverdue(entry.due_date ?? null, entry.status ?? null, entry.archived) && (
+                <span className="checklist-overdue-badge">
+                  {getOverdueText(entry.due_date ?? null, entry.status ?? null, entry.archived)}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <button
