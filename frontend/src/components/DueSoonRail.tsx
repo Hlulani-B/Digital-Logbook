@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEntryTitle, type CalendarEntry } from '@/lib/calendar';
+import { isDueSoon } from '@/functions/dashboard/overdue.js';
 
 type Entry = Record<string, unknown>;
 
@@ -37,8 +38,15 @@ export function DueSoonRail({ entries }: DueSoonRailProps) {
 
   const toggle = () => setCollapsed((prev) => !prev);
 
+  // Defensive: apply the shared eligibility rule at the render boundary too —
+  // a completed, archived or past-due entry must never appear in the rail,
+  // even if a caller hands one over between state updates.
+  const eligible = entries.filter((row) =>
+    isDueSoon(row.due_date as string | null, row.status as string | null, row.archived as boolean)
+  );
+
   // Soonest due first so the most urgent entries sit at the top.
-  const sorted = [...entries].sort((a, b) => {
+  const sorted = [...eligible].sort((a, b) => {
     const da = new Date((a.due_date as string) || 0).getTime();
     const db = new Date((b.due_date as string) || 0).getTime();
     return da - db;

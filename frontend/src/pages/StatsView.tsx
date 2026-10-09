@@ -809,7 +809,6 @@ export function StatsView() {
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [dueSoonCount, setDueSoonCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const fieldsKey = `${email}:${scopeProject}`;
   const [fieldState, setFieldState] = useState<{
@@ -846,9 +845,6 @@ export function StatsView() {
         const next = Array.isArray(cachedProjects.data) ? cachedProjects.data : [];
         setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
       }
-      if (cachedEntries?.data) {
-        setDueSoonCount(computeDueSoon(cachedEntries.data).length);
-      }
       if (!cachedEntries?.data && !cachedProjects?.data) {
         // First visit ever — trigger initial sync
         await syncAllData(email);
@@ -865,7 +861,6 @@ export function StatsView() {
           const next = Array.isArray(freshProjects.data) ? freshProjects.data : [];
           setProjects((prev) => (next.length === 0 && prev.length > 0 ? prev : next));
         }
-        if (freshEntries?.data) setDueSoonCount(computeDueSoon(freshEntries.data).length);
       }
     } catch (err) {
       console.error('[StatsView] Failed to load stats data:', err);
@@ -1055,9 +1050,22 @@ export function StatsView() {
   const completedCount = scopedEntries.filter((e) => e.ended_at).length;
   const inProgressCount = totalTimeTracked.inProgressCount;
   const noTimerCount = scopedEntries.length - completedCount - inProgressCount;
+  // Names of archived parent projects — their active entries are never due
+  // soon, so the due-soon counts below agree with the Dashboard's.
+  const archivedProjectNames = useMemo(
+    () => new Set(projects.filter((p) => p.archived).map((p) => p.project_name as string)),
+    [projects]
+  );
   // Due-soon count and page title follow the active scope
-  const scopedDueSoonCount = useMemo(() => computeDueSoon(scopedEntries).length, [scopedEntries]);
-  const shownDueSoonCount = scopeProject ? scopedDueSoonCount : dueSoonCount;
+  const scopedDueSoonCount = useMemo(
+    () => computeDueSoon(scopedEntries, archivedProjectNames).length,
+    [scopedEntries, archivedProjectNames]
+  );
+  const globalDueSoonCount = useMemo(
+    () => computeDueSoon(entries, archivedProjectNames).length,
+    [entries, archivedProjectNames]
+  );
+  const shownDueSoonCount = scopeProject ? scopedDueSoonCount : globalDueSoonCount;
   const statsTitle = scopeProject ? `${scopeProject} — Stats` : 'My Stats';
 
   if (loading) {
