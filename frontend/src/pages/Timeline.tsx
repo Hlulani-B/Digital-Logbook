@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { type CalendarEntry } from '@/lib/calendar';
+import { isOverdue } from '@/functions/dashboard/overdue.js';
 import {
   buildDependencyArrows,
   computeTimelineRenderLayout,
@@ -42,10 +43,11 @@ function getPriorityClass(priority: string | null): string {
 interface TimelineBarProps {
   item: TimelineRenderItem;
   priority: string | null;
+  overdue: boolean;
   onClick: () => void;
 }
 
-function TimelineBar({ item, priority, onClick }: TimelineBarProps) {
+function TimelineBar({ item, priority, overdue, onClick }: TimelineBarProps) {
   const { entry, x, y, width, height } = item;
   const statusClass = getStatusClass(entry.status);
   const priorityClass = getPriorityClass(priority);
@@ -53,7 +55,9 @@ function TimelineBar({ item, priority, onClick }: TimelineBarProps) {
   return (
     <g className="timeline-bar-group" onClick={onClick}>
       <rect
-        className={['timeline-bar', statusClass, priorityClass].filter(Boolean).join(' ')}
+        className={['timeline-bar', statusClass, priorityClass, overdue && 'timeline-bar--overdue']
+          .filter(Boolean)
+          .join(' ')}
         x={x}
         y={y}
         width={Math.max(width, 4)}
@@ -275,6 +279,7 @@ export function TimelineView({ entries, onGoToDashboard }: TimelineViewProps) {
                     key={item.entry.id}
                     item={item}
                     priority={entry?.priority ?? null}
+                    overdue={isOverdue(entry?.due_date ?? null, item.entry.status, entry?.archived)}
                     onClick={() => handleEntryClick(item.entry.id)}
                   />
                 );
