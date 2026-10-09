@@ -9,6 +9,10 @@
  * renders against the real IndexedDB/sql.js cache stack; only network, auth
  * and the four view components (stubbed so their received rows can be
  * asserted) are mocked.
+ *
+ * Follow-up (final lifecycle fix): the feed is also gated by the effective
+ * project archive state — while the parent project is archived, none of its
+ * rows show, even though their own flags are preserved across the cycle.
  */
 
 import 'fake-indexeddb/auto';
@@ -318,5 +322,46 @@ describe('ProjectDetailPage archive consistency (Batch 3A)', () => {
       { timeout: 10000 }
     );
     expect(entryBoxIds()).not.toContain('2');
+  }, 120000);
+
+  it('gates the whole feed on the effective project archive state', async () => {
+    await seedEntries([entry('1'), entry('2')]);
+    renderPage();
+
+    await waitFor(() => expect(lastCallIds(ProjectTaskTable, 'rows')).toContain('2'), {
+      timeout: 10000,
+    });
+
+    // Archive the PROJECT only: its rows keep their own active flags, so the
+    // page must hide them through the effective archived-project state.
+    const callsBefore = (ProjectTaskTable as unknown as MockedComponent).mock.calls.length;
+    await cacheSet(CACHE_STORES.PROJECTS, EMAIL, {
+      success: true,
+      data: [{ project_name: PROJECT, archived: true }],
+    });
+
+    // The gated feed falls back to the empty state…
+    await waitFor(() => expect(screen.getByText('No items yet')).toBeTruthy(), {
+      timeout: 10000,
+    });
+    // …and no table render after the archive flip may still hold the rows.
+    const callsAfter = (ProjectTaskTable as unknown as MockedComponent).mock.calls.slice(
+      callsBefore
+    );
+    for (const call of callsAfter) {
+      const ids = (call[0] as { rows: Array<{ id: string }> }).rows.map((r) => r.id);
+      expect(ids).not.toContain('1');
+      expect(ids).not.toContain('2');
+    }
+
+    // Restore the project flag — the active rows must come back.
+    await cacheSet(CACHE_STORES.PROJECTS, EMAIL, {
+      success: true,
+      data: [{ project_name: PROJECT, archived: false }],
+    });
+    await waitFor(() => expect(lastCallIds(ProjectTaskTable, 'rows')).toContain('2'), {
+      timeout: 10000,
+    });
+    expect(lastCallIds(ProjectTaskTable, 'rows')).toContain('1');
   }, 120000);
 });
