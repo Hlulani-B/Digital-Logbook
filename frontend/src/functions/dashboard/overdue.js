@@ -33,3 +33,43 @@ export function getOverdueText(dueDate, status, archived = false) {
   if (diffDays === 1) return 'Overdue by 1 day';
   return `Overdue by ${diffDays} days`;
 }
+
+/** How far ahead an upcoming deadline still counts as "due soon". */
+export const DUE_SOON_WINDOW_DAYS = 3;
+
+/**
+ * Check if an entry is currently due soon.
+ * - It has a valid deadline inside the due-soon window (now → +3 days)
+ * - AND its status represents unfinished work (up_next / in_motion;
+ *   null defaults to up_next)
+ * - AND neither the entry nor its parent project is archived
+ * - A completed entry is never due soon
+ * - An already overdue entry (due date in the past) is never due soon —
+ *   that is overdue territory, handled by isOverdue above
+ *
+ * The window is anchored at `now`, not the start of today, so a deadline
+ * whose time has already passed today falls out of due soon (it is now
+ * overdue) instead of lingering until midnight. Due dates are compared as
+ * instants only, matching isOverdue, so both date-time and date-only
+ * strings are interpreted identically across views.
+ *
+ * @param {string|null} dueDate - The due date string (ISO format)
+ * @param {string|null|undefined} status - The entry status
+ * @param {boolean} [archived] - Whether the entry is individually archived
+ * @param {boolean} [projectArchived] - Whether the parent project is archived
+ * @returns {boolean} - True if currently due soon
+ */
+export function isDueSoon(dueDate, status, archived = false, projectArchived = false) {
+  if (archived === true || projectArchived === true) return false;
+  if (!dueDate) return false;
+  if (status === ENTRY_DONE_STATUS) return false;
+  // A missing status behaves like the app-wide default ('up_next').
+  if (status != null && !ENTRY_ACTIVE_STATUSES.includes(status)) return false;
+
+  const due = new Date(dueDate);
+  if (isNaN(due.getTime())) return false;
+
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + DUE_SOON_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  return due >= now && due <= windowEnd;
+}

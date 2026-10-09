@@ -19,6 +19,7 @@ import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { trackViewedProject } from '@/lib/recentlyViewed';
 import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { setPriority } from '@/functions/project/priority.js';
+import { isDueSoon } from '@/functions/dashboard/overdue.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 import { getToneInstruction } from '@/functions/tone';
@@ -155,24 +156,20 @@ export function ProjectDetailPage() {
     })();
 
     // 2. Subscribe to cache changes
-    const unsubscribe = cacheSubscribe(
-      cacheStore,
-      cacheKey,
-      ((newData: Entry[] | null) => {
-        if (cancelled) return;
-        if (Array.isArray(newData)) {
-          setEntries(newData);
-          setLoading(false); // Real data arrived — stop the spinner.
-        } else {
-          // A null payload means the row was DELETED (cacheDelete emits null on
-          // invalidation — e.g. SSE after a quick-add, or a project rename). The
-          // old code did setEntries(newData || []) here, blanking the list with
-          // nothing to refill it, so the project looked empty until a refresh.
-          // Pull fresh data instead; the write re-emits with a real array.
-          sortUnarchivedEntries(email, projectName, sortType);
-        }
-      }) as (data: unknown) => void
-    );
+    const unsubscribe = cacheSubscribe(cacheStore, cacheKey, ((newData: Entry[] | null) => {
+      if (cancelled) return;
+      if (Array.isArray(newData)) {
+        setEntries(newData);
+        setLoading(false); // Real data arrived — stop the spinner.
+      } else {
+        // A null payload means the row was DELETED (cacheDelete emits null on
+        // invalidation — e.g. SSE after a quick-add, or a project rename). The
+        // old code did setEntries(newData || []) here, blanking the list with
+        // nothing to refill it, so the project looked empty until a refresh.
+        // Pull fresh data instead; the write re-emits with a real array.
+        sortUnarchivedEntries(email, projectName, sortType);
+      }
+    }) as (data: unknown) => void);
 
     return () => {
       cancelled = true;
@@ -242,7 +239,10 @@ export function ProjectDetailPage() {
   // cards on mobile when no stored value exists yet
   const rawViewMode = usePref('project_view_mode');
   const storedViewMode =
-    rawViewMode === 'table' || rawViewMode === 'cards' || rawViewMode === 'checklist' || rawViewMode === 'board'
+    rawViewMode === 'table' ||
+    rawViewMode === 'cards' ||
+    rawViewMode === 'checklist' ||
+    rawViewMode === 'board'
       ? rawViewMode
       : null;
   const viewMode = storedViewMode ?? (window.innerWidth < 600 ? 'cards' : 'table');
@@ -343,8 +343,6 @@ export function ProjectDetailPage() {
   // Split entries: due soon (within 3 days) at top, rest at bottom
   const { dueSoonEntries, otherEntries } = useMemo(() => {
     const source = searchResults !== null ? searchResults : entries;
-    const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
     const dueSoon: Entry[] = [];
     const other: Entry[] = [];
@@ -354,12 +352,12 @@ export function ProjectDetailPage() {
       // this also makes an offline archive disappear immediately, since the
       // optimistic write flips `archived` on this project's ENTRIES cache.
       if (entry.archived) continue;
-      if (entry.due_date) {
-        const due = new Date(entry.due_date as string);
-        if (!isNaN(due.getTime()) && due >= now && due <= threeDaysFromNow) {
-          dueSoon.push(entry);
-          continue;
-        }
+      // Shared eligibility rule — same predicate as the Dashboard rail and
+      // the due-soon cache, so a completed or past-due entry never lands in
+      // the due-soon section.
+      if (isDueSoon(entry.due_date as string | null, entry.status as string | null)) {
+        dueSoon.push(entry);
+        continue;
       }
       other.push(entry);
     }
