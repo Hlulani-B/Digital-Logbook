@@ -9665,3 +9665,183 @@ img {
   outline-offset: 2px;
   box-shadow: 0 0 0 6px var(--accent-glow);
 }
+
+/* ========== STYLISH SIGN-IN � scoped to .signin-page (SignIn.tsx only) ========== */
+
+/* Warm beige canvas: soft blobs + dot grid, matching the landing page */
+.signin-page {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(139, 127, 104, 0.16), transparent 42%),
+    radial-gradient(circle at 88% 82%, rgba(139, 127, 104, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(110, 99, 80, 0.1), transparent 38%),
+    radial-gradient(rgba(63, 54, 40, 0.06) 1px, transparent 1px), #f5f1e6;
+  background-size:
+    auto,
+    auto,
+    auto,
+    22px 22px,
+    auto;
+}
+
+/* The form panel must let the beige canvas show through */
+.signin-page .split-right {
+  background: transparent;
+}
+
+/* Floating card */
+.signin-page .split-form-wrapper {
+  max-width: 420px;
+  background: #fffdf6;
+  border: 1px solid rgba(74, 60, 40, 0.12);
+  border-radius: 20px;
+  padding: 2.5rem 2.25rem 2rem;
+  box-shadow:
+    0 24px 60px rgba(74, 60, 40, 0.14),
+    0 4px 16px rgba(74, 60, 40, 0.08);
+}
+
+/* Logo medallion */
+.signin-badge {
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0 auto 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6e6350, #8b7f68);
+  color: #fffdf6;
+  box-shadow: 0 8px 20px rgba(110, 99, 80, 0.35);
+}
+
+/* Brand colors on every theme */
+.signin-page .auth-title {
+  color: #3f3628;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: #3f3628;
+}
+
+.signin-page .auth-subtitle {
+  color: #8b7f68;
+}
+
+.signin-page .field-label {
+  color: #5c5240;
+}
+
+/* Inputs: warm fill, rounded, icon gutter */
+.signin-page .field-input {
+  background-color: #faf6ef;
+  border: 1px solid rgba(74, 60, 40, 0.18);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem 0.7rem 2.6rem;
+  color: #3f3628;
+}
+
+/* The role select has no icon � normal padding */
+.signin-page select.field-input {
+  padding-left: 0.9rem;
+}
+
+.signin-page #email,
+.signin-page #password,
+.signin-page #confirmPassword {
+  background-repeat: no-repeat;
+  background-position: 0.85rem center;
+}
+
+.signin-page #email {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b7f68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E");
+}
+
+.signin-page #password,
+.signin-page #confirmPassword {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b7f68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+}
+
+.signin-page .field-input:focus {
+  border-color: #6e6350;
+  background-color: #fffdf6;
+  box-shadow: 0 0 0 3px rgba(110, 99, 80, 0.15);
+}
+
+.signin-page .field-input::placeholder {
+  color: #a09480;
+}
+
+/* Gradient submit button � matches landing CTAs */
+.signin-page .auth-submit {
+  background: linear-gradient(135deg, #6e6350, #8b7f68);
+  color: #fffdf6;
+  border: none;
+  border-radius: 12px;
+  padding: 0.8rem 1.25rem;
+  font-size: 0.95rem;
+  box-shadow: 0 8px 20px rgba(110, 99, 80, 0.3);
+  transition: all 0.25s ease;
+}
+
+.signin-page .auth-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8b7f68, #a09480);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(110, 99, 80, 0.38);
+}
+
+.signin-page .auth-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Links */
+.signin-page .auth-mode-toggle,
+.signin-page .auth-trouble-link {
+  color: #6e6350;
+}
+
+.signin-page .auth-mode-toggle:hover,
+.signin-page .auth-trouble-link:hover {
+  color: #8b7f68;
+}
+
+.signin-page .auth-divider {
+  color: #a09480;
+}
+
+/* OAuth: labeled side-by-side buttons */
+.signin-page .auth-buttons {
+  gap: 0.75rem;
+}
+
+.signin-page .oauth-btn {
+  flex: 1;
+  width: auto;
+  height: 2.85rem;
+  border-radius: 12px;
+  gap: 0.55rem;
+  background: #fffdf6;
+  border: 1px solid rgba(74, 60, 40, 0.18);
+  color: #3f3628;
+}
+
+.signin-page .oauth-btn:hover {
+  border-color: #8b7f68;
+  background: #faf6ef;
+}
+
+.signin-page .oauth-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Mobile: tighter card padding */
+@media (max-width: 600px) {
+  .signin-page .split-form-wrapper {
+    padding: 1.75rem 1.25rem 1.5rem;
+  }
+}
