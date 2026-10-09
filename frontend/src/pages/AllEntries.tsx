@@ -205,7 +205,7 @@ export function AllEntriesPage() {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      <NavBar projects={projects} entries={entries} activeView="all" />
+      <NavBar entries={entries} activeView="all" />
 
       <main className="dash-main">
         <Header title="My Items" entries={entries} projects={projects} />
