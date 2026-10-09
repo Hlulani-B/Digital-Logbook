@@ -426,11 +426,11 @@ export class Notifications {
               ${row.project_name ? `<p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Project: ${escapeHtml(row.project_name)}</p>` : ''}
               ${timerDetail}
             </div>
-            <a href="${escapeHtml(deepLink)}" style="display: inline-block; background: #111827; color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open in Digital Logbook</a>
+            <a href="${escapeHtml(deepLink)}" style="display: inline-block; background: #111827; color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open in Plannar</a>
           </div>
           <div style="padding: 12px 24px; border-top: 1px solid #f3f4f6;">
             <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-              You're receiving this because email notifications are enabled in your Digital Logbook settings.
+              You're receiving this because email notifications are enabled in your Plannar settings.
             </p>
           </div>
         </div>
@@ -445,7 +445,7 @@ export class Notifications {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          sender: { email: senderEmail, name: 'Digital Logbook' },
+          sender: { email: senderEmail, name: 'Plannar' },
           to: [{ email: row.user_email }],
           subject,
           htmlContent: html,

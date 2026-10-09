@@ -1,5 +1,5 @@
 ```markdown
-# Codacaine - Digital Logbook
+# Codacaine - Plannar
 
 A microservices-based digital logbook app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
 
