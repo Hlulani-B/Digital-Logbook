@@ -217,7 +217,6 @@ export function EntryBox({
     Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v]))
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
-  const [draftStartedAt, setDraftStartedAt] = useState(toInputDate(started_at));
   const [draftEndedAt, setDraftEndedAt] = useState(toInputDate(ended_at));
   const [draftPriorityValue, setDraftPriorityValue] = useState(
     priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
@@ -308,7 +307,6 @@ export function EntryBox({
   const handleCancel = () => {
     setDraftFields(Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v])));
     setDraftDueDate(toInputDate(due_date));
-    setDraftStartedAt(toInputDate(started_at));
     setDraftEndedAt(toInputDate(ended_at));
     setDraftPriorityValue(
       priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
@@ -339,10 +337,9 @@ export function EntryBox({
         draftPriorityValue === '3' ? null : PRIORITY_LABELS[draftPriorityValue];
 
       const newDueDate = editedDateTime(draftDueDate, due_date);
-      const newStartedAt = editedDateTime(draftStartedAt, started_at);
       const newEndedAt = editedDateTime(draftEndedAt, ended_at);
       const checked = validateEntryDates({
-        dates: { due_date: newDueDate, started_at: newStartedAt, ended_at: newEndedAt },
+        dates: { due_date: newDueDate, ended_at: newEndedAt },
         values: newEntryObject,
         fields: Object.values(fieldDefs),
         previous: { ...entry },
@@ -359,7 +356,9 @@ export function EntryBox({
         newDueDate,
         newPriorityLabel,
         draftStatus,
-        newStartedAt,
+        // started_at stays timer-owned: the old manual Started At editor was
+        // removed, so saving never rewrites the entry's start timestamp.
+        undefined,
         newEndedAt
       );
 
@@ -645,23 +644,6 @@ export function EntryBox({
               }}
               value={draftDueDate}
               onChange={(e) => setDraftDueDate(e.target.value)}
-              disabled={saving}
-            />
-          </div>
-
-          <div className="entry-box__field--editing">
-            <label className="entry-box__field-key">Started At</label>
-            <input
-              className="entry-box__field-input"
-              type="datetime-local"
-              aria-label="Started At"
-              min={draftStartedAt === toInputDate(started_at) ? undefined : earliestEntryDateTime()}
-              onFocus={(e) => {
-                e.currentTarget.min =
-                  draftStartedAt === toInputDate(started_at) ? '' : earliestEntryDateTime();
-              }}
-              value={draftStartedAt}
-              onChange={(e) => setDraftStartedAt(e.target.value)}
               disabled={saving}
             />
           </div>
