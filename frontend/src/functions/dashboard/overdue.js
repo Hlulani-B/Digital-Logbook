@@ -1,19 +1,18 @@
+/** Shared lifecycle states used to determine current overdue eligibility. */
+export const ENTRY_ACTIVE_STATUSES = ['up_next', 'in_motion'];
+export const ENTRY_DONE_STATUS = 'done_and_dusted';
+
 /**
- * Check if an entry is overdue
- * - Entry is overdue if due_date has passed AND status is not "done_and_dusted"
- * @param {string|null} dueDate - The due date string (ISO format)
- * @param {string|null} status - The entry status
- * @returns {boolean} - True if overdue
+ * Check whether an entry is currently overdue. This is a warning state only;
+ * active overdue entries remain editable and completable.
  */
-export function isOverdue(dueDate, status) {
-  if (!dueDate) return false;
-  if (status === 'done_and_dusted') return false;
+export function isOverdue(dueDate, status, archived = false) {
+  if (archived === true || !dueDate || status === ENTRY_DONE_STATUS) return false;
+  if (status != null && !ENTRY_ACTIVE_STATUSES.includes(status)) return false;
 
   const due = new Date(dueDate);
   if (isNaN(due.getTime())) return false;
-
-  const now = new Date();
-  return due < now;
+  return due < new Date();
 }
 
 /**
@@ -22,8 +21,8 @@ export function isOverdue(dueDate, status) {
  * @param {string|null} status - The entry status
  * @returns {string|null} - Formatted overdue text or null
  */
-export function getOverdueText(dueDate, status) {
-  if (!isOverdue(dueDate, status)) return null;
+export function getOverdueText(dueDate, status, archived = false) {
+  if (!isOverdue(dueDate, status, archived)) return null;
 
   const due = new Date(dueDate);
   const now = new Date();

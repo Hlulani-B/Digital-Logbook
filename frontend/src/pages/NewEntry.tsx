@@ -556,8 +556,6 @@ export function EntryBox({
     setCalcField(null);
   };
 
-  const isEntryOverdue = isOverdue(due_date ?? null, status);
-
   if (isEditing) {
     return (
       <div className="entry-box entry-box--editing entry-form">
@@ -568,7 +566,7 @@ export function EntryBox({
                 className="entry-box__priority-select"
                 value={draftPriorityValue}
                 onChange={(e) => setDraftPriorityValue(e.target.value)}
-                disabled={saving || isEntryOverdue}
+                disabled={saving}
               >
                 {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -580,7 +578,7 @@ export function EntryBox({
                 className="entry-box__status-select"
                 value={draftStatus}
                 onChange={(e) => setDraftStatus(e.target.value as EntryStatus)}
-                disabled={saving || isEntryOverdue}
+                disabled={saving}
               >
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -870,7 +868,6 @@ export function EntryBox({
                 }
                 onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
-                disabled={isEntryOverdue}
               >
                 <option value="0">Urgent & important</option>
                 <option value="1">Urgent, not important</option>
@@ -885,7 +882,7 @@ export function EntryBox({
               value={status}
               onChange={(e) => handleStatusChange(e.target.value as EntryStatus)}
               onClick={(e) => e.stopPropagation()}
-              disabled={saving || archived || isEntryOverdue}
+              disabled={saving || archived}
             >
               {Object.entries(STATUS_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -893,9 +890,9 @@ export function EntryBox({
                 </option>
               ))}
             </select>
-            {isOverdue(due_date ?? null, status) && (
+            {isOverdue(due_date ?? null, status, archived) && (
               <span className="entry-box__tag entry-box__tag--overdue">
-                {getOverdueText(due_date ?? null, status)}
+                {getOverdueText(due_date ?? null, status, archived)}
               </span>
             )}
           </div>
