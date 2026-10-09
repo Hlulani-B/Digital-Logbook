@@ -14,6 +14,7 @@ import {
   formatStatValue,
 } from '@/functions/dashboard/stats.js';
 import { getFields } from '@/functions/project/fields.js';
+import { getEffectiveArchivedProjectNames } from '@/functions/project/archiveState.js';
 import { useNow } from '@/hooks/useNow';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
@@ -1050,11 +1051,12 @@ export function StatsView() {
   const completedCount = scopedEntries.filter((e) => e.ended_at).length;
   const inProgressCount = totalTimeTracked.inProgressCount;
   const noTimerCount = scopedEntries.length - completedCount - inProgressCount;
-  // Names of archived parent projects — their active entries are never due
-  // soon, so the due-soon counts below agree with the Dashboard's.
+  // Names of effectively archived parent projects — server flag or the local
+  // fallback (shared with the Dashboard so Due Soon surfaces agree). Their
+  // active entries are never due soon.
   const archivedProjectNames = useMemo(
-    () => new Set(projects.filter((p) => p.archived).map((p) => p.project_name as string)),
-    [projects]
+    () => getEffectiveArchivedProjectNames(email, projects),
+    [email, projects]
   );
   // Due-soon count and page title follow the active scope
   const scopedDueSoonCount = useMemo(

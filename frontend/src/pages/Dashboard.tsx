@@ -28,6 +28,10 @@ import { useAiMessagesEnabled } from '@/functions/aiMessages';
 import { usePref, setPref } from '@/functions/preferences';
 import { entryDurationMs, formatTimer } from '@/functions/dashboard/stats.js';
 import { isDueSoon } from '@/functions/dashboard/overdue.js';
+import {
+  getEffectiveArchivedProjectNames,
+  getLocallyArchivedProjectNames,
+} from '@/functions/project/archiveState.js';
 import { useNow } from '@/hooks/useNow';
 import { useTimerActions } from '@/hooks/useTimerActions';
 import { useSSEEntries } from '@/hooks/useSSEEntries';
@@ -227,11 +231,12 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
-  // Names of archived parent projects — their active entries are never due
-  // soon, so every due-soon surface below passes this set to the predicate.
+  // Names of effectively archived parent projects — server flag or the local
+  // fallback (shared with StatsView so Due Soon surfaces agree). Their active
+  // entries are never due soon.
   const archivedProjectNames = useMemo(
-    () => new Set(projects.filter((p) => p.archived).map((p) => p.project_name as string)),
-    [projects]
+    () => getEffectiveArchivedProjectNames(user?.email || '', projects),
+    [user, projects]
   );
   // Global due-soon count, derived live from the shared eligibility rule so
   // the Stats card, the AI greeting and the feed can never disagree with the
@@ -395,11 +400,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         // refill — must never wipe a populated project list. A genuine cold
         // start has nothing cached yet, so `projects` is already empty here.
         if (allProjects.length === 0) return;
-        let localArch = new Set<string>();
-        try {
-          const stored = localStorage.getItem(`dl_archived_${email}`);
-          if (stored) localArch = new Set(JSON.parse(stored));
-        } catch {}
+        const localArch = getLocallyArchivedProjectNames(email);
         setLocalArchived(localArch);
         const merged = allProjects.map((p) => ({
           ...p,

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isDueSoon, isOverdue, DUE_SOON_WINDOW_DAYS } from '../overdue';
 import { computeDueSoon } from '../../../CacheFunctions/syncService';
+import { getEffectiveArchivedProjectNames } from '../../project/archiveState';
 
 // Controlled clock — none of these tests may depend on the real current date.
 const NOW = new Date('2026-03-15T10:00:00Z');
@@ -159,5 +160,90 @@ describe('computeDueSoon — due-soon cache derivation', () => {
   it('non-array input yields an empty list', () => {
     expect(computeDueSoon(null)).toEqual([]);
     expect(computeDueSoon(undefined)).toEqual([]);
+  });
+});
+
+describe('Dashboard ↔ StatsView due-soon consistency', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+  });
+
+  // Both surfaces derive their archived-project set through the same shared
+  // helper, then hand it to the same computeDueSoon — this suite pins the
+  // end-to-end derivation both call sites perform.
+  const dueSoonCount = (projects, entries) =>
+    computeDueSoon(entries, getEffectiveArchivedProjectNames('stats@example.test', projects))
+      .length;
+
+  const projects = [
+    { project_name: 'Active', archived: false },
+    { project_name: 'Server archived', archived: true },
+    { project_name: 'Locally archived', archived: false },
+  ];
+
+  it('counts an eligible entry of an active project on both surfaces', () => {
+    const entries = [
+      { id: '1', due_date: daysFromNow(1), status: 'up_next', project_name: 'Active' },
+    ];
+    expect(dueSoonCount(projects, entries)).toBe(1);
+  });
+
+  it('excludes entries of server-archived and locally archived projects on both surfaces', () => {
+    localStorage.setItem('dl_archived_stats@example.test', JSON.stringify(['Locally archived']));
+    const entries = [
+      { id: '1', due_date: daysFromNow(1), status: 'up_next', project_name: 'Active' },
+      { id: '2', due_date: daysFromNow(1), status: 'up_next', project_name: 'Server archived' },
+      {
+        id: '3',
+        due_date: daysFromNow(1),
+        status: 'up_next',
+        project_name: 'Locally archived',
+      },
+    ];
+    expect(dueSoonCount(projects, entries)).toBe(1);
+    expect(computeDueSoon(entries).map((r) => r.id)).toEqual(['1', '2', '3']);
+  });
+
+  it('a restored project contributes its eligible entries again', () => {
+    localStorage.setItem('dl_archived_stats@example.test', JSON.stringify(['Locally archived']));
+    const entry = {
+      id: '1',
+      due_date: daysFromNow(1),
+      status: 'up_next',
+      project_name: 'Locally archived',
+    };
+    expect(dueSoonCount(projects, [entry])).toBe(0);
+    // The Dashboard's unarchive action removes the fallback entry — the
+    // project contributes again purely through the shared derivation.
+    localStorage.setItem('dl_archived_stats@example.test', JSON.stringify([]));
+    expect(dueSoonCount(projects, [entry])).toBe(1);
+  });
+
+  it('completed, past-due and individually archived entries stay excluded on both surfaces', () => {
+    const entries = [
+      { id: '1', due_date: daysFromNow(1), status: 'up_next', project_name: 'Active' },
+      {
+        id: '2',
+        due_date: daysFromNow(1),
+        status: 'done_and_dusted',
+        project_name: 'Active',
+      },
+      { id: '3', due_date: hoursFromNow(-1), status: 'up_next', project_name: 'Active' },
+      {
+        id: '4',
+        due_date: daysFromNow(1),
+        status: 'up_next',
+        archived: true,
+        project_name: 'Active',
+      },
+    ];
+    expect(dueSoonCount(projects, entries)).toBe(1);
   });
 });
