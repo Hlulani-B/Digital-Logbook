@@ -6,6 +6,7 @@ import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
 import { resolveProjectColor } from '@/lib/projectColorMap';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -32,14 +33,11 @@ interface ChecklistEntryCardProps {
 const DONE_STATUS: EntryStatus = 'done_and_dusted';
 
 function formatDate(value: string | null | undefined): string {
-  if (!value) return 'No due date';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return 'No due date';
-  return d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return (
+    formatDueDateTime(value, {
+      dateOptions: { day: 'numeric', month: 'short', year: 'numeric' },
+    }) || 'No due date'
+  );
 }
 
 function getSummary(entry: ChecklistEntry): string {

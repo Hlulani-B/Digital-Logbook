@@ -26,6 +26,7 @@ import {
   cleanSummaryText,
   type EntryPayload,
 } from '@/lib/entryPayload';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -59,17 +60,6 @@ const PRIORITY_CLASS: Record<string, string> = {
   'Urgent but not important': 'priority-urgent',
   'Not urgent, not important': 'priority-low',
 };
-
-function formatDate(value?: string | null): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
 
 function formatFieldKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -305,7 +295,9 @@ export function EntryBox({
   const entryFields = Object.entries(parsedEntries || {}).filter(
     ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
   );
-  const dueLabel = formatDate(due_date);
+  const dueLabel = formatDueDateTime(due_date, {
+    dateOptions: { month: 'short', day: 'numeric', year: 'numeric' },
+  });
 
   const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
 
