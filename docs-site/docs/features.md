@@ -533,11 +533,32 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 - `services/dashboard-service/` — Dashboard-specific endpoints
 
+### 28. Statistics Page (My Stats)
+
+**What it does:** A dedicated `/stats` page with per-entry and per-field analytics. It shows headline cards (Time Tracked, Due Soon, Active Projects), a Time Distribution donut and Entry Status breakdown, Time per Project / Entries per Project charts (cross-project view), a Time per Entry ranking of every timed entry's duration, and — inside a project scope — Field Insights, a drill-in analysis of every custom field (totals, averages, trends over occurrence days, grouping by another field, composition, text search).
+
+**Why it was implemented:** The project brief asks for "useful statistics about what they are doing, how much time they've spent on specific projects." Because every project can define its own custom fields, the engine is field-agnostic: it merges the project's declared field definitions with types inferred from the data and picks appropriate charts automatically, so owners get analytics for their own schema without per-project work.
+
+**How it works:**
+
+- Reads entries from the IndexedDB cache (`all_entries` store) and recomputes whenever the cache changes — no direct server or Supabase calls from the stats code; `syncAllData` keeps the cache warm (see [IndexedDB Caching](architecture/caching.md))
+- All aggregation is done in the browser by pure functions in `frontend/src/functions/dashboard/stats.js`
+- Durations are computed from timer stamps: completed entries net out paused time (`ended_at − started_at − paused_ms`, floored at 0); running entries tick live against the page clock; entries without a start instant contribute 0
+- Daily charts bucket by the day each entry actually occurred (`started_at`, falling back to `created_at`, in UTC); the series spans every day from the oldest to the latest occurrence, with a lone occurrence getting the two prior days so a single value can still draw a line
+
+**Key files:**
+
+- `frontend/src/pages/StatsView.tsx` — The `/stats` page and its panels
+- `frontend/src/functions/dashboard/stats.js` — Field-agnostic statistics engine
+- `frontend/src/pages/__tests__/StatsView.test.tsx`, `frontend/src/functions/dashboard/__tests__/` — Engine and UI tests
+
+See [Statistics Engine](architecture/statistics.md) for the full technical write-up.
+
 ---
 
 ## Advanced Features
 
-### 28. Voice Recording
+### 29. Voice Recording
 
 **What it does:** Record audio notes and attach them to entries.
 
@@ -555,7 +576,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `frontend/src/pages/VoiceFeature.jsx` — Voice recording UI
 - `docs-site/docs/Architecture/voice-feature.md` — Voice feature documentation
 
-### 29. Data Export
+### 30. Data Export
 
 **What it does:** Export all entries as JSON for backup or external analysis.
 
@@ -567,7 +588,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - Formats as JSON
 - Triggers browser download
 
-### 30. Responsive Design
+### 31. Responsive Design
 
 **What it does:** UI works seamlessly on mobile, tablet, and desktop.
 
@@ -584,7 +605,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Security & Privacy
 
-### 31. Row-Level Security (RLS)
+### 32. Row-Level Security (RLS)
 
 **What it does:** Ensures users can only access their own data.
 
@@ -601,7 +622,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 - `supabase/setup.sql` — RLS policy definitions
 
-### 32. Environment Variable Management
+### 33. Environment Variable Management
 
 **What it does:** Secrets (API keys, database credentials) stored in environment variables, never committed to repo.
 
@@ -618,7 +639,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Developer Experience
 
-### 33. Hot Module Replacement (HMR)
+### 34. Hot Module Replacement (HMR)
 
 **What it does:** Frontend updates instantly without full page reload during development.
 
@@ -629,7 +650,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - Vite's built-in HMR
 - React Fast Refresh preserves component state
 
-### 34. Comprehensive Test Coverage
+### 35. Comprehensive Test Coverage
 
 **What it does:** Unit tests for backend functions, integration tests for API endpoints.
 
@@ -647,7 +668,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `services/project-service/src/__tests__/` — Test files
 - `.gitea/workflows/backend-unit-tests.yml` — Backend unit test workflow
 
-### 35. CI/CD Pipeline
+### 36. CI/CD Pipeline
 
 **What it does:** Automated testing, coverage reporting, and deployment on every push.
 
@@ -671,7 +692,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Onboarding & Guidance
 
-### 36. Guided Tour with Live Navigation & Voice Narration
+### 37. Guided Tour with Live Navigation & Voice Narration
 
 **What it does:** An interactive walkthrough that shows new users around the real app. The tour opens the navigation drawer, visits every view (Home, Kanban, Timeline, Calendar, My Stats, Import & Export), walks through creating a project, and points out the notification bell, profile menu, and quick-entry bar — with the spotlight following real UI elements. It really navigates: routes change and the drawer opens and closes as the tour describes them. A friendly voice narrates each stop aloud using the browser's built-in speech synthesis, and hands-free auto-advance moves the tour on when the narration finishes (or after a paced reading delay when muted), shown with a draining progress bar. A speaker toggle in the popover mutes or unmutes narration and the preference persists, hovering the popover pauses the countdown, and clicking Back hands control back to the user.
 
@@ -693,7 +714,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `frontend/src/components/NavBar.tsx` — Replay entry point
 - `frontend/src/index.css` — Tour popover, progress-bar, and voice-toggle styles
 
-### 37. Sign-In Landing Sections & Themed Page Identity
+### 38. Sign-In Landing Sections & Themed Page Identity
 
 **What it does:** The public sign-in page extends beyond the authentication form with three scrollable content sections — **About** (three feature cards), **About Us** (team member profiles), and **Features** (eight feature highlights with a "NEW" badge on the latest additions) — plus a footer. Navigation links to each section are displayed on the left panel under the tagline. The entire page is wrapped in a scoped theme override that renders in a warm beige palette (`#f5f1e6`, `#ece4d1`, `#fffdf6`) with dark-brown text, independently of the user's app-side theme setting.
 
@@ -717,7 +738,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Notifications & Alerts
 
-### 38. Notification Enhancements — Snooze, Dismiss, Filters, Lead Time & Rich Emails
+### 39. Notification Enhancements — Snooze, Dismiss, Filters, Lead Time & Rich Emails
 
 **What it does:** Extends the notification system with five user-facing improvements: (1) **Snooze** — hide a notification for 1 hour, 4 hours, or until tomorrow 8 am, after which it re-surfaces as unread; (2) **Dismiss** — soft-delete a notification without marking the underlying entry done; (3) **Filter tabs** on the /notifications history page — All, Unread, Due soon, Overdue — with server-side filtering; (4) **Configurable lead time** — users choose when to be notified before a deadline (1 h, 24 h, 48 h, 1 week) via a Settings dropdown; (5) **Rich HTML emails** with a colored status banner, entry card, project badge, and deep-link button; (6) **Browser toast notifications** via the Notification API when new unread items arrive during an active session.
 
@@ -747,7 +768,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
-### 39. Timer Enhancements — Presets, Auto-Stop, Analytics, Shortcuts & Mobile UX
+### 40. Timer Enhancements — Presets, Auto-Stop, Analytics, Shortcuts & Mobile UX
 
 **What it does:** Fourteen improvements to the session timer: (1) **Manual Time Entry** — log time without running the live timer via Duration or Time Range modes; (2) **Auto-Stop at Target** — automatically stops countdown timers at zero with a completion sound; (3) **Timer Presets** — quick-start buttons for 25m (Pomodoro), 1h, 2h, and 4h sessions; (4) **Visual Feedback** — progress bar, color-coded urgency (green → yellow → red), and pulsing animation; (5) **Sound Notifications** — distinct audio cues for start, stop, pause, completion, and a 5-minute warning; (6) **Edit After Stop** — adjust recorded time via a modal pre-populated with original values; (7) **Running Timer Persistence** — server-authoritative timestamps with a "Restored" badge on page reload; (8) **Timer Analytics** — StatsView panel showing session count, average/longest/shortest duration; (9) **Keyboard Shortcuts** — Space to start/stop, P to pause/resume; (10) **Mobile Experience** — 44px touch targets, 2-column preset layout, full-width buttons; (11) **Stop Confirmation** — modal dialog prevents accidental stops; (12) **Paused Duration Display** — live counter showing how long the timer has been paused; (13) **Idle Detection** — tracks user activity and shows an "Idle Xm" badge after 5 minutes of inactivity; (14) **Batch Timer Actions** — pause-all and stop-all controls when multiple timers are running; (15) **Export Timer Data** — CSV download of all timer sessions from the Stats page.
 
@@ -784,7 +805,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Onboarding & Support
 
-### 40. Help Centre
+### 41. Help Centre
 
 **What it does:** A full-screen `/help` page accessible from the drawer navigation on every page. Nine categories with 25 articles cover Getting Started, How-To Guides, Roles & Permissions, Troubleshooting, Account & Privacy, FAQ, Glossary, Release Notes, and Contact & Feedback. Features client-side keyword search, a category sidebar with article counts (horizontal tabs on mobile), keyboard shortcuts (`/` to focus search, `Esc` to clear), theme-aware styling, deep-link support via `?article=` and `?category=` URL params, and a "Report a Bug" button that opens an in-app form.
 
@@ -810,7 +831,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
-### 41. In-App Bug Report Form
+### 42. In-App Bug Report Form
 
 **What it does:** Replaces the external Gitea issues link with an in-app modal form that sends bug reports via email to the team. The form captures a title, description, steps to reproduce, and optional email address. Browser info (user agent, screen size, current URL) is auto-attached. On submit, FormSubmit.co forwards the report to `admin@codacaine.com`. Shows animated success/error states. Mobile-responsive bottom-sheet on phones (≤480px). Escape key closes the modal.
 
@@ -834,7 +855,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
-### 42. Public Landing Page
+### 43. Public Landing Page
 
 **What it does:** A standalone marketing landing page at `/` that introduces the Digital Logbook before sign-in. Features a split hero with a typing demo that cycles natural-language phrases on the left and an AI-generated isometric dashboard illustration on the right. Below the hero: three interactive About cards (Plan visually, Never miss a deadline, Own your data) with mouse-following spotlight and 3D tilt effects, a "What's New" infinite ticker, six feature cards with the same interactive effects, animated stats counters, a team section, a call-to-action box, and a footer. All styled with the warm beige/brown palette to match the sign-in form. The sign-in page (`/signin`) is a clean split-screen auth form with no duplicated marketing content.
 
@@ -861,4 +882,4 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Summary
 
-The Digital Logbook implements 42 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 43 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.

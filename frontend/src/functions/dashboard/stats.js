@@ -67,13 +67,11 @@ export function formatTimer(ms) {
  * - In-progress running (started_at set, no ended_at, no paused_at): now − started_at − paused_ms.
  * - In-progress paused (started_at set, no ended_at, paused_at set): frozen at
  *   paused_at − started_at − paused_ms (does not accrue while paused).
- * - Fallback (ended_at + created_at, no started_at): ended_at − created_at (legacy,
- *   no pause data exists for these rows).
- * - Returns 0 if none of the above.
+ * - Returns 0 if none of the above, including rows with ended_at but no
+ *   started_at (no start instant to measure from).
  *
- * Pause fields are additive-optional: entries without them (all legacy rows and
- * the existing test fixtures) behave exactly as before because `(paused_ms || 0)`
- * is 0 and the paused_at branch never fires.
+ * Pause fields are additive-optional: entries without them behave exactly as
+ * before because `(paused_ms || 0)` is 0 and the paused_at branch never fires.
  *
  * `now` is accepted as a parameter so callers can pass a single shared timestamp
  * (e.g. a ticking value) for consistent, live-updating in-progress durations.
@@ -95,14 +93,6 @@ export function entryDurationMs(entry, now = Date.now()) {
     const anchor = entry.paused_at ? new Date(entry.paused_at).getTime() : now;
     if (!isNaN(start) && !isNaN(anchor)) {
       return Math.max(0, anchor - start - pausedMs);
-    }
-  }
-  // Fallback: legacy entries that have ended_at but no started_at
-  if (entry.ended_at && entry.created_at) {
-    const end = new Date(entry.ended_at).getTime();
-    const start = new Date(entry.created_at).getTime();
-    if (!isNaN(end) && !isNaN(start)) {
-      return end - start;
     }
   }
   return 0;
@@ -388,9 +378,16 @@ function groupKey(value, data_type) {
   return String(value);
 }
 
-/** Day bucket (UTC YYYY-MM-DD) for plotting a field over time. */
+/**
+ * Day bucket (UTC YYYY-MM-DD) for plotting a field over time. Buckets by
+ * the day the entry actually occurred (started_at) when available, so a
+ * backfilled entry lands on its real date rather than the day it was
+ * logged; falls back to the creation day for untimed entries.
+ */
 export function dayBucket(entry) {
-  return dateValue(entry?.created_at)?.slice(0, 10) || null;
+  return (
+    dateValue(entry?.started_at)?.slice(0, 10) || dateValue(entry?.created_at)?.slice(0, 10) || null
+  );
 }
 
 /**
@@ -598,16 +595,17 @@ export function fieldAnalysisPolicy(data_type) {
 export function analysisFieldDefs(entries, declared = []) {
   const list = Array.isArray(entries) ? entries : [];
   const defs = mergeFieldDefs(declared, deriveFieldDefs(list));
-  if (
-    list.some((entry) => entry?.started_at || entry?.ended_at) &&
-    !defs.some((def) => def.field_name === 'duration')
-  ) {
-    defs.push({ field_name: 'duration', data_type: 'duration' });
-  }
   return defs.map((def, index) => normalizeField(def, index));
 }
 
-/** An observation, not today's clock, anchors this UTC calendar window. */
+/**
+ * An observation, not today's clock, anchors this UTC calendar window.
+ * With several occurrence days the window spans every day from the oldest
+ * to the latest occurrence; a lone occurrence gets the two days before it
+ * (gap-filled) so a single value can still draw a line.
+ */
+const DAILY_WINDOW_DAYS = 3;
+
 export function dailyWindow(points, fill = 0) {
   const byDay = new Map();
   for (const point of Array.isArray(points) ? points : []) {
@@ -616,10 +614,16 @@ export function dailyWindow(points, fill = 0) {
     byDay.set(bucket, point.value);
   }
   if (!byDay.size) return [];
-  const end = [...byDay.keys()].sort().at(-1);
+  const days = [...byDay.keys()].sort();
+  const end = days.at(-1);
   const endTime = Date.parse(`${end}T00:00:00Z`);
-  return Array.from({ length: 60 }, (_, index) => {
-    const bucket = new Date(endTime - (59 - index) * 86400000).toISOString().slice(0, 10);
+  const startTime =
+    days.length > 1
+      ? Date.parse(`${days[0]}T00:00:00Z`)
+      : endTime - (DAILY_WINDOW_DAYS - 1) * 86400000;
+  const length = Math.round((endTime - startTime) / 86400000) + 1;
+  return Array.from({ length }, (_, index) => {
+    const bucket = new Date(startTime + index * 86400000).toISOString().slice(0, 10);
     return {
       bucket,
       value: byDay.has(bucket)

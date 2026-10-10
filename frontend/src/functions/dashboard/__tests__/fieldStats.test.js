@@ -515,13 +515,13 @@ describe('analysisFieldDefs and metadata', () => {
     ).toEqual({ repeated: 'text', payload: 'summary', list: 'summary' });
   });
 
-  it('adds a duration for running or legacy completed timers, but never shadows a same-name field', () => {
+  it('never adds a virtual duration, but keeps a declared one and never shadows a same-name field', () => {
     const running = [{ started_at: '2026-01-01' }];
-    expect(analysisFieldDefs(running)).toMatchObject([
-      { field_name: 'duration', data_type: 'duration' },
-    ]);
-    expect(analysisFieldDefs([{ ended_at: '2026-01-01' }])).toHaveLength(1);
+    expect(analysisFieldDefs(running)).toEqual([]);
+    expect(analysisFieldDefs([{ ended_at: '2026-01-01' }])).toEqual([]);
     expect(analysisFieldDefs([{}])).toEqual([]);
+    const declared = { field_name: 'duration', data_type: 'duration' };
+    expect(analysisFieldDefs(running, [declared])).toMatchObject([declared]);
     const custom = { field_name: 'duration', data_type: 'number', rules: { min: 0 } };
     expect(analysisFieldDefs(running, [custom])).toMatchObject([custom]);
     const data = [entry('A', { duration: 7 }, '2026-03-01', running[0])];
@@ -814,21 +814,34 @@ describe('categories, booleans, multiselects, and safe summaries', () => {
 });
 
 describe('UTC daily windows and date analysis', () => {
-  it('returns exactly 60 sorted calendar days, keeps the first day, and ignores invalid latest points', () => {
+  it('spans every day from the oldest to the latest occurrence and ignores invalid points', () => {
     const series = dailyWindow([
       { bucket: '2026-03-01', value: -2 },
-      { bucket: '2025-12-31', value: 500 },
-      { bucket: '2026-01-01', value: 1 },
+      { bucket: '2026-02-26', value: 500 },
+      { bucket: '2026-02-25', value: 1 },
       { bucket: '2030-01-01', value: Infinity },
       { bucket: '2026-02-30', value: 10 },
       { bucket: '2031-01-01', value: NaN },
     ]);
-    expect(series).toHaveLength(60);
-    expect(series[0]).toEqual({ bucket: '2026-01-01', value: 1 });
-    expect(series.at(-1)).toEqual({ bucket: '2026-03-01', value: -2 });
-    expect(series[1]).toEqual({ bucket: '2026-01-02', value: 0 });
+    expect(series).toEqual([
+      { bucket: '2026-02-25', value: 1 },
+      { bucket: '2026-02-26', value: 500 },
+      { bucket: '2026-02-27', value: 0 },
+      { bucket: '2026-02-28', value: 0 },
+      { bucket: '2026-03-01', value: -2 },
+    ]);
     expect(series.map((point) => point.bucket)).toEqual(series.map((point) => point.bucket).sort());
-    expect(series.reduce((sum, point) => sum + point.value, 0)).toBe(-1);
+    expect(series.reduce((sum, point) => sum + point.value, 0)).toBe(499);
+  });
+
+  it('gives a lone occurrence a two-day lead-up so a single value can still plot', () => {
+    expect(dailyWindow([{ bucket: '2026-03-01', value: 5 }])).toEqual([
+      { bucket: '2026-02-27', value: 0 },
+      { bucket: '2026-02-28', value: 0 },
+      { bucket: '2026-03-01', value: 5 },
+    ]);
+    const averaged = dailyWindow([{ bucket: '2026-03-01', value: 5 }], null);
+    expect(averaged.map((point) => point.value)).toEqual([null, null, 5]);
   });
 
   it('uses UTC for timestamps, respects null gaps and observed zero, and has no empty-data window', () => {
@@ -916,11 +929,16 @@ describe('UTC daily windows and date analysis', () => {
     const sum = computeFieldAnalysis(data, numberDef);
     expect(sum.numeric.total).toBe(1122);
     expect(sum.undatedCount).toBe(2);
-    expect(sum.range).toEqual({ start: '2026-01-01', end: '2026-03-01' });
-    expect(sum.series.at(-1).value).toBe(18);
+    expect(sum.range).toEqual({ start: '2025-12-31', end: '2026-03-01' });
+    expect(sum.series).toHaveLength(61);
+    expect(sum.series[0]).toEqual({ bucket: '2025-12-31', value: 1000 });
+    expect(sum.series[1]).toEqual({ bucket: '2026-01-01', value: 0 });
+    expect(sum.series.find((point) => point.bucket === '2026-02-28').value).toBe(0);
+    expect(sum.series.at(-1)).toEqual({ bucket: '2026-03-01', value: 18 });
     const average = computeFieldAnalysis(data, numberDef, { aggregation: 'average' });
-    expect(average.series[0].value).toBe(0);
-    expect(average.series[1].value).toBeNull();
+    expect(average.series[0].value).toBe(1000);
+    expect(average.series[1].value).toBe(0);
+    expect(average.series.find((point) => point.bucket === '2026-02-28').value).toBeNull();
     expect(average.series.at(-1).value).toBe(9);
     expect(
       computeFieldAnalysis(data, numberDef, { aggregation: 'count' }).series.at(-1).value
@@ -944,7 +962,7 @@ describe('comparison matrices', () => {
       aggregation: 'average',
       compareDef: partnerDef,
     }).comparison;
-    expect(full.rows).toHaveLength(60);
+    expect(full.rows).toHaveLength(3);
     expect(display.rows).toEqual(full.rows);
     expect(full.columns).toHaveLength(7);
     expect(display.columns).toHaveLength(6);
@@ -1016,21 +1034,22 @@ describe('comparison matrices', () => {
     const data = [
       entry('A', { value: 9, partner: 'a' }, '2025-12-31'),
       entry('A', { value: 9, partner: null }, '2025-12-31'),
-      entry('A', { value: 2, partner: 'a' }, '2026-01-01'),
+      entry('A', { value: 2, partner: 'a' }, '2026-02-27'),
       entry('A', { value: 4, partner: null }, '2026-03-01'),
       entry('A', { value: Infinity, partner: 'a' }, '2030-01-01'),
       entry('A', { value: 3, partner: 'a' }, 'bad'),
-      entry('A', { value: 6, partner: {} }, '2026-01-02'),
-      entry('A', { partner: 'a' }, '2026-01-03'),
-      entry('A', { value: 0, partner: false }, '2026-01-04'),
+      entry('A', { value: 6, partner: {} }, '2026-02-28'),
+      entry('A', { partner: 'a' }, '2026-02-28'),
+      entry('A', { value: 0, partner: false }, '2026-02-28'),
     ];
     const result = computeFieldAnalysis(data, numberDef, { compareDef: partnerDef });
-    expect(result.range).toEqual({ start: '2026-01-01', end: '2026-03-01' });
-    expect(result.comparison.full.rows).toHaveLength(60);
+    expect(result.range).toEqual({ start: '2025-12-31', end: '2026-03-01' });
+    expect(result.comparison.full.rows).toHaveLength(61);
     expect(result.comparison.full.rows.at(-1).key).toBe('2026-03-01');
-    expect(result.comparison.excluded).toBe(6);
-    expect(matrixCell(result.comparison.full, '2026-01-01', 'a')).toBe(2);
-    expect(matrixTotal(result.comparison.full)).toBe(2);
+    expect(result.comparison.excluded).toBe(7);
+    expect(matrixCell(result.comparison.full, '2025-12-31', 'a')).toBe(9);
+    expect(matrixCell(result.comparison.full, '2026-02-27', 'a')).toBe(2);
+    expect(matrixTotal(result.comparison.full)).toBe(11);
     expect(result.undatedCount).toBe(1);
   });
 
@@ -1055,7 +1074,7 @@ describe('comparison matrices', () => {
 });
 
 describe('analysis virtual duration', () => {
-  it('shares the supplied clock while preserving paused, completed, and legacy timer semantics', () => {
+  it('shares the supplied clock while preserving paused, completed, and running timer semantics', () => {
     const start = '2026-01-01T10:00:00Z';
     const now = Date.parse('2026-01-01T12:00:00Z');
     const data = [
@@ -1072,10 +1091,10 @@ describe('analysis virtual duration', () => {
         ended_at: '2026-01-01T11:00:00Z',
         paused_ms: 1200000,
       },
-      { created_at: start, ended_at: '2026-01-01T11:00:00Z' },
+      { created_at: start, started_at: start, ended_at: '2026-01-01T11:00:00Z' },
       { created_at: start },
     ];
-    const def = analysisFieldDefs(data)[0];
+    const def = analysisFieldDefs(data, [{ field_name: 'duration', data_type: 'duration' }])[0];
     const result = computeFieldAnalysis(data, def, { now });
     expect(result.coverage).toEqual({ total: 5, filled: 4, missing: 1, invalid: 0 });
     expect(result.numeric.total).toBe(230 * 60000);
