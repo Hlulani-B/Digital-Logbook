@@ -1,10 +1,77 @@
 # Roadmap
 
-## Sprint 1 - Completed
+This page tracks the **Digital Logbook** — rebranded **PLANNAR** during
+Sprint 4 — across the four development sprints of the course project, from the
+first vertical slice in August 2026 to the final polishing and stress-testing
+sprint in October 2026. Each sprint section records the sprint objective,
+planned scope, key activities, verified achievements, problems and challenges,
+stakeholder feedback and resulting changes, the sprint outcome, and links to
+the supporting evidence.
 
-Sprint 1 established the foundation of the Digital Logbook application, implementing core functionality across frontend, backend services, and infrastructure.
+| Sprint | Theme                            | Dates                                 | Outcome                                                                                              |
+| ------ | -------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1      | Foundation                       | 4–24 August 2026                      | Completed — working vertical slice from sign-in to timeline and basic statistics                     |
+| 2      | Expansion                        | 2–19 September 2026 (end approximate) | Completed — major feature expansion; sprint review marred by a broken testing pipeline               |
+| 3      | Refinement                       | 21–29 September 2026                  | Completed — client-driven refinement, pipeline recovery, UI reorganization                           |
+| 4      | Final Polishing & Stress Testing | 30 September – 10 October 2026        | Completed — PLANNAR rebrand, coverage push, stress-test-driven lifecycle fixes; presentation pending |
 
-### Commit History
+!!! note "Naming"
+The application was developed as the **Digital Logbook** and rebranded to
+**PLANNAR** during Sprint 4 (PR
+[#415](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/415)).
+Earlier sprints and their evidence refer to it by its original name.
+
+## Sprint 1 — Foundation (4–24 August 2026)
+
+**Sprint objective.** Deliver a working vertical slice of the application:
+sign in, create a project, define a custom entry format, capture logbook
+entries quickly, view them on a timeline, and see basic statistics.
+
+**Planned scope.** The full-stack foundation — a monorepo with four Express
+microservices (auth, project, dashboard, profile) around a Supabase
+(PostgreSQL) database, a React + TypeScript + Vite frontend, CI/CD on Gitea
+Actions with Render deployment, and the MkDocs documentation site. 28 tasks
+(T1–T28) were tracked on the Sprint 1 board.
+
+**Key activities.** Authentication with email/password plus Google and GitHub
+OAuth; profile, avatar and preference onboarding; the dashboard with drawer
+navigation and search; projects with custom fields and quick entry;
+natural-language entry parsing through a multi-provider AI chain; activity
+logging; the theming system; responsive and mobile work; and the archive
+backend.
+
+**Verified achievements.** All 28 tracked tasks were completed with their
+board flags checked — see the [Work Tracker](Project_Management/work-tracker.md)
+and the Sprint 1 summary below for the consolidated list.
+
+**Problems and challenges.** Express 5 broke the standard CORS middleware
+pattern and required several rounds of fixes (visible in the commit record
+below); a `public.users` foreign-key issue surfaced with Google OAuth users;
+Render builds failed on TypeScript errors; services clashed over ports until
+explicit per-service `PORT` configuration was introduced; and the frontend
+archive UI was removed and left as a placeholder after integration problems —
+the backend and its tests remained in place (T18 in the
+[Work Tracker](Project_Management/work-tracker.md)).
+
+**Stakeholder feedback and resulting changes.** The Sprint 1 client review
+asked for a more prominent entry button, smaller entry cards (the card was
+"taking up half the screen"), and a toggleable dashboard view. Those items
+were pulled into Sprint 2 as quick wins and verified in the 10 September
+client demonstration
+([Sprint 2 meetings](Meetings/sprint-two-meetings.md)).
+
+**Sprint outcome.** Completed. The application ran end-to-end on Render with
+CI/CD green and the documentation site live. Remaining technical debt — the
+archive frontend placeholder, frontend test coverage, rate limiting — was
+logged for later sprints (see [Known Outstanding
+Limitations](#known-outstanding-limitations) and the detailed record below).
+
+**Evidence.** [Work Tracker (T1–T28)](Project_Management/work-tracker.md) ·
+[Sprint 1 user stories (US1–US10)](User_Stories/sprint-one.md) ·
+[Sprint 1 meetings (Meetings 1–8)](Meetings/sprint-one-meetings.md) ·
+[Development Log](Project_Management/log.md) · commit record below
+
+### Detailed Commit Record
 
 #### Infrastructure & Deployment
 
@@ -265,9 +332,81 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Project Service: `https://project-service-96ml.onrender.com`
 - Dashboard Service: `https://dashboard-service-bpc5.onrender.com`
 
-## Sprint 2 - In Progress
+## Sprint 2 — Expansion (2–19 September 2026)
 
-### Completed Features
+!!! note "Status correction"
+This section previously read "Sprint 2 – In Progress". Sprint 2 was
+completed and reviewed in September 2026; the record below is the final
+state. The end date is approximate: the sprint review preceded the
+21 September retrospective recorded as Meeting 11.
+
+**Sprint objective.** Expand the vertical slice into a full personal-planning
+workload: richer entry formats and statistics over custom fields, additional
+ways to view entries (calendar, board, today, timeline), data portability
+(import/export, backups, migrations), offline capture, developer tooling
+(OpenAPI/Swagger), and a guided onboarding experience.
+
+**Planned scope.** 38 user stories (US11–US48) tracked on the Sprint 2 board;
+sprint planning took place at Meeting 9 (2 September 2026).
+
+**Key activities.** Building the four new views; the export/import stack
+(JSON/CSV/Markdown, iCalendar, drag-and-drop import, rejected-row reporting,
+round-trip safety); one-command backup/restore and versioned schema
+migrations; the OpenAPI 3 specification with Swagger UI; soft-delete and
+account recovery; the theme/frequency onboarding pages; timer/stats
+integration; entry-card UI refinements from the Sprint 1 feedback; two client
+demonstrations (10 and 12 September); and a user-testing session.
+
+**Verified achievements.** All 38 board cards carry their Trello completion
+flag — see the
+[Work Tracker — Sprint 2](Project_Management/work-tracker.md#sprint-2-backlog).
+The guided tour with live navigation and voice narration addressed the
+Sprint 2 quick-survey's onboarding problem (problem 2, issue
+[#119](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/119) —
+PRs #158, #161–165; the intro-video request remains tracked in
+[#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
+The full feature-level record follows below.
+
+**Problems and challenges.**
+
+- The automated testing pipeline was broken for much of the sprint and let
+  failing code through to the client demonstration — the primary cause of the
+  disappointing Sprint 2 review mark. Nasiphi debugged and repaired the
+  pipeline immediately after the review (confirmed at
+  [Meeting 11](Meetings/sprint-three-meetings.md)).
+- A port conflict between the dashboard and project services was diagnosed
+  and fixed during the 7 September standup (explicit `PORT` per service).
+- Postgres interval formatting in duration displays, a UTF-16-encoded
+  `supabase.js` crash, drawer overflow clipping navigation links, and the
+  natural-language prompt creating custom fields for built-in attributes were
+  all fixed (see the bug-fix record below).
+- Timer edge cases for entries started before the pause/resume fix remained
+  open at the end of the sprint.
+
+**Stakeholder feedback and resulting changes.** The 10 September client
+demonstration (Discussion Room 3, Wartenweiler Library) was positive — the
+toggleable dashboard, the more prominent entry button and the entry-card
+sizing fixes were specifically praised. The user-testing session run straight
+after produced small UI wording issues and a request for clearer timer labels;
+quick wins were completed within the sprint at the 12 September replan, while
+larger items moved to the Sprint 3 backlog. The Sprint 2 quick-survey (13
+responses, seven usability problems) led to the guided tour and onboarding
+improvements — see
+[Testing & User Feedback](Testing/testing.md#user-feedback-session-quick-survey-13-responses).
+
+**Sprint outcome.** Completed with the full planned feature set shipped, but a
+low sprint-review mark caused by the broken testing pipeline. Two lasting
+process changes resulted: every future merge must pass the repaired pipeline
+before reaching `main` (Meeting 11), and pipeline health became a first-class
+concern in Sprints 3 and 4.
+
+**Evidence.**
+[Work Tracker — Sprint 2 backlog](Project_Management/work-tracker.md#sprint-2-backlog) ·
+[Sprint 2 user stories (US11–US48)](User_Stories/sprint-two.md) ·
+[Sprint 2 meetings (Meeting 9, standups, client meetings)](Meetings/sprint-two-meetings.md) ·
+[Testing & User Feedback](Testing/testing.md) · feature record below
+
+### Detailed Feature Record
 
 #### Soft-Delete & Account Recovery
 
@@ -316,13 +455,16 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Export all project data as JSON, CSV, or Markdown
 - Import from JSON to restore or migrate data between instances
 - Drawer menu links for quick access
-- Key files: `frontend/src/lib/exportUtils.ts`, `frontend/src/lib/importUtils.ts`, `frontend/src/pages/ExportPage.tsx`
+- Key files: `frontend/src/lib/export.ts`, `frontend/src/lib/import.ts`
+  (paths updated after the Sprint 3 reorganization; originally
+  `exportUtils.ts` / `importUtils.ts` / `ExportPage.tsx`)
 
 #### iCalendar (.ics) Export
 
 - Export entries as `.ics` files compatible with Google Calendar, Outlook, and Apple Calendar
 - Each entry becomes a calendar event with due date and priority
-- Key files: `frontend/src/lib/icalExport.ts`
+- Key files: `frontend/src/lib/export.ts` (the iCalendar export now lives
+  here; originally a separate `icalExport.ts`)
 
 #### Backup, Restore & Versioned Schema Migrations
 
@@ -359,21 +501,253 @@ Sprint 1 established the foundation of the Digital Logbook application, implemen
 - Key files: `frontend/src/lib/tour.ts`, `frontend/src/index.css`
 - PRs #158, #161–165
 
-### Planned Features
+## Sprint 3 — Refinement (21–29 September 2026)
 
-- Server-side caching (Redis)
-- Rate limiting middleware
-- API versioning
-- Background job queue for AI calls
-- Comprehensive logging (Winston/Pino)
-- Nudge engine implementation
-- Drag-and-drop entry reordering
+**Sprint objective.** Recover from the Sprint 2 review — fix the process
+(testing pipeline, branch protection) and refine the product: reorganize the
+UI around the client's criticism that it "isn't intuitive enough for new
+users", migrate legacy data safely, deepen search and statistics, and finish
+the timer feature set.
 
-### Technical Debt
+**Planned scope.** 11 user stories (US49–US59) agreed at Meeting 11
+(21 September 2026): UI/UX reorganization (the main issue), data migration,
+advanced search/grouping/comparison, time plotting, timer notifications, and
+six concrete bug fixes (due-date past restriction, project-card scrolling,
+dashboard auto-refresh, granular timer inputs, empty-column validation,
+custom-column visibility).
 
-- Consolidate archive feature (currently placeholder)
-- Add comprehensive frontend tests
-- Implement API rate limiting
-- Add request validation middleware
-- Set up monitoring and alerting
-- Convert remaining JS pages to TypeScript
+**Key activities.** Sprint 3 planning and Sprint 2 retrospective (Meeting 11,
+21 September); a client progress review with live demonstrations (Meeting 12,
+25 September); pre-marking coordination including a temporary
+branch-protection rule (Meeting 13, 28 September); a large merge wave in the
+final 48 hours of the sprint (28–29 September); the Sprint 3 user-feedback
+survey; and the sprint review on Tuesday 29 September 2026.
+
+**Verified achievements.**
+
+- **Process recovery:** the repaired testing pipeline gated every merge
+  (the standing decision from Meeting 11), and a temporary branch-protection
+  rule requiring at least one approval was applied before the marking session
+  (Meeting 13).
+- **UI reorganization (US49, all six members):** the dashboard was rebuilt
+  around a due-soon rail, collapsible entry cards and leading entry/project
+  cards; project headers moved to unified Sort/View dropdowns and the
+  scattered statistics buttons were consolidated
+  (PR [#382](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/382),
+  commits `9a18ea6`, `319e98b`, `afbd72d`, merged 29 September).
+- **Timer feature set (US53, US57):** granular day/hour/minute countdown
+  settings, batch pause-all/stop-all actions
+  ([#325](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/325)),
+  idle detection with a warning badge
+  ([#324](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/324)),
+  paused-duration display
+  ([#323](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/323)),
+  timer start/pause/resume/stop events in the activity log
+  ([#333](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/333)),
+  timer-data CSV export
+  ([#326](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/326)),
+  and a circular SVG progress-ring timer
+  ([#363](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/363)).
+- **Statistics and search (US51, US52):** advanced search with pinned
+  configurations, grouping and comparison, statistics filtering by project,
+  and plotting entries and custom fields over time — demonstrated to the
+  client at Meeting 12.
+- **Data migration (US50):** existing entries migrate when a format changes,
+  with reasonably inferred defaults for new fields.
+- **Notifications (US53 / Meeting 12):** due-date emails and in-app
+  badge-only notifications with history limited to 15 items.
+- **Bug fixes (US54–US56, US58, US59):** due dates older than a week can be
+  set; the project-creation card scrolls correctly; new entries appear on the
+  dashboard without a manual refresh; empty required columns block submission
+  with an alert; newly added custom columns appear immediately on the
+  entry-creation form.
+- **Auth hygiene:** unconfirmed signups purged and password requirements
+  enforced in the UI (Nasiphi, presented at Meeting 12; migration
+  `010_purge_unconfirmed_signups.sql`).
+- **Activity feed:** infinite-scroll pagination
+  ([#337](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/337))
+  and filtering by action type
+  ([#335](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/335));
+  bulk select and delete of entries
+  ([#365](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/365),
+  [#377](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/377)).
+- **Documentation:** UML architecture diagrams added to the documentation site
+  (Siphesihle, Meeting 12) and Sprint 3 pages added to the MkDocs navigation
+  ([#376](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/376)).
+- **User feedback:** the Sprint 3 survey round (13 responses) was run with
+  screenshot evidence captured — see
+  [Sprint 3 User Feedback](Testing/user-feedback-sprint3.md).
+
+**Problems and challenges.**
+
+- **Timer reliability was still open at the sprint boundary.** Merge
+  conflicts and deployment failures around the timer work were being resolved
+  the day before marking (Meeting 13). The abandoned/indefinitely-running
+  timer issue was improved (idle detection, notifications) but was never
+  verified as fully fixed — it remains a known limitation through Sprint 4.
+- The UI reorganization merged on the review day itself (29 September), so
+  much of it landed after the client had formed their Sprint 3 impressions;
+  its benefits only became measurable in Sprint 4.
+- Archive visibility and cross-view lifecycle inconsistencies were observed
+  by users but not yet diagnosed — they became the focus of the Sprint 4
+  stress test.
+- On the Sprint 3 Trello board, all 11 cards sit in the Done list but none
+  has its completion flag checked — list position is the only status evidence
+  (see the [Work Tracker](Project_Management/work-tracker.md)).
+
+**Stakeholder feedback and resulting changes.** The client's Sprint 2-review
+criticism that the UI "isn't intuitive enough for new users" made UI
+reorganization the main issue of the sprint (Meeting 11). At the 25 September
+progress review, the client (Jashil) advised cleaning up password validation
+and error messaging, adopting badge-only in-app notifications with limited
+history, and adding an onboarding flow for new users — all adopted as Meeting
+12 decisions. The Sprint 3 user-feedback survey confirmed the discoverability
+problem (Kanban and Statistics were found by only 2 of 13 first-time users)
+and produced the "+ New Project button" bug report; both fed into Sprint 4's
+landing page and creation-flow rework.
+
+**Sprint outcome.** Completed — 11/11 cards in the board's Done list, the
+sprint review held on Tuesday 29 September 2026, and the lesson recorded at
+the next planning meeting: late-breaking regressions and inconsistent
+behaviour damage a demonstration more than a missing feature does, so the
+final sprint would prioritize stable, consistent behaviour over new scope
+(Meeting 14).
+
+**Evidence.**
+[Work Tracker — Sprint 3 backlog](Project_Management/work-tracker.md#sprint-3-backlog) ·
+[Sprint 3 user stories (US49–US59)](User_Stories/sprint-three.md) ·
+[Sprint 3 meetings (Meetings 11–13)](Meetings/sprint-three-meetings.md) ·
+[Sprint 3 User Feedback](Testing/user-feedback-sprint3.md) ·
+git history 21–29 September 2026
+
+## Sprint 4 — Final Polishing & Stress Testing (30 September – 10 October 2026)
+
+**Sprint objective.** Stabilize, polish, and prepare for final submission: no
+new feature-expansion phase — consistent behaviour end-to-end, a public face
+for the product (landing page, rebrand), verifiable test coverage, and
+stress-test-driven lifecycle correctness.
+
+**Planned scope.** Agreed at Meeting 14 (1 October 2026): final-presentation
+preparation with a verified demo environment; whole-workflow regression
+testing rather than isolated screens; outstanding Sprint 3 follow-ups (timer
+reliability, notifications, documentation); the final user-feedback round
+with published evidence; and accurate individual contribution records
+consistent with the Git history, Trello boards, meetings and feedback records.
+
+**Key activities.** Sprint 4 planning (Meeting 14, 1 October); a 13-page
+functional and UX stress test of the application analysing 27 screenshots
+(7 October); the stress-test review meeting that adopted its P1→P2→P3 fix
+order and QA scenario set (Meeting 15, 8 October); implementation of the
+P1/P2 lifecycle fixes (9–10 October); and publication of the Sprint 3 user
+feedback. Sprint 4 was tracked in Git and pull requests only — no Trello
+board was created for it.
+
+**Verified achievements.**
+
+- **Landing page and PLANNAR rebrand (Nasiphi, PRs
+  [#383](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/383)–[#418](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/418)):
+  a public landing page before sign-in with hero image and later hero video,
+  an About section and interactive feature cards (#397–#409); the rename from
+  Digital Logbook to **PLANNAR**
+  ([#415](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/415),
+  8 October); a restyled sign-in form matching the landing brand (#418); plus
+  a full-screen Focus Mode with circular countdown timer, mobile fixes for
+  the New Project modal and entry-field columns, and overdue-entry dropdown
+  handling (#383–#384, 1 October).
+- **Help Centre and bug reporting (Nasiphi, PRs
+  [#386](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/386)–[#396](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/396)):
+  an in-app Help Centre with search, guides and FAQ; a dedicated bug-report
+  page with email delivery; base64 image fields rendered as thumbnails.
+- **Test coverage (Hlulani, PRs
+  [#410](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/410)–[#412](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/412),
+  7 October): frontend coverage raised to 87.5%; a coverage table surfaced in
+  Gitea Actions; a comprehensive testing inventory (93 test files, ≈991
+  tests); coverage requirements added to all CI workflows.
+- **Stress-test-driven lifecycle fixes (Siphesihle, PRs
+  [#419](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/419)–[#421](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/421),
+  9–10 October):
+  - #419 — overdue warnings shown consistently across views;
+  - #420 — Due Soon eligibility unified across lifecycle states, with the
+    archive state shared across all due-soon surfaces;
+  - #421 — archived entries excluded from active views, entry archive state
+    made independent of project archive/restore, the saved due time shown
+    alongside the due date everywhere, Total-Entries statistics semantics
+    locked by test, and the redundant manual Started At editor removed.
+- **Sprint 3 feedback published:** the 13-response survey round documented
+  with redacted screenshots
+  ([Sprint 3 User Feedback](Testing/user-feedback-sprint3.md)), completing
+  the commitment made at Meeting 14.
+
+**Problems and challenges.**
+
+- The stress test (7 October) documented cross-view lifecycle
+  inconsistencies — the same entry behaving differently in the Cards, Table,
+  Checklist and Board views — plus overdue-editing traps, Due Soon persistence
+  after completion, and archive-visibility problems. These were triaged into
+  P1/P2/P3 priorities at Meeting 15; the P1/P2 fixes merged 9–10 October, but
+  **the P3 items (Table readability, Checklist-vs-Board differentiation)
+  were not merged** and remain open.
+- **Timer reliability remains an outstanding limitation.** Sprint 4 shipped
+  abandoned-timer detection and Focus Mode, but no verified full fix of the
+  indefinitely-running timer was merged — the timer should not be reported
+  as fully fixed.
+- The Gitea → GitHub mirror that feeds the Render deployments had documented
+  delays, so live-deployment verification lagged behind merges
+  ([Development Log](Project_Management/log.md)).
+
+**Stakeholder feedback and resulting changes.** Two inputs shaped the sprint.
+First, the stress-test report (7 October, reviewed at Meeting 15): its
+P1→P2→P3 fix order and controlled QA scenario set were adopted as the
+stabilization plan and the regression checklist for final validation. Second,
+the Sprint 3 user-feedback survey (13 responses, captured 9 October): the
+discoverability findings aligned with the landing-page and navigation rework,
+and the tour-length and native-app requests were logged as backlog or
+out-of-scope rather than silently ignored
+([Sprint 3 User Feedback](Testing/user-feedback-sprint3.md)).
+
+**Sprint outcome.** Completed on 10 October 2026, with the P1/P2 lifecycle
+fixes merged (#419–#421), frontend coverage at 87.5%, the PLANNAR rebrand
+live, and this documentation site updated to cover all four sprints. The
+final presentation and the group/individual reports were the remaining
+milestones at the time of writing.
+
+**Evidence.**
+[Sprint 4 meetings (Meetings 14–15)](Meetings/sprint-four-meetings.md) ·
+[Work Tracker — Sprint 4 work log](Project_Management/work-tracker.md#sprint-4-work-log) ·
+[Sprint 3 User Feedback](Testing/user-feedback-sprint3.md) ·
+PRs [#383](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/383)–[#421](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/pulls/421) ·
+git history 30 September – 10 October 2026
+
+## Retrospective — Four Sprints in Brief
+
+| Sprint | What the team learned                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------- |
+| 1      | A vertical slice beats breadth: end-to-end deployment, CI/CD and docs from day one                    |
+| 2      | A broken test pipeline quietly ships failing code — process failures cost more than feature gaps      |
+| 3      | Client-facing refinement needs lead time: a reorganization merged on review day arrives too late      |
+| 4      | Stability, honest evidence and a single lifecycle model matter more than new scope at the finish line |
+
+The archive feature traces the arc: a backend-only placeholder at the end of
+Sprint 1, a rebuilt flow during Sprint 2, and lifecycle-correct visibility
+(excluded from active views, independent of project restore) locked down by
+#421 in Sprint 4.
+
+### Deferred and Dropped Items
+
+Items logged as possible future work during Sprint 2 planning — server-side
+caching (Redis), rate limiting, API versioning, a background job queue for AI
+calls, structured logging (Winston/Pino), the nudge engine, and drag-and-drop
+entry reordering — were consciously **not pursued**: Sprints 3 and 4
+prioritized refinement, stability and polish over new scope (Meetings 11 and
+14).
+
+### Known Outstanding Limitations
+
+| Item                           | Status at 10 October 2026                                                                                                                | Evidence                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Timer reliability              | Abandoned-timer detection and notifications shipped; **no verified full fix merged** — the timer must not be reported as fully fixed     | Meetings 12–14; no full timer-reliability fix in Sprint 4 PRs                |
+| P3 UI polish                   | Table readability and Checklist-vs-Board differentiation recommended by the stress test; not merged                                      | [Meeting 15](Meetings/sprint-four-meetings.md)                               |
+| Project-archive restore retest | Archive-state independence implemented and tested (#421); the stress test's controlled restore-preservation retest remains a QA scenario | [Meeting 15](Meetings/sprint-four-meetings.md)                               |
+| Guided-tour length             | "Tour is long" survey feedback logged; no shortening merged                                                                              | [Sprint 3 feedback](Testing/user-feedback-sprint3.md)                        |
+| Native application             | Requested by a survey respondent; out of scope for a web-based course project                                                            | [Sprint 3 feedback](Testing/user-feedback-sprint3.md)                        |
+| Intro video                    | Onboarding-video request from the Sprint 2 survey still open                                                                             | [Issue #126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126) |
