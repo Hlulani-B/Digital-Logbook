@@ -7454,6 +7454,82 @@ img {
   color: #fff;
 }
 
+/* Quick actions (pin / calculate / archive) on Checklist, Board and Table views */
+.entry-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.entry-quick-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: transparent;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted, #737373);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.entry-quick-actions__btn:hover {
+  color: var(--text, #111111);
+  border-color: var(--text, #111111);
+  background: var(--surface-hover, #f5f5f5);
+}
+.entry-quick-actions__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.entry-quick-actions__btn.is-pinned {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.entry-quick-actions--compact .entry-quick-actions__btn {
+  padding: 0.2rem;
+  width: 24px;
+  height: 24px;
+}
+.entry-quick-actions__calc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px dashed var(--border, #e5e5e5);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-muted, #737373);
+  white-space: nowrap;
+}
+.entry-quick-actions__error {
+  font-size: 0.7rem;
+  color: var(--danger, #dc2626);
+}
+.entry-quick-actions__calc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem 1rem;
+}
+.entry-quick-actions__calc-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted, #737373);
+}
+.entry-quick-actions__calc-select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--text, #111111);
+  font-size: 0.85rem;
+}
+
 /* ── Entries-by-due-date board ── */
 .edb-board {
   display: grid;

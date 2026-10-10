@@ -47,8 +47,10 @@ export function AllEntriesPage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Sort state - persisted per-user in the local preferences store
-  const sortBy = usePref('allentries_sort_by') as 'priority' | 'date';
+  // Sort state - persisted per-user in the local preferences store. A fresh
+  // profile has no stored value: default to date ordering so the toolbar
+  // trigger renders a label (and the list matches every other date-sorted view).
+  const sortBy = (usePref('allentries_sort_by') as 'priority' | 'date') || 'date';
   const setSortBy = useCallback((next: 'priority' | 'date') => {
     void setPref('allentries_sort_by', next);
   }, []);

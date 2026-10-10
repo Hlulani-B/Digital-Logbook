@@ -1801,23 +1801,66 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             {archivedProjects.length === 0 ? (
               <p className="archives-empty-line">No archived projects</p>
             ) : (
-              <div className="archived-projects-grid">
+              <div className="projects-grid">
                 {archivedProjects.map((project, i) => {
                   const name = project.project_name as string;
+                  const count = entries.filter((e) => e.project_name === name).length;
+                  const inMotionCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'in_motion'
+                  ).length;
+                  const doneCount = entries.filter(
+                    (e) => e.project_name === name && e.status === 'done_and_dusted'
+                  ).length;
+                  const cardAccent = resolveProjectColor(name, dashColorMap);
                   return (
-                    <div key={`archived-${name}-${i}`} className="glass archived-project-card">
-                      <FiArchive size={18} className="archived-project-icon" />
-                      <div className="archived-project-info">
-                        <span className="archived-project-name">{name}</span>
-                        <span className="archived-project-status">Archived · read-only</span>
+                    <div
+                      key={`archived-${name}-${i}`}
+                      className="project-card project-card--actionable"
+                      style={{
+                        borderLeft: `3px solid ${cardAccent}`,
+                        background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/project/${encodeURIComponent(name)}`);
+                        }
+                      }}
+                    >
+                      <div className="project-card-header">
+                        <h3 className="project-card-name">{name}</h3>
+                        <span className="project-card-count">{count} entries</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleUnarchiveProject(name)}
-                        className="btn-secondary archived-project-unarchive"
+                      <div className="project-card-stats">
+                        {inMotionCount > 0 && (
+                          <span className="project-card-stat project-card-stat--active">
+                            {inMotionCount} in progress
+                          </span>
+                        )}
+                        {doneCount > 0 && (
+                          <span className="project-card-stat project-card-stat--done">
+                            {doneCount} done
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="project-card-actions"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       >
-                        <FiRotateCcw size={13} /> Unarchive
-                      </button>
+                        <button
+                          type="button"
+                          className="project-card-action-btn"
+                          onClick={() => handleUnarchiveProject(name)}
+                          title="Unarchive project"
+                        >
+                          <FiRotateCcw size={12} />
+                          Unarchive
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -2304,8 +2347,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                     >
                       <option value="text">Text</option>
                       <option value="markdown">Markdown</option>
-                      <option value="integer">Integer</option>
-                      <option value="float">Float</option>
                       <option value="number">Number</option>
                       <option value="date">Date</option>
                       <option value="boolean">Boolean</option>

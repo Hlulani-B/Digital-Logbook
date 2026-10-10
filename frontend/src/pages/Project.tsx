@@ -11,6 +11,7 @@ import {
   archiveProject,
   unarchiveProject,
 } from '../functions/project/archives.js';
+import { getLocallyArchivedProjectNames } from '../functions/project/archiveState.js';
 import { formatEntryValue } from '@/lib/entryPayload';
 import { formatDueDateTime } from '@/lib/dueDateDisplay';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus, FiSettings } from 'react-icons/fi';
@@ -146,8 +147,9 @@ export function ProjectsPage() {
       if (seq !== loadProjectsSeq.current) return;
       if (cached?.data || cached?.projects) {
         const rawProjects = cached.data || cached.projects || [];
+        const localArch = getLocallyArchivedProjectNames(email);
         const list = (Array.isArray(rawProjects) ? rawProjects : []).filter(
-          (p: ProjectRecord) => !p.archived
+          (p: ProjectRecord) => !p.archived && !localArch.has(p.project_name)
         );
         setProjects(list);
       } else {
@@ -158,8 +160,9 @@ export function ProjectsPage() {
         if (seq !== loadProjectsSeq.current) return;
         if (fresh?.data || fresh?.projects) {
           const rawProjects = fresh.data || fresh.projects || [];
+          const localArch = getLocallyArchivedProjectNames(email);
           const list = (Array.isArray(rawProjects) ? rawProjects : []).filter(
-            (p: ProjectRecord) => !p.archived
+            (p: ProjectRecord) => !p.archived && !localArch.has(p.project_name)
           );
           setProjects(list);
         }
@@ -174,18 +177,35 @@ export function ProjectsPage() {
   const loadArchivedProjects = useCallback(async () => {
     if (!email) return;
     const seq = ++loadArchivedSeq.current;
+    // Locally archived projects (Dashboard's localStorage fallback, used when
+    // the server update could not be applied) never appear in the server list —
+    // read them from the PROJECTS cache so the archive list still shows them.
+    const localArch = getLocallyArchivedProjectNames(email);
+    let localFallback: ProjectRecord[] = [];
+    if (localArch.size > 0) {
+      try {
+        const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
+        const raw = cachedProjects?.data || cachedProjects?.projects || [];
+        localFallback = (Array.isArray(raw) ? raw : []).filter((p: ProjectRecord) =>
+          localArch.has(p.project_name)
+        );
+      } catch {}
+    }
     try {
       const result = await getArchivedProjects(email);
       if (seq !== loadArchivedSeq.current) return;
-      if (result?.success && result.data) {
-        setArchivedProjects(result.data);
-      } else {
-        setArchivedProjects([]);
-      }
+      const serverList: ProjectRecord[] =
+        result?.success && result.data ? (result.data as ProjectRecord[]) : [];
+      // Server rows win on name collisions; local-only flags fill the rest.
+      const serverNames = new Set(serverList.map((p) => p.project_name));
+      setArchivedProjects([
+        ...serverList,
+        ...localFallback.filter((p) => !serverNames.has(p.project_name)),
+      ]);
     } catch (err) {
       if (seq !== loadArchivedSeq.current) return;
       console.error('Failed to load archived projects:', err);
-      setArchivedProjects([]);
+      setArchivedProjects(localFallback);
     }
   }, [email]);
 

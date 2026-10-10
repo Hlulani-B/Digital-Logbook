@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
+import { EntryQuickActions } from '@/components/EntryQuickActions';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -123,8 +124,8 @@ function fieldColumnLabel(column: EntryFieldColumn) {
   return column.kind === 'legacy' ? 'Legacy content' : column.name;
 }
 
-// Grid: checkbox | content columns | Priority | Due | Status (far right)
-const TRAILING_COLS = '180px 120px 140px'; // Priority | Due | Status
+// Grid: checkbox | content columns | Priority | Due | Status | Actions
+const TRAILING_COLS = '180px 120px 140px 110px'; // Priority | Due | Status | Actions
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
   let template = '32px '; // checkbox column
@@ -434,6 +435,10 @@ function MobileCard({
             ))}
           </select>
         </div>
+        <div className="ptt-mobile-card__row ptt-mobile-card__row--actions">
+          <span className="ptt-mobile-card__label">Actions</span>
+          <EntryQuickActions entry={entry} />
+        </div>
       </div>
     </div>
   );
@@ -545,6 +550,11 @@ function TaskRow({
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Row actions — pin / calculate / archive, same semantics as Cards view */}
+      <div className="ptt-cell ptt-cell-actions">
+        <EntryQuickActions entry={entry} compact />
       </div>
     </div>
   );
@@ -670,6 +680,7 @@ function ProjectGroup({
               <div className="ptt-col">Priority</div>
               <div className="ptt-col">Due</div>
               <div className="ptt-col">Status</div>
+              <div className="ptt-col">Actions</div>
             </div>
 
             <div className="ptt-rows">

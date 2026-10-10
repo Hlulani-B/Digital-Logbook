@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AllEntriesPage } from '../AllEntries';
 import { initPreferences } from '@/functions/preferences';
@@ -36,7 +36,8 @@ vi.mock('@/lib/cache', () => ({
       return data ? [{ values: [[data]] }] : [];
     },
     run: (sql: string, params?: unknown[]) => {
-      if (sql.includes('INSERT INTO user_preferences')) {
+      // Persist path uses `INSERT OR REPLACE INTO user_preferences ...`.
+      if (sql.includes('INTO user_preferences')) {
         prefRows[params![0] as string] = params![1] as string;
       }
     },
@@ -88,6 +89,28 @@ vi.mock('@/pages/VoiceFeature', () => ({
   default: vi.fn(() => <div data-testid="voice-feature">VoiceFeature</div>),
 }));
 
+// The restored toolbar renders View/Sort as ToolbarDropdowns, so tests drive
+// them through the trigger and a role="option" click inside their group.
+function selectView(label: string) {
+  const group = document.querySelector('.feed-view-group');
+  if (!group) throw new Error('View dropdown group not found');
+  fireEvent.click(group.querySelector('.toolbar-dropdown__btn')!);
+  fireEvent.click(within(group as HTMLElement).getByRole('option', { name: label }));
+}
+
+function selectSort(label: string) {
+  const group = document.querySelector('.feed-sort-group');
+  if (!group) throw new Error('Sort dropdown group not found');
+  fireEvent.click(group.querySelector('.toolbar-dropdown__btn')!);
+  fireEvent.click(within(group as HTMLElement).getByRole('option', { name: label }));
+}
+
+/** Label currently shown on the toolbar dropdown trigger inside `selector`. */
+function triggerLabel(selector: string): string {
+  const group = document.querySelector(selector);
+  return group?.querySelector('.toolbar-dropdown__value')?.textContent ?? '';
+}
+
 describe('AllEntriesPage', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -112,7 +135,7 @@ describe('AllEntriesPage', () => {
   it('renders the Header with "My Entries" title', () => {
     renderPage();
     expect(screen.getByTestId('header')).toBeTruthy();
-    expect(screen.getByText('My Items')).toBeTruthy();
+    expect(screen.getByText('My Entries')).toBeTruthy();
   });
 
   it('renders the QuickEntryBar', () => {
@@ -122,34 +145,38 @@ describe('AllEntriesPage', () => {
 
   it('renders the search input', () => {
     renderPage();
-    expect(screen.getByPlaceholderText('Filter entries...')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Search entries...')).toBeTruthy();
   });
 
-  it('renders display mode toggle buttons', () => {
+  it('renders display mode options in the View dropdown', () => {
     renderPage();
-    expect(screen.getByText('Cards')).toBeTruthy();
-    expect(screen.getByText('Checklist')).toBeTruthy();
-    expect(screen.getByText('Board')).toBeTruthy();
-    expect(screen.getByText('Table')).toBeTruthy();
+    const group = document.querySelector('.feed-view-group')!;
+    fireEvent.click(group.querySelector('.toolbar-dropdown__btn')!);
+    // The trigger shows the active option; every mode lives in the menu.
+    expect(triggerLabel('.feed-view-group')).toBe('Cards');
+    expect(within(group as HTMLElement).getByRole('option', { name: 'Cards' })).toBeTruthy();
+    expect(within(group as HTMLElement).getByRole('option', { name: 'Checklist' })).toBeTruthy();
+    expect(within(group as HTMLElement).getByRole('option', { name: 'Board' })).toBeTruthy();
+    expect(within(group as HTMLElement).getByRole('option', { name: 'Table' })).toBeTruthy();
   });
 
-  it('renders sort buttons for Date and Priority', () => {
+  it('renders sort options for Date and Priority', () => {
     renderPage();
-    expect(screen.getByText('Date')).toBeTruthy();
-    expect(screen.getByText('Priority')).toBeTruthy();
+    const group = document.querySelector('.feed-sort-group')!;
+    fireEvent.click(group.querySelector('.toolbar-dropdown__btn')!);
+    expect(within(group as HTMLElement).getByRole('option', { name: 'Date' })).toBeTruthy();
+    expect(within(group as HTMLElement).getByRole('option', { name: 'Priority' })).toBeTruthy();
   });
 
   it('defaults to cards display mode', () => {
     renderPage();
-    // Cards button should be active by default
-    const cardsBtn = screen.getByText('Cards');
-    expect(cardsBtn.className).toContain('active');
+    // The View trigger shows the active option — Cards until changed.
+    expect(triggerLabel('.feed-view-group')).toBe('Cards');
   });
 
   it('defaults to date sorting', () => {
     renderPage();
-    const dateBtn = screen.getByText('Date');
-    expect(dateBtn.className).toContain('active');
+    expect(triggerLabel('.feed-sort-group')).toBe('Date');
   });
 
   it('shows empty state when no entries', async () => {
@@ -163,7 +190,7 @@ describe('AllEntriesPage', () => {
 
   it('persists display mode to the per-user preferences store', async () => {
     renderPage();
-    fireEvent.click(screen.getByText('Board'));
+    selectView('Board');
     await waitFor(() => {
       expect(JSON.parse(prefRows['test@test.com']).allentries_display_mode).toBe('board');
     });
@@ -171,7 +198,7 @@ describe('AllEntriesPage', () => {
 
   it('persists sort preference to the per-user preferences store', async () => {
     renderPage();
-    fireEvent.click(screen.getByText('Priority'));
+    selectSort('Priority');
     await waitFor(() => {
       expect(JSON.parse(prefRows['test@test.com']).allentries_sort_by).toBe('priority');
     });
@@ -181,16 +208,15 @@ describe('AllEntriesPage', () => {
     prefRows['test@test.com'] = JSON.stringify({ allentries_display_mode: 'board' });
     await initPreferences('test@test.com');
     renderPage();
-    const boardBtn = screen.getByText('Board');
-    expect(boardBtn.className).toContain('active');
+    // The trigger shows the stored mode.
+    expect(triggerLabel('.feed-view-group')).toBe('Board');
   });
 
   it('reads sort preference from the preferences store on mount', async () => {
     prefRows['test@test.com'] = JSON.stringify({ allentries_sort_by: 'priority' });
     await initPreferences('test@test.com');
     renderPage();
-    const priorityBtn = screen.getByText('Priority');
-    expect(priorityBtn.className).toContain('active');
+    expect(triggerLabel('.feed-sort-group')).toBe('Priority');
   });
 });
 
@@ -279,7 +305,7 @@ describe('AllEntriesPage archive filtering (Batch 3A — active-view consistency
     );
     renderPage();
 
-    fireEvent.click(screen.getByText('Table'));
+    selectView('Table');
     await waitFor(() => expect(vi.mocked(ProjectTaskTable).mock.calls.length).toBeGreaterThan(0));
     let ids = lastCalledIds(ProjectTaskTable, 'rows');
     expect(ids).toContain('1');
@@ -287,7 +313,7 @@ describe('AllEntriesPage archive filtering (Batch 3A — active-view consistency
     expect(ids).not.toContain('3');
     expect(ids).not.toContain('4');
 
-    fireEvent.click(screen.getByText('Checklist'));
+    selectView('Checklist');
     await waitFor(() => expect(vi.mocked(ChecklistView).mock.calls.length).toBeGreaterThan(0));
     ids = lastCalledIds(ChecklistView, 'entries');
     expect(ids).toContain('1');
@@ -295,7 +321,7 @@ describe('AllEntriesPage archive filtering (Batch 3A — active-view consistency
     expect(ids).not.toContain('3');
     expect(ids).not.toContain('4');
 
-    fireEvent.click(screen.getByText('Board'));
+    selectView('Board');
     await waitFor(() =>
       expect(vi.mocked(EntriesByDueDateBoard).mock.calls.length).toBeGreaterThan(0)
     );
@@ -336,7 +362,7 @@ describe('AllEntriesPage archive filtering (Batch 3A — active-view consistency
     renderPage();
     await waitFor(() => expect(vi.mocked(EntryBox).mock.calls.length).toBeGreaterThan(0));
 
-    fireEvent.change(screen.getByPlaceholderText('Filter entries...'), {
+    fireEvent.change(screen.getByPlaceholderText('Search entries...'), {
       target: { value: 'kickoff' },
     });
     await waitFor(() => expect(renderedEntryIds()).toContain('1'));
@@ -356,7 +382,7 @@ describe('AllEntriesPage archive filtering (Batch 3A — active-view consistency
     renderPage();
     await waitFor(() => expect(vi.mocked(EntryBox).mock.calls.length).toBeGreaterThan(0));
 
-    fireEvent.change(screen.getByPlaceholderText('Filter entries...'), {
+    fireEvent.change(screen.getByPlaceholderText('Search entries...'), {
       target: { value: 'zebra' },
     });
     await waitFor(() => expect(screen.getByText('No results found')).toBeTruthy());

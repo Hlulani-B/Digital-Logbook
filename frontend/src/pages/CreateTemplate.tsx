@@ -12,8 +12,6 @@ interface TemplateFieldDraft {
 const FIELD_TYPES = [
   { value: 'text', label: 'Text', icon: '📝' },
   { value: 'markdown', label: 'Markdown', icon: '📄' },
-  { value: 'integer', label: 'Integer', icon: '🔢' },
-  { value: 'float', label: 'Float', icon: '' },
   { value: 'number', label: 'Number', icon: '🔢' },
   { value: 'date', label: 'Date', icon: '📅' },
   { value: 'boolean', label: 'Boolean', icon: '✓' },

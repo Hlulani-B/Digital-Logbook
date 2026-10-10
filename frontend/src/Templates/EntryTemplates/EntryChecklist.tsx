@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
+import { EntryQuickActions } from '@/components/EntryQuickActions';
 import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
@@ -253,6 +254,8 @@ export default function ChecklistEntryCard({
           >
             Add Note
           </button>
+          {/* Pin / Calculate / Archive — same entry keys as the Cards view */}
+          <EntryQuickActions entry={entry} onUpdated={onUpdated} />
           <button
             className="checklist-card-menu-btn checklist-card-menu-btn--delete"
             onClick={(e) => {
