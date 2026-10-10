@@ -10,6 +10,7 @@ import {
   snoozeNotification,
   dismissNotification,
 } from '@/functions/project/notifications.js';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 interface NotificationRow {
   id: string;
@@ -52,15 +53,9 @@ function relativeTime(iso: string): string {
 }
 
 function formatDue(dueAt: string | null): string {
-  if (!dueAt) return '';
-  const d = new Date(dueAt);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // Shared formatter: date-only due values keep their plain date — no
+  // fabricated end-of-day time — while real saved times ride along.
+  return formatDueDateTime(dueAt, { dateOptions: { month: 'short', day: 'numeric' } }) || '';
 }
 
 /**

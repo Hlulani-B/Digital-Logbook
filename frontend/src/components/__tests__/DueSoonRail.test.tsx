@@ -70,4 +70,28 @@ describe('DueSoonRail — render-boundary eligibility guard', () => {
     );
     expect(screen.getByText('Nothing due soon.')).toBeTruthy();
   });
+
+  it('shows the saved due time beside the relative day on the chip', () => {
+    // Built from local components so the chip text is timezone-independent.
+    const now = new Date();
+    const due = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 18, 0).toISOString();
+    render(
+      <MemoryRouter>
+        <DueSoonRail entries={[row({ summary: 'Timed task', due_date: due })]} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Tomorrow \u00b7 18:00')).toBeTruthy();
+  });
+
+  it('keeps a date-only chip free of a fabricated time', () => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const date = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    render(
+      <MemoryRouter>
+        <DueSoonRail entries={[row({ summary: 'Date task', due_date: `${date}T23:59:59.999Z` })]} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Tomorrow')).toBeTruthy();
+  });
 });

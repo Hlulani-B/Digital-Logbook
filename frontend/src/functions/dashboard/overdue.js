@@ -73,3 +73,26 @@ export function isDueSoon(dueDate, status, archived = false, projectArchived = f
   const windowEnd = new Date(now.getTime() + DUE_SOON_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   return due >= now && due <= windowEnd;
 }
+
+/**
+ * Whether an entry belongs in active (non-archive) views at all.
+ * - Deleted entries never appear
+ * - Individually archived entries only appear where archived content is
+ *   explicitly requested (the Archives views handle that themselves)
+ * - Entries of an archived project are excluded from ordinary active views
+ *   because their parent project is archived — while keeping the entry's own
+ *   independent archive flag untouched
+ *
+ * This mirrors the exclusion semantics of isOverdue/isDueSoon above and is
+ * the single rule every active surface (feeds, table, checklist, board,
+ * cards) should select rows with.
+ *
+ * @param {object|null} entry - The entry row
+ * @param {boolean} [projectArchived] - Whether the parent project is archived
+ * @returns {boolean} - True if the entry should appear in active views
+ */
+export function isActiveEntry(entry, projectArchived = false) {
+  if (!entry || entry.deleted === true) return false;
+  if (entry.archived === true || projectArchived === true) return false;
+  return true;
+}

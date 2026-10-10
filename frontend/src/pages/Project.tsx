@@ -12,6 +12,7 @@ import {
   unarchiveProject,
 } from '../functions/project/archives.js';
 import { formatEntryValue } from '@/lib/entryPayload';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 import { FiArchive, FiEdit2, FiTrash2, FiX, FiBookOpen, FiPlus, FiSettings } from 'react-icons/fi';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
 
@@ -1029,7 +1030,7 @@ export function ProjectsPage() {
                                   color: 'var(--text-dim, #6b7280)',
                                 }}
                               >
-                                Due: {new Date(entry.due_date as string).toLocaleDateString()}
+                                Due: {formatDueDateTime(entry.due_date as string)}
                               </p>
                             )}
                             {entry.priority != null && (

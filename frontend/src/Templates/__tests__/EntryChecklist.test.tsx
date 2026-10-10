@@ -68,6 +68,19 @@ describe('ChecklistEntryCard', () => {
     expect(dateText).toBeTruthy();
   });
 
+  it('renders the saved due time alongside the due date', () => {
+    const due = new Date(2026, 9, 10, 18, 0).toISOString();
+    renderCard({ ...sampleEntry, due_date: due });
+    expect(document.querySelector('.checklist-due')?.textContent).toContain('18:00');
+  });
+
+  it('keeps a date-only due value free of a fabricated time', () => {
+    renderCard({ ...sampleEntry, due_date: '2026-10-10T23:59:59.999Z' });
+    const dueText = document.querySelector('.checklist-due')?.textContent || '';
+    expect(dueText).toMatch(/10/);
+    expect(dueText).not.toMatch(/\d{1,2}:\d{2}/);
+  });
+
   it('renders "No due date" when no due_date', () => {
     const noDate = { ...sampleEntry, due_date: null };
     renderCard(noDate);

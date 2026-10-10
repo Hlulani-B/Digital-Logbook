@@ -17,6 +17,8 @@ import VoiceFeature from '@/pages/VoiceFeature';
 import { type EntryPayload } from '@/lib/entryPayload';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { usePref, setPref } from '@/functions/preferences';
+import { isActiveEntry } from '@/functions/dashboard/overdue.js';
+import { getEffectiveArchivedProjectNames } from '@/functions/project/archiveState.js';
 
 type Entry = Record<string, unknown>;
 
@@ -163,9 +165,20 @@ export function AllEntriesPage() {
     loadData();
   };
 
+  // Names of effectively archived parent projects — server flag or the local
+  // fallback (same shared helper as Dashboard/StatsView). Their entries leave
+  // the active list; archived content stays explicit in the Archives view.
+  const archivedProjectNames = useMemo(
+    () => getEffectiveArchivedProjectNames(email, projects),
+    [email, projects]
+  );
+
   // Filtered entries
   const filteredEntries = useMemo(() => {
-    let filtered = [...entries];
+    // Active views only — no archived, deleted, or archived-project entries.
+    let filtered = (entries as Entry[]).filter((e) =>
+      isActiveEntry(e, archivedProjectNames.has(String(e.project_name || '')))
+    );
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -194,7 +207,7 @@ export function AllEntriesPage() {
     }
 
     return filtered;
-  }, [entries, searchQuery, sortBy]);
+  }, [entries, archivedProjectNames, searchQuery, sortBy]);
 
   const colorMap = useMemo(
     () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
