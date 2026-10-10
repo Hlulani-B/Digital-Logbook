@@ -599,12 +599,55 @@ Empty-state dashboard in a deeper purple/mauve tone, distinct from the lighter P
 
 Preferences panel with **Corner Style** changed to "Sharp (Vintage)," showing input fields and buttons render with squared corners instead of rounded — confirming the Corner Style setting applies globally to UI elements.
 
+## UI Recording — Earlier Digital Logbook Interface
+
+!!! warning "Historical recording — not the final PLANNAR UI"
+This screen recording shows the **earlier Digital Logbook interface**
+(pre-rebrand, captured on a local development build at `localhost:5175`).
+It is preserved as design history. The application was rebranded to
+**PLANNAR** and its landing page, sign-in and navigation were reworked
+during Sprint 4 — see the [Roadmap](../roadmap.md).
+
+<!-- NOTE: the paths below are relative to the *built* page
+     (site/Architecture/ui-design/index.html), not to this source file —
+     MkDocs rewrites markdown links but not raw HTML attributes. -->
+<video controls width="100%" poster="../../assets/ui-images/recording-old-site-poster.jpg">
+    <source src="../../assets/ui-images/recording-old-site-web.mp4" type="video/mp4" />
+    Your browser does not support embedded video. Download the recording:
+    <a href="../../assets/ui-images/recording-old-site-web.mp4">Digital Logbook UI recording (MP4, ~2.1&nbsp;MB)</a>.
+</video>
+
+**What the recording shows** (1 min 27 s; original capture 1856×966, published
+here as a 1280px-wide ~2.1 MB web encode):
+
+- the dashboard with its "Due soon" section and entry cards
+- the navigation drawer with the VIEWS and PROJECTS lists
+- the Cards / Checklist / Board / Table view toggles within a project
+- the guided-tour banner ("New here? Take the two-minute tour") and the
+  quick-entry field ("Write what you worked on...")
+- the floating "+ New" action button
+
+The original 80 MB capture (`recording_old_site.mp4`) is retained by the team
+and intentionally not published in the repository; the compressed web version
+above is encoded with web-optimized streaming (faststart), so playback begins
+before the full file has downloaded.
+
+### Why this recording matters historically
+
+This is the interface generation tested by Sprint 3 survey respondents —
+including the projects sidebar and the "+ New Project" control they reported
+as hard to reach, and the pre-rebrand "Digital Logbook" identity. Comparing it
+with the current screenshots above shows how far the information architecture
+moved during the Sprint 3/4 rework. See
+[Sprint 3 User Feedback](../Testing/user-feedback-sprint3.md) for the survey
+findings that accompanied this interface.
+
 ### Summary of Design System Capabilities
 
 - **Layout:** consistent top nav (menu, logo, search, account) + content area + floating action button across all screens
 - **Theming:** multiple background themes (Soft Tan, Pale Lilac, Dark, Blush, Cream, Peach, Lavender, etc.), all applied consistently across dashboard, cards, and modals
 - **Typography:** multiple font choices (Crimson Text, Plus Jakarta Sans, Playfair Display, Lora), user-selectable
 - **Shape system:** Rounded (default) vs Sharp (Vintage) corner styles, applied app-wide
-- **Dynamic forms:** both Projects and Entries are schema-driven â€” fields are user-defined per project and rendered dynamically on entry creation
+- **Dynamic forms:** both Projects and Entries are schema-driven — fields are user-defined per project and rendered dynamically on entry creation
 - **Time tracking:** entries support a "Start Task" action tied to time-tracking functionality
 - **Natural language input:** quick-add bar for fast entry creation without the full form
