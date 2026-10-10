@@ -602,6 +602,21 @@ describe('StatsView field analysis', () => {
     expect(analysis().getByText(/Full project: 2 filled of 2 entries/)).toBeInTheDocument();
   });
 
+  it('counts archived entries in Total Entries — archived rows are hidden, never deleted', async () => {
+    // ALL_ENTRIES only ever holds non-deleted rows (soft-deleted ones are
+    // filtered out server-side), so an individually archived entry stays in
+    // the project total: 1 active + 1 archived = 2 for the Alpha scope.
+    put('all_entries', EMAIL, [
+      entry({ Score: 4 }),
+      entry({ Score: 8 }, '2026-03-12', { archived: true }),
+      entry({ Score: 999 }, '2026-03-12', { project_name: 'Beta' }),
+    ]);
+    mount();
+    await ready();
+    expect(cardValue('Total Entries')).toBe('2');
+    expect(analysis().getByText(/Full project: 2 filled of 2 entries/)).toBeInTheDocument();
+  });
+
   it('updates active project totals when the keyed projects cache changes', async () => {
     mount('');
     await screen.findByText('Active Projects');

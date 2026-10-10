@@ -11,6 +11,7 @@ import './ProjectTable.css';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
 import { resolveProjectColor } from '@/lib/projectColorMap';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 /* Hook to detect mobile width (< 600px) */
 function useIsMobile() {
@@ -79,10 +80,7 @@ function friendlyPriority(raw: string) {
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return formatDueDateTime(value, { dateOptions: { day: 'numeric', month: 'short' } }) || '';
 }
 
 function groupByProject(rows: any[]) {

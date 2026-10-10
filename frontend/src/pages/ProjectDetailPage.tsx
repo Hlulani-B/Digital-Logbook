@@ -19,7 +19,8 @@ import { cacheGet, cacheSet, CACHE_STORES, cacheSubscribe } from '@/lib/cache';
 import { trackViewedProject } from '@/lib/recentlyViewed';
 import { trackCreatedEntry } from '@/lib/recentlyCreated';
 import { setPriority } from '@/functions/project/priority.js';
-import { isDueSoon } from '@/functions/dashboard/overdue.js';
+import { isActiveEntry, isDueSoon } from '@/functions/dashboard/overdue.js';
+import { getEffectiveArchivedProjectNames } from '@/functions/project/archiveState.js';
 import { searchEntriesInProject } from '@/functions/project/search.js';
 import { addNaturalLanguageEntry } from '@/functions/project/natural_language.js';
 import { getToneInstruction } from '@/functions/tone';
@@ -107,6 +108,11 @@ export function ProjectDetailPage() {
   // Project colour (loaded from cached projects)
   const [projectColor, setProjectColor] = useState<string | null>(null);
 
+  // Effective archived state of THIS project (server flag or the Dashboard's
+  // local fallback). While it is archived, the project's entries must stay out
+  // of the active views even though their own flags are untouched.
+  const [projectArchived, setProjectArchived] = useState(false);
+
   // Data
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +137,7 @@ export function ProjectDetailPage() {
     if (!email || !projectName) return;
     let cancelled = false;
 
-    // Load project colour from cached projects list
+    // Load project colour and effective archive state from cached projects list
     (async () => {
       const cachedProjects = await cacheGet(CACHE_STORES.PROJECTS, email);
       if (cachedProjects && !cancelled) {
@@ -140,6 +146,7 @@ export function ProjectDetailPage() {
           (p: Record<string, unknown>) => p.project_name === projectName
         );
         if (match?.project_color) setProjectColor(match.project_color as string);
+        setProjectArchived(getEffectiveArchivedProjectNames(email, list).has(projectName));
       }
     })();
 
@@ -200,7 +207,7 @@ export function ProjectDetailPage() {
     })();
   }, [email, projectName, sortType]);
 
-  // Subscribe to project colour changes from settings panel
+  // Subscribe to project colour and archive-state changes from settings panel
   useEffect(() => {
     if (!email || !projectName) return;
     const seq = ++projectColorSeq.current;
@@ -213,6 +220,7 @@ export function ProjectDetailPage() {
           (p: Record<string, unknown>) => p.project_name === projectName
         );
         setProjectColor((match?.project_color as string) || null);
+        setProjectArchived(getEffectiveArchivedProjectNames(email, list).has(projectName));
       }
     });
     return () => unsub();
@@ -348,10 +356,12 @@ export function ProjectDetailPage() {
     const other: Entry[] = [];
 
     for (const entry of source) {
-      // Archived entries belong to the Archives view, not the active feed —
-      // this also makes an offline archive disappear immediately, since the
-      // optimistic write flips `archived` on this project's ENTRIES cache.
-      if (entry.archived) continue;
+      // Archived and deleted entries belong to the Archives view, not the
+      // active feed — this also makes an offline archive disappear
+      // immediately, since the optimistic write flips `archived` on this
+      // project's ENTRIES cache. The effective project state gates the whole
+      // feed: while the project itself is archived, none of its rows show.
+      if (!isActiveEntry(entry, projectArchived)) continue;
       // Shared eligibility rule — same predicate as the Dashboard rail and
       // the due-soon cache, so a completed or past-due entry never lands in
       // the due-soon section.
@@ -363,10 +373,24 @@ export function ProjectDetailPage() {
     }
 
     return { dueSoonEntries: dueSoon, otherEntries: other };
-  }, [entries, searchResults]);
+  }, [entries, searchResults, projectArchived]);
 
+  // Search must not bypass archive eligibility — an archived or deleted row
+  // found by search stays out of the active feed, exactly like the default
+  // views below (the split's interim output is already filtered above).
   const filteredEntries =
-    searchResults !== null ? searchResults : [...dueSoonEntries, ...otherEntries];
+    searchResults !== null
+      ? searchResults.filter((entry) => isActiveEntry(entry, projectArchived))
+      : [...dueSoonEntries, ...otherEntries];
+
+  // The default (non-search) views select from this instead of the raw cache
+  // rows: archived/deleted entries must not linger as faded cards in Table,
+  // Checklist, Board or Cards. Order-preserving on purpose — unlike the
+  // due-soon split above, this list must not reorder the default views.
+  const activeEntries = useMemo(
+    () => entries.filter((entry) => isActiveEntry(entry, projectArchived)),
+    [entries, projectArchived]
+  );
 
   // Priority handler
   const handleSetPriority = async (
@@ -820,7 +844,7 @@ export function ProjectDetailPage() {
         {/* All entries */}
         {!searchQuery && (
           <div className="project-content">
-            {!loading && entries.length === 0 ? (
+            {!loading && activeEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
                   <svg
@@ -844,7 +868,7 @@ export function ProjectDetailPage() {
               </div>
             ) : viewMode === 'table' ? (
               <ProjectTaskTable
-                rows={entries}
+                rows={activeEntries}
                 onUpdate={async (id: string, patch: Record<string, any>) => {
                   console.log('[onUpdate] Called with id:', id, 'patch:', patch);
                   // Find the entry being updated
@@ -916,7 +940,7 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'checklist' ? (
               <ChecklistView
-                entries={entries.map((r) => ({
+                entries={activeEntries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,
                   project_name: r.project_name as string,
@@ -932,7 +956,7 @@ export function ProjectDetailPage() {
               />
             ) : viewMode === 'board' ? (
               <EntriesByDueDateBoard
-                entries={entries.map((r) => ({
+                entries={activeEntries.map((r) => ({
                   id: r.id as string,
                   user_email: r.user_email as string,
                   project_name: r.project_name as string,
@@ -948,7 +972,7 @@ export function ProjectDetailPage() {
               />
             ) : (
               <div className="entries-grid">
-                {entries.map((row, i) => (
+                {activeEntries.map((row, i) => (
                   <EntryBox
                     key={`entry-${row.id || i}`}
                     entry={row as any}

@@ -9,6 +9,8 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
 // the same IndexedDB stores the views subscribe to (ALL_ENTRIES,
 // ENTRIES, PROJECTS, ARCHIVES) so cacheSubscribe fires a re-render.
 // The server reconciles the change once the offline queue replays.
+// Project archive state is independent: only the project's own flag
+// flips — individual entry archive flags are never rewritten.
 
 /** Flip the `archived` flag on a single entry inside the given store/key. */
 async function setEntryArchivedFlag(store, key, entryId, archived) {
@@ -46,14 +48,6 @@ async function setProjectArchivedFlag(user_email, projectName, archived) {
   await cacheSet(CACHE_STORES.PROJECTS, user_email, { ...cached, data });
 }
 
-/** Mirror the backend project→entries archive cascade in the ALL_ENTRIES store. */
-async function cacheSetEntriesArchivedForProject(user_email, projectName, archived) {
-  const cached = await cacheGet(CACHE_STORES.ALL_ENTRIES, user_email);
-  if (!cached || !Array.isArray(cached.data)) return;
-  const data = cached.data.map((e) => (e.project_name === projectName ? { ...e, archived } : e));
-  await cacheSet(CACHE_STORES.ALL_ENTRIES, user_email, { ...cached, data });
-}
-
 /**
  * Apply the full set of cache side-effects for archiving/unarchiving a single
  * entry so every subscribed view (Dashboard feed via ALL_ENTRIES, project page
@@ -76,10 +70,14 @@ async function applyEntryArchive(user_email, project_name, entry_id, archived) {
   if (touched) await patchArchivesAllList(user_email, touched, archived);
 }
 
-/** Same idea for a project + its cascaded entries. */
+/**
+ * Apply the project-archive cache side-effect: flip only the project's own
+ * flag. Hiding its entries from active views is derived from the effective
+ * archived-project names (server flag or local fallback), never by rewriting
+ * the children's individual archive states.
+ */
 async function applyProjectArchive(user_email, project_name, archived) {
   await setProjectArchivedFlag(user_email, project_name, archived);
-  await cacheSetEntriesArchivedForProject(user_email, project_name, archived);
 }
 
 // ── GET functions ──────────────────────────────────────────────
@@ -268,8 +266,9 @@ export async function archiveProject(user_email, project_name) {
     // Offline: reflect the change locally right away, then queue for sync.
     console.log('[archiveProject] Offline — optimistic update + queuing action');
     try {
-      // setProjectArchivedFlag hides the project; the cascade hides its
-      // entries from the Dashboard feed, mirroring the backend transaction.
+      // Flip the project flag only; its entries stay hidden from active
+      // views through the effective archived-project names and keep their
+      // own individual archive states for a later restore.
       await applyProjectArchive(user_email, project_name, true);
     } catch (err) {
       console.error('[archiveProject] Offline optimistic update failed:', err);
@@ -293,11 +292,9 @@ export async function archiveProject(user_email, project_name) {
 
     // On success, refresh caches
     if (result?.success) {
-      // Cascade the archived flag into ALL_ENTRIES so the Dashboard feed drops
-      // the project's entries right away (getEntries only touches the
-      // per-project store, which the Dashboard feed doesn't read).
-      await cacheSetEntriesArchivedForProject(user_email, project_name, true);
-      // Re-fetch projects and archives to update caches
+      // The backend archives only the project. Entry rows keep their own
+      // archive flags, so a full refresh here preserves any individually
+      // archived entries (they must stay archived after a later restore).
       const { getProjectsByEmail } = await import('./project.js');
       await getProjectsByEmail(user_email);
       await getArchivedProjects(user_email);
@@ -350,7 +347,8 @@ export async function unarchiveProject(user_email, project_name) {
     });
 
     if (result?.success) {
-      await cacheSetEntriesArchivedForProject(user_email, project_name, false);
+      // The backend restores only the project flag; individual entry archive
+      // states stay untouched, so the refreshed rows keep them intact.
       const { getProjectsByEmail } = await import('./project.js');
       await getProjectsByEmail(user_email);
       await getArchivedProjects(user_email);

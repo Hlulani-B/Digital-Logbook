@@ -142,9 +142,11 @@ describe('EntryBox inline edit layout', () => {
       screen.getByDisplayValue('Read only'),
       ...dates,
     ]);
-    expect(dates).toHaveLength(2);
+    expect(dates).toHaveLength(1);
     expect(dates[0].previousElementSibling).toHaveTextContent('Due Date');
-    expect(dates[1].previousElementSibling).toHaveTextContent('Started At');
+    // The manual Started At editor was removed — started_at stays timer-owned.
+    expect(within(body).queryByText('Started At')).not.toBeInTheDocument();
+    expect(within(body).queryByLabelText('Started At')).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('Read only')).toBeDisabled();
     expect(within(body).queryByText('Conditional')).not.toBeInTheDocument();
     expect(within(body).queryByText('Hidden')).not.toBeInTheDocument();
@@ -179,13 +181,11 @@ describe('EntryBox inline edit layout', () => {
     });
     const body = element(container, '.entry-form__body');
     const [priority, status] = within(body).getAllByRole('combobox');
-    const [due, started] = body.querySelectorAll('input[type="datetime-local"]');
+    const [due] = body.querySelectorAll('input[type="datetime-local"]');
     fireEvent.change(priority, { target: { value: '0' } });
     fireEvent.change(status, { target: { value: 'in_motion' } });
     const dueValue = futureLocalDateTime(48);
-    const startedValue = futureLocalDateTime(24);
     fireEvent.change(due, { target: { value: dueValue } });
-    fireEvent.change(started, { target: { value: startedValue } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     // Wait for the save button to show "Saving..." to ensure state has updated
@@ -199,7 +199,8 @@ describe('EntryBox inline edit layout', () => {
     expect(onUpdated).not.toHaveBeenCalled();
     const updatedFields = { Title: 'Edited title', Notes: 'Edited notes', Locked: 'Read only' };
     const dueISO = new Date(dueValue).toISOString();
-    const startedISO = new Date(startedValue).toISOString();
+    // The 8th argument (started_at) stays undefined: saving must never
+    // rewrite the entry's start timestamp.
     expect(mocks.updateEntry).toHaveBeenCalledExactlyOnceWith(
       sampleEntry.user_email,
       sampleEntry.project_name,
@@ -208,14 +209,13 @@ describe('EntryBox inline edit layout', () => {
       dueISO,
       'Urgent and important',
       'in_motion',
-      startedISO,
+      undefined,
       undefined
     );
     const savedRow = {
       ...sampleEntry,
       entries: updatedFields,
       due_date: dueISO,
-      started_at: startedISO,
       priority: 'Urgent and important',
       status: 'in_motion',
     };

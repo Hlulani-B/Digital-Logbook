@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isOverdue, getOverdueText } from '../overdue';
+import { isActiveEntry, isOverdue, getOverdueText } from '../overdue';
 
 describe('isOverdue', () => {
   it('returns false when dueDate is null', () => {
@@ -64,5 +64,34 @@ describe('getOverdueText', () => {
   it('returns "Overdue by N days" for older dates', () => {
     const fiveDaysAgo = new Date(Date.now() - 86400000 * 5.5).toISOString();
     expect(getOverdueText(fiveDaysAgo, 'in_motion')).toBe('Overdue by 5 days');
+  });
+});
+
+describe('isActiveEntry', () => {
+  it('keeps a plain active entry visible', () => {
+    expect(isActiveEntry({ archived: false, deleted: false })).toBe(true);
+    expect(isActiveEntry({})).toBe(true);
+  });
+
+  it('excludes individually archived entries', () => {
+    expect(isActiveEntry({ archived: true, deleted: false })).toBe(false);
+  });
+
+  it('excludes soft-deleted entries', () => {
+    expect(isActiveEntry({ archived: false, deleted: true })).toBe(false);
+  });
+
+  it('excludes entries of an archived parent project', () => {
+    expect(isActiveEntry({ archived: false, deleted: false }, true)).toBe(false);
+  });
+
+  it('excludes flagged entries of an archived project too', () => {
+    expect(isActiveEntry({ archived: true, deleted: false }, true)).toBe(false);
+    expect(isActiveEntry({ archived: false, deleted: true }, true)).toBe(false);
+  });
+
+  it('treats missing or null rows as inactive', () => {
+    expect(isActiveEntry(null)).toBe(false);
+    expect(isActiveEntry(undefined)).toBe(false);
   });
 });
