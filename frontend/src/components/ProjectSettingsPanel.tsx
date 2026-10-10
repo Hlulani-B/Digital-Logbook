@@ -3,7 +3,7 @@ import { editProjectName, deleteProject, setProjectColor } from '@/functions/pro
 import { getFields, addField, editField, deleteField } from '@/functions/project/fields.js';
 import { archiveProject } from '@/functions/project/archives.js';
 import { FiEdit2, FiArchive, FiCheck, FiTrash2 } from 'react-icons/fi';
-import { FIELD_TYPES } from '@/lib/fieldSchema';
+import { SELECTABLE_FIELD_TYPES } from '@/lib/fieldSchema';
 
 interface ProjectSettingsPanelProps {
   open: boolean;
@@ -488,7 +488,7 @@ export function ProjectSettingsPanel({
                             className="field-input"
                             style={{ width: 'auto' }}
                           >
-                            {FIELD_TYPES.map((t) => (
+                            {SELECTABLE_FIELD_TYPES.map((t) => (
                               <option key={t} value={t}>
                                 {t === 'entity_link'
                                   ? 'Entity Link'
@@ -621,7 +621,7 @@ export function ProjectSettingsPanel({
                     style={{ width: 'auto' }}
                   >
                     <option value="">Select type…</option>
-                    {FIELD_TYPES.map((t) => (
+                    {SELECTABLE_FIELD_TYPES.map((t) => (
                       <option key={t} value={t}>
                         {t === 'entity_link'
                           ? 'Entity Link'

@@ -94,10 +94,12 @@ describe('ProjectDetailPage offline', () => {
       </NotesProvider>
     );
 
-    // Open the New item modal and fill the single column. AddEntry renders each
-    // text field as an `input.field-input` (there is no per-field id), and the
-    // columns arrive asynchronously from the cache, so wait for the input.
-    fireEvent.click(screen.getByText('New'));
+    // Open the New item modal and fill the single column. The restored session
+    // UI opens the form via the `New Entry` card button (the FAB is gone).
+    // AddEntry renders each text field as an `input.field-input` (there is no
+    // per-field id), and the columns arrive asynchronously from the cache, so
+    // wait for the input.
+    fireEvent.click(screen.getByText('New Entry'));
     const input = await waitFor(
       () => {
         const el = container.querySelector(

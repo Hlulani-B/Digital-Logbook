@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listTemplates, type Template } from '@/lib/templateApi';
+import { SELECTABLE_FIELD_TYPES } from '@/lib/fieldSchema';
 import './TemplatePicker.css';
 
 interface TemplatePickerProps {
@@ -41,7 +42,16 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
     };
   }, [activeTab, retryCount]);
 
-  const filteredTemplates = templates.filter((tpl) => tpl.scope === activeTab);
+  // Templates must only offer field types the app still supports — a template
+  // that includes a retired type (timestamp, geolocation, file, entity_link,
+  // tags, checklist) is hidden entirely, including ones still served by an
+  // older deployed service.
+  const supportedTypes = SELECTABLE_FIELD_TYPES as readonly string[];
+  const filteredTemplates = templates.filter(
+    (tpl) =>
+      tpl.scope === activeTab &&
+      tpl.fields.every((field) => supportedTypes.includes(field.data_type))
+  );
 
   return (
     <div className="template-picker">

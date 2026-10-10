@@ -76,7 +76,7 @@ export const BUILT_IN_TEMPLATES = Object.freeze([
     fields: [
       {
         field_name: 'Location',
-        data_type: 'geolocation',
+        data_type: 'text',
         is_required: true,
         is_unique: false,
         rules: {},
@@ -205,22 +205,12 @@ export const BUILT_IN_TEMPLATES = Object.freeze([
         options: [],
         display_order: 4,
       },
-      {
-        field_name: 'Documents',
-        data_type: 'file',
-        is_required: false,
-        is_unique: false,
-        rules: {},
-        has_default: false,
-        options: [],
-        display_order: 5,
-      },
     ],
   },
   {
     id: 'tpl-inspection',
     name: 'Inspection Report',
-    description: 'Equipment or facility inspection with checklist and findings.',
+    description: 'Equipment or facility inspection with findings and severity ratings.',
     fields: [
       {
         field_name: 'Inspector',
@@ -234,12 +224,12 @@ export const BUILT_IN_TEMPLATES = Object.freeze([
       },
       {
         field_name: 'Inspection Date',
-        data_type: 'timestamp',
+        data_type: 'date',
         is_required: true,
         is_unique: false,
         rules: {},
         has_default: true,
-        default_value: () => new Date().toISOString(),
+        default_value: () => new Date().toISOString().slice(0, 10),
         options: [],
         display_order: 1,
       },

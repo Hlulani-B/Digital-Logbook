@@ -21,6 +21,23 @@ export const FIELD_TYPES = [
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
+
+/**
+ * Field types offered when creating columns or templates. Older rows may still
+ * carry the other FIELD_TYPES values (timestamp, geolocation, file,
+ * entity_link, tags, checklist) — those stay valid in FIELD_TYPES for stored
+ * data and validation, they are simply no longer offered as choices.
+ */
+export const SELECTABLE_FIELD_TYPES: readonly FieldType[] = FIELD_TYPES.filter(
+  (type) =>
+    type !== 'timestamp' &&
+    type !== 'geolocation' &&
+    type !== 'file' &&
+    type !== 'entity_link' &&
+    type !== 'tags' &&
+    type !== 'checklist'
+);
+
 export interface FieldError {
   field: string;
   code: string;

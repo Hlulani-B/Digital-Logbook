@@ -10,7 +10,7 @@ import { entryDurationMs, entryRemainingMs, formatTimer } from '../functions/das
 import { FieldEditor } from '@/components/fields/FieldEditors';
 import { FieldDisplay } from '@/components/fields/FieldDisplay';
 import type { FieldDefinition } from '@/lib/fieldSchema';
-import { normalizeField } from '@/lib/fieldSchema';
+import { normalizeField, isNumericField } from '@/lib/fieldSchema';
 import {
   toLocalDateTime as toInputDate,
   editedDateTime,
@@ -903,7 +903,7 @@ export function EntryBox({
                         ) : (
                           formatEntryValue(value)
                         )}
-                        {fieldDef && fieldDef.data_type === 'number' && (
+                        {fieldDef && isNumericField(fieldDef.data_type) && (
                           <button
                             type="button"
                             className="entry-box__calc-btn"

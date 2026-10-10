@@ -2308,15 +2308,9 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       <option value="float">Float</option>
                       <option value="number">Number</option>
                       <option value="date">Date</option>
-                      <option value="timestamp">Timestamp</option>
                       <option value="boolean">Boolean</option>
-                      <option value="geolocation">Geolocation</option>
                       <option value="currency">Currency</option>
-                      <option value="file">File</option>
                       <option value="image">Image</option>
-                      <option value="entity_link">Entity Link</option>
-                      <option value="tags">Tags</option>
-                      <option value="checklist">Checklist</option>
                       <option value="custom">Custom (Legacy)</option>
                     </select>
                     <label
