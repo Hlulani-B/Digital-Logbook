@@ -246,23 +246,21 @@ describe('StatsView field analysis', () => {
     }
   );
 
-  it('keeps custom fields out of the global activity selector and does not load global definitions', async () => {
+  it('removes the plot-over-time panel everywhere and plots every field occurrence in field analysis from the oldest to the latest day', async () => {
     put('all_entries', EMAIL, [
+      entry({ Score: 7 }, '2026-03-02'),
       entry({ Score: 4 }, '2026-03-10', {
-        started_at: '2026-03-10T10:00:00Z',
-        ended_at: '2026-03-10T11:00:00Z',
+        started_at: '2026-03-09T22:00:00Z',
+        ended_at: '2026-03-09T23:00:00Z',
       }),
+      entry({ Score: 10 }, '2026-03-11'),
     ]);
     mount('');
-    const selector = await screen.findByRole('combobox', { name: 'Series to plot over time' });
-    expect(optionValues(selector)).toEqual(['activity:entries', 'activity:time']);
+    await screen.findByRole('heading', { name: 'My Stats' });
     expect(
-      within(selector)
-        .getAllByRole('option')
-        .map((option) => option.textContent)
-    ).toEqual(['Entries per day', 'Time tracked per day']);
-    await user.selectOptions(selector, 'activity:time');
-    expect(selector).toHaveValue('activity:time');
+      screen.queryByRole('combobox', { name: 'Series to plot over time' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Plot over time')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Stats' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Field analysis' })).not.toBeInTheDocument();
     expect(mocks.cacheGet.mock.calls.some(([store]) => store === 'fields')).toBe(false);
@@ -271,8 +269,80 @@ describe('StatsView field analysis', () => {
     await user.click(screen.getByRole('link', { name: 'Switch to Alpha' }));
     await ready();
     expect(
-      optionValues(screen.getByRole('combobox', { name: 'Series to plot over time' }))
-    ).toEqual(['activity:entries', 'activity:time']);
+      screen.queryByRole('combobox', { name: 'Series to plot over time' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Plot over time')).not.toBeInTheDocument();
+    // Field analysis still plots fields over time: every day from the oldest to the latest occurrence
+    expect(
+      analysis().getByText(/every day from the oldest to the latest occurrence/)
+    ).toBeInTheDocument();
+    const table = await completeTable('Score daily values');
+    // Span starts at the oldest occurrence and zero-fills days between occurrences
+    expect(within(table).getAllByRole('row')).toHaveLength(11);
+    expect(cells(table, '2026-03-02')).toEqual(['7']);
+    expect(cells(table, '2026-03-03')).toEqual(['0']);
+    expect(cells(table, '2026-03-09')).toEqual(['4']);
+    expect(cells(table, '2026-03-10')).toEqual(['0']);
+    expect(cells(table, '2026-03-11')).toEqual(['10']);
+  });
+
+  it('ranks every timed scoped entry in a Time per Entry panel, longest first, excluding untimed entries', async () => {
+    put('all_entries', EMAIL, [
+      // 2h 30m — completed timer on Alpha
+      entry({ Score: 1 }, '2026-03-09', {
+        started_at: '2026-03-09T10:00:00Z',
+        ended_at: '2026-03-09T12:30:00Z',
+      }),
+      // 35m — completed timer with 10m paused on Alpha
+      entry({ Score: 2 }, '2026-03-10', {
+        started_at: '2026-03-10T09:00:00Z',
+        ended_at: '2026-03-10T09:45:00Z',
+        paused_ms: 600000,
+      }),
+      // untimed — no duration to show, excluded from the panel
+      entry({ Score: 3 }, '2026-03-10'),
+      // 1h — completed timer on Beta
+      entry({ Score: 4 }, '2026-03-08', {
+        project_name: 'Beta',
+        started_at: '2026-03-08T10:00:00Z',
+        ended_at: '2026-03-08T11:00:00Z',
+      }),
+      // 26h — still running, ticking against the pinned page clock
+      entry({ Score: 5 }, '2026-03-11', {
+        started_at: '2026-03-11T10:00:00Z',
+      }),
+    ]);
+    mount('');
+    await screen.findByRole('heading', { name: 'My Stats' });
+    const panel = screen.getByText('Time per Entry').closest('.stats-panel');
+    if (!panel) throw new Error('Missing Time per Entry panel');
+    // Global scope: labels carry the project prefix
+    expect([...panel.querySelectorAll('.bar-chart-name')].map((name) => name.textContent)).toEqual([
+      'Alpha · Mar 11, 10:00',
+      'Alpha · Mar 9, 10:00',
+      'Beta · Mar 8, 10:00',
+      'Alpha · Mar 10, 09:00',
+    ]);
+    await user.click(within(panel).getByText('View complete data'));
+    const table = within(panel).getByRole('table', { name: 'Time per entry' });
+    // Header row + 4 entries (the untimed entry is excluded)
+    expect(within(table).getAllByRole('row')).toHaveLength(5);
+    expect(cells(table, 'Alpha · Mar 11, 10:00')).toEqual(['1d 2h 0m']);
+    expect(cells(table, 'Alpha · Mar 9, 10:00')).toEqual(['2h 30m']);
+    expect(cells(table, 'Beta · Mar 8, 10:00')).toEqual(['1h 0m']);
+    expect(cells(table, 'Alpha · Mar 10, 09:00')).toEqual(['35m']);
+    // Project scope: only Alpha's timed entries, without the project prefix
+    await user.click(screen.getByRole('link', { name: 'Switch to Alpha' }));
+    await ready();
+    const scopedPanel = screen.getByText('Time per Entry').closest('.stats-panel');
+    if (!scopedPanel) throw new Error('Missing Time per Entry panel');
+    expect(within(scopedPanel).queryByText(/Beta ·/)).not.toBeInTheDocument();
+    await user.click(within(scopedPanel).getByText('View complete data'));
+    const scopedTable = within(scopedPanel).getByRole('table', { name: 'Time per entry' });
+    expect(within(scopedTable).getAllByRole('row')).toHaveLength(4);
+    expect(cells(scopedTable, 'Mar 11, 10:00')).toEqual(['1d 2h 0m']);
+    expect(cells(scopedTable, 'Mar 9, 10:00')).toEqual(['2h 30m']);
+    expect(cells(scopedTable, 'Mar 10, 09:00')).toEqual(['35m']);
   });
 
   it('shows daily sums, averages, and genuine gaps without joining the trend across missing days', async () => {
@@ -292,7 +362,7 @@ describe('StatsView field analysis', () => {
     ).toBeInTheDocument();
     expect(analysis().getByText(/1 valid values excluded from daily charts/)).toBeInTheDocument();
     const table = await completeTable('Score daily values');
-    expect(within(table).getAllByRole('row')).toHaveLength(61);
+    expect(within(table).getAllByRole('row')).toHaveLength(4);
     expect(cells(table, '2026-03-10')).toEqual(['12']);
     expect(cells(table, '2026-03-11')).toEqual(['0']);
     expect(cells(table, '2026-03-12')).toEqual(['-6']);
