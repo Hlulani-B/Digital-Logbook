@@ -13,6 +13,12 @@ vi.mock('@/functions/project/entries.js', () => ({
   deleteEntryById: mocks.deleteEntryById,
 }));
 vi.mock('@/context/NotesContext', () => ({ useNotes: () => ({ openNotes: mocks.openNotes }) }));
+vi.mock('@/functions/project/fields.js', () => ({
+  getFields: vi.fn().mockResolvedValue({ success: true, data: [] }),
+}));
+vi.mock('@/functions/project/priority.js', () => ({
+  setPriority: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 const sampleEntry = {
   id: 'checklist-layout-1',
@@ -75,6 +81,8 @@ describe('Checklist edit dialog layout', () => {
     expect(body.firstElementChild).toBe(screen.getByRole('heading', { name: 'Edit Entry' }));
     expect(Array.from(body.querySelectorAll('textarea, input'))).toEqual([summary, due]);
     expect(Array.from(body.querySelectorAll('label')).map((label) => label.textContent)).toEqual([
+      'Status',
+      'Priority',
       'Summary',
       'Due Date',
     ]);
@@ -117,8 +125,8 @@ describe('Checklist edit dialog layout', () => {
       sampleEntry.id,
       undefined,
       '2026-09-27T21:59:59.999Z',
-      undefined,
-      undefined,
+      null,
+      'up_next',
       undefined,
       undefined,
       undefined,
@@ -159,7 +167,7 @@ describe('Checklist edit dialog layout', () => {
     const footer = element(container, '.entry-form__footer');
     expect(error.parentElement).toBe(body);
     expect(error.previousElementSibling).toHaveTextContent('Edit Entry');
-    expect(error.nextElementSibling).toHaveClass('checklist-dialog-field');
+    expect(error.nextElementSibling).toHaveClass('checklist-dialog-field-row');
     expect(body.nextElementSibling).toBe(footer);
     expect(onUpdated).not.toHaveBeenCalled();
     expect(within(footer).getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
@@ -171,8 +179,8 @@ describe('Checklist edit dialog layout', () => {
       sampleEntry.id,
       undefined,
       null,
-      undefined,
-      undefined,
+      null,
+      'up_next',
       undefined,
       undefined,
       undefined,

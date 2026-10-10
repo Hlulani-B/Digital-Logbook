@@ -3,9 +3,20 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ChecklistEntryCard from '../EntryTemplates/EntryChecklist';
 import { ChecklistView } from '../EntryTemplates/EntryChecklist';
 import { NotesProvider } from '@/context/NotesContext';
+import { updateEntry } from '@/functions/project/entries.js';
+import { setPriority } from '@/functions/project/priority.js';
+import { getFields } from '@/functions/project/fields.js';
 
 vi.mock('@/functions/project/entries.js', () => ({
   updateEntry: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('@/functions/project/priority.js', () => ({
+  setPriority: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('@/functions/project/fields.js', () => ({
+  getFields: vi.fn().mockResolvedValue({ success: true, data: [] }),
 }));
 
 const sampleEntry = {
@@ -119,6 +130,89 @@ describe('ChecklistEntryCard', () => {
     const pastDue = new Date(Date.now() - 86400000).toISOString();
     renderCard({ ...sampleEntry, due_date: pastDue, archived: true });
     expect(document.querySelector('.checklist-overdue-badge')).toBeNull();
+  });
+
+  it('updates priority from the card dropdown with the raw server value', async () => {
+    const onUpdated = vi.fn();
+    render(
+      <NotesProvider>
+        <ChecklistEntryCard
+          entry={{ ...sampleEntry, priority: 'Urgent and important' }}
+          onUpdated={onUpdated}
+        />
+      </NotesProvider>
+    );
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '2' } });
+    await waitFor(() =>
+      expect(vi.mocked(setPriority)).toHaveBeenCalledExactlyOnceWith(
+        'test@test.com',
+        '2',
+        'TestProject',
+        'entry-1'
+      )
+    );
+    expect(onUpdated).toHaveBeenCalled();
+  });
+
+  it('updates status from the card dropdown', async () => {
+    const onUpdated = vi.fn();
+    render(
+      <NotesProvider>
+        <ChecklistEntryCard entry={sampleEntry} onUpdated={onUpdated} />
+      </NotesProvider>
+    );
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'in_motion' } });
+    await waitFor(() =>
+      expect(vi.mocked(updateEntry)).toHaveBeenCalledExactlyOnceWith(
+        'test@test.com',
+        'TestProject',
+        'entry-1',
+        undefined,
+        undefined,
+        undefined,
+        'in_motion'
+      )
+    );
+    expect(onUpdated).toHaveBeenCalled();
+  });
+
+  it('edits project fields in the dialog and saves them with the entry', async () => {
+    vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
+      data: [{ field_name: 'notes', data_type: 'text', is_required: false }],
+    } as any);
+    const entryWithFields = {
+      ...sampleEntry,
+      id: 'entry-fields',
+      project_name: 'FieldsProject',
+      entries: { notes: 'old value' },
+    };
+    const onUpdated = vi.fn();
+    render(
+      <NotesProvider>
+        <ChecklistEntryCard entry={entryWithFields} onUpdated={onUpdated} />
+      </NotesProvider>
+    );
+    fireEvent.click(screen.getByText('Fix login bug'));
+    const input = await screen.findByDisplayValue('old value');
+    fireEvent.change(input, { target: { value: 'new value' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() =>
+      expect(vi.mocked(updateEntry)).toHaveBeenCalledExactlyOnceWith(
+        'test@test.com',
+        'FieldsProject',
+        'entry-fields',
+        { notes: 'new value' },
+        undefined,
+        null,
+        'up_next',
+        undefined,
+        undefined,
+        undefined,
+        'Fix login bug'
+      )
+    );
+    expect(onUpdated).toHaveBeenCalled();
   });
 });
 

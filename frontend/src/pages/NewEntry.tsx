@@ -43,6 +43,23 @@ const PRIORITY_TO_VALUE: Record<string, string> = {
   'Not urgent, not important': '2',
 };
 
+/**
+ * Raw '0'-'3' code for the priority selects. Cached rows may hold the raw
+ * code (optimistic writes) or the friendly label (server rows), so both
+ * forms are accepted here; unknown values fall back to "No priority".
+ */
+function toRawPriorityValue(priority: string | null | undefined): string {
+  if (!priority) return '3';
+  const mapped = PRIORITY_TO_VALUE[priority];
+  if (mapped !== undefined) return mapped;
+  if (priority === '0' || priority === '1' || priority === '2' || priority === '3') return priority;
+  const lower = priority.toLowerCase();
+  for (const [label, raw] of Object.entries(PRIORITY_TO_VALUE)) {
+    if (label.toLowerCase() === lower) return raw;
+  }
+  return '3';
+}
+
 const STATUS_LABELS: Record<EntryStatus, string> = {
   up_next: 'Up Next',
   in_motion: 'In Motion',
@@ -218,9 +235,7 @@ export function EntryBox({
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
   const [draftEndedAt, setDraftEndedAt] = useState(toInputDate(ended_at));
-  const [draftPriorityValue, setDraftPriorityValue] = useState(
-    priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
-  );
+  const [draftPriorityValue, setDraftPriorityValue] = useState(toRawPriorityValue(priority));
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
 
   // Timer actions (start/pause/resume/stop) with in-flight and failure state
@@ -298,7 +313,8 @@ export function EntryBox({
     dateOptions: { month: 'short', day: 'numeric', year: 'numeric' },
   });
 
-  const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
+  const priorityLabel = priority ? PRIORITY_LABELS[priority] ?? priority : null;
+  const priorityClass = priorityLabel ? PRIORITY_CLASS[priorityLabel] || 'priority-neutral' : '';
 
   const handleFieldChange = (key: string, newValue: unknown) => {
     setDraftFields((prev) => ({ ...prev, [key]: newValue }));
@@ -308,9 +324,7 @@ export function EntryBox({
     setDraftFields(Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v])));
     setDraftDueDate(toInputDate(due_date));
     setDraftEndedAt(toInputDate(ended_at));
-    setDraftPriorityValue(
-      priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
-    );
+    setDraftPriorityValue(toRawPriorityValue(priority));
     setDraftStatus(status);
     setIsEditing(false);
     setError(null);
@@ -835,11 +849,7 @@ export function EntryBox({
             {onPriorityChanged ? (
               <select
                 className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
-                value={
-                  priority && PRIORITY_TO_VALUE[priority] !== undefined
-                    ? PRIORITY_TO_VALUE[priority]
-                    : '3'
-                }
+                value={toRawPriorityValue(priority)}
                 onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
               >

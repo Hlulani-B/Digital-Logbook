@@ -7193,6 +7193,63 @@ img {
   gap: 0.75rem;
 }
 
+/* Status / Priority dropdowns under the row — mirrors the Cards view tags */
+.checklist-card-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.checklist-control-select {
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  border-radius: 5px;
+  background: var(--bg, #ffffff);
+  color: var(--text, #111111);
+  border: 1px solid var(--border, #111111);
+  cursor: pointer;
+  max-width: 100%;
+}
+.checklist-control-select:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+/* Status colour coding — same palette as the Cards view badges */
+.checklist-status-select.checklist-status-up_next {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+.checklist-status-select.checklist-status-in_motion {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+.checklist-status-select.checklist-status-done_and_dusted {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #22c55e;
+}
+[data-theme='dark'] .checklist-status-select.checklist-status-up_next {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  border-color: rgba(59, 130, 246, 0.55);
+}
+[data-theme='dark'] .checklist-status-select.checklist-status-in_motion {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.55);
+}
+[data-theme='dark'] .checklist-status-select.checklist-status-done_and_dusted {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
 .checklist-checkbox {
   flex-shrink: 0;
   width: 22px;
@@ -7356,7 +7413,8 @@ img {
   margin-bottom: 0.35rem;
 }
 .checklist-dialog-field textarea,
-.checklist-dialog-field input {
+.checklist-dialog-field input,
+.checklist-dialog-field select {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1.5px solid var(--border, #111111);
@@ -7368,9 +7426,20 @@ img {
   resize: vertical;
 }
 .checklist-dialog-field textarea:focus,
-.checklist-dialog-field input:focus {
+.checklist-dialog-field input:focus,
+.checklist-dialog-field select:focus {
   outline: none;
   border-color: var(--accent, #111111);
+}
+
+/* Status + Priority side by side at the top of the edit dialog */
+.checklist-dialog-field-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.checklist-dialog-field-row .checklist-dialog-field {
+  flex: 1;
+  min-width: 0;
 }
 
 .checklist-dialog-actions {

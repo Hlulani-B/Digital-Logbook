@@ -31,7 +31,7 @@ const fieldsCache = new Map<
   { at: number; promise: Promise<Record<string, FieldDefinition>> }
 >();
 
-function loadProjectFields(user_email: string, project_name: string) {
+export function loadProjectFields(user_email: string, project_name: string) {
   const key = `${user_email}:${project_name}`;
   const hit = fieldsCache.get(key);
   const now = Date.now();
