@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { ProfileMenu } from '@/components/ProfileMenu';
-import { NotificationsBell } from '@/components/NotificationsBell';
+import { NavBar } from '@/components/NavBar';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { Stats } from '@/components/Stats';
 import { ProjectSettingsPanel } from '@/components/ProjectSettingsPanel';
@@ -25,7 +24,7 @@ import { setPriority } from '@/functions/project/priority.js';
 import { checkUser } from '@/functions/profile/login.js';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
-import { buildProjectColorMap, resolveProjectColor, colorForName } from '@/lib/projectColorMap';
+import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { normalizeField } from '@/lib/fieldSchema';
 import { EntryBox } from '@/pages/NewEntry';
 import { DueSoonRail } from '@/components/DueSoonRail';
@@ -180,7 +179,6 @@ type DashboardProps = {
 
 export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const { user, signOut, deleteAccount, resetPassword } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -193,25 +191,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   }, [showTourOffer]);
   const navigate = useNavigate();
 
-  // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // The guided tour (lib/tour.ts) asks the shell to open/close the drawer so
-  // its steps can anchor to drawer items. Dashboard renders its own inline
-  // nav (not the shared NavBar), so it needs its own listeners.
-  useEffect(() => {
-    const open = () => setDrawerOpen(true);
-    const close = () => setDrawerOpen(false);
-    window.addEventListener('dl-tour-open-drawer', open);
-    window.addEventListener('dl-tour-close-drawer', close);
-    return () => {
-      window.removeEventListener('dl-tour-open-drawer', open);
-      window.removeEventListener('dl-tour-close-drawer', close);
-    };
-  }, []);
   const [activeView, setActiveView] = useState<'all' | 'recent' | 'drafts' | 'archives' | string>(
     defaultView
   );
+  // Archives view toggle — mirrors the home page's Projects | Entries switcher.
+  const [archiveTab, setArchiveTab] = useState<'projects' | 'entries'>('projects');
 
   // Regular (non-AI) search over the current feed
   const [pageSearch, setPageSearch] = useState('');
@@ -258,6 +242,25 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [archivedEntries, setArchivedEntries] = useState<Entry[]>([]);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localArchived, setLocalArchived] = useState<Set<string>>(new Set());
+  // The Archived Entries tab lists both individually archived rows
+  // (getArchives) and every entry of an archived project. Project archiving
+  // intentionally flips only the project flag (see functions/project/archives.js),
+  // so project-archived entries are derived here and de-duplicated by id.
+  const archiveEntries = useMemo(() => {
+    const rows: Entry[] = [];
+    const seen = new Set<string>();
+    const pushRow = (row: Entry) => {
+      const id = String((row as Record<string, unknown>).id ?? '');
+      if (id && seen.has(id)) return;
+      if (id) seen.add(id);
+      rows.push(row);
+    };
+    archivedEntries.forEach(pushRow);
+    entries.forEach((e) => {
+      if (archivedProjectNames.has((e.project_name as string) || '')) pushRow(e);
+    });
+    return rows;
+  }, [archivedEntries, entries, archivedProjectNames]);
   // Pinned projects — localStorage-backed (like the local archived set) so pins
   // survive reloads; pinned projects sort to the front of the home cards.
   const [pinnedProjects, setPinnedProjects] = useState<Set<string>>(new Set());
@@ -265,7 +268,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   const [confirmDeleteProject, setConfirmDeleteProject] = useState<string | null>(null);
   const [deletingProject, setDeletingProject] = useState<string | null>(null);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   // Calendar state (used in dashboard mode)
   const [calDate, setCalDate] = useState(() => new Date());
@@ -576,7 +578,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setDrawerOpen(false);
         setProjectMenuOpen(false);
       }
     };
@@ -807,20 +808,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // User info
   const fullDisplayName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User';
-  const preferredName = (() => {
-    // Priority: profile-service username > localStorage preferred name > full name
-    if (profileUsername?.trim()) return profileUsername.trim();
-    if (!user?.id) return fullDisplayName;
-    try {
-      const raw = localStorage.getItem(`dl_settings_profile_${user.id}`);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.preferredName?.trim()) return parsed.preferredName.trim();
-      }
-    } catch {}
-    return fullDisplayName;
-  })();
-  // Profile-service avatar/username take priority over Google/OAuth profile data
+  // Profile-service avatar takes priority over Google/OAuth profile data
   const avatarUrl = profileAvatar || user?.user_metadata?.avatar_url;
   const provider = user?.app_metadata?.provider || 'email';
 
@@ -832,9 +820,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
         const cached = await cacheGet(CACHE_STORES.PROFILE, email);
         const profileData = cached?.data || cached?.profile || cached;
         const avatar = (profileData as Record<string, unknown>)?.avatar as string;
-        const username = (profileData as Record<string, unknown>)?.username as string;
         if (avatar) setProfileAvatar(avatar);
-        if (username) setProfileUsername(username);
       } catch (err) {
         console.error('[Dashboard] Failed to load profile from cache:', err);
       }
@@ -844,17 +830,6 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     const unsub = cacheSubscribe(CACHE_STORES.PROFILE, email, () => loadProfile());
     return () => unsub();
   }, [email]);
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await signOut();
-      navigate('/signin');
-    } catch (err) {
-      console.error('Logout error:', err);
-      setLoggingOut(false);
-    }
-  };
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -869,10 +844,17 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     }
   };
 
-  const openSettings = (tab: 'profile' | 'preferences' | 'account') => {
-    setSettingsTab(tab);
-    setSettingsOpen(true);
-  };
+  // The shared NavBar's ProfileMenu dispatches this event on every page; the
+  // Dashboard renders its own SettingsPanel, so it listens here (the same
+  // contract Header implements on the other pages).
+  useEffect(() => {
+    const handler = () => {
+      setSettingsTab('profile');
+      setSettingsOpen(true);
+    };
+    window.addEventListener('open-settings', handler);
+    return () => window.removeEventListener('open-settings', handler);
+  }, []);
 
   const resetProjectForm = () => {
     setNewProjectName('');
@@ -1111,6 +1093,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
+    // Refresh from cache so the project's entries flow back into the active
+    // views immediately — their archive flags never changed, visibility is
+    // derived from the project's archived flag.
+    await loadData();
   };
 
   const PRIORITY_LABELS: Record<string, string> = {
@@ -1149,495 +1135,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     <div className="dash-layout">
       <div className="bg-mesh" />
 
-      {/* Top Navigation */}
-      <nav className="navbar">
-        <div className="navbar-inner">
-          <div className="nav-left-group">
-            <button
-              className="nav-hamburger"
-              data-tour="menu"
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              aria-label="Toggle menu"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <button
-              className="nav-back-btn"
-              onClick={() => navigate(-1)}
-              aria-label="Go back"
-              title="Back"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <button
-              className="nav-forward-btn"
-              onClick={() => navigate(1)}
-              aria-label="Go forward"
-              title="Forward"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-            <button
-              className="nav-home-btn"
-              onClick={() => navigate('/dashboard')}
-              aria-label="Go to dashboard"
-              title="Dashboard"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="nav-right-group">
-            <button
-              type="button"
-              className="nav-tour-btn"
-              data-tour="nav-guide"
-              onClick={() => startAppTour()}
-              aria-label="Start the guided tour"
-              title="Take the tour"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <span className="nav-tour-label">Guide</span>
-            </button>
-            <div data-tour="nav-bell">
-              <NotificationsBell email={email} />
-            </div>
-            <div className="nav-user" data-tour="nav-profile">
-              <ProfileMenu
-                displayName={preferredName}
-                email={user?.email || ''}
-                avatarUrl={avatarUrl}
-                onManageProfile={() => openSettings('profile')}
-                onSettings={() => openSettings('preferences')}
-                onSignOut={handleLogout}
-                signingOut={loggingOut}
-              />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Left Drawer Overlay */}
-      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
-
-      {/* Left Drawer */}
-      <aside className={`drawer ${drawerOpen ? 'drawer-open' : ''}`}>
-        <div className="drawer-header">
-          <span className="drawer-title">Navigation</span>
-          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="drawer-section">
-          <p className="drawer-section-title">Views</p>
-          <button
-            className={`drawer-item ${activeView === 'all' ? 'active' : ''}`}
-            data-tour="drawer-home"
-            onClick={() => {
-              navigate('/dashboard/all');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            Home
-            <span className="drawer-badge">{entries.length}</span>
-          </button>
-          <button
-            className="drawer-item"
-            onClick={() => {
-              navigate('/entries');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            All Items
-          </button>
-          <button
-            className={`drawer-item ${activeView === 'archives' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveView('archives');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
-            </svg>
-            Archives
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-calendar"
-            onClick={() => {
-              navigate('/calendar');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            Calendar
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-kanban"
-            onClick={() => {
-              navigate('/kanban');
-              setDrawerOpen(false);
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            Kanban
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-timeline"
-            onClick={() => {
-              navigate('/timeline');
-              setDrawerOpen(false);
-            }}
-            title="See a chronological timeline of all your items across projects"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <polyline points="8 8 12 4 16 8" />
-              <polyline points="8 16 12 20 16 16" />
-            </svg>
-            Timeline
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-import-export"
-            onClick={() => {
-              navigate('/data-portability');
-              setDrawerOpen(false);
-            }}
-            title="Export all your data or import from a backup"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Import & Export
-          </button>
-          <button
-            className="drawer-item"
-            onClick={() => {
-              navigate('/data-disclaimer-info');
-              setDrawerOpen(false);
-            }}
-            title="Learn how your data is stored and how AI is used"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Disclaimer
-          </button>
-          <button
-            className="drawer-item"
-            data-tour="drawer-stats"
-            onClick={() => {
-              navigate('/stats');
-              setDrawerOpen(false);
-            }}
-            title="View statistics and insights about your items"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            My Stats
-          </button>
-          <button
-            className={`drawer-item ${activeView === 'activity' ? 'active' : ''}`}
-            onClick={() => {
-              navigate('/dashboard/activity');
-              setDrawerOpen(false);
-            }}
-            title="See a feed of recent activity across all projects"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Activity Log
-          </button>
-        </div>
-
-        <div className="drawer-section drawer-projects">
-          <p className="drawer-section-title" data-tour="drawer-projects">
-            Projects
-          </p>
-          <div className="drawer-project-list">
-            {projects
-              .filter((p) => !p.archived)
-              .map((project) => {
-                const name = project.project_name as string;
-                const count = entries.filter((e) => e.project_name === name).length;
-                const projColor = (project.project_color as string) || colorForName(name);
-                return (
-                  <div
-                    key={name}
-                    className={`drawer-item ${activeView === name ? 'active' : ''}`}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigate(`/project/${encodeURIComponent(name)}`);
-                        setDrawerOpen(false);
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: 'none',
-                        border: 'none',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: projColor,
-                          flexShrink: 0,
-                        }}
-                      />
-                      {name}
-                      <span className="drawer-badge">{count}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleArchiveProject(name)}
-                      title="Archive project"
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(139, 115, 85, 0.3)',
-                        color: 'var(--text-secondary, #6b7280)',
-                        borderRadius: '0.4rem',
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                      }}
-                    >
-                      <FiArchive size={12} />
-                      Archive
-                    </button>
-                  </div>
-                );
-              })}
-            {projects.filter((p) => !p.archived).length === 0 && (
-              <p className="drawer-empty">No projects yet. Create one below.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="drawer-footer">
-          <button
-            className="btn-primary drawer-new-btn"
-            data-tour="drawer-new-project"
-            onClick={() => {
-              setNewProjectOpen(true);
-              setDrawerOpen(false);
-            }}
-            title="Create a new project to organize your items"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Project
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              navigate('/projects');
-              setDrawerOpen(false);
-            }}
-            style={{ marginTop: '0.5rem', width: '100%' }}
-            title="View and manage all your projects"
-          >
-            Manage Projects
-          </button>
-        </div>
-      </aside>
+      {/* Top Navigation — shared NavBar, identical on every page including home */}
+      <NavBar entries={entries} activeView={activeView} />
 
       {/* Main Content */}
       <main className="dash-main">
@@ -1793,6 +1292,36 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
+            {/* Projects | Entries toggle — same switcher the home page uses */}
+            <div className="page-switcher-row">
+              <div
+                className="feed-view-toggle"
+                role="group"
+                aria-label="Switch between archived projects and archived entries"
+              >
+                <button
+                  type="button"
+                  className={`feed-view-btn${archiveTab === 'projects' ? ' active' : ''}`}
+                  aria-current={archiveTab === 'projects' ? 'page' : undefined}
+                  onClick={() => setArchiveTab('projects')}
+                  title="View archived projects"
+                >
+                  Projects
+                </button>
+                <button
+                  type="button"
+                  className={`feed-view-btn${archiveTab === 'entries' ? ' active' : ''}`}
+                  aria-current={archiveTab === 'entries' ? 'page' : undefined}
+                  onClick={() => setArchiveTab('entries')}
+                  title="View archived entries"
+                >
+                  Entries
+                </button>
+              </div>
+            </div>
+
+            {archiveTab === 'projects' && (
+            <>
             {/* Archived Projects */}
             <h2 className="archives-section-title">
               <FiArchive size={16} /> Archived Projects
@@ -1867,12 +1396,18 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             )}
 
-            {/* Archived Entries */}
+            </>
+            )}
+
+            {archiveTab === 'entries' && (
+            <>
+            {/* Archived Entries — individually archived rows plus every entry
+                of an archived project, de-duplicated by id. */}
             <h2 className="archives-section-title archives-entries-title">
               <FiArchive size={16} /> Archived Entries
-              <span className="archives-section-count">({archivedEntries.length})</span>
+              <span className="archives-section-count">({archiveEntries.length})</span>
             </h2>
-            {archivedEntries.length === 0 ? (
+            {archiveEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
                   <FiArchive size={40} />
@@ -1882,7 +1417,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               </div>
             ) : (
               <div className="entries-feed">
-                {archivedEntries.map((row, i) => (
+                {archiveEntries.map((row, i) => (
                   <EntryBox
                     key={`archived-entry-${row.id || i}`}
                     entry={row as any}
@@ -1900,6 +1435,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   />
                 ))}
               </div>
+            )}
+            </>
             )}
           </div>
         ) : (

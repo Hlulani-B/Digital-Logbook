@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiPause, FiPlay, FiSquare } from 'react-icons/fi';
-import { updateEntry } from '@/functions/project/entries';
+import { useTimerActions } from '@/hooks/useTimerActions';
 import './FocusMode.css';
 
 interface EntryRow {
@@ -35,7 +35,13 @@ function formatDuration(ms: number): string {
 function entryDurationMs(entry: EntryRow, now: number): number {
   if (!entry.started_at) return 0;
   const start = new Date(entry.started_at).getTime();
-  const end = entry.ended_at ? new Date(entry.ended_at).getTime() : now;
+  // Freeze at paused_at while a pause is open (mirrors stats.js) and at
+  // ended_at once the entry is done; otherwise follow the live clock.
+  const end = entry.ended_at
+    ? new Date(entry.ended_at).getTime()
+    : entry.paused_at
+      ? new Date(entry.paused_at).getTime()
+      : now;
   const pausedMs = entry.paused_ms || 0;
   return Math.max(0, end - start - pausedMs);
 }
@@ -46,10 +52,6 @@ export default function FocusMode() {
   const entryData = searchParams.get('entry');
 
   const [entry, setEntry] = useState<EntryRow | null>(null);
-  const [now, setNow] = useState(Date.now());
-  const [completed, setCompleted] = useState(false);
-  const [soundPlayed, setSoundPlayed] = useState(false);
-  const audioRef = useRef<AudioContext | null>(null);
 
   // Parse entry from URL params
   useEffect(() => {
@@ -65,16 +67,45 @@ export default function FocusMode() {
     }
   }, [entryData, navigate]);
 
-  // Timer tick
+  if (!entry) return null;
+
+  return <FocusSession entry={entry} onExit={() => navigate('/dashboard')} />;
+}
+
+interface FocusSessionProps {
+  entry: EntryRow;
+  onExit: () => void;
+}
+
+/**
+ * The live focus session. Timer controls go through the shared
+ * useTimerActions hook, so pause/resume/stop take effect immediately
+ * (optimistic patch) and are reconciled by the server's timer_action
+ * protocol — the same path the home-page timer banner uses.
+ */
+function FocusSession({ entry: initialEntry, onExit }: FocusSessionProps) {
+  const [entry, setEntry] = useState<EntryRow>(initialEntry);
+  const [now, setNow] = useState(Date.now());
+  const [completed, setCompleted] = useState(false);
+  const [soundPlayed, setSoundPlayed] = useState(false);
+  const audioRef = useRef<AudioContext | null>(null);
+
+  const { isActionInFlight, start, pause, resume, stop } = useTimerActions({
+    entry: entry as any,
+    onUpdated: (updated) => setEntry((prev) => ({ ...prev, ...(updated as EntryRow) })),
+  });
+
+  // Timer tick — only while the clock is actually running, so the display is
+  // frozen while paused and the component stops re-rendering every second.
   useEffect(() => {
-    if (!entry || entry.ended_at) return;
+    if (!entry.started_at || entry.ended_at || entry.paused_at) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, [entry]);
+  }, [entry.started_at, entry.ended_at, entry.paused_at]);
 
   // Check completion
   useEffect(() => {
-    if (!entry || !entry.target_duration_ms || completed) return;
+    if (!entry.target_duration_ms || completed) return;
     const elapsed = entryDurationMs(entry, now);
     if (elapsed >= Number(entry.target_duration_ms)) {
       setCompleted(true);
@@ -109,10 +140,10 @@ export default function FocusMode() {
     }
   }, [completed, soundPlayed, playCompletionSound]);
 
-  const isPaused = Boolean(entry?.started_at && !entry?.ended_at && entry?.paused_at);
-  const isRunning = Boolean(entry?.started_at && !entry?.ended_at && !entry?.paused_at);
-  const elapsedMs = entry ? entryDurationMs(entry, now) : 0;
-  const targetMs = entry?.target_duration_ms ? Number(entry.target_duration_ms) : null;
+  const isPaused = Boolean(entry.started_at && !entry.ended_at && entry.paused_at);
+  const isRunning = Boolean(entry.started_at && !entry.ended_at && !entry.paused_at);
+  const elapsedMs = entryDurationMs(entry, now);
+  const targetMs = entry.target_duration_ms ? Number(entry.target_duration_ms) : null;
   const hasTarget = targetMs !== null && targetMs > 0;
 
   // Progress for circular timer
@@ -120,87 +151,6 @@ export default function FocusMode() {
     if (!hasTarget) return 0;
     return Math.min(1, elapsedMs / targetMs);
   }, [elapsedMs, targetMs, hasTarget]);
-
-  const handleExit = () => {
-    navigate('/dashboard');
-  };
-
-  const handlePause = async () => {
-    if (!entry) return;
-    const now = new Date().toISOString();
-    try {
-      const result = await updateEntry(
-        entry.user_email,
-        entry.project_name,
-        entry.id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        now
-      );
-      if (result?.data) setEntry(result.data);
-    } catch {
-      setEntry({ ...entry, paused_at: now });
-    }
-  };
-
-  const handleResume = async () => {
-    if (!entry) return;
-    const now = new Date();
-    const openPauseMs = entry.paused_at
-      ? Math.max(0, now.getTime() - new Date(entry.paused_at).getTime())
-      : 0;
-    const newPausedMs = (Number(entry.paused_ms) || 0) + openPauseMs;
-    try {
-      const result = await updateEntry(
-        entry.user_email,
-        entry.project_name,
-        entry.id,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        newPausedMs,
-        undefined
-      );
-      if (result?.data) setEntry(result.data);
-    } catch {
-      setEntry({ ...entry, paused_at: undefined, paused_ms: newPausedMs });
-    }
-  };
-
-  const handleStop = async () => {
-    if (!entry) return;
-    try {
-      const result = await updateEntry(
-        entry.user_email,
-        entry.project_name,
-        entry.id,
-        undefined,
-        undefined,
-        undefined,
-        'done_and_dusted',
-        new Date().toISOString(),
-        undefined,
-        undefined,
-        undefined,
-        undefined
-      );
-      if (result?.data) setEntry(result.data);
-    } catch {
-      setEntry({ ...entry, ended_at: new Date().toISOString(), status: 'done_and_dusted' });
-    }
-  };
-
-  if (!entry) return null;
 
   // Parse notes from entries JSONB
   const notes =
@@ -223,7 +173,7 @@ export default function FocusMode() {
 
   return (
     <div className="focus-page">
-      <button className="focus-page__exit" onClick={handleExit}>
+      <button className="focus-page__exit" onClick={onExit}>
         <FiArrowLeft size={14} />
         Exit
       </button>
@@ -287,29 +237,45 @@ export default function FocusMode() {
         {!completed && !entry.ended_at && (
           <>
             {!entry.started_at ? (
-              <button className="focus-page__btn focus-page__btn--primary" onClick={handleResume}>
+              <button
+                className="focus-page__btn focus-page__btn--primary"
+                onClick={start}
+                disabled={isActionInFlight}
+              >
                 <FiPlay size={16} />
                 Start
               </button>
             ) : isRunning ? (
-              <button className="focus-page__btn" onClick={handlePause}>
+              <button
+                className="focus-page__btn"
+                onClick={pause}
+                disabled={isActionInFlight}
+              >
                 <FiPause size={16} />
                 Pause
               </button>
             ) : (
-              <button className="focus-page__btn focus-page__btn--primary" onClick={handleResume}>
+              <button
+                className="focus-page__btn focus-page__btn--primary"
+                onClick={resume}
+                disabled={isActionInFlight}
+              >
                 <FiPlay size={16} />
                 Resume
               </button>
             )}
-            <button className="focus-page__btn focus-page__btn--danger" onClick={handleStop}>
+            <button
+              className="focus-page__btn focus-page__btn--danger"
+              onClick={stop}
+              disabled={isActionInFlight}
+            >
               <FiSquare size={14} />
               End Task
             </button>
           </>
         )}
         {completed && (
-          <button className="focus-page__btn focus-page__btn--primary" onClick={handleExit}>
+          <button className="focus-page__btn focus-page__btn--primary" onClick={onExit}>
             Done — Back to Dashboard
           </button>
         )}
