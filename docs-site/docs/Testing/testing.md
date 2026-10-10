@@ -135,13 +135,13 @@ npx vitest run src/components/__tests__/NavBar.test.tsx
 
 Multiple CI pipelines run on every push and pull request to `main`:
 
-| Workflow                                                                                                         | What it runs                                                    |
-| ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`.gitea/workflows/ci.yml`](../../../../.gitea/workflows/ci.yml)                                                 | Lint, build, and tests for frontend and all four services       |
-| [`.gitea/workflows/frontend-unit-tests.yml`](../../../../.gitea/workflows/frontend-unit-tests.yml)               | Frontend unit tests (excludes `src/__integration__/`)           |
-| [`.gitea/workflows/frontend-integration-tests.yml`](../../../../.gitea/workflows/frontend-integration-tests.yml) | Frontend integration tests (`src/__integration__/` only)        |
-| [`.gitea/workflows/backend-unit-tests.yml`](../../../../.gitea/workflows/backend-unit-tests.yml)                 | Backend unit tests (excludes integration) for all four services |
-| [`.gitea/workflows/backend-integration-tests.yml`](../../../../.gitea/workflows/backend-integration-tests.yml)   | Backend integration tests for all four services                 |
+| Workflow                                                                                                                                                                 | What it runs                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| [`.gitea/workflows/ci.yml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/.gitea/workflows/ci.yml)                                                 | Lint, build, and tests for frontend and all four services       |
+| [`.gitea/workflows/frontend-unit-tests.yml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/.gitea/workflows/frontend-unit-tests.yml)               | Frontend unit tests (excludes `src/__integration__/`)           |
+| [`.gitea/workflows/frontend-integration-tests.yml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/.gitea/workflows/frontend-integration-tests.yml) | Frontend integration tests (`src/__integration__/` only)        |
+| [`.gitea/workflows/backend-unit-tests.yml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/.gitea/workflows/backend-unit-tests.yml)                 | Backend unit tests (excludes integration) for all four services |
+| [`.gitea/workflows/backend-integration-tests.yml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/.gitea/workflows/backend-integration-tests.yml)   | Backend integration tests for all four services                 |
 
 ```yaml
 # Frontend unit tests
@@ -966,7 +966,7 @@ infer it, which directly caused the "disconnected" feeling in problem 1.
 !!! note "Partial"
 The interactive walkthrough half of this request is now shipped: a guided
 tour with voice narration walks first-time users through every view (see
-[Features](../features.md#36-guided-tour-with-live-navigation--voice-narration)).
+[Features](../features.md#36-guided-tour-with-live-navigation-voice-narration)).
 The intro _video_ requested by testers is still on the roadmap
 ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
 
