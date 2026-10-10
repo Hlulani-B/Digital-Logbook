@@ -4,7 +4,7 @@
 
 This page adds UML-style views that are missing from the existing architecture
 pages. It is based on the deployed-service blueprint in
-[`render.yaml`](../../../render.yaml), the React/Vite frontend, and the route
+[`render.yaml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/render.yaml), the React/Vite frontend, and the route
 and middleware implementations in the four backend services. It complements,
 rather than replaces, the existing [Architecture Overview](overview.md),
 [System Design](system-design.md), [Database Schema](database.md), and
@@ -98,16 +98,16 @@ is not claimed by this design.
 
 ## Source references
 
-- [`render.yaml`](../../../render.yaml) — five Render deployments and their
+- [`render.yaml`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/render.yaml) — five Render deployments and their
   service roots.
-- [`frontend/src/context/AuthContext.tsx`](../../../frontend/src/context/AuthContext.tsx)
+- [`frontend/src/context/AuthContext.tsx`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/frontend/src/context/AuthContext.tsx)
   — direct Supabase sign-in and session handling.
-- [`frontend/src/CacheFunctions/syncService.js`](../../../frontend/src/CacheFunctions/syncService.js)
+- [`frontend/src/CacheFunctions/syncService.js`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/frontend/src/CacheFunctions/syncService.js)
   — initial synchronization into IndexedDB.
-- [`frontend/src/functions/project/project.js`](../../../frontend/src/functions/project/project.js),
-  [`frontend/src/functions/project/entries.js`](../../../frontend/src/functions/project/entries.js),
-  and [`frontend/src/functions/profile/profile.js`](../../../frontend/src/functions/profile/profile.js)
+- [`frontend/src/functions/project/project.js`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/frontend/src/functions/project/project.js),
+  [`frontend/src/functions/project/entries.js`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/frontend/src/functions/project/entries.js),
+  and [`frontend/src/functions/profile/profile.js`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/frontend/src/functions/profile/profile.js)
   — frontend-to-service requests.
-- [`services/project-service/src/index.js`](../../../services/project-service/src/index.js)
-  and [`services/project-service/src/middleware/auth.js`](../../../services/project-service/src/middleware/auth.js)
+- [`services/project-service/src/index.js`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/services/project-service/src/index.js)
+  and [`services/project-service/src/middleware/auth.js`](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/src/branch/main/services/project-service/src/middleware/auth.js)
   — route boundary and JWT verification.
