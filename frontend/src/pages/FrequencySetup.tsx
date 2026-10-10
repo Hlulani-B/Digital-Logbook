@@ -98,7 +98,7 @@ export function FrequencySetup() {
           <div className="auth-logo">
             <img
               src="/notebook.jpeg"
-              alt="Digital Logbook"
+              alt="Plannar"
               style={{ width: 48, height: 48, borderRadius: '14px', objectFit: 'cover' }}
             />
           </div>

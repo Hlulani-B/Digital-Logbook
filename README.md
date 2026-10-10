@@ -22,9 +22,9 @@ test: https://digital-logbook-bjev.onrender.com
 # Backend
 
 ```markdown
-# Codacaine - Digital Logbook
+# Codacaine - Plannar
 
-A microservices-based digital logbook app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
+A microservices-based digital planning app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
 
 ## Architecture
 

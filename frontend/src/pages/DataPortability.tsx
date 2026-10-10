@@ -195,7 +195,7 @@ export default function DataPortability() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `digital-logbook-export-${new Date().toISOString().slice(0, 10)}.${ext}`;
+        a.download = `plannar-export-${new Date().toISOString().slice(0, 10)}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

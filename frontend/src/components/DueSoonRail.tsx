@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEntryTitle, type CalendarEntry } from '@/lib/calendar';
+import { isDueSoon } from '@/functions/dashboard/overdue.js';
+import { parseDueDateForDisplay, formatDueTime } from '@/lib/dueDateDisplay';
 
 type Entry = Record<string, unknown>;
 
@@ -11,16 +13,18 @@ interface DueSoonRailProps {
 
 /** "Today" / "Tomorrow" / short date — the chip shown on a due-soon item. */
 function formatRailDue(value?: string | null): string | null {
-  if (!value) return null;
-  const due = new Date(value);
-  if (isNaN(due.getTime())) return null;
+  const parsed = parseDueDateForDisplay(value);
+  if (!parsed) return null;
   const today = new Date();
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const dueDay = new Date(parsed.date.getFullYear(), parsed.date.getMonth(), parsed.date.getDate());
   const diffDays = Math.round((dueDay.getTime() - startOfToday.getTime()) / 86400000);
-  if (diffDays <= 0) return 'Today';
-  if (diffDays === 1) return 'Tomorrow';
-  return dueDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  // A saved due time rides alongside the relative date so the chip matches
+  // the due-date surfaces; date-only entries keep their plain label.
+  const time = parsed.hasTime ? ` \u00b7 ${formatDueTime(parsed.date, 'en-GB')}` : '';
+  if (diffDays <= 0) return `Today${time}`;
+  if (diffDays === 1) return `Tomorrow${time}`;
+  return `${dueDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}${time}`;
 }
 
 /**
@@ -37,8 +41,15 @@ export function DueSoonRail({ entries }: DueSoonRailProps) {
 
   const toggle = () => setCollapsed((prev) => !prev);
 
+  // Defensive: apply the shared eligibility rule at the render boundary too —
+  // a completed, archived or past-due entry must never appear in the rail,
+  // even if a caller hands one over between state updates.
+  const eligible = entries.filter((row) =>
+    isDueSoon(row.due_date as string | null, row.status as string | null, row.archived as boolean)
+  );
+
   // Soonest due first so the most urgent entries sit at the top.
-  const sorted = [...entries].sort((a, b) => {
+  const sorted = [...eligible].sort((a, b) => {
     const da = new Date((a.due_date as string) || 0).getTime();
     const db = new Date((b.due_date as string) || 0).getTime();
     return da - db;

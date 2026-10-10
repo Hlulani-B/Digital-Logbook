@@ -536,7 +536,7 @@ describe('iCalendar export', () => {
 
     expect(ics).toContain('BEGIN:VCALENDAR');
     expect(ics).toContain('VERSION:2.0');
-    expect(ics).toContain('PRODID:-//Digital Logbook//EN');
+    expect(ics).toContain('PRODID:-//Plannar//EN');
     expect(ics).toContain('END:VCALENDAR');
   });
 

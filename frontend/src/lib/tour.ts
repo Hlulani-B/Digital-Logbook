@@ -268,7 +268,7 @@ function buildSteps(): DriveStep[] {
   const steps: DriveStep[] = [
     liveStep({
       element: '[data-tour="menu"]',
-      title: 'Welcome to your Digital Logbook',
+      title: 'Welcome to your Plannar',
       description:
         'A two-minute tour of the essentials. Each view opens for real as we reach it, so you can see ' +
         'exactly what is being described. Move at your own pace; you can close this anytime and replay ' +

@@ -9,7 +9,9 @@ import {
 } from '@/lib/entryPayload';
 import './ProjectTable.css';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
+import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
 import { resolveProjectColor } from '@/lib/projectColorMap';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 /* Hook to detect mobile width (< 600px) */
 function useIsMobile() {
@@ -32,7 +34,7 @@ function useIsMobile() {
 */
 
 // Status & priority enums matching the rest of the app
-const STATUSES = ['in_motion', 'done_and_dusted'] as const;
+const STATUSES = ['up_next', 'in_motion', 'done_and_dusted'] as const;
 const PRIORITIES = ['0', '1', '2', '3'] as const;
 
 const STATUS_LABELS: Record<string, string> = {
@@ -78,10 +80,7 @@ function friendlyPriority(raw: string) {
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return formatDueDateTime(value, { dateOptions: { day: 'numeric', month: 'short' } }) || '';
 }
 
 function groupByProject(rows: any[]) {
@@ -415,6 +414,11 @@ function MobileCard({
             value={entry.due_date}
             onSave={(val) => onUpdate(entry.id, { due_date: val })}
           />
+          {isOverdue(entry.due_date ?? null, entry.status, entry.archived) && (
+            <span className="ptt-overdue-badge">
+              {getOverdueText(entry.due_date ?? null, entry.status, entry.archived)}
+            </span>
+          )}
         </div>
         <div className="ptt-mobile-card__row">
           <span className="ptt-mobile-card__label">Status</span>
@@ -521,6 +525,11 @@ function TaskRow({
           value={entry.due_date}
           onSave={(val) => onUpdate(entry.id, { due_date: val })}
         />
+        {isOverdue(entry.due_date ?? null, entry.status, entry.archived) && (
+          <span className="ptt-overdue-badge">
+            {getOverdueText(entry.due_date ?? null, entry.status, entry.archived)}
+          </span>
+        )}
       </div>
 
       {/* Status — dropdown (far right) */}

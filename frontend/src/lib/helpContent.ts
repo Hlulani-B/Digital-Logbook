@@ -20,9 +20,9 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     articles: [
       {
         id: 'welcome',
-        title: 'Welcome to Digital Logbook',
+        title: 'Welcome to Plannar',
         content:
-          'Digital Logbook is your personal academic planning companion. Track your work entries, manage projects, set due dates, and stay on top of your deadlines — all in one place.\n\n**Key features:**\n- Create and organise work entries under projects\n- Multiple views: Table, Calendar, Kanban, Timeline, Today\n- Focus Mode for distraction-free timed work sessions\n- Notifications for upcoming and overdue tasks\n- Data import/export in JSON, CSV, Markdown, and iCalendar\n- Multiple themes and customisation options',
+          'Plannar is your personal academic planning companion. Track your work entries, manage projects, set due dates, and stay on top of your deadlines — all in one place.\n\n**Key features:**\n- Create and organise work entries under projects\n- Multiple views: Table, Calendar, Kanban, Timeline, Today\n- Focus Mode for distraction-free timed work sessions\n- Notifications for upcoming and overdue tasks\n- Data import/export in JSON, CSV, Markdown, and iCalendar\n- Multiple themes and customisation options',
         keywords: ['welcome', 'introduction', 'overview', 'start'],
       },
       {
@@ -85,7 +85,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         id: 'notifications',
         title: 'Managing Notifications',
         content:
-          "Digital Logbook sends email notifications for upcoming and overdue tasks.\n\n**Notification types:**\n- **Due soon:** Alert before a task's due date\n- **Overdue:** Alert when a task passes its due date\n\n**Settings:**\n- Open your profile menu (top-right avatar)\n- Go to **Settings** to configure notification preferences\n- Toggle email notifications on or off\n\n**In-app bell:** The bell icon in the navigation bar shows unread notifications. Click it to view and dismiss alerts.",
+          "Plannar sends email notifications for upcoming and overdue tasks.\n\n**Notification types:**\n- **Due soon:** Alert before a task's due date\n- **Overdue:** Alert when a task passes its due date\n\n**Settings:**\n- Open your profile menu (top-right avatar)\n- Go to **Settings** to configure notification preferences\n- Toggle email notifications on or off\n\n**In-app bell:** The bell icon in the navigation bar shows unread notifications. Click it to view and dismiss alerts.",
         keywords: ['notifications', 'email', 'alerts', 'reminders', 'bell', 'due soon'],
       },
       {
@@ -113,7 +113,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         id: 'user-roles',
         title: 'Understanding User Roles',
         content:
-          'Digital Logbook supports different permission levels for project collaboration.\n\n**Role: Owner**\n- Full control over the project\n- Can create, edit, and delete all entries\n- Can manage project settings and custom fields\n- Can invite and manage other members\n\n**Role: Editor**\n- Can create and edit entries\n- Can change entry status and priority\n- Cannot delete entries or modify project settings\n\n**Role: Viewer**\n- Can view all entries and project data\n- Cannot make any changes\n- Useful for supervisors or stakeholders who need read-only access',
+          'Plannar supports different permission levels for project collaboration.\n\n**Role: Owner**\n- Full control over the project\n- Can create, edit, and delete all entries\n- Can manage project settings and custom fields\n- Can invite and manage other members\n\n**Role: Editor**\n- Can create and edit entries\n- Can change entry status and priority\n- Cannot delete entries or modify project settings\n\n**Role: Viewer**\n- Can view all entries and project data\n- Cannot make any changes\n- Useful for supervisors or stakeholders who need read-only access',
         keywords: ['roles', 'permissions', 'owner', 'editor', 'viewer', 'access'],
       },
       {
@@ -188,9 +188,9 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     articles: [
       {
         id: 'faq-free',
-        title: 'Is Digital Logbook free to use?',
+        title: 'Is Plannar free to use?',
         content:
-          'Yes! Digital Logbook is currently free to use during its beta period. It was built as a university project by Team Codacaine at Wits University.',
+          'Yes! Plannar is currently free to use during its beta period. It was built as a university project by Team Codacaine at Wits University.',
         keywords: ['free', 'cost', 'price', 'payment', 'beta'],
       },
       {
@@ -267,7 +267,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         id: 'feedback',
         title: 'Send Feedback',
         content:
-          "We love hearing from users! Your feedback helps us improve Digital Logbook.\n\n**What to share:**\n- Feature requests — what would you like to see?\n- Usability feedback — what's confusing or hard to use?\n- General comments — anything on your mind\n\n**Contact:** Use the feedback form below or reach out through your course representative.\n\n**Built by:** Team Codacaine — COMS3011A Project 7, Wits University.",
+          "We love hearing from users! Your feedback helps us improve Plannar.\n\n**What to share:**\n- Feature requests — what would you like to see?\n- Usability feedback — what's confusing or hard to use?\n- General comments — anything on your mind\n\n**Contact:** Use the feedback form below or reach out through your course representative.\n\n**Built by:** Team Codacaine — COMS3011A Project 7, Wits University.",
         keywords: ['feedback', 'suggestion', 'feature request', 'contact', 'improvement'],
       },
     ],

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
-import { type CalendarEntry, getEntryTitle, parseDueDate } from '@/lib/calendar';
+import { type CalendarEntry, getEntryTitle } from '@/lib/calendar';
 import {
   type EntryStatus,
   STATUS_LABELS,
@@ -18,10 +18,7 @@ import { Header } from '@/components/Header';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
-
-function formatShortDate(date: Date): string {
-  return date.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
-}
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 function getPriorityClass(priority: string | null): string {
   if (!priority) return '';
@@ -43,7 +40,10 @@ function KanbanCard({
   projectColor?: string;
 }) {
   const status = getEntryStatus(entry);
-  const due = parseDueDate(entry.due_date);
+  const due = formatDueDateTime(entry.due_date, {
+    locale: 'en-ZA',
+    dateOptions: { month: 'short', day: 'numeric' },
+  });
   const overdue = isOverdue(entry.due_date ?? null, status);
   const priorityClass = getPriorityClass(entry.priority ?? null);
 
@@ -74,7 +74,7 @@ function KanbanCard({
         <span className="kanban-card-project">{entry.project_name}</span>
         {due && (
           <span className={`kanban-card-due ${overdue ? 'kanban-card-due--overdue' : ''}`}>
-            {formatShortDate(due)}
+            {due}
           </span>
         )}
       </div>

@@ -350,7 +350,7 @@ function escapeMD(value: unknown): string {
 export function exportToMarkdown(bundle: ExportBundle): string {
   const lines: string[] = [];
 
-  lines.push(`# Digital Logbook Export`);
+  lines.push(`# Plannar Export`);
   lines.push('');
   lines.push(`- **User:** ${bundle.user_email}`);
   lines.push(`- **Exported:** ${bundle.exported_at}`);
@@ -482,10 +482,10 @@ export function exportToICS(bundle: ExportBundle): string {
   // Calendar header
   lines.push('BEGIN:VCALENDAR');
   lines.push('VERSION:2.0');
-  lines.push('PRODID:-//Digital Logbook//EN');
+  lines.push('PRODID:-//Plannar//EN');
   lines.push('CALSCALE:GREGORIAN');
   lines.push('METHOD:PUBLISH');
-  lines.push(`X-WR-CALNAME:${escapeICS('Digital Logbook - ' + bundle.user_email)}`);
+  lines.push(`X-WR-CALNAME:${escapeICS('Plannar - ' + bundle.user_email)}`);
   lines.push(`X-WR-TIMEZONE:UTC`);
 
   // Events
@@ -526,7 +526,7 @@ export function exportToICS(bundle: ExportBundle): string {
     const description = getEntryDescription(entry.entries);
     const status = getICSStatus(entry.status);
     const priority = getICSPriority(entry.priority);
-    const uid = `entry-${Date.now()}-${Math.random().toString(36).slice(2)}@digital-logbook`;
+    const uid = `entry-${Date.now()}-${Math.random().toString(36).slice(2)}@plannar`;
 
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${uid}`);

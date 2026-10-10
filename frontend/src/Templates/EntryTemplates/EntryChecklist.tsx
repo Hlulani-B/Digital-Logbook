@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { updateEntry } from '@/functions/project/entries.js';
+import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
 import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import { type EntryPayload, getEntryPayloadTitle, cleanSummaryText } from '@/lib/entryPayload';
 import { resolveProjectColor } from '@/lib/projectColorMap';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -17,6 +19,7 @@ interface ChecklistEntry {
   status?: EntryStatus;
   entries?: EntryPayload;
   started_at?: string | null;
+  archived?: boolean;
   _timerPending?: boolean;
 }
 
@@ -30,14 +33,11 @@ interface ChecklistEntryCardProps {
 const DONE_STATUS: EntryStatus = 'done_and_dusted';
 
 function formatDate(value: string | null | undefined): string {
-  if (!value) return 'No due date';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return 'No due date';
-  return d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return (
+    formatDueDateTime(value, {
+      dateOptions: { day: 'numeric', month: 'short', year: 'numeric' },
+    }) || 'No due date'
+  );
 }
 
 function getSummary(entry: ChecklistEntry): string {
@@ -200,7 +200,14 @@ export default function ChecklistEntryCard({
             <p className={`checklist-summary ${isDone ? 'checklist-summary--done' : ''}`}>
               {getSummary(entry)}
             </p>
-            <p className="checklist-due">{formatDate(entry.due_date)}</p>
+            <p className="checklist-due">
+              {formatDate(entry.due_date)}
+              {isOverdue(entry.due_date ?? null, entry.status ?? null, entry.archived) && (
+                <span className="checklist-overdue-badge">
+                  {getOverdueText(entry.due_date ?? null, entry.status ?? null, entry.archived)}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <button

@@ -26,11 +26,23 @@ describe('Archives', () => {
   });
 
   it('should return failure when archiving a project fails', async () => {
-    pool.query.mockRejectedValueOnce(new Error('update failed'));
+    // Reject persistently so the ROLLBACK attempt also receives a promise.
+    pool.query.mockRejectedValue(new Error('update failed'));
 
     const result = await archives.archive_project('a@b.com', 'My Project');
 
     expect(result).toEqual({ success: false, message: 'update failed' });
+  });
+
+  it('archives only the project and never rewrites its entries', async () => {
+    pool.query.mockResolvedValue({ rows: [] });
+
+    const result = await archives.archive_project('a@b.com', 'My Project');
+
+    expect(result.success).toBe(true);
+    const statements = pool.query.mock.calls.map(([sql]) => sql);
+    expect(statements.some((sql) => /UPDATE\s+projects/i.test(String(sql)))).toBe(true);
+    expect(statements.some((sql) => /UPDATE\s+entries/i.test(String(sql)))).toBe(false);
   });
 
   // ─── unarchive_project ───────────────────────────────────────
@@ -43,11 +55,25 @@ describe('Archives', () => {
   });
 
   it('should return failure when unarchiving a project fails', async () => {
-    pool.query.mockRejectedValueOnce(new Error('update failed'));
+    // Reject persistently so the ROLLBACK attempt also receives a promise.
+    pool.query.mockRejectedValue(new Error('update failed'));
 
     const result = await archives.unarchive_project('a@b.com', 'My Project');
 
     expect(result).toEqual({ success: false, message: 'update failed' });
+  });
+
+  it('restores only the project flag and preserves individual entry archive states', async () => {
+    pool.query.mockResolvedValue({ rows: [] });
+
+    const result = await archives.unarchive_project('a@b.com', 'My Project');
+
+    expect(result.success).toBe(true);
+    const statements = pool.query.mock.calls.map(([sql]) => sql);
+    expect(statements.some((sql) => /UPDATE\s+projects/i.test(String(sql)))).toBe(true);
+    // The old cascade cleared entries.archived here and resurrected
+    // individually archived entries after a project restore.
+    expect(statements.some((sql) => /UPDATE\s+entries/i.test(String(sql)))).toBe(false);
   });
 
   // ─── archive_entry ───────────────────────────────────────────
@@ -85,7 +111,8 @@ describe('Archives', () => {
   });
 
   it('should handle unexpected thrown errors', async () => {
-    pool.query.mockRejectedValueOnce(new Error('Connection lost'));
+    // Reject persistently so the ROLLBACK attempt also receives a promise.
+    pool.query.mockRejectedValue(new Error('Connection lost'));
 
     const result = await archives.archive_project('a@b.com', 'My Project');
 

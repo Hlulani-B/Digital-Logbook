@@ -81,7 +81,7 @@ export default function ReportBug() {
             <FiCheckCircle size={64} />
           </div>
           <h1>Bug Report Sent!</h1>
-          <p>Thanks for helping us improve Digital Logbook.</p>
+          <p>Thanks for helping us improve Plannar.</p>
           <p className="report-bug__success-sub">
             We'll look into it and get back to you if we need more details.
           </p>
