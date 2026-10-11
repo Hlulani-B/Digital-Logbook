@@ -86,6 +86,8 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I reported that tags like "school" and "life" appeared concatenated as one word with no visual separation
 - I reported that the timer pause/resume/stop controls were broken after entry updates stripped timer columns
 - I reported that long markdown fields had no truncation or "Read more" affordance
+- I requested that the application conform to modern responsive design standards across all device sizes
+- I requested that the application conform to modern accessibility standards including ARIA labels, keyboard navigation, and semantic roles
 
 ### 2. Code Generation (AI-Assisted)
 
@@ -147,6 +149,8 @@ The AI generated the following code based on my instructions:
 | `src/components/fields/fields.css`                            | Tag chip, entity-link chip, and attachment chip styles for FieldDisplay                                          | AI generated from my design direction |
 | `src/components/SafeMarkdown.tsx`                             | Markdown renderer with read-more truncation at 200px and fade gradient                                           | AI generated from my requirements     |
 | `services/project-service/src/index.js`                       | Project-service entry point with node-cron scheduled email flush every 15 minutes                                | AI generated from my requirements     |
+| `frontend/src/index.css` (responsive sections)                | 15+ media queries at 8 breakpoints for responsive grid, navigation, and mobile layouts                           | AI generated from my design direction |
+| `frontend/src/pages/Calendar.tsx` (useIsMobile)               | `useIsMobile()` hook using `window.matchMedia` for viewport-aware layout switching                               | AI generated from my requirements     |
 | `.env.example`                                                | Environment variable template                                                                                    | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
@@ -195,6 +199,8 @@ I made all configuration decisions and directed the AI to execute the following:
 | Timer pause/resume/stop broken after entry update                | Me (student, identified)               | AI (fixed `validateEntryDates` to preserve timer columns `started_at`, `ended_at`, `paused_at`, `paused_ms`)                      |
 | Long markdown fields had no truncation                           | Me (student, requested)                | AI (added 200px height threshold with fade gradient and "Read more" expand button in SafeMarkdown)                                |
 | Notification emails required manual PowerShell invocation        | Me (student, requested)                | AI (added node-cron scheduler to project-service for automatic 15-minute email flush)                                             |
+| Responsive design needed to meet modern standards                | Me (student, requested)                | AI (expanded section 31 with 8 breakpoints, `useIsMobile()` hook, 44px touch targets, dedicated mobile layouts)                   |
+| Accessibility needed to meet modern standards                    | Me (student, requested)                | AI (added ARIA labels, keyboard navigation, semantic roles, focus management, voice narration across 14+ components)              |
 
 ---
 
