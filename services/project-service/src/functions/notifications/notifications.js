@@ -418,7 +418,7 @@ export class Notifications {
           ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Due: ${escapeHtml(dueLabel)}</p>`
           : '';
 
-    const html = `
+    html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f1e6; padding: 32px 24px;">
         <div style="background: #fffdf6; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(74,60,40,0.10);">
           <div style="background: ${accentColor}; padding: 16px 24px;">
