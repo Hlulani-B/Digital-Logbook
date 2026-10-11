@@ -15,7 +15,6 @@ import {
   setNotificationLeadTime,
   setTimerAbandonmentNotifications,
   setWeeklyDigest,
-  getWeeklyDigest,
 } from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
