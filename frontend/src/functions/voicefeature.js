@@ -24,22 +24,27 @@ export function createTranscriber() {
   let resultCallback = null;
 
   recognition.onresult = (event) => {
+    console.log('[Transcriber] onresult event:', event);
     let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const t = event.results[i][0].transcript;
+      console.log(`[Transcriber] Result ${i}:`, t, 'isFinal:', event.results[i].isFinal);
       if (event.results[i].isFinal) {
         finalTranscript += t;
       } else {
         interim += t;
       }
     }
+    console.log('[Transcriber] Final transcript:', finalTranscript, 'Interim:', interim);
     if (resultCallback) {
       resultCallback(finalTranscript + interim, !!event.results[event.results.length - 1]?.isFinal);
+    } else {
+      console.warn('[Transcriber] No result callback set!');
     }
   };
 
   recognition.onerror = (event) => {
-    console.error('Speech recognition error:', event.error);
+    console.error('[Transcriber] Speech recognition error:', event.error, event);
   };
 
   recognition.onend = () => {
@@ -48,10 +53,12 @@ export function createTranscriber() {
 
   return {
     start() {
+      console.log('[Transcriber] Starting speech recognition...');
       finalTranscript = '';
       recognition.start();
     },
     stop() {
+      console.log('[Transcriber] Stopping speech recognition...');
       recognition.stop();
     },
     getTranscript() {
