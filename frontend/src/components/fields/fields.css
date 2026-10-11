@@ -337,3 +337,42 @@
   background: var(--bg-secondary, #f3f4f6);
   font-weight: 600;
 }
+
+/* ── Markdown "Read more" truncation ─────────────────── */
+.cf-markdown-wrapper {
+  position: relative;
+}
+
+.cf-markdown--truncated {
+  overflow: hidden;
+  position: relative;
+}
+
+/* Fade-out gradient at the bottom of truncated content */
+.cf-markdown--truncated::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--bg-primary, #ffffff));
+  pointer-events: none;
+}
+
+.cf-markdown-readmore {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-color, #3b82f6);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cf-markdown-readmore:hover {
+  text-decoration: underline;
+}
