@@ -312,6 +312,37 @@ describe('EntryBox inline edit layout', () => {
     );
   });
 
+  it('shows project field editors for empty payloads and saves newly added values', async () => {
+    const entry: ComponentProps<typeof EntryBox>['entry'] = {
+      ...sampleEntry,
+      id: 'entry-empty-payload',
+      entries: null,
+    };
+    mocks.updateEntry.mockResolvedValueOnce({
+      success: true,
+      data: { ...entry, entries: { Title: 'Added title' } },
+    });
+    const { onUpdated } = renderBox(entry);
+    openEdit();
+    const label = await screen.findByText('Title');
+    const input = label.parentElement?.querySelector('input') as HTMLInputElement;
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: 'Added title' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await waitFor(() => expect(onUpdated).toHaveBeenCalled());
+    expect(mocks.updateEntry).toHaveBeenCalledExactlyOnceWith(
+      entry.user_email,
+      entry.project_name,
+      entry.id,
+      { Title: 'Added title' },
+      undefined,
+      null,
+      'up_next',
+      undefined,
+      undefined
+    );
+  });
+
   it('leaves ordinary card styling, notes, priority, and archive callbacks unchanged', async () => {
     const { container, onPriorityChanged, onArchiveToggled } = renderBox();
     await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());

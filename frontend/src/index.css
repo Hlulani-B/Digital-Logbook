@@ -7147,6 +7147,9 @@ img {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .checklist-card:hover {
   border-color: var(--accent, #111111);
@@ -7191,6 +7194,91 @@ img {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
+}
+
+/* Collapse toggle + outlined details panel. Cards ship collapsed so the pin /
+   archive buttons and priority toggles can never spill past the card border;
+   the panel is in normal flow and grows downward only (never sideways into
+   the Due Soon rail's column). */
+.checklist-card-collapse-row {
+  display: flex;
+  align-items: center;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border, #d4d4d4);
+}
+.checklist-card-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0.25rem 0.6rem;
+  background: var(--surface, #ffffff);
+  color: var(--text-dim, #666666);
+  border: 1px solid var(--border, #111111);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.checklist-card-collapse-btn:hover {
+  border-color: var(--accent, #111111);
+  color: var(--accent, #111111);
+}
+.checklist-card-collapse-btn svg {
+  transition: transform 0.2s ease;
+  transform: rotate(180deg);
+}
+.checklist-card-collapse-btn.is-collapsed svg {
+  transform: rotate(0deg);
+}
+
+.checklist-card-details {
+  display: none;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+  padding: 0.6rem 0.65rem;
+  border: 1px solid var(--border, #111111);
+  border-radius: 6px;
+  background: var(--bg, #ffffff);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.checklist-card-details.is-open {
+  display: flex;
+}
+
+.checklist-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.checklist-card-field {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+.checklist-card-field-key {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--text-muted, #737373);
+}
+.checklist-card-field-value {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text, #111111);
+}
+.checklist-card-field-value .field-display {
+  font-size: 0.75rem;
+  margin: 0;
 }
 
 /* Status / Priority dropdowns under the row — mirrors the Cards view tags */
@@ -7487,16 +7575,15 @@ img {
   opacity: 0.9;
 }
 
-/* Checklist card menu (hidden by default, shown on card hover) */
+/* Checklist card action row (lives inside the collapsed details panel) */
 .checklist-card-menu {
-  display: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
-  margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border, #e5e5e5);
-}
-.checklist-card:hover .checklist-card-menu {
-  display: flex;
+  min-width: 0;
 }
 .checklist-card-menu-btn {
   background: transparent;
@@ -7623,6 +7710,7 @@ img {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 .edb-column-header {
   display: flex;
@@ -7655,6 +7743,8 @@ img {
   gap: 0.4rem;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
   max-height: 70vh;
 }
 

@@ -267,4 +267,31 @@ describe('Checklist edit dialog layout', () => {
     expect(mocks.updateEntry).not.toHaveBeenCalled();
     expect(onUpdated).not.toHaveBeenCalled();
   });
+
+  it('ships collapsed and reveals the outlined details panel from the Show details toggle', () => {
+    const { container } = renderCard();
+    const card = element(container, '.checklist-card');
+    const details = element(container, '.checklist-card-details');
+    const toggle = within(card).getByRole('button', { name: 'Show details' });
+
+    expect(details.classList.contains('is-open')).toBe(false);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Status/priority toggles and the action row live inside the panel, so
+    // they can never spill past the card border.
+    expect(
+      card.querySelector(':scope > .checklist-card-controls, :scope > .checklist-card-menu')
+    ).toBeNull();
+    expect(within(details).getByLabelText('Status')).toBeInTheDocument();
+    expect(within(details).getByLabelText('Priority')).toBeInTheDocument();
+    expect(
+      within(details).getByRole('button', { name: 'Edit', exact: true })
+    ).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(element(container, '.checklist-card-details').classList.contains('is-open')).toBe(true);
+    expect(within(card).getByRole('button', { name: 'Hide details' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
 });
