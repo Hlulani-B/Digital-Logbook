@@ -4929,7 +4929,6 @@ img {
   padding: 0.2rem 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  margin-left: 0.25rem;
   line-height: 1;
 }
 .dash-timer-control:hover:not(:disabled) {
@@ -4939,6 +4938,19 @@ img {
 .dash-timer-control:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.dash-timer-controls {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.dash-timer-control--stop {
+  border-color: #8b4513;
+  color: #8b4513;
+}
+.dash-timer-control--stop:hover:not(:disabled) {
+  background: #8b4513;
+  color: white;
 }
 
 /* ========== FEED STATS PANEL ========== */
