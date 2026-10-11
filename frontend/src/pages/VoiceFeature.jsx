@@ -34,20 +34,26 @@ export default function VoiceFeature({ onClose, onEntryCreated }) {
   // Auto-start recording + speech recognition on mount
   useEffect(() => {
     const start = async () => {
+      console.log('[VoiceFeature] Starting voice feature...');
       try {
         // Start speech recognition
         const transcriber = createTranscriber();
+        console.log('[VoiceFeature] Transcriber created, setting up callback...');
         transcriber.onResult((text) => {
+          console.log('[VoiceFeature] Received transcript:', text);
           setTranscript(text);
         });
+        console.log('[VoiceFeature] Starting transcriber...');
         transcriber.start();
         transcriberRef.current = transcriber;
 
         // Start audio recording
+        console.log('[VoiceFeature] Starting audio recording...');
         await startRecording();
+        console.log('[VoiceFeature] Recording started, status:', recorderStatus);
         setStatus('recording');
       } catch (err) {
-        console.error('Startup error:', err);
+        console.error('[VoiceFeature] Startup error:', err);
         if (err.message?.includes('Speech recognition')) {
           unsupported.current = true;
           setErrorMsg(err.message);
