@@ -127,6 +127,16 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 
 - **Accessibility:** ARIA labels on interactive controls and charts. Keyboard navigation: Escape closes every modal/drawer/dropdown; `/` focuses Help Centre search; Space/P control the timer. Semantic roles (`img`, `region`, `alert`, `status`) for screen readers. Voice-narrated guided tour via Web Speech API. Focus management on dropdowns and modals.
 
+- **CI/CD pipeline:** 7 Gitea Actions workflows (main CI, backend unit tests, backend integration tests, frontend unit tests, frontend integration tests, keep-alive, branch sync) plus GitHub Actions mirror. Every push and PR triggers format checks, linting, unit tests, integration tests, and a production build. Render auto-deploys from main via `render.yaml` infrastructure-as-code (6 services). Docs deploy to GitHub Pages on merge.
+
+- **Non-monolithic architecture:** One React frontend + four independent Express microservices (auth, dashboard, project, profile), each running as its own process on its own port with its own `package.json` and Render deployment. No shared code between services; HTTP-only communication via `fetch()` through `frontend/src/lib/api.ts`.
+
+- **Hand-written API:** 11+ manually coded route files across 4 services with RPC-style POST dispatch (`{ function, values }` body). Supabase provides auth and database only — the frontend never calls Supabase's auto-generated `/rest/v1/` for data. All data endpoints are hand-implemented Express handlers using `node-postgres` (`pg`). OpenAPI 3 spec is documentation, not code generation.
+
+- **External API integration:** Integrates with 6 external API providers — Brevo (transactional email), OpenRouter + Gemini + Cerebras + Groq + HuggingFace (5 AI LLM providers), FormSubmit.co (bug report email), and Supabase (auth + database). All API keys managed via environment variables.
+
+- **Documentation website:** Publicly available at [https://digital-logbook-documentation-site.onrender.com](https://digital-logbook-documentation-site.onrender.com). Built with MkDocs (markdown-based docs tool), deployed via static hosting on Render and GitHub Pages. No account required to access.
+
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
 ## Prerequisites
@@ -199,7 +209,7 @@ This creates all tables, indexes, functions, triggers, and cron jobs idempotentl
 
 Run the SQL files in `supabase/migrations/` in order (000–007) in the Supabase SQL Editor:
 
-[https://supabase.com/dashboard/project/\_/sql](https://supabase.com/dashboard/project/\_/sql)
+[https://supabase.com/dashboard/project/\_/sql](https://supabase.com/dashboard/project/_/sql)
 
 #### Backup and restore
 
@@ -265,13 +275,13 @@ VITE_SUPABASE_ANON_JWT=your_supabase_anon_jwt
 VITE_API_GATEWAY_URL=http://localhost:4000
 ```
 
-| Variable                     | Purpose                                                          |
-| ---------------------------- | ---------------------------------------------------------------- |
-| `VITE_SUPABASE_URL`          | Supabase project URL (used by the frontend Supabase client)      |
-| `VITE_SUPABASE_ANON_KEY`     | Supabase anonymous key (used for auth operations)                |
-| `VITE_SUPABASE_ANON_JWT`     | Supabase anon JWT (used for direct REST calls)                   |
-| `VITE_API_GATEWAY_URL`       | API gateway URL; the frontend sends backend requests through it |
-| `VITE_DEV_BYPASS`            | (Optional) Set to `"true"` in dev to bypass auth for testing     |
+| Variable                 | Purpose                                                         |
+| ------------------------ | --------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`      | Supabase project URL (used by the frontend Supabase client)     |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key (used for auth operations)               |
+| `VITE_SUPABASE_ANON_JWT` | Supabase anon JWT (used for direct REST calls)                  |
+| `VITE_API_GATEWAY_URL`   | API gateway URL; the frontend sends backend requests through it |
+| `VITE_DEV_BYPASS`        | (Optional) Set to `"true"` in dev to bypass auth for testing    |
 
 ### API Gateway (`api-gateway/.env`)
 
@@ -285,13 +295,13 @@ PROJECT_SERVICE_URL=http://localhost:5003
 PROFILE_SERVICE_URL=http://localhost:5004
 ```
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `PORT` | `4000` | Gateway HTTP port |
-| `AUTH_SERVICE_URL` | Set for environment | Auth service origin |
+| Variable                | Default             | Purpose                  |
+| ----------------------- | ------------------- | ------------------------ |
+| `PORT`                  | `4000`              | Gateway HTTP port        |
+| `AUTH_SERVICE_URL`      | Set for environment | Auth service origin      |
 | `DASHBOARD_SERVICE_URL` | Set for environment | Dashboard service origin |
-| `PROJECT_SERVICE_URL` | Set for environment | Project service origin |
-| `PROFILE_SERVICE_URL` | Set for environment | Profile service origin |
+| `PROJECT_SERVICE_URL`   | Set for environment | Project service origin   |
+| `PROFILE_SERVICE_URL`   | Set for environment | Profile service origin   |
 
 For Render, set `VITE_API_GATEWAY_URL=https://api-gateway-xeim.onrender.com` on the frontend and configure the gateway's four service URLs with the corresponding deployed backend origins listed above.
 
@@ -371,12 +381,12 @@ Get the Supabase URL, keys, and database connection string from the team lead or
 
 The API gateway runs at `http://localhost:4000` and forwards frontend requests to the corresponding backend services:
 
-| Frontend route | Destination |
-| --- | --- |
-| `/api/auth` | Auth service |
+| Frontend route   | Destination       |
+| ---------------- | ----------------- |
+| `/api/auth`      | Auth service      |
 | `/api/dashboard` | Dashboard service |
-| `/api/project` | Project service |
-| `/api/profile` | Profile service |
+| `/api/project`   | Project service   |
+| `/api/profile`   | Profile service   |
 
 Run its tests from the repository root with `cd api-gateway` followed by `npm test`.
 
