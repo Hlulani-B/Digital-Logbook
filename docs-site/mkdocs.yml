@@ -74,21 +74,21 @@ nav:
   - Getting Started: getting-started.md
   - Features: features.md
   - Architecture:
-      - Overview: architecture/overview.md
-      - Database Schema: architecture/database.md
-      - CI/CD & Deployment: architecture/cicd-deployment.md
-      - API Contracts: architecture/api-contracts.md
-      - System Design: architecture/system-design.md
-      - Tech Stack: architecture/teck-stack.md
-      - UI Design: architecture/ui-design.md
-      - Voice Recording: architecture/voice-feature.md
-      - IndexedDB Caching: architecture/caching.md
-      - SSE Real-Time Updates: architecture/sse.md
-      - Keep-Alive Daemons: architecture/daemon.md
-      - Entry Summaries: architecture/entry-summaries.md
-      - Statistics Engine: architecture/statistics.md
-      - UML Architecture Diagrams: architecture/uml-diagrams.md
-      - Third-Party Dependencies: architecture/third-party.md
+      - Overview: Architecture/overview.md
+      - Database Schema: Architecture/database.md
+      - CI/CD & Deployment: Architecture/cicd-deployment.md
+      - API Contracts: Architecture/api-contracts.md
+      - System Design: Architecture/system-design.md
+      - Tech Stack: Architecture/teck-stack.md
+      - UI Design: Architecture/ui-design.md
+      - Voice Recording: Architecture/voice-feature.md
+      - IndexedDB Caching: Architecture/caching.md
+      - SSE Real-Time Updates: Architecture/sse.md
+      - Keep-Alive Daemons: Architecture/daemon.md
+      - Entry Summaries: Architecture/entry-summaries.md
+      - Statistics Engine: Architecture/statistics.md
+      - UML Architecture Diagrams: Architecture/uml-diagrams.md
+      - Third-Party Dependencies: Architecture/third-party.md
   - Roadmap: roadmap.md
   - Meetings:
       - Sprint 1: Meetings/sprint-one-meetings.md

@@ -966,7 +966,7 @@ infer it, which directly caused the "disconnected" feeling in problem 1.
 !!! note "Partial"
 The interactive walkthrough half of this request is now shipped: a guided
 tour with voice narration walks first-time users through every view (see
-[Features](../features.md#36-guided-tour-with-live-navigation-voice-narration)).
+[Features](../features.md#37-guided-tour-with-live-navigation-voice-narration)).
 The intro _video_ requested by testers is still on the roadmap
 ([#126](https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook/issues/126)).
 
