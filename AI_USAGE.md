@@ -60,6 +60,7 @@ The following frontend features were implemented with AI acting as a code-genera
   - CI/CD pipeline: 7 Gitea Actions workflows (main CI, backend unit/integration tests, frontend unit/integration tests, keep-alive, branch sync) mirrored on GitHub Actions, plus Render auto-deploy via `render.yaml` infrastructure-as-code (6 services) and docs deployment to GitHub Pages
   - Non-monolithic architecture: 1 React frontend + 4 independent Express microservices (auth, dashboard, project, profile), each independently deployable on Render via `render.yaml`; HTTP-only communication via `fetch()` through `frontend/src/lib/api.ts`; Supabase used for auth and database only
   - Hand-written API: 11+ manually coded route files across 4 services with RPC-style POST dispatch; Supabase never used as an API generator; all data endpoints are hand-implemented Express handlers using `node-postgres` (`pg`)
+  - Authentication & security: Supabase Auth (established third-party provider) handles sign up, sign in (Google/GitHub OAuth + email/password), password reset, account deletion with 30-day grace period, session management, RLS; no custom auth code written
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)

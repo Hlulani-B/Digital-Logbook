@@ -91,6 +91,7 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested that the CI/CD pipeline be documented comprehensively across all documentation surfaces
 - I requested that the non-monolithic architecture (1 frontend + 4 independent microservices) be documented comprehensively
 - I requested that the hand-written API design (no auto-generated endpoints from Supabase or any framework) be documented comprehensively
+- I requested that the authentication & security system (Supabase Auth: sign up, sign in, password reset, account deletion, RLS) be documented comprehensively as compliance with the project requirement
 
 ### 2. Code Generation (AI-Assisted)
 
@@ -223,6 +224,7 @@ I made all configuration decisions and directed the AI to execute the following:
 | CI/CD pipeline needed comprehensive documentation                | Me (student, requested)                | AI (expanded section 36 with all 7 workflows, dual CI platforms, Render auto-deploy, and key files)                               |
 | Non-monolithic architecture needed comprehensive documentation   | Me (student, requested)                | AI (documented 1 frontend + 4 microservices split, independent deployability, HTTP-only communication, render.yaml)               |
 | Hand-written API design needed comprehensive documentation       | Me (student, requested)                | AI (documented 11+ route files, RPC-style dispatch, Supabase auth-only split, OpenAPI spec as documentation not generation)       |
+| Authentication & security needed comprehensive documentation     | Me (student, requested)                | AI (documented Supabase Auth flows, sign up/in/reset/delete, RLS, session management, no custom auth code, key files)             |
 
 ---
 
