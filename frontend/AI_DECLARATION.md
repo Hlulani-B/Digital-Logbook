@@ -78,6 +78,14 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested all landing page cards be dynamic and creative with interactive effects
 - I requested an AI-generated tech-savvy hero image related to a digital logbook for the landing page
 - I requested the "Get Started" button text be more readable against its dark background
+- I requested project pagination on the home page: show 3 projects when there are more than 5, with a "View more" button
+- I requested multi-select for projects with batch archive and delete operations
+- I requested automatic email delivery so users receive notification emails without opening the app or manual PowerShell invocation
+- I reported a runtime crash (`Cannot read properties of undefined (reading 'slice')`) in FieldDisplay for file/image/entity-link fields
+- I reported that the file column type was not being recognised/rendered for entries created via AddEntry
+- I reported that tags like "school" and "life" appeared concatenated as one word with no visual separation
+- I reported that the timer pause/resume/stop controls were broken after entry updates stripped timer columns
+- I reported that long markdown fields had no truncation or "Read more" affordance
 
 ### 2. Code Generation (AI-Assisted)
 
@@ -135,6 +143,10 @@ The AI generated the following code based on my instructions:
 | `src/components/BugReportModal.css`                           | Bug report modal styles with fade/slide animations and mobile bottom-sheet                                       | AI generated from my design direction |
 | `src/pages/Landing.tsx`                                       | Public landing page with hero, typing demo, interactive cards, stats, ticker, team, CTA, and footer              | AI generated from my requirements     |
 | `src/pages/landing.css`                                       | Landing page styles with warm beige/brown palette, scroll-reveal animations, and interactive card effects        | AI generated from my design direction |
+| `src/components/fields/FieldDisplay.tsx`                      | Type-safe field value renderer with guards for undefined attachmentId/link and base64 file string handling       | AI generated from my bug reports      |
+| `src/components/fields/fields.css`                            | Tag chip, entity-link chip, and attachment chip styles for FieldDisplay                                          | AI generated from my design direction |
+| `src/components/SafeMarkdown.tsx`                             | Markdown renderer with read-more truncation at 200px and fade gradient                                           | AI generated from my requirements     |
+| `services/project-service/src/index.js`                       | Project-service entry point with node-cron scheduled email flush every 15 minutes                                | AI generated from my requirements     |
 | `.env.example`                                                | Environment variable template                                                                                    | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
@@ -177,6 +189,12 @@ I made all configuration decisions and directed the AI to execute the following:
 | Brevo API returning 401 "Key not found"                          | Me (student, observed in Render logs)  | AI (diagnosed invalid API key; directed creation of new Brevo key and update in Render dashboard)                                 |
 | Brevo IP whitelisting blocking Render server                     | Me (student, observed 401 in logs)     | AI (identified Render IP `74.220.48.71` not in Brevo authorized IPs; directed adding it)                                          |
 | End-to-end notification pipeline verification                    | Me (student, requested test)           | AI (provided SQL and PowerShell commands; verified 78 notifications sent successfully)                                            |
+| Runtime crash on undefined `attachmentId` in FieldDisplay        | Me (student, reported console error)   | AI (added `typeof` guards before `.slice()` in file/image/entity-link cases)                                                      |
+| File column type not rendering for entries created via AddEntry  | Me (student, identified)               | AI (added base64 string handling to file case: image thumbnails + "File attached" chip)                                           |
+| Tags appearing concatenated as one word                          | Me (student, identified)               | AI (added flex-wrap container and pill-shaped chip CSS to fields.css)                                                             |
+| Timer pause/resume/stop broken after entry update                | Me (student, identified)               | AI (fixed `validateEntryDates` to preserve timer columns `started_at`, `ended_at`, `paused_at`, `paused_ms`)                      |
+| Long markdown fields had no truncation                           | Me (student, requested)                | AI (added 200px height threshold with fade gradient and "Read more" expand button in SafeMarkdown)                                |
+| Notification emails required manual PowerShell invocation        | Me (student, requested)                | AI (added node-cron scheduler to project-service for automatic 15-minute email flush)                                             |
 
 ---
 

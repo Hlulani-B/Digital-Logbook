@@ -880,6 +880,72 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ---
 
+### 44. Project Pagination & Multi-Select
+
+**What it does:** When a user has more than 5 projects on the home page, only the first 3 are shown with a "View N more projects" button to expand the full list. A multi-select mode lets users batch-archive or batch-delete several projects at once.
+
+**Why it was implemented:** Users with many projects found the home page overwhelming. Pagination keeps the initial view focused, while multi-select avoids the tedium of archiving or deleting projects one at a time.
+
+**How it works:**
+
+- A `displayedProjects` memo slices `visibleProjects` to the first 3 when there are more than 5 and the user has not expanded the list
+- The "View N more projects" button toggles `showAllProjects`; the button text switches to "Show fewer projects" when expanded
+- A "Select" button in the projects toolbar enters select mode; each card shows a checkbox and clicking toggles selection instead of navigating
+- Card actions (Edit / Pin / Archive / Delete) are hidden in select mode to prevent accidental clicks
+- Batch action buttons appear when items are selected: Select all, Clear, Archive selected, Delete selected
+- Selected cards receive an accent outline highlight
+
+**Key files:**
+
+- `frontend/src/pages/Dashboard.tsx` — Project pagination, select mode, batch actions
+- `frontend/src/index.css` — Projects toolbar, select button, batch actions, card selection styles
+
+---
+
+### 45. Automatic Email Delivery (node-cron)
+
+**What it does:** Sends pending notification emails automatically every 15 minutes while the project-service is running, without requiring users to open the app or manual PowerShell invocation.
+
+**Why it was implemented:** The original automatic trigger — a `pg_net` HTTP poke from the Supabase `pg_cron` job — was broken because `pg_net` is unavailable on this Supabase project. Emails were only delivered when a user opened the notification bell (opportunistic flush) or the admin manually called the endpoint. The in-process scheduler closes that gap.
+
+**How it works:**
+
+- `node-cron` schedules `sendPendingEmails()` every 15 minutes (`*/15 * * * *`, Africa/Johannesburg timezone) inside the project-service process
+- The existing `FOR UPDATE OF n SKIP LOCKED` clause ensures concurrent calls (this timer, an external cron, or a bell-triggered flush) never double-send the same notification
+- Logs `[cron:email-flush] sent=N skipped=N` for monitoring in Render logs
+- For full 24/7 coverage on Render's free tier (which sleeps after ~15 minutes of inactivity), an external cron service such as cron-job.org can POST `/service/notifications/sendPending` to keep the service awake
+
+**Key files:**
+
+- `services/project-service/src/index.js` — node-cron scheduler setup
+- `services/project-service/src/functions/notifications/notifications.js` — `sendPendingEmails()` with Brevo sender
+- `services/project-service/package.json` — `node-cron` dependency
+
+---
+
+### 46. Field Display Rendering & Bug Fixes
+
+**What it does:** Fixes three rendering bugs in the field display system and adds proper visual styling for tags, entity-links, and file attachments.
+
+**Why it was implemented:** (1) A runtime crash (`Cannot read properties of undefined (reading 'slice')`) occurred when file, image, or entity-link fields had undefined values — the destructured `attachmentId` or `link` was passed to `.slice()` without type guards. (2) The `file` field type only rendered `{ attachmentId }` objects (from the upload-and-finalize path when editing existing entries) but rejected base64 strings stored during entry creation via AddEntry, so file content was invisible. (3) Tags like "school" and "life" appeared concatenated as one word because the CSS classes `.field-display-tag`, `.field-display-tags`, and `.field-display-entity-links` had no CSS rules anywhere in the codebase. (4) The timer pause/resume/stop controls were broken because `validateEntryDates` stripped timer-specific columns (`started_at`, `ended_at`, `paused_at`, `paused_ms`) from the entry update payload. (5) Long markdown field values had no truncation or "Read more" affordance.
+
+**How it works:**
+
+- `FieldDisplay.tsx` now checks `typeof attachmentId !== 'string'` before calling `.slice()` in file and image cases, and `typeof link === 'string'` in the entity_link case — returning an em-dash fallback when the value is unexpected
+- The file case handles base64 strings: image-like data renders as a thumbnail, other strings show a "File attached" chip
+- `fields.css` gains flex-wrap container rules for `.field-display-tags` and `.field-display-entity-links` (gap: 0.35rem), pill-shaped `.field-display-tag` chips with soft blue backgrounds for tags and soft green for entity-links, and a grey `.field-display-attachment` chip for file indicators
+- `validateEntryDates` preserves timer columns (`started_at`, `ended_at`, `paused_at`, `paused_ms`, `target_duration_ms`) so timer state survives entry updates
+- `SafeMarkdown.tsx` truncates long rendered markdown at 200px height with a fade gradient and a "Read more" expand button
+
+**Key files:**
+
+- `frontend/src/components/fields/FieldDisplay.tsx` — Type guards, base64 file handling
+- `frontend/src/components/fields/fields.css` — Tag chip, entity-link chip, and attachment chip styles
+- `frontend/src/components/SafeMarkdown.tsx` — Read-more truncation
+- `frontend/src/lib/newEntryDates.ts` — Timer column preservation in `validateEntryDates`
+
+---
+
 ## Summary
 
-The Digital Logbook implements 43 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 46 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
