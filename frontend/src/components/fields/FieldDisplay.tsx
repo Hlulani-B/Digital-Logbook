@@ -53,6 +53,7 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
       const { attachmentId } = value as any;
+      if (typeof attachmentId !== 'string') return <div className="field-display">—</div>;
       return (
         <div className="field-display field-display-attachment">
           <span>📎 {attachmentId.slice(0, 8)}...</span>
@@ -83,6 +84,7 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
       const { attachmentId } = value as any;
+      if (typeof attachmentId !== 'string') return <div className="field-display">—</div>;
       return (
         <div className="field-display field-display-attachment">
           <span>📎 {attachmentId.slice(0, 8)}...</span>
@@ -96,7 +98,7 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         <div className="field-display field-display-entity-links">
           {links.map((link: string, i: number) => (
             <span key={i} className="field-display-tag">
-              {link.slice(0, 8)}...
+              {typeof link === 'string' ? `${link.slice(0, 8)}...` : '—'}
             </span>
           ))}
         </div>
