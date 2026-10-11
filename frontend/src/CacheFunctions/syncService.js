@@ -56,7 +56,7 @@ import { getActivities } from '@/functions/activity.js';
 // ── Pure compute functions (no server calls) ────────────────────
 import { calculateTotalTimeTracked, calculateProjectStats } from '@/functions/dashboard/stats.js';
 import { calculateStreaks } from '@/functions/dashboard/streaks.js';
-import { getOverdueText } from '@/functions/dashboard/overdue.js';
+import { getOverdueText, isDueSoon } from '@/functions/dashboard/overdue.js';
 
 // ── Cache layer ─────────────────────────────────────────────────
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache.js';
@@ -510,22 +510,30 @@ async function _doSync(email, onProgress, epoch = syncEpoch) {
 
 /**
  * Compute due-soon entries from a list of all entries.
- * Due-soon = due_date within the next 3 days (inclusive of today).
+ * Eligibility comes from the shared isDueSoon rule — an active, unarchived
+ * entry with a deadline between now and +3 days — so a completed, archived
+ * or past-due entry can never sit in the due-soon cache.
  *
  * @param {Array} entries - All entries
- * @returns {Array} Entries due within 3 days
+ * @param {Set<string>|null} [archivedProjectNames] - Names of archived parent
+ *   projects, when the caller knows them. Entries belonging to an archived
+ *   project are excluded. The sync writer passes nothing (entry-level rule);
+ *   UI surfaces that have project state pass the set so counts and lists
+ *   agree with the Dashboard.
+ * @returns {Array} Entries currently due soon
  */
-export function computeDueSoon(entries) {
+export function computeDueSoon(entries, archivedProjectNames = null) {
   if (!Array.isArray(entries)) return [];
-  const now = new Date();
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-  return entries.filter((entry) => {
-    if (!entry.due_date) return false;
-    const due = new Date(entry.due_date);
-    if (isNaN(due.getTime())) return false;
-    return due >= now && due <= threeDaysFromNow;
-  });
+  return entries.filter(
+    (entry) =>
+      entry?.deleted !== true &&
+      isDueSoon(
+        entry.due_date,
+        entry.status,
+        entry.archived,
+        archivedProjectNames ? archivedProjectNames.has(entry.project_name) : false
+      )
+  );
 }
 
 /**

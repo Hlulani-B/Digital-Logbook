@@ -20,6 +20,14 @@ docs-site/site/
 # OS files
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
+
+# Unredacted user-feedback originals (kept locally, never published)
+docs-site/docs/assets/user-feedback-sprint3/_originals/
+docs-site/docs/assets/ui-images/recording_old_site.mp4
+
+# Documentation working files
+.docstmp/
 
 # Logs
 *.log

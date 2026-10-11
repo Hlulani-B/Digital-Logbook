@@ -107,4 +107,18 @@ describe('EntriesByDueDateBoard', () => {
     const projectLabels = screen.getAllByText('ProjectA');
     expect(projectLabels.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('renders the same overdue warning as the card view and clears it when completed', () => {
+    const pastDue = new Date(Date.now() - 86400000).toISOString();
+    const active = { ...sampleEntries[0], due_date: pastDue, status: 'up_next' as const };
+    const { rerender } = renderBoard([active]);
+    expect(document.querySelector('.checklist-overdue-badge')?.textContent).toMatch(/^Overdue/);
+
+    rerender(
+      <NotesProvider>
+        <EntriesByDueDateBoard entries={[{ ...active, status: 'done_and_dusted' }]} />
+      </NotesProvider>
+    );
+    expect(document.querySelector('.checklist-overdue-badge')).toBeNull();
+  });
 });

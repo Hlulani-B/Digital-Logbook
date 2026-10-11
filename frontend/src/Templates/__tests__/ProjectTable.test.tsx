@@ -77,8 +77,16 @@ describe('ProjectTaskTable', () => {
     // Check that option text includes the status labels
     const allOptions = Array.from(document.querySelectorAll('.ptt-select-status option'));
     const optionTexts = allOptions.map((o) => o.textContent);
+    expect(optionTexts).toContain('Up Next');
     expect(optionTexts).toContain('In Motion');
     expect(optionTexts).toContain('Done & Dusted');
+  });
+
+  it('renders warnings for active overdue rows but not completed rows', () => {
+    renderTable(sampleRows);
+    const badges = Array.from(document.querySelectorAll('.ptt-overdue-badge'));
+    expect(badges).toHaveLength(2);
+    expect(badges.every((badge) => badge.textContent?.startsWith('Overdue'))).toBe(true);
   });
 
   it('renders priority labels as select options', () => {

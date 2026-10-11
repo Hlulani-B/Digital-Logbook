@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActivities } from '@/functions/activity.js';
+import { formatDueDateTime } from '@/lib/dueDateDisplay';
 
 type Activity = {
   id: number;
@@ -321,9 +322,10 @@ function formatDetailValue(key: string, value: unknown): string {
   if (key === 'is_required') return value ? 'Yes' : 'No';
   if (key === 'source') return value === 'natural-language' ? 'Quick Add (AI)' : String(value);
   if (key === 'due_date' && value) {
-    const d = new Date(String(value));
-    if (!isNaN(d.getTime()))
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const label = formatDueDateTime(value, {
+      dateOptions: { month: 'short', day: 'numeric', year: 'numeric' },
+    });
+    if (label) return label;
   }
   return String(value);
 }
