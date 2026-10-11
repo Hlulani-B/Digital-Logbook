@@ -590,16 +590,27 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ### 31. Responsive Design
 
-**What it does:** UI works seamlessly on mobile, tablet, and desktop.
+**What it does:** The UI adapts seamlessly across desktop, tablet, and phone screens using CSS media queries at 8 breakpoints and JavaScript viewport detection.
 
-**Why it was implemented:** Users access the logbook from various devices. Mobile support is essential for on-the-go logging.
+**Why it was implemented:** Users access the logbook from various devices. Mobile support is essential for on-the-go logging, and modern web standards require responsive layouts.
 
 **How it works:**
 
-- CSS media queries and flexible layouts
-- Touch-friendly buttons and controls
-- Collapsible navigation on mobile
-- Settings panel adapts to screen size
+- **Breakpoints:** CSS media queries at 1200px (desktop grid expansion), 1024px (tablet padding), 900px (landing page reflow), 768px (tablet — sidebar becomes tabs, grids go 2-column), 640px (small tablet), 560px (search row stacks), 480px (phone — single column, week-strip calendar, touch targets), and 380px (very small phones)
+- **Viewport detection:** `useIsMobile()` hook uses `window.matchMedia` at 480px to auto-switch the Calendar to a week-strip layout and the ProjectTable to a compact layout
+- **Touch targets:** Timer presets, buttons, and interactive cards meet the 44px minimum touch target guideline on mobile (iOS-compliant)
+- **Navigation:** Drawer navigation replaces inline menus on mobile; the settings panel becomes a full-width sheet; the Help Centre sidebar becomes horizontal scrollable tabs
+- **Grids:** Stats grids collapse from 4 → 3 → 1 columns; project grids from 3 → 2 → 1 columns; filter rows and search rows stack vertically
+- **Dedicated mobile layouts:** Sign-in page, landing page, Help Centre, Focus Mode, Calendar day modal, Report Bug form, Create Template, and all data views have dedicated phone breakpoints
+
+**Key files:**
+
+- `frontend/src/index.css` — Global responsive breakpoints (15+ media queries)
+- `frontend/src/pages/Calendar.tsx` — `useIsMobile()` hook, week-strip auto-switch
+- `frontend/src/Templates/ProjectTemplates/ProjectTable.tsx` — `useIsMobile()` compact layout
+- `frontend/src/pages/landing.css` — Landing page responsive reflow at 900px and 768px
+- `frontend/src/pages/HelpCentre.css` — Mobile horizontal tabs at 768px and 480px
+- `frontend/src/pages/FocusMode.css` — Phone breakpoint at 480px
 
 ---
 
@@ -946,6 +957,34 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ---
 
+### 47. Accessibility
+
+**What it does:** The application conforms to modern accessibility standards with ARIA landmarks, keyboard navigation, semantic roles, focus management, and voice narration.
+
+**Why it was implemented:** Modern web applications must be usable by people with diverse abilities, including those relying on screen readers, keyboard-only navigation, or assistive technologies. Accessibility is a core requirement of contemporary web standards.
+
+**How it works:**
+
+- **ARIA landmarks:** `aria-label` on navigation (`nav`), OAuth buttons ("Continue with Google", "Continue with GitHub"), zoom controls ("Zoom in", "Zoom out"), chart regions, and interactive icons
+- **Keyboard navigation:** Escape key closes every modal, drawer, panel, dropdown, and the guided tour (14+ components handle Escape); `/` focuses the Help Centre search bar; Space/P start and pause the timer
+- **Semantic roles:** `role="img"` with descriptive `aria-label` on SVG charts (donut, trend, bar); `role="region"` with `tabIndex={0}` on scrollable data tables for keyboard scrolling; `role="alert"` on error messages; `role="status"` on loading indicators and live counts
+- **Focus management:** Dropdown menus (ProfileMenu, ToolbarDropdown, NotificationsBell) handle focus trap and release on close; modal overlays capture focus; Escape returns focus to the trigger
+- **Voice narration:** The guided tour uses the Web Speech API (`speechSynthesis`) with a persisted mute toggle; auto-advance is paced to the utterance `onend` event so speech is never cut off
+- **Chart legends:** `aria-label="Chart legend"` on legend lists for screen reader context
+- **Form labels:** All form inputs have associated `<label>` elements; OAuth buttons include both `aria-label` and `title` attributes
+- **Data tables:** Scrollable analysis regions use `role="region"` with `aria-label` describing the content, making them discoverable by screen readers
+
+**Key files:**
+
+- `frontend/src/pages/StatsView.tsx` — ARIA roles on charts, regions, and status indicators
+- `frontend/src/pages/Timeline.tsx` — `aria-label` on zoom controls, `role="alert"` on errors
+- `frontend/src/pages/SignIn.tsx` — `aria-label` on OAuth buttons
+- `frontend/src/components/ProfileMenu.tsx` — Escape key handling, focus management
+- `frontend/src/lib/tour.ts` — Voice narration via Web Speech API
+- `frontend/src/pages/HelpCentre.tsx` — `/` keyboard shortcut for search focus
+
+---
+
 ## Summary
 
-The Digital Logbook implements 46 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 47 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.

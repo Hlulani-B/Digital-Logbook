@@ -92,6 +92,8 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Project pagination & multi-select:** When there are more than 5 projects on the home page, only the first 3 are shown with a "View N more projects" button. A multi-select mode allows batch archive and delete operations across multiple projects at once.
 - **Automatic email delivery:** An in-process `node-cron` scheduler sends pending notification emails every 15 minutes while the project-service is running, replacing the broken `pg_net` poke and eliminating the need for manual PowerShell invocation.
 - **Field display rendering fixes:** Type-safe guards prevent crashes on undefined attachment/link values, file fields now render base64 strings stored during creation, tags and entity-links display as styled pill-shaped chips, and long markdown fields truncate with a "Read more" button.
+- **Responsive design:** The UI adapts across desktop, tablet, and phone screens using CSS media queries at 8 breakpoints (1200px–380px). A `useIsMobile()` hook switches the Calendar to a week-strip layout on phones (≤480px). Grid layouts collapse from multi-column to single-column, navigation drawers replace inline menus, and touch targets meet the 44px minimum.
+- **Accessibility:** ARIA labels on interactive controls and charts. Keyboard navigation: Escape closes every modal/drawer/dropdown; `/` focuses Help Centre search; Space/P control the timer. Semantic roles (`img`, `region`, `alert`, `status`) for screen readers. Voice-narrated guided tour via Web Speech API. Focus management on dropdowns and modals.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
