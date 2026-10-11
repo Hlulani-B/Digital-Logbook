@@ -149,7 +149,7 @@ function BarChart({ data }: { data: BarDatum[] }) {
 const TIME_PER_ENTRY_CAP = 10;
 
 function timePerEntryLabel(entry: Entry, scoped: boolean) {
-  const stamp = String(entry.started_at || '');
+  const stamp = String(entry.started_at || entry.created_at || '');
   const parts = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(stamp);
   const month = parts ? Number(parts[2]) : 0;
   const when =
