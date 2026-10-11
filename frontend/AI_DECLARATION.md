@@ -92,6 +92,8 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I requested that the non-monolithic architecture (1 frontend + 4 independent microservices) be documented comprehensively
 - I requested that the hand-written API design (no auto-generated endpoints from Supabase or any framework) be documented comprehensively
 - I requested that the authentication & security system (Supabase Auth: sign up, sign in, password reset, account deletion, RLS) be documented comprehensively as compliance with the project requirement
+- I requested that the external API integrations (Brevo, 5 AI LLM providers, FormSubmit.co, Supabase) be documented comprehensively as compliance with the integration requirement
+- I requested that the documentation website (MkDocs on Render + GitHub Pages) be documented comprehensively as compliance with the documentation website requirement
 
 ### 2. Code Generation (AI-Assisted)
 

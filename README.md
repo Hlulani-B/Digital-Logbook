@@ -32,11 +32,12 @@ This is a monorepo containing independent backend services and a React frontend.
 codacaine/
 ├── frontend/                     # React app (Vite)
 │   └── src/
-├── api-gateway/                  # Entry point for backend API requests
+├── api-gateway/                  # API routing (port 4000)
 │   ├── src/
 │   │   └── index.js
 │   ├── Dockerfile
 │   ├── package.json
+│   ├── .env.example
 │   └── .env
 ├── services/
 │   ├── auth-service/             # Authentication (port 5001)
@@ -126,6 +127,16 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 
 - **Accessibility:** ARIA labels on interactive controls and charts. Keyboard navigation: Escape closes every modal/drawer/dropdown; `/` focuses Help Centre search; Space/P control the timer. Semantic roles (`img`, `region`, `alert`, `status`) for screen readers. Voice-narrated guided tour via Web Speech API. Focus management on dropdowns and modals.
 
+- **CI/CD pipeline:** 7 Gitea Actions workflows (main CI, backend unit tests, backend integration tests, frontend unit tests, frontend integration tests, keep-alive, branch sync) plus GitHub Actions mirror. Every push and PR triggers format checks, linting, unit tests, integration tests, and a production build. Render auto-deploys from main via `render.yaml` infrastructure-as-code (6 services). Docs deploy to GitHub Pages on merge.
+
+- **Non-monolithic architecture:** One React frontend + four independent Express microservices (auth, dashboard, project, profile), each running as its own process on its own port with its own `package.json` and Render deployment. No shared code between services; HTTP-only communication via `fetch()` through `frontend/src/lib/api.ts`.
+
+- **Hand-written API:** 11+ manually coded route files across 4 services with RPC-style POST dispatch (`{ function, values }` body). Supabase provides auth and database only — the frontend never calls Supabase's auto-generated `/rest/v1/` for data. All data endpoints are hand-implemented Express handlers using `node-postgres` (`pg`). OpenAPI 3 spec is documentation, not code generation.
+
+- **External API integration:** Integrates with 6 external API providers — Brevo (transactional email), OpenRouter + Gemini + Cerebras + Groq + HuggingFace (5 AI LLM providers), FormSubmit.co (bug report email), and Supabase (auth + database). All API keys managed via environment variables.
+
+- **Documentation website:** Publicly available at [https://digital-logbook-documentation-site.onrender.com](https://digital-logbook-documentation-site.onrender.com). Built with MkDocs (markdown-based docs tool), deployed via static hosting on Render and GitHub Pages. No account required to access.
+
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
 ## Prerequisites
@@ -160,7 +171,12 @@ cd ..\project-service
 npm install
 cd ..\profile-service
 npm install
-cd ..\\..
+cd ..\..
+
+# API gateway is at the repository root
+cd api-gateway
+npm install
+cd ..
 ```
 
 ### 3. Install frontend dependencies
@@ -173,7 +189,7 @@ cd ..
 
 ### 4. Configure environment variables
 
-Create a `.env` file in each service folder and in the `frontend/` folder (see [Environment Variables](#environment-variables) below).
+Create a `.env` file in each service folder, in `api-gateway/` (using `api-gateway/.env.example` as a guide), and in `frontend/` (see [Environment Variables](#environment-variables) below).
 
 ### 5. Set up the database
 
@@ -193,7 +209,7 @@ This creates all tables, indexes, functions, triggers, and cron jobs idempotentl
 
 Run the SQL files in `supabase/migrations/` in order (000–007) in the Supabase SQL Editor:
 
-[https://supabase.com/dashboard/project/\_/sql](https://supabase.com/dashboard/project/\_/sql)
+[https://supabase.com/dashboard/project/\_/sql](https://supabase.com/dashboard/project/_/sql)
 
 #### Backup and restore
 
@@ -228,6 +244,15 @@ cd services\profile-service
 npm start
 ```
 
+Run the API gateway in its own terminal from the repository root:
+
+```powershell
+cd api-gateway
+npm start
+```
+
+The gateway listens on `http://localhost:4000` and routes frontend requests to the appropriate backend service. Start it alongside the four services.
+
 Run the frontend:
 
 ```powershell
@@ -239,7 +264,7 @@ The frontend runs on `http://localhost:3000` by default.
 
 ## Environment Variables
 
-Each service and the frontend need their own `.env` file. These are listed in `.gitignore` because they contain secrets — every developer must create their own locally.
+Each service, the API gateway, and the frontend need their own `.env` file. These are listed in `.gitignore` because they contain secrets — every developer must create their own locally.
 
 ### Frontend (`frontend/.env`)
 
@@ -247,29 +272,45 @@ Each service and the frontend need their own `.env` file. These are listed in `.
 VITE_SUPABASE_URL=https://yourproject.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_SUPABASE_ANON_JWT=your_supabase_anon_jwt
-VITE_AUTH_SERVICE_URL=http://localhost:5001
-VITE_DASHBOARD_SERVICE_URL=http://localhost:5002
-VITE_PROJECT_SERVICE_URL=http://localhost:5003
-VITE_PROFILE_SERVICE_URL=http://localhost:5004
+VITE_API_GATEWAY_URL=http://localhost:4000
 ```
 
-| Variable                     | Purpose                                                          |
-| ---------------------------- | ---------------------------------------------------------------- |
-| `VITE_SUPABASE_URL`          | Supabase project URL (used by the frontend Supabase client)      |
-| `VITE_SUPABASE_ANON_KEY`     | Supabase anonymous key (used for auth operations)                |
-| `VITE_SUPABASE_ANON_JWT`     | Supabase anon JWT (used for direct REST calls)                   |
-| `VITE_AUTH_SERVICE_URL`      | Auth microservice URL                                            |
-| `VITE_DASHBOARD_SERVICE_URL` | Dashboard microservice URL                                       |
-| `VITE_PROJECT_SERVICE_URL`   | Project microservice URL (falls back to deployed URL if not set) |
-| `VITE_PROFILE_SERVICE_URL`   | Profile microservice URL (falls back to deployed URL if not set) |
-| `VITE_DEV_BYPASS`            | (Optional) Set to `"true"` in dev to bypass auth for testing     |
+| Variable                 | Purpose                                                         |
+| ------------------------ | --------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`      | Supabase project URL (used by the frontend Supabase client)     |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key (used for auth operations)               |
+| `VITE_SUPABASE_ANON_JWT` | Supabase anon JWT (used for direct REST calls)                  |
+| `VITE_API_GATEWAY_URL`   | API gateway URL; the frontend sends backend requests through it |
+| `VITE_DEV_BYPASS`        | (Optional) Set to `"true"` in dev to bypass auth for testing    |
 
-### Backend services — all services (`services/*/\\.env`)
+### API Gateway (`api-gateway/.env`)
+
+The gateway lives at the repository root and is the single entry point for frontend backend requests. Use `api-gateway/.env.example` as the reference for the actual configuration. For local development:
+
+```dotenv
+PORT=4000
+AUTH_SERVICE_URL=http://localhost:5001
+DASHBOARD_SERVICE_URL=http://localhost:5002
+PROJECT_SERVICE_URL=http://localhost:5003
+PROFILE_SERVICE_URL=http://localhost:5004
+```
+
+| Variable                | Default             | Purpose                  |
+| ----------------------- | ------------------- | ------------------------ |
+| `PORT`                  | `4000`              | Gateway HTTP port        |
+| `AUTH_SERVICE_URL`      | Set for environment | Auth service origin      |
+| `DASHBOARD_SERVICE_URL` | Set for environment | Dashboard service origin |
+| `PROJECT_SERVICE_URL`   | Set for environment | Project service origin   |
+| `PROFILE_SERVICE_URL`   | Set for environment | Profile service origin   |
+
+For Render, set `VITE_API_GATEWAY_URL=https://api-gateway-xeim.onrender.com` on the frontend and configure the gateway's four service URLs with the corresponding deployed backend origins listed above.
+
+### Backend services — all services (`services/*/.env`)
 
 Every backend service shares the same database connection:
 
 ```
-DATABASE_URL=postgresql://user:password\@host:5432/dbname
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
 | Variable       | Used by      | Purpose                                                          |
@@ -281,7 +322,7 @@ DATABASE_URL=postgresql://user:password\@host:5432/dbname
 
 ```
 PORT=5001
-DATABASE_URL=postgresql://user:password\@host:5432/dbname
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 SUPABASE_URL=https://yourproject.supabase.co
 SUPABASE_KEY=your_supabase_key
 ```
@@ -290,14 +331,14 @@ SUPABASE_KEY=your_supabase_key
 
 ```
 PORT=5002
-DATABASE_URL=postgresql://user:password\@host:5432/dbname
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
 ### Project Service (`services/project-service/.env`)
 
 ```
 PORT=5003
-DATABASE_URL=postgresql://user:password\@host:5432/dbname
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 SUPABASE_JWKS_URL=https://yourproject.supabase.co/auth/v1/.well-known/jwks.json
 # AI provider keys (at least one required for natural-language features)
 OPENROUTER_API_KEY=
@@ -320,13 +361,14 @@ GROQ_API_KEY=
 
 ```
 PORT=5004
-DATABASE_URL=postgresql://user:password\@host:5432/dbname
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
 ### Port Summary
 
 | Service                    | Default Port |
 | -------------------------- | ------------ |
+| api-gateway                | 4000         |
 | auth-service               | 5001         |
 | dashboard-service          | 5002         |
 | project-service            | 5003         |
@@ -334,6 +376,19 @@ DATABASE_URL=postgresql://user:password\@host:5432/dbname
 | frontend (Vite dev server) | 3000         |
 
 Get the Supabase URL, keys, and database connection string from the team lead or Supabase project settings — **do not commit these values to the repo**.
+
+## API Gateway Routing
+
+The API gateway runs at `http://localhost:4000` and forwards frontend requests to the corresponding backend services:
+
+| Frontend route   | Destination       |
+| ---------------- | ----------------- |
+| `/api/auth`      | Auth service      |
+| `/api/dashboard` | Dashboard service |
+| `/api/project`   | Project service   |
+| `/api/profile`   | Profile service   |
+
+Run its tests from the repository root with `cd api-gateway` followed by `npm test`.
 
 ## Running Tests
 
