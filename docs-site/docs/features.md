@@ -998,6 +998,56 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ---
 
+### 48. Non-Monolithic Architecture
+
+**What it does:** The application is built as a set of independently deployable services — one React frontend and four Node.js/Express backend microservices — rather than a single monolithic codebase.
+
+**Why it was implemented:** A non-monolithic architecture allows each service to be developed, tested, deployed, and scaled independently. It enforces clear separation of concerns.
+
+**How it works:**
+
+- **Frontend (1 package):** React + Vite SPA in `frontend/`, deployed as a static site on Render. Communicates with the backend exclusively over HTTP REST APIs via `VITE_*_SERVICE_URL` environment variables
+- **Backend (4 independent microservices):** Each runs as its own Node.js process on its own port with its own `package.json`, dependencies, and Render deployment: Auth Service (5001), Dashboard Service (5002), Project Service (5003), Profile Service (5004)
+- **Database (separate):** Supabase PostgreSQL accessed by backend services via `node-postgres` (`pg`), not embedded in any service
+- **No shared code between services:** Each backend service is self-contained; services never import each other's code
+- **Independent scaling:** Each Render service can be scaled, restarted, or redeployed independently via `render.yaml` infrastructure-as-code
+
+**Key files:**
+
+- `frontend/src/lib/api.ts` — HTTP client with auth token, all backend calls
+- `frontend/src/lib/supabase.ts` — Supabase client (auth only, no data calls)
+- `services/auth-service/src/index.js` — Auth service entry point (port 5001)
+- `services/dashboard-service/src/index.js` — Dashboard service entry point (port 5002)
+- `services/project-service/src/index.js` — Project service entry point (port 5003)
+- `services/profile-service/src/index.js` — Profile service entry point (port 5004)
+- `render.yaml` — Infrastructure-as-code defining 6 independent Render services
+
+### 49. Hand-Written API
+
+**What it does:** All API endpoints are manually designed and implemented in Express.js route handlers. No framework or platform auto-generates endpoints.
+
+**Why it was implemented:** The project requirement states: "You must design and implement your API. You may not use a system that generates API endpoints." Supabase is used only for authentication and as a PostgreSQL database provider; the data API layer is entirely hand-written.
+
+**How it works:**
+
+- **11+ hand-coded route files** across 4 Express services in `services/*/src/Routes/`
+- **RPC-style POST dispatch:** Each route module exposes a single POST endpoint that dispatches on a `{ function, values }` body payload
+- **Supabase is NOT the API:** The frontend never calls Supabase's auto-generated `/rest/v1/` for data
+- **OpenAPI 3 spec is documentation, not generation:** `openapi.yaml` is a hand-written specification documenting existing routes
+- **Every endpoint is manually implemented:** `app.post(...)` → handler → `pg` query → `res.json(...)`
+
+**Key files:**
+
+- `services/project-service/src/Routes/entries.js` — Entry CRUD, search, stats, timer operations
+- `services/project-service/src/Routes/projects.js` — Project CRUD, archive
+- `services/project-service/src/Routes/ai.js` — AI natural-language entry creation
+- `services/dashboard-service/src/Routes/search.js` — Cross-project search
+- `services/profile-service/src/Routes/profile.js` — Profile CRUD
+- `services/project-service/docs/openapi.yaml` — Hand-written OpenAPI 3.0 specification
+- `frontend/src/lib/api.ts` — Frontend HTTP client calling hand-written endpoints
+
+---
+
 ## Summary
 
-The Digital Logbook implements 47 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline with 7 Gitea Actions workflows + GitHub Actions mirror + Render auto-deploy), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 49 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline with 7 Gitea Actions workflows + GitHub Actions mirror + Render auto-deploy), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), non-monolithic architecture (1 React frontend + 4 independent Express microservices, each independently deployable on Render), hand-written API (11+ manually coded route files across 4 services, RPC-style POST dispatch, Supabase used for auth and database only — not as an API generator), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
