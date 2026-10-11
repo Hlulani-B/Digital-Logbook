@@ -58,6 +58,8 @@ The following frontend features were implemented with AI acting as a code-genera
   - Responsive design: 8 CSS breakpoints (1200px–380px), `useIsMobile()` hook for viewport detection, dedicated mobile layouts for all views, 44px touch targets, drawer navigation on mobile
   - Accessibility: ARIA labels on interactive controls and charts, keyboard navigation (Escape closes all overlays, `/` focuses search, Space/P timer control), semantic roles (`img`, `region`, `alert`, `status`), focus management on dropdowns and modals, voice-narrated guided tour
   - CI/CD pipeline: 7 Gitea Actions workflows (main CI, backend unit/integration tests, frontend unit/integration tests, keep-alive, branch sync) mirrored on GitHub Actions, plus Render auto-deploy via `render.yaml` infrastructure-as-code (6 services) and docs deployment to GitHub Pages
+  - Non-monolithic architecture: 1 React frontend + 4 independent Express microservices (auth, dashboard, project, profile), each independently deployable on Render via `render.yaml`; HTTP-only communication via `fetch()` through `frontend/src/lib/api.ts`; Supabase used for auth and database only
+  - Hand-written API: 11+ manually coded route files across 4 services with RPC-style POST dispatch; Supabase never used as an API generator; all data endpoints are hand-implemented Express handlers using `node-postgres` (`pg`)
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)
