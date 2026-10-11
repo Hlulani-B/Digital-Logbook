@@ -5,7 +5,6 @@ import {
   applyFieldFilters,
   applyProjectFilters,
   defaultProjectFilters,
-  isPinnedEntry,
   matchesTextQuery,
   pinFirst,
   projectMatchesSearch,
@@ -88,17 +87,25 @@ describe('applyFieldFilters', () => {
 });
 
 describe('pin helpers', () => {
-  const pinned = makeEntry('p', { Food: 'Pizza', _pinned: true });
   const normal = makeEntry('n', { Food: 'Salad' });
+  const normal2 = makeEntry('n2', { Food: 'Pasta' });
 
-  it('detects the reserved _pinned key', () => {
-    expect(isPinnedEntry(pinned)).toBe(true);
-    expect(isPinnedEntry(normal)).toBe(false);
+  it('never reorders when no pins are given (pins are per-page)', () => {
+    const result = pinFirst([normal, normal2]);
+    expect(result.map((e) => e.id)).toEqual(['n', 'n2']);
   });
 
-  it('sorts pinned entries first without reordering the rest', () => {
-    const result = pinFirst([normal, pinned, makeEntry('n2', { Food: 'Pasta' })]);
+  it('sorts pinned ids first without reordering the rest', () => {
+    const result = pinFirst(
+      [normal, makeEntry('p', { Food: 'Pizza' }), normal2],
+      new Set(['p'])
+    );
     expect(result.map((e) => e.id)).toEqual(['p', 'n', 'n2']);
+  });
+
+  it('accepts a plain id array too', () => {
+    const result = pinFirst([normal, makeEntry('p', { Food: 'Pizza' })], ['p']);
+    expect(result.map((e) => e.id)).toEqual(['p', 'n']);
   });
 });
 

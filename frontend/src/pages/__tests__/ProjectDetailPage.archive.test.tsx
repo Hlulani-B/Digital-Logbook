@@ -17,7 +17,7 @@
 
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 // The wasm build of sql.js cannot locate sql-wasm.wasm under Node.
@@ -126,6 +126,18 @@ function renderPage() {
   );
 }
 
+/**
+ * Switch the View dropdown. The restored session layout uses a ToolbarDropdown
+ * (the trigger shows the current label and the options live inside its menu),
+ * not the plain per-view buttons the coverage-era page had.
+ */
+function selectView(label: 'Cards' | 'Table' | 'Checklist' | 'Board') {
+  const group = document.querySelector('.feed-view-group');
+  if (!group) throw new Error('View dropdown group not found');
+  fireEvent.click(group.querySelector('.toolbar-dropdown__btn')!);
+  fireEvent.click(within(group as HTMLElement).getByRole('option', { name: label }));
+}
+
 type MockedComponent = { mock: { calls: unknown[][] } };
 
 function lastCallIds(component: unknown, prop: string) {
@@ -177,13 +189,13 @@ describe('ProjectDetailPage archive consistency (Batch 3A)', () => {
     expect(ids).not.toContain('2');
     expect(ids).not.toContain('3');
 
-    fireEvent.click(screen.getByText('Cards'));
+    selectView('Cards');
     await waitFor(() => expect(entryBoxIds()).toContain('1'), { timeout: 10000 });
     ids = entryBoxIds();
     expect(ids).not.toContain('2');
     expect(ids).not.toContain('3');
 
-    fireEvent.click(screen.getByText('Checklist'));
+    selectView('Checklist');
     await waitFor(() => expect(lastCallIds(ChecklistView, 'entries')).toContain('1'), {
       timeout: 10000,
     });
@@ -191,7 +203,7 @@ describe('ProjectDetailPage archive consistency (Batch 3A)', () => {
     expect(ids).not.toContain('2');
     expect(ids).not.toContain('3');
 
-    fireEvent.click(screen.getByText('Board'));
+    selectView('Board');
     await waitFor(() => expect(lastCallIds(EntriesByDueDateBoard, 'entries')).toContain('1'), {
       timeout: 10000,
     });
@@ -204,7 +216,7 @@ describe('ProjectDetailPage archive consistency (Batch 3A)', () => {
     await seedEntries([entry('1'), entry('2')]);
     renderPage();
 
-    fireEvent.click(screen.getByText('Cards'));
+    selectView('Cards');
     await waitFor(() => expect(entryBoxIds()).toContain('2'), { timeout: 10000 });
 
     // Mirror what archiveEntry's optimistic write does: flip `archived` in the
@@ -290,7 +302,7 @@ describe('ProjectDetailPage archive consistency (Batch 3A)', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText('No items yet')).toBeTruthy();
+        expect(screen.getByText('No entries yet')).toBeTruthy();
       },
       { timeout: 10000 }
     );
@@ -341,7 +353,7 @@ describe('ProjectDetailPage archive consistency (Batch 3A)', () => {
     });
 
     // The gated feed falls back to the empty state…
-    await waitFor(() => expect(screen.getByText('No items yet')).toBeTruthy(), {
+    await waitFor(() => expect(screen.getByText('No entries yet')).toBeTruthy(), {
       timeout: 10000,
     });
     // …and no table render after the archive flip may still hold the rows.

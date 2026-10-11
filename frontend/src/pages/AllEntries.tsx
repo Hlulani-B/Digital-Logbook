@@ -33,6 +33,7 @@ import {
   pinFirst,
   type ProjectFilters,
 } from '@/lib/entryFilters';
+import { PinScopeProvider, useEntryPins } from '@/lib/entryPins';
 import { usePref, setPref } from '@/functions/preferences';
 import { isActiveEntry } from '@/functions/dashboard/overdue.js';
 import { getEffectiveArchivedProjectNames } from '@/functions/project/archiveState.js';
@@ -47,8 +48,10 @@ export function AllEntriesPage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Sort state - persisted per-user in the local preferences store
-  const sortBy = usePref('allentries_sort_by') as 'priority' | 'date';
+  // Sort state - persisted per-user in the local preferences store. A fresh
+  // profile has no stored value: default to date ordering so the toolbar
+  // trigger renders a label (and the list matches every other date-sorted view).
+  const sortBy = (usePref('allentries_sort_by') as 'priority' | 'date') || 'date';
   const setSortBy = useCallback((next: 'priority' | 'date') => {
     void setPref('allentries_sort_by', next);
   }, []);
@@ -95,6 +98,10 @@ export function AllEntriesPage() {
   const aiPlaceholder = 'Capture quick entry';
 
   const email = user?.email || '';
+
+  // Pins are private to this page: 'entries' pins never leak to the main page
+  // or to any individual project page.
+  const pins = useEntryPins(email, 'entries');
 
   // Safety check for deleted accounts
   useEffect(() => {
@@ -318,7 +325,8 @@ export function AllEntriesPage() {
       });
     }
 
-    return pinFirst(filtered);
+    // Pinned entries (this page's own pins) rise to the top of every view.
+    return pinFirst(filtered, pins.pinned);
   }, [
     entries,
     archivedProjectNames,
@@ -328,6 +336,7 @@ export function AllEntriesPage() {
     entryCounts,
     fieldCounts,
     fieldTypes,
+    pins.pinned,
   ]);
 
   // Entries due within the next 3 days — the same window the home page uses;
@@ -438,7 +447,7 @@ export function AllEntriesPage() {
 
           {/* View + Sort sit together opposite the Entries/Projects toggle,
               mirroring the search/AI bar row's layout. */}
-          <div className="page-switcher-controls">
+          <div className="page-switcher-controls" data-tour="entries-views">
             <div className="feed-view-group">
               <span className="feed-view-label">View:</span>
               <ToolbarDropdown
@@ -480,6 +489,8 @@ export function AllEntriesPage() {
             the right. */}
         <div className="dash-split">
           <div className="dash-split__main">
+            {/* Every entry view below shares this page's private pin scope. */}
+            <PinScopeProvider email={email} scope="entries">
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
@@ -540,8 +551,10 @@ export function AllEntriesPage() {
                 id: r.id as string,
                 user_email: r.user_email as string,
                 project_name: r.project_name as string,
+                project_id: (r.project_id as number) || undefined,
                 summary: (r.summary as string) || null,
                 due_date: (r.due_date as string) || null,
+                priority: (r.priority as string) || null,
                 status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
                 entries: r.entries as EntryPayload,
                 started_at: (r.started_at as string) || null,
@@ -559,8 +572,10 @@ export function AllEntriesPage() {
                 id: r.id as string,
                 user_email: r.user_email as string,
                 project_name: r.project_name as string,
+                project_id: (r.project_id as number) || undefined,
                 summary: (r.summary as string) || null,
                 due_date: (r.due_date as string) || null,
+                priority: (r.priority as string) || null,
                 status: (r.status as 'up_next' | 'in_motion' | 'done_and_dusted') || 'up_next',
                 entries: r.entries as EntryPayload,
                 started_at: (r.started_at as string) || null,
@@ -611,6 +626,7 @@ export function AllEntriesPage() {
             ))}
           </div>
         )}
+            </PinScopeProvider>
               </div>
 
               <DueSoonRail entries={dueSoonEntries} />

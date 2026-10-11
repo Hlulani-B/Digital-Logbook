@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotes } from '@/context/NotesContext';
-import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
@@ -20,6 +18,7 @@ import {
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
+import { useEntryPinScope } from '@/lib/entryPins';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -42,6 +41,23 @@ const PRIORITY_TO_VALUE: Record<string, string> = {
   'Urgent but not important': '1',
   'Not urgent, not important': '2',
 };
+
+/**
+ * Raw '0'-'3' code for the priority selects. Cached rows may hold the raw
+ * code (optimistic writes) or the friendly label (server rows), so both
+ * forms are accepted here; unknown values fall back to "No priority".
+ */
+function toRawPriorityValue(priority: string | null | undefined): string {
+  if (!priority) return '3';
+  const mapped = PRIORITY_TO_VALUE[priority];
+  if (mapped !== undefined) return mapped;
+  if (priority === '0' || priority === '1' || priority === '2' || priority === '3') return priority;
+  const lower = priority.toLowerCase();
+  for (const [label, raw] of Object.entries(PRIORITY_TO_VALUE)) {
+    if (label.toLowerCase() === lower) return raw;
+  }
+  return '3';
+}
 
 const STATUS_LABELS: Record<EntryStatus, string> = {
   up_next: 'Up Next',
@@ -137,7 +153,6 @@ export function EntryBox({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { openNotes } = useNotes();
   // Cards start collapsed — the bottom toggle reveals the rest of the fields.
   const [collapsed, setCollapsed] = useState(true);
 
@@ -148,11 +163,9 @@ export function EntryBox({
   const [refEntries, setRefEntries] = useState<any[]>([]);
   const [calcField, setCalcField] = useState<string | null>(null);
 
-  // Pin — reserved `_pinned` key in the entries payload; pinned entries sort to the top
-  const [pinPending, setPinPending] = useState(false);
-  const [pinOverride, setPinOverride] = useState<boolean | null>(null);
-  const pinnedValue = parsedEntries._pinned === true;
-  const isPinned = pinOverride !== null ? pinOverride : pinnedValue;
+  // Pin — private to this page's scope (lib/entryPins); instant, no server write.
+  const pinApi = useEntryPinScope();
+  const isPinned = pinApi ? pinApi.isPinned(id) : false;
 
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   const [fieldsReady, setFieldsReady] = useState(false);
@@ -218,9 +231,7 @@ export function EntryBox({
   );
   const [draftDueDate, setDraftDueDate] = useState(toInputDate(due_date));
   const [draftEndedAt, setDraftEndedAt] = useState(toInputDate(ended_at));
-  const [draftPriorityValue, setDraftPriorityValue] = useState(
-    priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
-  );
+  const [draftPriorityValue, setDraftPriorityValue] = useState(toRawPriorityValue(priority));
   const [draftStatus, setDraftStatus] = useState<EntryStatus>(status);
 
   // Timer actions (start/pause/resume/stop) with in-flight and failure state
@@ -291,14 +302,28 @@ export function EntryBox({
     '_project_ref',
     '_pinned',
   ]);
-  const entryFields = Object.entries(parsedEntries || {}).filter(
-    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
-  );
+  // View-mode field rows: every visible project field (so unfilled
+  // non-required fields still show, blank, and stay fillable) plus payload
+  // keys that no longer have a schema definition.
+  const entryFields: Array<[string, unknown]> = [];
+  const seenEntryFields = new Set<string>();
+  for (const [key, fieldDef] of Object.entries(fieldDefs)) {
+    if (SKIP_FIELDS.has(key) || key.startsWith('_calc_')) continue;
+    if (!evaluateVisibility(fieldDef, parsedEntries)) continue;
+    if (resolveFieldPermission(fieldDef, 'owner') === 'hidden') continue;
+    entryFields.push([key, parsedEntries[key]]);
+    seenEntryFields.add(key);
+  }
+  for (const [key, value] of Object.entries(parsedEntries || {})) {
+    if (seenEntryFields.has(key) || SKIP_FIELDS.has(key) || key.startsWith('_calc_')) continue;
+    entryFields.push([key, value]);
+  }
   const dueLabel = formatDueDateTime(due_date, {
     dateOptions: { month: 'short', day: 'numeric', year: 'numeric' },
   });
 
-  const priorityClass = priority ? PRIORITY_CLASS[priority] || 'priority-neutral' : '';
+  const priorityLabel = priority ? PRIORITY_LABELS[priority] ?? priority : null;
+  const priorityClass = priorityLabel ? PRIORITY_CLASS[priorityLabel] || 'priority-neutral' : '';
 
   const handleFieldChange = (key: string, newValue: unknown) => {
     setDraftFields((prev) => ({ ...prev, [key]: newValue }));
@@ -308,9 +333,7 @@ export function EntryBox({
     setDraftFields(Object.fromEntries(Object.entries(parsedEntries || {}).map(([k, v]) => [k, v])));
     setDraftDueDate(toInputDate(due_date));
     setDraftEndedAt(toInputDate(ended_at));
-    setDraftPriorityValue(
-      priority && PRIORITY_TO_VALUE[priority] !== undefined ? PRIORITY_TO_VALUE[priority] : '3'
-    );
+    setDraftPriorityValue(toRawPriorityValue(priority));
     setDraftStatus(status);
     setIsEditing(false);
     setError(null);
@@ -329,8 +352,13 @@ export function EntryBox({
     setError(null);
 
     try {
+      // Legacy opaque content stays untouched; empty payloads only write
+      // once the user actually fills something in.
+      const draftFieldKeys = Object.keys(draftFields);
       const newEntryObject: Record<string, unknown> | undefined =
-        payloadState.kind === 'opaque' ? undefined : { ...draftFields };
+        payloadState.kind === 'opaque' || draftFieldKeys.length === 0
+          ? undefined
+          : { ...draftFields };
 
       // Convert priority index to label string (or null for "No priority")
       const newPriorityLabel =
@@ -493,26 +521,11 @@ export function EntryBox({
     }
   };
 
-  const togglePin = async () => {
-    if (!user_email || !project_name || pinPending) return;
-    // Opaque payloads (legacy strings) have no key space to store the pin in
+  const togglePin = () => {
+    // Pins are page-private and local, so this is synchronous: the button can
+    // never get stuck waiting on (or failing with) a server write.
     if (payloadState.kind === 'opaque') return;
-    const next = !isPinned;
-    setPinPending(true);
-    setPinOverride(next);
-    const newEntries: Record<string, unknown> = { ...parsedEntries };
-    if (next) newEntries._pinned = true;
-    else delete newEntries._pinned;
-    try {
-      const result = await updateEntry(user_email, project_name, id, newEntries);
-      if (result?.success !== true) throw new Error(result?.message || 'Failed to update pin');
-      onUpdated?.({ ...entry, entries: newEntries });
-    } catch (err) {
-      setPinOverride(null);
-      setError(err instanceof Error ? err.message : 'Failed to update pin');
-    } finally {
-      setPinPending(false);
-    }
+    pinApi?.togglePin(id);
   };
 
   const openCalcPicker = async (fieldName: string) => {
@@ -594,7 +607,7 @@ export function EntryBox({
           {error && <div className="entry-box__error">{error}</div>}
 
           <div className="entry-box__fields--editing">
-            {payloadState.kind !== 'object' ? (
+            {payloadState.kind === 'opaque' ? (
               <div className="entry-box__field--editing">
                 <label className="entry-box__field-key">Entry content</label>
                 <span>{formatEntryValue(payloadState.value)}</span>
@@ -701,7 +714,7 @@ export function EntryBox({
           <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
         )}
         <div className="entry-box__top-row">
-          {payloadState.kind !== 'opaque' && !archived && (
+          {payloadState.kind !== 'opaque' && !archived && pinApi !== null && (
             <button
               type="button"
               className={`entry-box__pin-btn ${isPinned ? 'is-pinned' : ''}`}
@@ -709,7 +722,6 @@ export function EntryBox({
                 e.stopPropagation();
                 togglePin();
               }}
-              disabled={pinPending}
               aria-pressed={isPinned}
               title={isPinned ? 'Unpin — back to the normal order' : 'Pin to the top of the list'}
             >
@@ -740,29 +752,16 @@ export function EntryBox({
             </button>
             {menuOpen && (
               <div className="entry-box__menu">
-                <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    openNotes(entry);
-                  }}
-                >
-                  View Notes
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    openNotes(entry);
-                  }}
-                >
-                  Add Note
-                </button>
+                {/* Archived entries are read-only: delete or unarchive only. */}
+                {!archived && (
+                  <button
+                    type="button"
+                    className="entry-box__menu-item"
+                    onClick={handleEnterEdit}
+                  >
+                    Edit
+                  </button>
+                )}
                 <button
                   type="button"
                   className="entry-box__menu-item entry-box__menu-item--danger"
@@ -835,13 +834,10 @@ export function EntryBox({
             {onPriorityChanged ? (
               <select
                 className={`entry-box__tag entry-box__priority-select ${priorityClass}`}
-                value={
-                  priority && PRIORITY_TO_VALUE[priority] !== undefined
-                    ? PRIORITY_TO_VALUE[priority]
-                    : '3'
-                }
+                value={toRawPriorityValue(priority)}
                 onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={saving || archived}
               >
                 <option value="0">Urgent & important</option>
                 <option value="1">Urgent, not important</option>
@@ -912,7 +908,7 @@ export function EntryBox({
                         ) : (
                           formatEntryValue(value)
                         )}
-                        {fieldDef && fieldDef.data_type === 'number' && (
+                        {!archived && fieldDef && fieldDef.data_type === 'number' && (
                           <button
                             type="button"
                             className="entry-box__calc-btn"
@@ -1069,7 +1065,7 @@ export function EntryBox({
                       ? 'Failed to stop — tap to retry'
                       : '■ End Task'}
                 </button>
-                {target_duration_ms == null && (
+                {!archived && target_duration_ms == null && (
                   <span className="entry-box__target-set">
                     <input
                       type="number"
@@ -1116,18 +1112,8 @@ export function EntryBox({
           </div>
         </div>
 
-        {/* View Notes button - secondary action on its own line */}
-        <button
-          type="button"
-          className="entry-box__view-notes-btn"
-          onClick={() => openNotes(entry)}
-        >
-          <FiEdit className="entry-box__view-notes-icon" />
-          View Notes
-        </button>
-
         {/* Collapse toggle — sits at the bottom of the card and hides or
-            reveals the field table, timer controls and notes button. */}
+            reveals the field table and timer controls. */}
         {!archived && (
           <div className="entry-box__collapse-row">
             {isCollapsed && dueLabel && (

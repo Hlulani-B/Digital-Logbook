@@ -1,6 +1,12 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useNotes } from '@/context/NotesContext';
-import { FiEdit } from 'react-icons/fi';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  type CSSProperties,
+} from 'react';
+import { EntryQuickActions, loadProjectFields } from '@/components/EntryQuickActions';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -120,24 +126,32 @@ function entryFieldColumns(rows: any[]): EntryFieldColumn[] {
 }
 
 function fieldColumnLabel(column: EntryFieldColumn) {
-  return column.kind === 'legacy' ? 'Legacy content' : column.name;
+  if (column.kind === 'legacy') return 'Legacy content';
+  // Real field names are shown exactly as stored; only reserved keys
+  // (leading underscore, e.g. "_project_ref") get a tidy human label.
+  if (!column.name.startsWith('_')) return column.name;
+  return column.name
+    .replace(/^_+/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Grid: checkbox | content columns | Priority | Due | Status (far right)
+// Grid for the scrollable part of a row: content columns | Priority | Due | Status.
+// The checkbox plus the pin/archive controls sit in a fixed left column that
+// never scrolls, so they stay put instead of running under the due-soon rail.
 const TRAILING_COLS = '180px 120px 140px'; // Priority | Due | Status
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
-  let template = '32px '; // checkbox column
   if (viewMode === 'summary') {
-    template += 'minmax(150px, 2fr)';
-  } else {
-    const parts = [];
-    for (let i = 0; i < customFieldCount; i++) {
-      parts.push('minmax(80px, 1fr)');
-    }
-    template += parts.join(' ');
+    return 'minmax(150px, 2fr) ' + TRAILING_COLS;
   }
-  return template + ' ' + TRAILING_COLS;
+  const parts: string[] = [];
+  for (let i = 0; i < customFieldCount; i++) {
+    parts.push('minmax(140px, 1fr)');
+  }
+  // A row with no fields still needs one content column to scroll.
+  if (parts.length === 0) parts.push('minmax(140px, 1fr)');
+  return parts.join(' ') + ' ' + TRAILING_COLS;
 }
 
 // ── Inline editable text cell ──────────────────────────────
@@ -202,6 +216,31 @@ function EditableText({
   );
 }
 
+/**
+ * Table cells show the value itself, never a "key: value" dump: a project
+ * reference reads as just the project name and a single-value wrapper (how
+ * number fields are sometimes stored) reads as just the number.
+ */
+function formatCellText(value: unknown): string {
+  if (value == null) return 'Not recorded';
+  if (isBase64Image(value)) return '[Image]';
+
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (typeof record.project_name === 'string' && record.project_name) {
+      return record.project_name;
+    }
+    const scalars = Object.values(record).filter(
+      (item) => typeof item === 'string' || typeof item === 'number'
+    );
+    if (Object.keys(record).length === 1 && scalars.length === 1) {
+      return String(scalars[0]);
+    }
+  }
+
+  return formatEntryValue(value);
+}
+
 function EntryFieldValue({
   column,
   payload,
@@ -219,13 +258,13 @@ function EntryFieldValue({
         {payload.kind === 'object' ? (
           <span className="ptt-placeholder">Not recorded</span>
         ) : (
-          formatEntryValue(payload.value)
+          formatCellText(payload.value)
         )}
       </span>
     );
   }
 
-  if (payload.kind !== 'object') {
+  if (payload.kind === 'opaque') {
     return (
       <span className="ptt-readonly-value">
         <span className="ptt-placeholder">Not recorded</span>
@@ -233,7 +272,7 @@ function EntryFieldValue({
     );
   }
 
-  const value = payload.value[column.name];
+  const value = payload.kind === 'object' ? payload.value[column.name] : undefined;
   if (value == null) {
     return (
       <EditableText
@@ -288,7 +327,7 @@ function EntryFieldValue({
     );
   }
 
-  return <span className="ptt-readonly-value">{formatEntryValue(value)}</span>;
+  return <span className="ptt-readonly-value">{formatCellText(value)}</span>;
 }
 
 // ── Inline editable date cell ──────────────────────────────
@@ -362,8 +401,9 @@ function MobileCard({
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
-      if (payload.kind !== 'object') return;
-      onUpdate(entry.id, { entries: { ...payload.value, [fieldName]: newVal } });
+      if (payload.kind === 'opaque') return;
+      const base = payload.kind === 'object' ? payload.value : {};
+      onUpdate(entry.id, { entries: { ...base, [fieldName]: newVal } });
     },
     [entry.id, onUpdate, payload]
   );
@@ -447,6 +487,10 @@ function MobileCard({
             ))}
           </select>
         </div>
+        <div className="ptt-mobile-card__row ptt-mobile-card__row--actions">
+          <span className="ptt-mobile-card__label">Actions</span>
+          <EntryQuickActions entry={entry} />
+        </div>
       </div>
     </div>
   );
@@ -461,6 +505,8 @@ function TaskRow({
   onUpdate,
   selected,
   onToggle,
+  projectColor,
+  onRowScroll,
 }: {
   entry: any;
   fieldColumns: EntryFieldColumn[];
@@ -469,95 +515,120 @@ function TaskRow({
   onUpdate: (id: string, patch: Record<string, any>) => void;
   selected: boolean;
   onToggle: (id: string) => void;
+  projectColor?: string;
+  /** Reports this row's horizontal offset so the column labels can follow it. */
+  onRowScroll?: (scrollLeft: number) => void;
 }) {
   const payload = classifyEntryPayload(entry.entries);
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
-      if (payload.kind !== 'object') return;
-      onUpdate(entry.id, { entries: { ...payload.value, [fieldName]: newVal } });
+      if (payload.kind === 'opaque') return;
+      const base = payload.kind === 'object' ? payload.value : {};
+      onUpdate(entry.id, { entries: { ...base, [fieldName]: newVal } });
     },
     [entry.id, onUpdate, payload]
   );
+
+  // Project colour, exactly like the Cards / Checklist / Board views.
+  const rowStyle: CSSProperties | undefined = projectColor
+    ? ({
+        '--tint': `${projectColor}18`,
+        boxShadow: `inset 3px 0 0 0 ${projectColor}`,
+      } as CSSProperties)
+    : undefined;
 
   return (
     <div
       className={`ptt-row${selected ? ' ptt-row--selected' : ''}`}
       data-status={friendlyStatus(entry.status)}
       data-priority={friendlyPriority(entry.priority)}
-      style={{ gridTemplateColumns: gridTemplate }}
+      style={rowStyle}
     >
-      {/* Checkbox column */}
-      <div className="ptt-cell ptt-cell-checkbox">
-        <input
-          type="checkbox"
-          className="ptt-checkbox"
-          checked={selected}
-          onChange={() => onToggle(entry.id)}
-        />
-      </div>
-
-      {/* Content columns — left side */}
-      {viewMode === 'summary' ? (
-        <div className="ptt-cell ptt-cell-summary">
-          <EditableText
-            value={cleanSummaryText(entry.summary) ?? ''}
-            onSave={(val) => onUpdate(entry.id, { summary: val })}
-            className="ptt-summary-text"
+      {/* Fixed left column — selection + pin/archive never scroll away */}
+      <div className="ptt-row__fixed">
+        <div className="ptt-cell ptt-cell-checkbox">
+          <input
+            type="checkbox"
+            className="ptt-checkbox"
+            checked={selected}
+            onChange={() => onToggle(entry.id)}
           />
         </div>
-      ) : (
-        fieldColumns.map((column) => (
-          <div
-            className="ptt-cell ptt-cell-custom"
-            key={column.kind === 'legacy' ? 'legacy-content' : column.name}
-          >
-            <EntryFieldValue column={column} payload={payload} onSave={handleFieldEdit} />
+        <div className="ptt-cell ptt-cell-actions">
+          <EntryQuickActions entry={entry} compact />
+        </div>
+      </div>
+
+      {/* One horizontal scrollbar per entry for the remaining fields; the
+          column labels ride along with whichever row is being scrolled. */}
+      <div
+        className="ptt-row__scroll"
+        onScroll={(e) => onRowScroll?.(e.currentTarget.scrollLeft)}
+      >
+        <div className="ptt-row__inner" style={{ gridTemplateColumns: gridTemplate }}>
+          {viewMode === 'summary' ? (
+            <div className="ptt-cell ptt-cell-summary">
+              <EditableText
+                value={cleanSummaryText(entry.summary) ?? ''}
+                onSave={(val) => onUpdate(entry.id, { summary: val })}
+                className="ptt-summary-text"
+              />
+            </div>
+          ) : (
+            fieldColumns.map((column) => (
+              <div
+                className="ptt-cell ptt-cell-custom"
+                key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+              >
+                <EntryFieldValue column={column} payload={payload} onSave={handleFieldEdit} />
+              </div>
+            ))
+          )}
+
+          {/* Priority — dropdown */}
+          <div className="ptt-cell ptt-cell-priority">
+            <select
+              className="ptt-select ptt-select-priority"
+              value={toRawPriority(entry.priority)}
+              onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {friendlyPriority(p)}
+                </option>
+              ))}
+            </select>
           </div>
-        ))
-      )}
 
-      {/* Priority — dropdown */}
-      <div className="ptt-cell ptt-cell-priority">
-        <select
-          className="ptt-select ptt-select-priority"
-          value={toRawPriority(entry.priority)}
-          onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
-        >
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {friendlyPriority(p)}
-            </option>
-          ))}
-        </select>
-      </div>
+          {/* Due date — editable date */}
+          <div className="ptt-cell ptt-cell-due">
+            <EditableDate
+              value={entry.due_date}
+              onSave={(val) => onUpdate(entry.id, { due_date: val })}
+            />
+            {isOverdue(entry.due_date ?? null, entry.status, entry.archived) && (
+              <span className="ptt-overdue-badge">
+                {getOverdueText(entry.due_date ?? null, entry.status, entry.archived)}
+              </span>
+            )}
+          </div>
 
-      {/* Due date — editable date */}
-      <div className="ptt-cell ptt-cell-due">
-        <EditableDate
-          value={entry.due_date}
-          onSave={(val) => onUpdate(entry.id, { due_date: val })}
-        />
-        {isOverdue(entry.due_date ?? null, entry.status, entry.archived) && (
-          <span className="ptt-overdue-badge">
-            {getOverdueText(entry.due_date ?? null, entry.status, entry.archived)}
-          </span>
-        )}
-      </div>
-
-      {/* Status — dropdown (far right) */}
-      <div className="ptt-cell ptt-cell-status">
-        <select
-          className="ptt-select ptt-select-status"
-          value={entry.status || STATUSES[0]}
-          onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {friendlyStatus(s)}
-            </option>
-          ))}
-        </select>
+          {/* Status — dropdown */}
+          <div className="ptt-cell ptt-cell-status">
+            <select
+              className="ptt-select ptt-select-status"
+              value={entry.status || STATUSES[0]}
+              onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {friendlyStatus(s)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -586,7 +657,38 @@ function ProjectGroup({
   projectColor?: string;
 }) {
   const [open, setOpen] = useState(true);
-  const fieldColumns = entryFieldColumns(project.entries);
+  // Horizontal offset of the last row the reader scrolled, so the column
+  // labels scroll together with the values underneath them.
+  const [headerScroll, setHeaderScroll] = useState(0);
+  // Schema columns — project fields no row has filled in yet still get a
+  // column so unfilled non-required fields stay visible and editable.
+  const [schemaFields, setSchemaFields] = useState<string[]>([]);
+  const schemaUserEmail = project.entries.find((e: any) => e.user_email)?.user_email;
+  useEffect(() => {
+    if (!schemaUserEmail) return;
+    let cancelled = false;
+    loadProjectFields(schemaUserEmail, project.name).then((defs) => {
+      if (!cancelled) setSchemaFields(Object.keys(defs));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [schemaUserEmail, project.name]);
+
+  const fieldColumns = useMemo(() => {
+    const base = entryFieldColumns(project.entries);
+    const existing = new Set(
+      base
+        .filter(
+          (column): column is { kind: 'field'; name: string } => column.kind === 'field'
+        )
+        .map((column) => column.name)
+    );
+    const extras = schemaFields
+      .filter((name) => !existing.has(name) && name !== 'started_at' && name !== 'description')
+      .map((name) => ({ kind: 'field' as const, name }));
+    return [...base, ...extras];
+  }, [project.entries, schemaFields]);
   const colCount = viewMode === 'summary' ? 1 : fieldColumns.length;
   const gridTemplate = buildGridTemplate(viewMode, colCount);
 
@@ -666,23 +768,36 @@ function ProjectGroup({
         ) : (
           /* ── Desktop: table ── */
           <div className="ptt-table">
-            <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
-              <div className="ptt-col ptt-col-checkbox"></div>
-              {viewMode === 'summary' ? (
-                <div className="ptt-col ptt-col-summary">Summary</div>
-              ) : (
-                fieldColumns.map((column) => (
-                  <div
-                    className="ptt-col ptt-col-custom"
-                    key={column.kind === 'legacy' ? 'legacy-content' : column.name}
-                  >
-                    {fieldColumnLabel(column)}
-                  </div>
-                ))
-              )}
-              <div className="ptt-col">Priority</div>
-              <div className="ptt-col">Due</div>
-              <div className="ptt-col">Status</div>
+            <div className="ptt-columns">
+              <div className="ptt-columns__fixed">
+                <div className="ptt-col ptt-col-checkbox"></div>
+                <div className="ptt-col ptt-col-actions">Actions</div>
+              </div>
+              <div className="ptt-columns__scroll">
+                <div
+                  className="ptt-columns__inner"
+                  style={{
+                    gridTemplateColumns: gridTemplate,
+                    transform: `translateX(-${headerScroll}px)`,
+                  }}
+                >
+                  {viewMode === 'summary' ? (
+                    <div className="ptt-col ptt-col-summary">Summary</div>
+                  ) : (
+                    fieldColumns.map((column) => (
+                      <div
+                        className="ptt-col ptt-col-custom"
+                        key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+                      >
+                        {fieldColumnLabel(column)}
+                      </div>
+                    ))
+                  )}
+                  <div className="ptt-col">Priority</div>
+                  <div className="ptt-col">Due</div>
+                  <div className="ptt-col">Status</div>
+                </div>
+              </div>
             </div>
 
             <div className="ptt-rows">
@@ -696,6 +811,8 @@ function ProjectGroup({
                   onUpdate={onUpdate}
                   selected={selectedIds.has(entry.id)}
                   onToggle={onToggleSelect}
+                  projectColor={projectColor}
+                  onRowScroll={setHeaderScroll}
                 />
               ))}
             </div>
@@ -731,14 +848,6 @@ export default function ProjectTaskTable({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { openNotes } = useNotes();
-
-  // Find the single selected entry for notes actions
-  const singleSelectedEntry = useMemo(() => {
-    if (selectedIds.size !== 1) return null;
-    const id = Array.from(selectedIds)[0];
-    return rows.find((r) => r.id === id) || null;
-  }, [selectedIds, rows]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -797,26 +906,6 @@ export default function ProjectTaskTable({
       {selectedIds.size > 0 && (
         <div className="ptt-bulk-bar">
           <span className="ptt-bulk-bar__count">{selectedIds.size} selected</span>
-          {singleSelectedEntry && (
-            <>
-              <button
-                type="button"
-                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
-                onClick={() => openNotes(singleSelectedEntry)}
-              >
-                <FiEdit />
-                View Notes
-              </button>
-              <button
-                type="button"
-                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
-                onClick={() => openNotes(singleSelectedEntry)}
-              >
-                <FiEdit />
-                Add Note
-              </button>
-            </>
-          )}
           <button
             type="button"
             className="ptt-bulk-bar__btn ptt-bulk-bar__btn--delete"

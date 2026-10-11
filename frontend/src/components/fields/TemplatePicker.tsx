@@ -1,7 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listTemplates, type Template } from '@/lib/templateApi';
+import { SELECTABLE_FIELD_TYPES } from '@/lib/fieldSchema';
+import { localBuiltInTemplates } from '@/lib/builtInTemplates';
 import './TemplatePicker.css';
+
+/**
+ * The template service is the source of truth for the built-in scope; the app's
+ * own ready-made templates are appended after it (de-duplicated by id) so they
+ * ship with the frontend instead of waiting on a service deploy. An empty or
+ * failed response keeps its genuine empty / error state.
+ */
+function withLocalBuiltIns(scope: Template['scope'], results: Template[]): Template[] {
+  if (scope !== 'built_in' || results.length === 0) return results;
+  const seen = new Set(results.map((template) => template.id));
+  return [...results, ...localBuiltInTemplates.filter((template) => !seen.has(template.id))];
+}
 
 interface TemplatePickerProps {
   onSelect: (template: Template) => void;
@@ -25,7 +39,7 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
     async function loadTemplates() {
       try {
         const results = await listTemplates(activeTab);
-        if (!cancelled) setTemplates(results);
+        if (!cancelled) setTemplates(withLocalBuiltIns(activeTab, results));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load templates');
@@ -41,7 +55,16 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
     };
   }, [activeTab, retryCount]);
 
-  const filteredTemplates = templates.filter((tpl) => tpl.scope === activeTab);
+  // Templates must only offer field types the app still supports — a template
+  // that includes a retired type (timestamp, geolocation, file, entity_link,
+  // tags, checklist) is hidden entirely, including ones still served by an
+  // older deployed service.
+  const supportedTypes = SELECTABLE_FIELD_TYPES as readonly string[];
+  const filteredTemplates = templates.filter(
+    (tpl) =>
+      tpl.scope === activeTab &&
+      tpl.fields.every((field) => supportedTypes.includes(field.data_type))
+  );
 
   return (
     <div className="template-picker">

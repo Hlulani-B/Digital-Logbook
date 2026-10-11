@@ -2,6 +2,19 @@ import { request, PROJECT_URL } from '@/lib/api';
 import { cacheGet, cacheSet, CACHE_STORES } from '@/lib/cache';
 import { addToQueue } from '@/CacheFunctions/offlineQueue';
 
+// Raw codes the dropdowns emit — the DB stores the friendly labels, so
+// optimistic cache writes translate raw → label to match every view.
+const PRIORITY_LABELS = {
+  '0': 'Urgent and important',
+  '1': 'Urgent but not important',
+  '2': 'Not urgent, not important',
+};
+
+function toFriendlyPriority(value) {
+  if (value === '3' || value == null) return null;
+  return PRIORITY_LABELS[value] ?? value;
+}
+
 /**
  * Set priority on an entry.
  * Writes to IndexedDB first (instant UI), then syncs to server.
@@ -9,6 +22,10 @@ import { addToQueue } from '@/CacheFunctions/offlineQueue';
  */
 export async function setPriority(user_email, priorityValue, project_name, entry_id) {
   const cacheKey = `${user_email}:${project_name}`;
+
+  // Views render the friendly label; the server switch still needs the raw
+  // code, so only the optimistic cache patch goes through this mapping.
+  const cachePriorityValue = toFriendlyPriority(priorityValue);
 
   // 1. Save pre-update cache for rollback
   const cachedBefore = await cacheGet(CACHE_STORES.ENTRIES, cacheKey);
@@ -19,7 +36,7 @@ export async function setPriority(user_email, priorityValue, project_name, entry
     if (!Array.isArray(arr)) return arr;
     return arr.map((e) => {
       if (e.id === entry_id || e.id?.toString() === entry_id?.toString()) {
-        return { ...e, priority: priorityValue };
+        return { ...e, priority: cachePriorityValue };
       }
       return e;
     });

@@ -13,6 +13,12 @@ vi.mock('@/functions/project/entries.js', () => ({
   deleteEntryById: mocks.deleteEntryById,
 }));
 vi.mock('@/context/NotesContext', () => ({ useNotes: () => ({ openNotes: mocks.openNotes }) }));
+vi.mock('@/functions/project/fields.js', () => ({
+  getFields: vi.fn().mockResolvedValue({ success: true, data: [] }),
+}));
+vi.mock('@/functions/project/priority.js', () => ({
+  setPriority: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 const sampleEntry = {
   id: 'checklist-layout-1',
@@ -75,6 +81,8 @@ describe('Checklist edit dialog layout', () => {
     expect(body.firstElementChild).toBe(screen.getByRole('heading', { name: 'Edit Entry' }));
     expect(Array.from(body.querySelectorAll('textarea, input'))).toEqual([summary, due]);
     expect(Array.from(body.querySelectorAll('label')).map((label) => label.textContent)).toEqual([
+      'Status',
+      'Priority',
       'Summary',
       'Due Date',
     ]);
@@ -117,8 +125,8 @@ describe('Checklist edit dialog layout', () => {
       sampleEntry.id,
       undefined,
       '2026-09-27T21:59:59.999Z',
-      undefined,
-      undefined,
+      null,
+      'up_next',
       undefined,
       undefined,
       undefined,
@@ -159,7 +167,7 @@ describe('Checklist edit dialog layout', () => {
     const footer = element(container, '.entry-form__footer');
     expect(error.parentElement).toBe(body);
     expect(error.previousElementSibling).toHaveTextContent('Edit Entry');
-    expect(error.nextElementSibling).toHaveClass('checklist-dialog-field');
+    expect(error.nextElementSibling).toHaveClass('checklist-dialog-field-row');
     expect(body.nextElementSibling).toBe(footer);
     expect(onUpdated).not.toHaveBeenCalled();
     expect(within(footer).getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
@@ -171,8 +179,8 @@ describe('Checklist edit dialog layout', () => {
       sampleEntry.id,
       undefined,
       null,
-      undefined,
-      undefined,
+      null,
+      'up_next',
       undefined,
       undefined,
       undefined,
@@ -192,7 +200,7 @@ describe('Checklist edit dialog layout', () => {
   });
 
   it.each(['up_next', 'done_and_dusted'] as const)(
-    'keeps ordinary %s card styling, notes, and checkbox behavior',
+    'keeps ordinary %s card styling, no notes buttons, and checkbox behavior',
     async (status) => {
       const { container, entry, onUpdated } = renderCard(status);
       const card = element(container, '.checklist-card');
@@ -202,8 +210,10 @@ describe('Checklist edit dialog layout', () => {
       expect(card).toHaveAttribute('data-status', status);
       expect(card.classList.contains('checklist-card--done')).toBe(status === 'done_and_dusted');
       expect(card.style.getPropertyValue('--tint')).toBe('#12345618');
-      fireEvent.click(screen.getAllByRole('button', { name: 'View Notes' })[0]);
-      expect(mocks.openNotes).toHaveBeenCalledExactlyOnceWith(entry);
+      // The checklist view no longer shows View Notes / Add Note buttons.
+      expect(screen.queryByRole('button', { name: 'View Notes' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Add Note' })).toBeNull();
+      expect(mocks.openNotes).not.toHaveBeenCalled();
       const checkbox = screen.getByRole('checkbox');
       expect(checkbox).toHaveAttribute('aria-checked', String(status === 'done_and_dusted'));
       fireEvent.click(checkbox);
@@ -258,5 +268,32 @@ describe('Checklist edit dialog layout', () => {
     expect(container.querySelector('.checklist-dialog-overlay')).toBeNull();
     expect(mocks.updateEntry).not.toHaveBeenCalled();
     expect(onUpdated).not.toHaveBeenCalled();
+  });
+
+  it('ships collapsed and reveals the outlined details panel from the Show details toggle', () => {
+    const { container } = renderCard();
+    const card = element(container, '.checklist-card');
+    const details = element(container, '.checklist-card-details');
+    const toggle = within(card).getByRole('button', { name: 'Show details' });
+
+    expect(details.classList.contains('is-open')).toBe(false);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Status/priority toggles and the action row live inside the panel, so
+    // they can never spill past the card border.
+    expect(
+      card.querySelector(':scope > .checklist-card-controls, :scope > .checklist-card-menu')
+    ).toBeNull();
+    expect(within(details).getByLabelText('Status')).toBeInTheDocument();
+    expect(within(details).getByLabelText('Priority')).toBeInTheDocument();
+    expect(
+      within(details).getByRole('button', { name: 'Edit', exact: true })
+    ).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(element(container, '.checklist-card-details').classList.contains('is-open')).toBe(true);
+    expect(within(card).getByRole('button', { name: 'Hide details' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 });

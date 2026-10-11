@@ -1,6 +1,8 @@
 import ChecklistEntryCard from '../EntryTemplates/EntryChecklist';
 import { type EntryPayload } from '@/lib/entryPayload';
 import { resolveProjectColor } from '@/lib/projectColorMap';
+import { pinFirst } from '@/lib/entryFilters';
+import { useEntryPinScope } from '@/lib/entryPins';
 
 type EntryStatus = 'up_next' | 'in_motion' | 'done_and_dusted';
 
@@ -86,7 +88,13 @@ export default function EntriesByDueDateBoard({
   onDelete,
   colorMap,
 }: EntriesByDueDateBoardProps) {
-  const columns = groupByWeekday(entries);
+  const pinApi = useEntryPinScope();
+  // Pinned entries rise to the top of the column they are in; the weekday
+  // order of the columns themselves is untouched.
+  const columns = groupByWeekday(entries).map((column) => ({
+    ...column,
+    entries: pinFirst(column.entries, pinApi?.pinned),
+  }));
 
   if (!entries.length) {
     return (

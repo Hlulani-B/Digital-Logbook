@@ -7172,6 +7172,9 @@ img {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .checklist-card:hover {
   border-color: var(--accent, #111111);
@@ -7216,6 +7219,148 @@ img {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
+}
+
+/* Collapse toggle + outlined details panel. Cards ship collapsed so the pin /
+   archive buttons and priority toggles can never spill past the card border;
+   the panel is in normal flow and grows downward only (never sideways into
+   the Due Soon rail's column). */
+.checklist-card-collapse-row {
+  display: flex;
+  align-items: center;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border, #d4d4d4);
+}
+.checklist-card-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0.25rem 0.6rem;
+  background: var(--surface, #ffffff);
+  color: var(--text-dim, #666666);
+  border: 1px solid var(--border, #111111);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.checklist-card-collapse-btn:hover {
+  border-color: var(--accent, #111111);
+  color: var(--accent, #111111);
+}
+.checklist-card-collapse-btn svg {
+  transition: transform 0.2s ease;
+  transform: rotate(180deg);
+}
+.checklist-card-collapse-btn.is-collapsed svg {
+  transform: rotate(0deg);
+}
+
+.checklist-card-details {
+  display: none;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+  padding: 0.6rem 0.65rem;
+  border: 1px solid var(--border, #111111);
+  border-radius: 6px;
+  background: var(--bg, #ffffff);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.checklist-card-details.is-open {
+  display: flex;
+}
+
+.checklist-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.checklist-card-field {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+.checklist-card-field-key {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--text-muted, #737373);
+}
+.checklist-card-field-value {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text, #111111);
+}
+.checklist-card-field-value .field-display {
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+/* Status / Priority dropdowns under the row — mirrors the Cards view tags */
+.checklist-card-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.checklist-control-select {
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  border-radius: 5px;
+  background: var(--bg, #ffffff);
+  color: var(--text, #111111);
+  border: 1px solid var(--border, #111111);
+  cursor: pointer;
+  max-width: 100%;
+}
+.checklist-control-select:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+/* Status colour coding — same palette as the Cards view badges */
+.checklist-status-select.checklist-status-up_next {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+.checklist-status-select.checklist-status-in_motion {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+.checklist-status-select.checklist-status-done_and_dusted {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #22c55e;
+}
+[data-theme='dark'] .checklist-status-select.checklist-status-up_next {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  border-color: rgba(59, 130, 246, 0.55);
+}
+[data-theme='dark'] .checklist-status-select.checklist-status-in_motion {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.55);
+}
+[data-theme='dark'] .checklist-status-select.checklist-status-done_and_dusted {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.55);
 }
 
 .checklist-checkbox {
@@ -7381,7 +7526,8 @@ img {
   margin-bottom: 0.35rem;
 }
 .checklist-dialog-field textarea,
-.checklist-dialog-field input {
+.checklist-dialog-field input,
+.checklist-dialog-field select {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1.5px solid var(--border, #111111);
@@ -7393,9 +7539,20 @@ img {
   resize: vertical;
 }
 .checklist-dialog-field textarea:focus,
-.checklist-dialog-field input:focus {
+.checklist-dialog-field input:focus,
+.checklist-dialog-field select:focus {
   outline: none;
   border-color: var(--accent, #111111);
+}
+
+/* Status + Priority side by side at the top of the edit dialog */
+.checklist-dialog-field-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.checklist-dialog-field-row .checklist-dialog-field {
+  flex: 1;
+  min-width: 0;
 }
 
 .checklist-dialog-actions {
@@ -7443,16 +7600,15 @@ img {
   opacity: 0.9;
 }
 
-/* Checklist card menu (hidden by default, shown on card hover) */
+/* Checklist card action row (lives inside the collapsed details panel) */
 .checklist-card-menu {
-  display: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
-  margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border, #e5e5e5);
-}
-.checklist-card:hover .checklist-card-menu {
-  display: flex;
+  min-width: 0;
 }
 .checklist-card-menu-btn {
   background: transparent;
@@ -7479,6 +7635,82 @@ img {
   color: #fff;
 }
 
+/* Quick actions (pin / calculate / archive) on Checklist, Board and Table views */
+.entry-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.entry-quick-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: transparent;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted, #737373);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.entry-quick-actions__btn:hover {
+  color: var(--text, #111111);
+  border-color: var(--text, #111111);
+  background: var(--surface-hover, #f5f5f5);
+}
+.entry-quick-actions__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.entry-quick-actions__btn.is-pinned {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.entry-quick-actions--compact .entry-quick-actions__btn {
+  padding: 0.2rem;
+  width: 24px;
+  height: 24px;
+}
+.entry-quick-actions__calc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px dashed var(--border, #e5e5e5);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-muted, #737373);
+  white-space: nowrap;
+}
+.entry-quick-actions__error {
+  font-size: 0.7rem;
+  color: var(--danger, #dc2626);
+}
+.entry-quick-actions__calc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem 1rem;
+}
+.entry-quick-actions__calc-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted, #737373);
+}
+.entry-quick-actions__calc-select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--text, #111111);
+  font-size: 0.85rem;
+}
+
 /* ── Entries-by-due-date board ── */
 .edb-board {
   display: grid;
@@ -7503,6 +7735,7 @@ img {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 .edb-column-header {
   display: flex;
@@ -7535,6 +7768,8 @@ img {
   gap: 0.4rem;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
   max-height: 70vh;
 }
 
@@ -8412,11 +8647,14 @@ img {
    pointer affordance and no hover lift — only the Unarchive action. */
 .project-card--archived {
   cursor: default;
+  /* Faded, like archived entries, so it reads as archived at a glance. */
+  opacity: 0.72;
 }
 .project-card--archived:hover {
   border-color: var(--border);
   box-shadow: none;
   transform: none;
+  opacity: 1;
 }
 .project-card--actionable.is-pinned {
   border-color: var(--accent);

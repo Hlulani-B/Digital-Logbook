@@ -6,7 +6,7 @@ describe('entry payload presentation', () => {
     expect(formatEntryValue('Legacy note')).toBe('Legacy note');
     expect(formatEntryValue(0)).toBe('0');
     expect(formatEntryValue(false)).toBe('false');
-    expect(formatEntryValue(['one', { two: 2 }])).toBe('["one",{"two":2}]');
+    expect(formatEntryValue(['one', { two: 2 }])).toBe('[one, two: 2]');
     expect(formatEntryValue(null)).toBe('Not recorded');
   });
 
@@ -23,7 +23,7 @@ describe('entry payload presentation', () => {
       { name: 'removed_field', value: 'Still readable' },
     ]);
     expect(getEntryPayloadFields(['old', 'payload'])).toEqual([
-      { name: 'Legacy content', value: '["old","payload"]' },
+      { name: 'Legacy content', value: 'old, payload' },
     ]);
   });
 });

@@ -12,19 +12,11 @@ interface TemplateFieldDraft {
 const FIELD_TYPES = [
   { value: 'text', label: 'Text', icon: '📝' },
   { value: 'markdown', label: 'Markdown', icon: '📄' },
-  { value: 'integer', label: 'Integer', icon: '🔢' },
-  { value: 'float', label: 'Float', icon: '' },
   { value: 'number', label: 'Number', icon: '🔢' },
   { value: 'date', label: 'Date', icon: '📅' },
-  { value: 'timestamp', label: 'Timestamp', icon: '⏰' },
   { value: 'boolean', label: 'Boolean', icon: '✓' },
-  { value: 'tags', label: 'Tags', icon: '🏷️' },
-  { value: 'checklist', label: 'Checklist', icon: '☑️' },
-  { value: 'geolocation', label: 'Geolocation', icon: '📍' },
   { value: 'currency', label: 'Currency', icon: '💰' },
-  { value: 'file', label: 'File', icon: '📎' },
   { value: 'image', label: 'Image', icon: '🖼️' },
-  { value: 'entity_link', label: 'Entity Link', icon: '🔗' },
 ];
 
 export function CreateTemplate() {

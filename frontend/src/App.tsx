@@ -24,10 +24,7 @@ import { FrequencySetup } from '@/pages/FrequencySetup';
 import { ProjectsPage } from '@/pages/Project';
 import { ProjectDetailPage } from '@/pages/ProjectDetailPage';
 import { StatsView } from '@/pages/StatsView';
-import { StreakView } from '@/pages/StreakView';
 import { CalendarPage } from '@/pages/Calendar';
-import { KanbanPage } from '@/pages/Kanban';
-import { TimelinePage } from '@/pages/Timeline';
 import DataPortability from '@/pages/DataPortability';
 import { DataDisclaimer } from '@/pages/DataDisclaimer';
 import { DataDisclaimer2 } from '@/pages/DataDisclaimer2';
@@ -170,14 +167,6 @@ export function App() {
                   }
                 />
                 <Route
-                  path="/dashboard/all"
-                  element={
-                    <ProtectedRoute>
-                      <AllEntriesPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
                   path="/entries"
                   element={
                     <ProtectedRoute>
@@ -265,14 +254,6 @@ export function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/streaks"
-                  element={
-                    <ProtectedRoute>
-                      <StreakView />
-                    </ProtectedRoute>
-                  }
-                />
                 <Route path="/template" element={<Navigate to="/dashboard" replace />} />
                 <Route
                   path="/create-template"
@@ -290,24 +271,8 @@ export function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/kanban"
-                  element={
-                    <ProtectedRoute>
-                      <KanbanPage />
-                    </ProtectedRoute>
-                  }
-                />
                 <Route path="/today" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/focus" element={<FocusMode />} />
-                <Route
-                  path="/timeline"
-                  element={
-                    <ProtectedRoute>
-                      <TimelinePage />
-                    </ProtectedRoute>
-                  }
-                />
                 <Route
                   path="/notifications"
                   element={

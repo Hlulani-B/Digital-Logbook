@@ -21,6 +21,27 @@ export const FIELD_TYPES = [
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
+
+/**
+ * Field types offered when creating columns or templates. Older rows may still
+ * carry the other FIELD_TYPES values (timestamp, geolocation, file,
+ * entity_link, tags, checklist, integer, float) — those stay valid in
+ * FIELD_TYPES for stored data and validation, they are simply no longer
+ * offered as choices. Numeric data uses the single 'number' type, which also
+ * unlocks the Sum/Average calculator on entry cards.
+ */
+export const SELECTABLE_FIELD_TYPES: readonly FieldType[] = FIELD_TYPES.filter(
+  (type) =>
+    type !== 'timestamp' &&
+    type !== 'geolocation' &&
+    type !== 'file' &&
+    type !== 'entity_link' &&
+    type !== 'tags' &&
+    type !== 'checklist' &&
+    type !== 'integer' &&
+    type !== 'float'
+);
+
 export interface FieldError {
   field: string;
   code: string;
