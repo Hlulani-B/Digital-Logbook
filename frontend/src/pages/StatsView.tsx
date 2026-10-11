@@ -7,15 +7,14 @@ import {
   analysisFieldDefs,
   computeFieldAnalysis,
   fieldAnalysisPolicy,
-  dailyWindow,
   entryDurationMs,
-  dayBucket,
   formatDuration,
   formatStatValue,
 } from '@/functions/dashboard/stats.js';
 import { getFields } from '@/functions/project/fields.js';
 import { getEffectiveArchivedProjectNames } from '@/functions/project/archiveState.js';
 import { useNow } from '@/hooks/useNow';
+import { useTheme } from '@/hooks/useTheme';
 import { NavBar } from '@/components/NavBar';
 import { Header } from '@/components/Header';
 import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
@@ -32,12 +31,15 @@ type Matrix = {
   values: (number | null)[][];
 };
 
-/* Opacity levels for monochrome chart segments — uses var(--text) so it adapts to theme */
-const CHART_OPACITIES = [1, 0.7, 0.5, 0.35, 0.85, 0.6, 0.4, 0.25, 0.75, 0.55, 0.45, 0.3];
+/* Distinct hues per segment, golden-angle spread so neighbouring categories always differ */
+function chartColorForIndex(i: number, isDark: boolean) {
+  const hue = Math.round((i * 137.508) % 360);
+  return `hsl(${hue} 70% ${isDark ? 62 : 45}%)`;
+}
 
-function colorForIndex(i: number) {
-  const opacity = CHART_OPACITIES[i % CHART_OPACITIES.length];
-  return `color-mix(in srgb, var(--text) ${Math.round(opacity * 100)}%, transparent)`;
+function useChartColor() {
+  const { isDark } = useTheme();
+  return useCallback((i: number) => chartColorForIndex(i, isDark), [isDark]);
 }
 
 /* ---------- Donut Chart ---------- */
@@ -137,6 +139,25 @@ function BarChart({ data }: { data: BarDatum[] }) {
       ))}
     </div>
   );
+}
+
+/* ---------- Time per Entry helpers ----------
+ * Entries carry no title, so each row is identified by its occurrence time
+ * (start, falling back to when it was logged). The label is formatted from
+ * the UTC parts straight off the ISO stamp, matching the UTC day labels used
+ * across this page and staying identical in every viewer timezone. */
+const TIME_PER_ENTRY_CAP = 10;
+
+function timePerEntryLabel(entry: Entry, scoped: boolean) {
+  const stamp = String(entry.started_at || entry.created_at || '');
+  const parts = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(stamp);
+  const month = parts ? Number(parts[2]) : 0;
+  const when =
+    parts && month >= 1 && month <= 12
+      ? `${TREND_MONTHS[month - 1]} ${Number(parts[3])}, ${parts[4]}:${parts[5]}`
+      : 'Unknown date';
+  const project = String(entry.project_name || '');
+  return scoped || !project ? when : `${project} · ${when}`;
 }
 
 /* ---------- Stat Card ---------- */
@@ -282,14 +303,6 @@ function TrendChart({
   );
 }
 
-/* One selectable series in the "Plot over time" panel. */
-interface PlotOption {
-  key: string;
-  label: string;
-  series: DailyPoint[];
-  formatValue: (v: number) => string;
-}
-
 /* ---------- Type-aware field analysis ---------- */
 function Coverage({ stat }: { stat: FieldAnalysis }) {
   return (
@@ -389,6 +402,7 @@ function MatrixChart({
   label: string;
   daily?: boolean;
 }) {
+  const colorForIndex = useChartColor();
   if (!matrix.rows.length || !matrix.columns.length) return <p>No comparable values to plot.</p>;
   const values = matrix.values.flat().filter((v): v is number => v !== null);
   const min = Math.min(0, ...values);
@@ -499,6 +513,7 @@ function FieldAnalysisDetail({
   now: number;
 }) {
   const policy = fieldAnalysisPolicy(def.data_type);
+  const colorForIndex = useChartColor();
   const [chosenView, setView] = useState(policy.defaultView);
   const [aggregation, setAggregation] = useState('sum');
   const [compareKey, setCompareKey] = useState('');
@@ -598,7 +613,7 @@ function FieldAnalysisDetail({
       <Coverage stat={stat} />
       <p className="analysis-note">
         {numeric
-          ? `${metricLabel} by entry creation day (UTC).`
+          ? `${metricLabel} by the day each entry occurred — its start time, falling back to creation day (UTC).`
           : policy.kind === 'date'
             ? `Entry counts by ${def.field_name} value (UTC), not entry creation date.`
             : policy.kind === 'multi'
@@ -611,7 +626,8 @@ function FieldAnalysisDetail({
       </p>
       {stat.range && (
         <p className="analysis-note">
-          60-day window: {stat.range.start} – {stat.range.end} (UTC).
+          Window: {stat.range.start} – {stat.range.end} (UTC) — every day from the oldest to the
+          latest occurrence; a lone occurrence gets the two days before it so a line can be drawn.
           {aggregation === 'average' && numeric
             ? ' Gaps mean no observations, not zero.'
             : ' Days without observations are zero.'}
@@ -619,7 +635,8 @@ function FieldAnalysisDetail({
       )}
       {stat.undatedCount > 0 && (
         <p className="analysis-note">
-          {stat.undatedCount} valid values excluded from daily charts: no valid entry creation date.
+          {stat.undatedCount} valid values excluded from daily charts: no usable entry date (no
+          start time or creation date).
         </p>
       )}
       {view === 'grouped' && stat.comparison ? (
@@ -638,7 +655,7 @@ function FieldAnalysisDetail({
             matrix={stat.comparison.full}
             caption={`${def.field_name} by ${compareDef?.field_name}`}
             formatValue={formatValue}
-            rowHeading={numeric ? 'Creation day (UTC)' : def.field_name}
+            rowHeading={numeric ? 'Occurrence day (UTC)' : def.field_name}
           />
         </>
       ) : view === 'trend' ? (
@@ -648,7 +665,7 @@ function FieldAnalysisDetail({
             matrix={dailyMatrix}
             caption={`${def.field_name} daily values`}
             formatValue={formatValue}
-            rowHeading={numeric ? 'Creation day (UTC)' : 'Field date (UTC)'}
+            rowHeading={numeric ? 'Occurrence day (UTC)' : 'Field date (UTC)'}
           />
         </>
       ) : view === 'bars' && dated ? (
@@ -658,7 +675,7 @@ function FieldAnalysisDetail({
             matrix={dailyMatrix}
             caption={`${def.field_name} daily values`}
             formatValue={formatValue}
-            rowHeading="Creation day (UTC)"
+            rowHeading="Occurrence day (UTC)"
           />
         </>
       ) : view === 'bars' || view === 'donut' ? (
@@ -820,8 +837,6 @@ export function StatsView() {
   }>({ key: '', defs: [], ready: false });
   const fieldDefs = fieldState.key === fieldsKey ? fieldState.defs : [];
   const fieldsReady = fieldState.key === fieldsKey && fieldState.ready;
-  // Selected series in the "Plot over time" panel
-  const [plotKey, setPlotKey] = useState('');
 
   // Guard against overlapping loadData calls (mount effect + two
   // cacheSubscribe listeners firing near-simultaneously during a sync).
@@ -957,50 +972,6 @@ export function StatsView() {
     [analysisDefs, scopedEntries, now]
   );
 
-  // Daily activity series — entries logged per day and time tracked per
-  // day — bucketed the same way the engine buckets field plots so the
-  // plot-over-time panel always has something to draw even without
-  // custom fields.
-  const activitySeries = useMemo(() => {
-    const counts = new Map<string, number>();
-    const ms = new Map<string, number>();
-    scopedEntries.forEach((entry) => {
-      const bucket = dayBucket(entry);
-      if (!bucket) return;
-      counts.set(bucket, (counts.get(bucket) || 0) + 1);
-      const duration = entryDurationMs(entry, now);
-      if (duration > 0) ms.set(bucket, (ms.get(bucket) || 0) + duration);
-    });
-    const toSeries = (map: Map<string, number>) =>
-      Array.from(map.entries())
-        .map(([bucket, value]) => ({ bucket, value }))
-        .sort((a, b) => (a.bucket < b.bucket ? -1 : 1));
-    return { entries: dailyWindow(toSeries(counts)), time: dailyWindow(toSeries(ms)) };
-  }, [scopedEntries, now]);
-
-  // Activity stays separate from the type-aware custom-field explorer.
-  const plotOptions = useMemo<PlotOption[]>(() => {
-    const options: PlotOption[] = [];
-    if (activitySeries.entries.length > 0) {
-      options.push({
-        key: 'activity:entries',
-        label: 'Entries per day',
-        series: activitySeries.entries,
-        formatValue: (v) => String(v),
-      });
-    }
-    if (activitySeries.time.length > 0) {
-      options.push({
-        key: 'activity:time',
-        label: 'Time tracked per day',
-        series: activitySeries.time,
-        formatValue: (v) => formatDuration(v),
-      });
-    }
-    return options;
-  }, [activitySeries]);
-  const selectedPlot = plotOptions.find((o) => o.key === plotKey) || plotOptions[0];
-
   const totalTimeTracked = useMemo(
     () => calculateTotalTimeTracked(scopedEntries, now),
     [scopedEntries, now]
@@ -1014,6 +985,7 @@ export function StatsView() {
     [projectStats]
   );
 
+  const colorForIndex = useChartColor();
   const donutSegments = useMemo(
     () =>
       projectStats.map((ps, i) => ({
@@ -1021,7 +993,7 @@ export function StatsView() {
         value: ps.totalMs,
         color: colorForIndex(i),
       })),
-    [projectStats]
+    [projectStats, colorForIndex]
   );
 
   const timeBarData = useMemo(
@@ -1033,7 +1005,7 @@ export function StatsView() {
         color: colorForIndex(i),
         extra: `${ps.entryCount} ${ps.entryCount === 1 ? 'entry' : 'entries'}`,
       })),
-    [projectStats]
+    [projectStats, colorForIndex]
   );
 
   const entryBarData = useMemo(
@@ -1045,7 +1017,30 @@ export function StatsView() {
         color: colorForIndex(i),
         extra: ps.display,
       })),
-    [projectStats]
+    [projectStats, colorForIndex]
+  );
+
+  // Every timed scoped entry, longest first; untimed entries have no
+  // duration to show. Running entries tick with the page-wide clock.
+  const timePerEntry = useMemo(
+    () =>
+      scopedEntries
+        .filter((entry) => entry.started_at || entry.ended_at)
+        .map((entry) => ({ entry, ms: entryDurationMs(entry, now) }))
+        .filter(({ ms }) => ms > 0)
+        .sort((a, b) => b.ms - a.ms),
+    [scopedEntries, now]
+  );
+
+  const timePerEntryBarData = useMemo(
+    () =>
+      timePerEntry.slice(0, TIME_PER_ENTRY_CAP).map(({ entry, ms }, i) => ({
+        label: timePerEntryLabel(entry, Boolean(scopeProject)),
+        value: ms,
+        display: formatDuration(ms),
+        color: colorForIndex(i),
+      })),
+    [timePerEntry, scopeProject, colorForIndex]
   );
 
   const completedCount = scopedEntries.filter((e) => e.ended_at).length;
@@ -1332,40 +1327,6 @@ export function StatsView() {
                 </div>
               </div>
 
-              {/* Built-in activity uses entry creation dates, independently of field analysis. */}
-              {plotOptions.length > 0 && selectedPlot && (
-                <div className="stats-panel glass">
-                  <div className="field-plot-header">
-                    <h3 className="stats-panel-title">Plot over time</h3>
-                    <select
-                      className="field-plot-select"
-                      aria-label="Series to plot over time"
-                      value={selectedPlot.key}
-                      onChange={(e) => setPlotKey(e.target.value)}
-                    >
-                      {plotOptions.map((o) => (
-                        <option key={o.key} value={o.key}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <p className="analysis-note">
-                    {selectedPlot.label} by entry creation day (UTC). 60-day window:{' '}
-                    {selectedPlot.series[0].bucket} –{' '}
-                    {selectedPlot.series[selectedPlot.series.length - 1].bucket}. Days without
-                    observations are zero.
-                  </p>
-                  <TrendChart series={selectedPlot.series} formatValue={selectedPlot.formatValue} />
-                  <DataTable
-                    matrix={seriesMatrix(selectedPlot.series, selectedPlot.label)}
-                    caption={selectedPlot.label}
-                    formatValue={selectedPlot.formatValue}
-                    rowHeading="Creation day (UTC)"
-                  />
-                </div>
-              )}
-
               {/* Time per Project Bar Chart — cross-project view */}
               {!scopeProject && (
                 <div className="stats-panel glass">
@@ -1379,6 +1340,35 @@ export function StatsView() {
                 <div className="stats-panel glass">
                   <h3 className="stats-panel-title">Entries per Project</h3>
                   <BarChart data={entryBarData} />
+                </div>
+              )}
+
+              {/* Time per Entry — every timed scoped entry, longest first.
+                  Untimed entries have no duration to show; the chart caps at
+                  the top entries while the table lists every one. */}
+              {timePerEntry.length > 0 && (
+                <div className="stats-panel glass">
+                  <h3 className="stats-panel-title">Time per Entry</h3>
+                  {timePerEntry.length > TIME_PER_ENTRY_CAP && (
+                    <p className="analysis-note">
+                      Longest {TIME_PER_ENTRY_CAP} of {timePerEntry.length} timed entries; the table
+                      below lists every one.
+                    </p>
+                  )}
+                  <BarChart data={timePerEntryBarData} />
+                  <DataTable
+                    matrix={{
+                      rows: timePerEntry.map(({ entry }, i) => ({
+                        key: `time-entry-${i}`,
+                        label: timePerEntryLabel(entry, Boolean(scopeProject)),
+                      })),
+                      columns: [{ key: 'duration', label: 'Duration' }],
+                      values: timePerEntry.map(({ ms }) => [ms]),
+                    }}
+                    caption="Time per entry"
+                    formatValue={formatDuration}
+                    rowHeading="Entry"
+                  />
                 </div>
               )}
 

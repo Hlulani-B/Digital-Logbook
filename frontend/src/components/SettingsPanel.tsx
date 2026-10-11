@@ -14,6 +14,7 @@ import {
   setEmailNotifications,
   setNotificationLeadTime,
   setTimerAbandonmentNotifications,
+  setWeeklyDigest,
 } from '../functions/profile/profile.js';
 
 type Tab = 'profile' | 'preferences' | 'account';
@@ -39,6 +40,8 @@ interface Preferences {
   notificationLeadTime: string;
   weeklyReminder: boolean;
   timerAbandonmentNotifications: boolean;
+  weeklyDigestEnabled: boolean;
+  weeklyDigestDay: string;
   nudgeFrequency: string;
 }
 
@@ -207,6 +210,8 @@ export function SettingsPanel({
     notificationLeadTime: '24 hours',
     weeklyReminder: false,
     timerAbandonmentNotifications: true,
+    weeklyDigestEnabled: true,
+    weeklyDigestDay: 'friday',
     nudgeFrequency: getNudgeFrequency(),
   };
 
@@ -962,6 +967,65 @@ export function SettingsPanel({
                     <span className="toggle-track" />
                   </label>
                 </div>
+
+                <div className="toggle-row">
+                  <div className="toggle-info">
+                    <p className="toggle-label">Weekly digest</p>
+                    <p className="toggle-desc">
+                      Receive a Friday email summarising your overdue and upcoming tasks for the
+                      week ahead.
+                    </p>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={prefs.weeklyDigestEnabled ?? true}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setPrefs((p) => ({
+                          ...p,
+                          weeklyDigestEnabled: enabled,
+                        }));
+                        setWeeklyDigest(email, enabled, prefs.weeklyDigestDay || 'friday');
+                      }}
+                    />
+                    <span className="toggle-track" />
+                  </label>
+                </div>
+
+                {prefs.weeklyDigestEnabled && (
+                  <div className="toggle-row" style={{ paddingLeft: 24 }}>
+                    <div className="toggle-info">
+                      <p className="toggle-label" style={{ fontSize: 13 }}>
+                        Digest day
+                      </p>
+                    </div>
+                    <select
+                      className="field-input"
+                      style={{ width: 140, fontSize: 13 }}
+                      value={prefs.weeklyDigestDay || 'friday'}
+                      onChange={(e) => {
+                        const day = e.target.value;
+                        setPrefs((p) => ({ ...p, weeklyDigestDay: day }));
+                        setWeeklyDigest(email, true, day);
+                      }}
+                    >
+                      {[
+                        'monday',
+                        'tuesday',
+                        'wednesday',
+                        'thursday',
+                        'friday',
+                        'saturday',
+                        'sunday',
+                      ].map((d) => (
+                        <option key={d} value={d}>
+                          {d.charAt(0).toUpperCase() + d.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="toggle-row">
                   <div className="toggle-info">

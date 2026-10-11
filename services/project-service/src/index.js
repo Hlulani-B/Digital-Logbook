@@ -7,6 +7,7 @@ import * as yaml from 'js-yaml';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import cron from 'node-cron';
 import { requireAuth } from './middleware/auth.js';
 import projectRoutes from './Routes/project.js';
 import entryRoutes from './Routes/entries.js';
@@ -20,6 +21,7 @@ import notificationRoutes, { sendPendingHandler } from './Routes/notifications.j
 import templateRoutes from './Routes/templates.js';
 import attachmentRoutes from './Routes/attachments.js';
 import memberRoutes from './Routes/members.js';
+import { Notifications } from './functions/notifications/notifications.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -108,6 +110,30 @@ app.use((err, req, res, next) => {
   }
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
+
+// ── Scheduled email flush ────────────────────────────────────────────────────
+// Automatically send pending notification emails every 15 minutes while the
+// server is awake. This replaces the broken pg_net poke (migration 011) as the
+// primary automatic email delivery mechanism. The FOR UPDATE SKIP LOCKED in
+// sendPendingEmails() ensures concurrent calls (e.g. external cron + this
+// timer) never double-send the same notification.
+const notificationsScheduler = new Notifications();
+cron.schedule(
+  '*/15 * * * *',
+  async () => {
+    try {
+      const result = await notificationsScheduler.sendPendingEmails();
+      console.log(`[cron:email-flush] sent=${result.sent ?? 0} skipped=${result.skipped ?? 0}`);
+    } catch (err) {
+      console.error('[cron:email-flush] FAILED:', err.message);
+    }
+  },
+  {
+    scheduled: true,
+    timezone: 'Africa/Johannesburg',
+  }
+);
+console.log('Scheduled email flush: every 15 minutes (node-cron)');
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Project Service running on port ${PORT}`);

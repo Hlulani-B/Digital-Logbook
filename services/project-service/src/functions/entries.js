@@ -245,7 +245,13 @@ export class Entries {
         now: new Date(),
       });
       if (!dateValidation.success) return dateValidation;
-      ({ due_date, started_at, ended_at, paused_at } = dateValidation.dates);
+      // Preserve system-generated timer timestamps that validateEntryDates strips
+      // (it only returns due_date in .dates, so destructuring would lose paused_at).
+      const _savedTimer = { started_at, ended_at, paused_at };
+      ({ due_date } = dateValidation.dates);
+      started_at = _savedTimer.started_at;
+      ended_at = _savedTimer.ended_at;
+      paused_at = _savedTimer.paused_at;
       entry_object = dateValidation.values;
       const insertData = { user_email, project_name, entries: entry_object };
       if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;
@@ -374,7 +380,13 @@ export class Entries {
         now,
       });
       if (!dateValidation.success) return dateValidation;
-      ({ due_date, started_at, ended_at, paused_at } = dateValidation.dates);
+      // Preserve system-generated timer timestamps that validateEntryDates strips
+      // (it only returns due_date in .dates, so destructuring would lose paused_at).
+      const _savedTimer = { started_at, ended_at, paused_at };
+      ({ due_date } = dateValidation.dates);
+      started_at = _savedTimer.started_at;
+      ended_at = _savedTimer.ended_at;
+      paused_at = _savedTimer.paused_at;
       new_entry = dateValidation.values;
       const statusAction =
         status !== previous.status
@@ -951,15 +963,29 @@ export class Natural_language {
         );
       if (!hasContent) return projectName;
 
-      const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
+      const prompt = `You are generating a summary for a logbook entry. The summary will be stored in a TEXT column in the database.
+
+CRITICAL: The "summary" field MUST be a TEXT STRING (a sentence describing the entry), NOT the entry object itself.
 
 Project: ${projectName}
-Entry: ${JSON.stringify(entryObject)}
+Entry fields: ${JSON.stringify(entryObject)}
 
-You MUST respond with ONLY a JSON object in this exact format, nothing else:
-{"summary": "your one sentence here"}
+Read the entry fields above and write ONE sentence (max 20 words) describing what this entry is about.
 
-If the entry has no real content, use the project name as the summary.`;
+Rules:
+- The summary value MUST be a plain text string
+- NEVER return the entry object as the summary
+- Use neutral, factual language
+- No first-person pronouns (I, me, my, we)
+- Describe what was done/recorded
+
+Example entry: {"task": "Meeting", "attendees": "Team A", "duration": "1 hour"}
+Example summary: "Team A meeting held for one hour to discuss project updates"
+
+You MUST respond with ONLY a JSON object in this exact format:
+{"summary": "your text sentence here"}
+
+The value of "summary" must ALWAYS be a text string, never an object.`;
 
       const result = await AI(prompt);
       if (!result || !result.trim()) return projectName;
@@ -969,8 +995,14 @@ If the entry has no real content, use the project name as the summary.`;
       // Parse the JSON response
       try {
         const parsed = JSON.parse(raw);
+        // CRITICAL: summary must be a string, not an object
         if (parsed.summary && typeof parsed.summary === 'string' && parsed.summary.trim()) {
           return parsed.summary.trim();
+        }
+        // If summary is an object, reject it
+        if (parsed.summary && typeof parsed.summary === 'object') {
+          console.warn('[generateSummary] AI returned object as summary, rejecting');
+          return projectName;
         }
       } catch {
         // Not valid JSON — try regex extraction
@@ -985,7 +1017,9 @@ If the entry has no real content, use the project name as the summary.`;
           const retryRaw = retry.trim().replace(/^["']|["']$/g, '');
           try {
             const retryParsed = JSON.parse(retryRaw);
-            if (retryParsed.summary) return retryParsed.summary.trim();
+            if (retryParsed.summary && typeof retryParsed.summary === 'string') {
+              return retryParsed.summary.trim();
+            }
           } catch {
             const match = retryRaw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
             if (match) return match[1].trim();
@@ -1266,6 +1300,40 @@ Respond with ONLY this JSON, nothing else:`;
       );
 
       let aiResponse;
+      console.log(
+        '[Natural_language.entry] About to call AI() with prompt length:',
+        prompt?.length
+      );
+      console.log('[Natural_language.entry] Prompt preview:', prompt?.slice(0, 300));
+      console.log('[Natural_language.entry] Checking AI provider env keys:');
+      console.log(
+        '  HF_API_KEY:',
+        process.env.HF_API_KEY ? 'SET (' + process.env.HF_API_KEY.slice(0, 8) + '...)' : 'NOT SET'
+      );
+      console.log(
+        '  OPENROUTER_API_KEY:',
+        process.env.OPENROUTER_API_KEY
+          ? 'SET (' + process.env.OPENROUTER_API_KEY.slice(0, 12) + '...)'
+          : 'NOT SET'
+      );
+      console.log(
+        '  CEREBRAS_API_KEY:',
+        process.env.CEREBRAS_API_KEY
+          ? 'SET (' + process.env.CEREBRAS_API_KEY.slice(0, 8) + '...)'
+          : 'NOT SET'
+      );
+      console.log(
+        '  GEMINI_API_KEY:',
+        process.env.GEMINI_API_KEY
+          ? 'SET (' + process.env.GEMINI_API_KEY.slice(0, 10) + '...)'
+          : 'NOT SET'
+      );
+      console.log(
+        '  GROQ_API_KEY:',
+        process.env.GROQ_API_KEY
+          ? 'SET (' + process.env.GROQ_API_KEY.slice(0, 8) + '...)'
+          : 'NOT SET'
+      );
       try {
         aiResponse = await AI(prompt);
         console.log(
@@ -1287,7 +1355,13 @@ Respond with ONLY this JSON, nothing else:`;
 
       if (!aiResponse || aiResponse.trim() === '') {
         console.error(
-          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown. Check ai_provider_cooldowns table in Supabase.'
+          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown.'
+        );
+        console.error(
+          '[Natural_language.entry] This means ALL of these failed: HuggingFace, OpenRouter, Cerebras, Gemini, Groq'
+        );
+        console.error(
+          '[Natural_language.entry] Check the [AI] logs above to see which providers were tried and why they failed'
         );
         return {
           success: false,

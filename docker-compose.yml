@@ -1,0 +1,111 @@
+name: digital-logbook
+
+services:
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./services/auth-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: "5001"
+    expose:
+      - "5001"
+    restart: unless-stopped
+    networks:
+      - backend
+
+  dashboard-service:
+    build:
+      context: ./services/dashboard-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./services/dashboard-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: "5002"
+    expose:
+      - "5002"
+    restart: unless-stopped
+    networks:
+      - backend
+
+  project-service:
+    build:
+      context: ./services/project-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./services/project-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: "5003"
+    expose:
+      - "5003"
+    restart: unless-stopped
+    networks:
+      - backend
+
+  profile-service:
+    build:
+      context: ./services/profile-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./services/profile-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: "5004"
+    expose:
+      - "5004"
+    restart: unless-stopped
+    networks:
+      - backend
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    env_file:
+      - ./api-gateway/.env
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      AUTH_SERVICE_URL: http://auth-service:5001
+      DASHBOARD_SERVICE_URL: http://dashboard-service:5002
+      PROJECT_SERVICE_URL: http://project-service:5003
+      PROFILE_SERVICE_URL: http://profile-service:5004
+    ports:
+      - "4000:4000"
+    depends_on:
+      - auth-service
+      - dashboard-service
+      - project-service
+      - profile-service
+    restart: unless-stopped
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Set VITE_SUPABASE_URL in the root .env}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:?Set VITE_SUPABASE_ANON_KEY in the root .env}
+        # Empty uses the frontend Nginx /api proxy when configured in nginx.conf.template.
+        VITE_API_GATEWAY_URL: ${VITE_API_GATEWAY_URL:-}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
+    environment:
+      PORT: "8080"
+      API_GATEWAY_UPSTREAM: http://api-gateway:4000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

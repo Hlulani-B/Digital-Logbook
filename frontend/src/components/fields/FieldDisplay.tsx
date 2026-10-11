@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { SafeMarkdown } from './SafeMarkdown';
 import type { FieldDefinition } from '@/lib/fieldSchema';
 
@@ -7,6 +8,8 @@ interface FieldDisplayProps {
 }
 
 export function FieldDisplay({ field, value }: FieldDisplayProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+
   if (value === null || value === undefined || value === '') {
     return <div className="field-display field-display-empty">—</div>;
   }
@@ -50,9 +53,40 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       );
     }
     case 'file': {
+      // Base64 string stored during entry creation
+      if (typeof value === 'string') {
+        // If it looks like an image, show a thumbnail
+        if (value.startsWith('data:image/') || /^[A-Za-z0-9+/]+=*$/.test(value.slice(0, 40))) {
+          const src = value.startsWith('data:')
+            ? value
+            : `data:application/octet-stream;base64,${value}`;
+          return (
+            <div className="field-display field-display-image">
+              <img
+                src={src}
+                alt="File preview"
+                style={{
+                  maxWidth: '80px',
+                  maxHeight: '80px',
+                  objectFit: 'cover',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border, #e5e7eb)',
+                }}
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="field-display field-display-attachment">
+            <span>📎 File attached</span>
+          </div>
+        );
+      }
+      // { attachmentId } object from upload-and-finalize
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
       const { attachmentId } = value as any;
+      if (typeof attachmentId !== 'string') return <div className="field-display">—</div>;
       return (
         <div className="field-display field-display-attachment">
           <span>📎 {attachmentId.slice(0, 8)}...</span>
@@ -63,11 +97,22 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       // Handle raw base64 image strings
       if (typeof value === 'string') {
         const src = value.startsWith('data:image/') ? value : `data:image/jpeg;base64,${value}`;
+        if (imgFailed) {
+          return (
+            <div
+              className="field-display field-display-image"
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted, #6b7280)' }}
+            >
+              📎 Image
+            </div>
+          );
+        }
         return (
           <div className="field-display field-display-image">
             <img
               src={src}
               alt="Entry image"
+              onError={() => setImgFailed(true)}
               style={{
                 maxWidth: '80px',
                 maxHeight: '80px',
@@ -83,6 +128,7 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
       const { attachmentId } = value as any;
+      if (typeof attachmentId !== 'string') return <div className="field-display">—</div>;
       return (
         <div className="field-display field-display-attachment">
           <span>📎 {attachmentId.slice(0, 8)}...</span>
@@ -96,7 +142,7 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
         <div className="field-display field-display-entity-links">
           {links.map((link: string, i: number) => (
             <span key={i} className="field-display-tag">
-              {link.slice(0, 8)}...
+              {typeof link === 'string' ? `${link.slice(0, 8)}...` : '—'}
             </span>
           ))}
         </div>

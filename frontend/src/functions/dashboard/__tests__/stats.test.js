@@ -6,7 +6,28 @@ import {
   calculateProjectStats,
   entryDurationMs,
   entryRemainingMs,
+  dayBucket,
 } from '../stats';
+
+describe('dayBucket (occurrence-day bucketing for field-over-time plots)', () => {
+  it('prefers the day the entry started over the day it was logged', () => {
+    const entry = {
+      started_at: '2026-03-09T22:00:00.000Z',
+      created_at: '2026-03-10T12:00:00.000Z',
+    };
+    expect(dayBucket(entry)).toBe('2026-03-09');
+  });
+
+  it('falls back to the creation day for untimed entries', () => {
+    const entry = { created_at: '2026-03-10T12:00:00.000Z' };
+    expect(dayBucket(entry)).toBe('2026-03-10');
+  });
+
+  it('returns null when neither date exists', () => {
+    expect(dayBucket({})).toBe(null);
+    expect(dayBucket({ started_at: 'not-a-date', created_at: 'also-bad' })).toBe(null);
+  });
+});
 
 describe('formatDuration', () => {
   it('returns "0m" for 0 milliseconds', () => {
@@ -243,11 +264,11 @@ describe('entryDurationMs with pause fields', () => {
     expect(entryDurationMs(entry, now)).toBe(50 * 60000);
   });
 
-  it('legacy entries without pause fields behave exactly as before', () => {
+  it('entries without pause fields behave exactly as before, and ended rows without a start have no duration', () => {
     const completed = { started_at: T0, ended_at: '2026-01-01T11:00:00.000Z' };
     expect(entryDurationMs(completed)).toBe(3600000);
-    const legacyFallback = { created_at: T0, ended_at: '2026-01-01T11:00:00.000Z' };
-    expect(entryDurationMs(legacyFallback)).toBe(3600000);
+    const endedWithoutStart = { created_at: T0, ended_at: '2026-01-01T11:00:00.000Z' };
+    expect(entryDurationMs(endedWithoutStart)).toBe(0);
     expect(entryDurationMs({})).toBe(0);
   });
 });

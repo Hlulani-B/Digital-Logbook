@@ -376,10 +376,15 @@ export class Notifications {
     const isTimerRunning = row.type === 'timer_running_long';
     const isTimerPaused = row.type === 'timer_paused_long';
     const isTimerType = isTimerRunning || isTimerPaused;
+    const isWeeklyDigest = row.type === 'weekly_digest';
     const title = row.entry_title || `${row.project_name || 'An'} entry`;
     const dueLabel = formatDueAt(row.due_at);
 
-    let subject, accentColor, accentBg, heading, statusLabel;
+    let subject, accentColor, accentBg, heading, statusLabel, html;
+
+    if (isWeeklyDigest) {
+      return await this._sendWeeklyDigestEmail(apiKey, senderEmail, row);
+    }
 
     if (isTimerRunning) {
       subject = `Timer still running: ${title}`;
@@ -395,8 +400,8 @@ export class Notifications {
       statusLabel = 'TIMER PAUSED';
     } else {
       subject = isOverdue ? `Overdue: ${title}` : `Due soon: ${title}`;
-      accentColor = isOverdue ? '#dc2626' : '#d97706';
-      accentBg = isOverdue ? '#fef2f2' : '#fffbeb';
+      accentColor = isOverdue ? '#8b4513' : '#6e6350';
+      accentBg = isOverdue ? '#fdf2f0' : '#f5f1e6';
       heading = isOverdue ? 'Deadline passed' : 'Deadline approaching';
       statusLabel = isOverdue ? 'OVERDUE' : 'DUE SOON';
     }
@@ -413,23 +418,23 @@ export class Notifications {
           ? `<p style="color: ${accentColor}; font-size: 13px; font-weight: 500; margin: 0;">Due: ${escapeHtml(dueLabel)}</p>`
           : '';
 
-    const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f9fafb; padding: 32px 24px;">
-        <div style="background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f1e6; padding: 32px 24px;">
+        <div style="background: #fffdf6; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(74,60,40,0.10);">
           <div style="background: ${accentColor}; padding: 16px 24px;">
             <span style="color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">${statusLabel}</span>
           </div>
           <div style="padding: 24px;">
-            <h2 style="color: #111827; font-size: 18px; margin: 0 0 8px; font-weight: 600;">${escapeHtml(heading)}</h2>
+            <h2 style="color: #3f3628; font-size: 18px; margin: 0 0 8px; font-weight: 600;">${escapeHtml(heading)}</h2>
             <div style="background: ${accentBg}; border-radius: 8px; padding: 16px; margin: 0 0 16px;">
-              <p style="color: #111827; font-size: 15px; margin: 0 0 4px; font-weight: 500;">${escapeHtml(title)}</p>
-              ${row.project_name ? `<p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Project: ${escapeHtml(row.project_name)}</p>` : ''}
+              <p style="color: #3f3628; font-size: 15px; margin: 0 0 4px; font-weight: 500;">${escapeHtml(title)}</p>
+              ${row.project_name ? `<p style="color: #8b7f68; font-size: 13px; margin: 0 0 4px;">Project: ${escapeHtml(row.project_name)}</p>` : ''}
               ${timerDetail}
             </div>
-            <a href="${escapeHtml(deepLink)}" style="display: inline-block; background: #111827; color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open in Plannar</a>
+            <a href="${escapeHtml(deepLink)}" style="display: inline-block; background: linear-gradient(135deg, #6e6350, #8b7f68); color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open in Plannar</a>
           </div>
-          <div style="padding: 12px 24px; border-top: 1px solid #f3f4f6;">
-            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
+          <div style="padding: 12px 24px; border-top: 1px solid rgba(74,60,40,0.16);">
+            <p style="color: #8b7f68; font-size: 11px; margin: 0;">
               You're receiving this because email notifications are enabled in your Plannar settings.
             </p>
           </div>
@@ -460,6 +465,127 @@ export class Notifications {
       return true;
     } catch (err) {
       console.error(`[sendPendingEmails] Brevo call failed for ${row.id}:`, err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Weekly digest email — summarises overdue + upcoming entries for the user.
+   * Queries live data so the email always reflects current state.
+   */
+  async _sendWeeklyDigestEmail(apiKey, senderEmail, row) {
+    const { rows: overdue } = await pool.query(
+      `SELECT e.project_name, e.summary, e.due_date
+         FROM public.entries e
+        WHERE e.user_email = $1
+          AND e.due_date < now()
+          AND (e.status IS NULL OR e.status <> 'done_and_dusted')
+          AND (e.archived IS NULL OR e.archived = false)
+          AND (e.deleted IS NULL OR e.deleted = false)
+        ORDER BY e.due_date ASC`,
+      [row.user_email]
+    );
+
+    const { rows: upcoming } = await pool.query(
+      `SELECT e.project_name, e.summary, e.due_date
+         FROM public.entries e
+        WHERE e.user_email = $1
+          AND e.due_date >= now()
+          AND e.due_date <= now() + INTERVAL '7 days'
+          AND (e.status IS NULL OR e.status <> 'done_and_dusted')
+          AND (e.archived IS NULL OR e.archived = false)
+          AND (e.deleted IS NULL OR e.deleted = false)
+        ORDER BY e.due_date ASC`,
+      [row.user_email]
+    );
+
+    const subject = `Your weekly Plannar digest`;
+    const weekStart = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+    const weekEnd = new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const entryRow = (entry) => `
+      <tr>
+        <td style="padding: 8px 0; border-bottom: 1px solid rgba(74,60,40,0.08);">
+          <p style="color: #3f3628; font-size: 14px; font-weight: 500; margin: 0 0 2px;">${escapeHtml(entry.summary || `${entry.project_name || 'An'} entry`)}</p>
+          ${entry.project_name ? `<p style="color: #8b7f68; font-size: 12px; margin: 0;">${escapeHtml(entry.project_name)}</p>` : ''}
+          <p style="color: #8b4513; font-size: 12px; margin: 4px 0 0; font-weight: 500;">Due: ${formatDueAt(entry.due_date)}</p>
+        </td>
+      </tr>`;
+
+    const overdueSection =
+      overdue.length > 0
+        ? `<div style="margin: 0 0 24px;">
+           <h3 style="color: #8b4513; font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px;">Overdue (${overdue.length})</h3>
+           <table style="width: 100%; border-collapse: collapse;">${overdue.map(entryRow).join('')}</table>
+         </div>`
+        : '<p style="color: #8b7f68; font-size: 13px; margin: 0 0 24px;">No overdue tasks — nice work!</p>';
+
+    const upcomingSection =
+      upcoming.length > 0
+        ? `<div style="margin: 0 0 24px;">
+           <h3 style="color: #6e6350; font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px;">Due this week (${upcoming.length})</h3>
+           <table style="width: 100%; border-collapse: collapse;">${upcoming.map(entryRow).join('')}</table>
+         </div>`
+        : '<p style="color: #8b7f68; font-size: 13px; margin: 0 0 24px;">Nothing due this week — enjoy the breather!</p>';
+
+    html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f1e6; padding: 32px 24px;">
+        <div style="background: #fffdf6; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(74,60,40,0.10);">
+          <div style="background: linear-gradient(135deg, #6e6350, #8b7f68); padding: 16px 24px;">
+            <span style="color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Weekly Digest</span>
+          </div>
+          <div style="padding: 24px;">
+            <h2 style="color: #3f3628; font-size: 18px; margin: 0 0 4px; font-weight: 600;">Your week at a glance</h2>
+            <p style="color: #8b7f68; font-size: 13px; margin: 0 0 24px;">${escapeHtml(weekStart)} — ${escapeHtml(weekEnd)}</p>
+            ${overdueSection}
+            ${upcomingSection}
+            <a href="${APP_URL}" style="display: inline-block; background: linear-gradient(135deg, #6e6350, #8b7f68); color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open Plannar</a>
+          </div>
+          <div style="padding: 12px 24px; border-top: 1px solid rgba(74,60,40,0.16);">
+            <p style="color: #8b7f68; font-size: 11px; margin: 0;">
+              You're receiving this because weekly digest is enabled in your Plannar settings.
+            </p>
+          </div>
+        </div>
+      </div>`;
+
+    try {
+      const response = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { email: senderEmail, name: 'Plannar' },
+          to: [{ email: row.user_email }],
+          subject,
+          htmlContent: html,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        console.error(
+          `[sendPendingEmails] Brevo rejected digest for ${row.user_email}: ${response.status} ${body}`
+        );
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error(
+        `[sendPendingEmails] Brevo digest call failed for ${row.user_email}:`,
+        err.message
+      );
       return false;
     }
   }

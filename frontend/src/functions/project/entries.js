@@ -372,8 +372,16 @@ async function mutateEntry(action, input, options = { requireServer: false }) {
     previous: action === 'update' ? before : undefined,
   });
   if (!checked.success) return checked;
+  // Preserve system-generated timer timestamps that validateEntryDates strips
+  // (it only returns due_date in .dates, so destructuring would lose paused_at).
+  const _timerFields = {
+    started_at: payload.started_at,
+    ended_at: payload.ended_at,
+    paused_at: payload.paused_at,
+    paused_ms: payload.paused_ms,
+  };
   for (const key of ENTRY_DATE_COLUMNS) delete payload[key];
-  Object.assign(payload, checked.dates);
+  Object.assign(payload, checked.dates, _timerFields);
   payload[action === 'add' ? 'entry_object' : 'new_entry'] = checked.values;
   // Match the existing backend's null-as-no-change start/end semantics.
   if (action === 'update') {

@@ -337,3 +337,87 @@
   background: var(--bg-secondary, #f3f4f6);
   font-weight: 600;
 }
+
+/* ── Markdown "Read more" truncation ─────────────────── */
+.cf-markdown-wrapper {
+  position: relative;
+}
+
+.cf-markdown--truncated {
+  overflow: hidden;
+  position: relative;
+}
+
+/* Fade-out gradient at the bottom of truncated content */
+.cf-markdown--truncated::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--bg-primary, #ffffff));
+  pointer-events: none;
+}
+
+.cf-markdown-readmore {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-color, #3b82f6);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cf-markdown-readmore:hover {
+  text-decoration: underline;
+}
+
+/* ── Field display: tags, entity-links, attachments ───── */
+.field-display {
+  line-height: 1.5;
+}
+
+.field-display-tags,
+.field-display-entity-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.field-display-tag {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Tags — soft blue chips */
+.field-tag {
+  background: var(--bg-tag, #e0ecff);
+  color: var(--text-tag, #1e40af);
+}
+
+/* Entity-link tags — soft green chips to distinguish from plain tags */
+.field-display-entity-links .field-display-tag {
+  background: var(--bg-tag-entity, #dcfce7);
+  color: var(--text-tag-entity, #166534);
+}
+
+.field-display-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.375rem;
+  background: var(--bg-attachment, #f3f4f6);
+  font-size: 0.8rem;
+  color: var(--text-secondary, #4b5563);
+}

@@ -12,92 +12,134 @@ The backend microservices are deployed on Render:
 
 | Service               | Environment / Type | Live URL                                                                                   |
 | :-------------------- | :----------------- | :----------------------------------------------------------------------------------------- |
-| **Auth Service**      | Backend API        | [https://auth-service-hl52.onrender.com](https://auth-service-hl52.onrender.com)           |
-| **Dashboard Service** | Backend API        | [https://dashboard-service-bpc5.onrender.com](https://dashboard-service-bpc5.onrender.com) |
-| **Project Service**   | Backend API        | [https://project-service-96ml.onrender.com](https://project-service-96ml.onrender.com)     |
-| **Profile Service**   | Backend API        | [https://profile-service-0zk7.onrender.com](https://profile-service-0zk7.onrender.com)     |
+| **Auth Service**      | Backend API        | [https://auth-service-ml5n.onrender.com](https://auth-service-ml5n.onrender.com)           |
+| **Dashboard Service** | Backend API        | [https://dashboard-service-r32v.onrender.com](https://dashboard-service-r32v.onrender.com) |
+| **Project Service**   | Backend API        | [https://project-service-e41q.onrender.com](https://project-service-e41q.onrender.com)     |
+| **Profile Service**   | Backend API        | [https://profile-service-489p.onrender.com](https://profile-service-489p.onrender.com)     |
+| **API Gateway**       | Backend API        | [https://api-gateway-xeim.onrender.com](https://api-gateway-xeim.onrender.com)             |
 
-test: https://digital-logbook-bjev.onrender.com
+**Test application:** [https://digital-logbook-dhtq.onrender.com](https://digital-logbook-dhtq.onrender.com)
 
-# Backend
-
-```markdown
-# Codacaine - Plannar
+# Codacaine - Planner
 
 A microservices-based digital planning app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
 
 ## Architecture
 
 This is a monorepo containing independent backend services and a React frontend. Each service runs as its own process on its own port.
-```
 
+```text
 codacaine/
-├── frontend/ # React app (Vite)
-│ └── src/
+├── frontend/                     # React app (Vite)
+│   └── src/
+├── api-gateway/                  # API routing (port 4000)
+│   ├── src/
+│   │   └── index.js
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── .env.example
+│   └── .env
 ├── services/
-│ ├── auth-service/ # Handles login/signup via Supabase Auth (port 5001)
-│ │ ├── src/index.js
-│ │ ├── package.json
-│ │ └── .env
-│ ├── dashboard-service/ # Cross-project summaries & search (port 5002)
-│ │ ├── src/index.js
-│ │ ├── package.json
-│ │ └── .env
-│ ├── project-service/ # Project entries, timeline, search, stats, AI (port 5003)
-│ │ ├── src/index.js
-│ │ ├── package.json
-│ │ └── .env
-│ └── profile-service/ # User profiles, avatars, preferences (port 5004)
-│ ├── src/index.js
-│ ├── package.json
-│ └── .env
-├── scripts/ # Database backup, restore, and migration tools
+│   ├── auth-service/             # Authentication (port 5001)
+│   │   ├── src/
+│   │   │   └── index.js
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── .env
+│   ├── dashboard-service/        # Cross-project summaries and search (port 5002)
+│   │   ├── src/
+│   │   │   └── index.js
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── .env
+│   ├── project-service/          # Entries, timeline, search, stats, AI (port 5003)
+│   │   ├── src/
+│   │   │   └── index.js
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── .env
+│   └── profile-service/          # User profiles and preferences (port 5004)
+│       ├── src/
+│       │   └── index.js
+│       ├── Dockerfile
+│       ├── package.json
+│       └── .env
+├── scripts/                      # Database backup, restore and migration tools
 ├── supabase/
-│ ├── setup.sql # One-shot Supabase setup
-│ └── migrations/ # Versioned SQL migrations (000–007+)
-├── docs/ # User stories and project documentation
-├── docs-site/ # MkDocs documentation site source
-├── badges/ # Auto-generated coverage badge SVGs
-├── render.yaml # Render deployment manifest
-├── package.json # Root monorepo config (npm scripts for db tools)
+│   ├── setup.sql                 # Initial Supabase setup
+│   └── migrations/               # Versioned SQL migrations (000–007+)
+├── docs/                         # Project documentation and user stories
+├── docs-site/                    # MkDocs documentation source
+├── badges/                       # Generated coverage badges
+├── docker-compose.yml            # Docker Compose application setup
+├── render.yaml                   # Render deployment configuration
+├── package.json                  # Root monorepo scripts
 ├── .gitignore
 └── README.md
-
-````
+```
 
 ## Authentication & Security
 
 The frontend uses Supabase Auth for identity management and supports multiple sign-in methods:
 
 - **OAuth:** Google and GitHub one-click sign-in
+
 - **Email/password:** Sign-up with email confirmation and password reset
+
 - **Email validation:** Malformed addresses, disposable domains, and common typos are rejected before submission
+
 - **Session management:** Users remain signed in until they manually sign out
+
 - **Account deletion:** Soft-deleted accounts enter a 30-day grace period with email-link restoration
 
 ## Features
 
 - **Calendar view:** Month and week calendars place entries on their due dates, with overdue entries highlighted and completed entries shown in green. Entries can be dragged to another day to reschedule them, and days with many tasks collapse gracefully into a "+N more" indicator.
+
 - **Kanban board:** Three status columns (Up Next, In Motion, Done & Dusted) show entries as cards that can be dragged between columns to change status. The board supports project and search filters, and a failed save reverts the card to its original column.
+
 - **Timeline:** Horizontal time view with bars spanning start to due date, dependency arrows between linked tasks, zoom/scroll controls, and an empty state when no dated tasks exist.
+
 - **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and import them back in. Round-trip safe with malformed-row reporting. iCalendar export opens in Google Calendar, Outlook, and Apple Calendar.
+
 - **Backup, Restore & Migrations:** One-command `pg_dump`/`pg_restore` backup and restore, plus versioned schema migrations that upgrade an existing database without dropping and recreating it.
+
 - **OpenAPI 3 & Swagger UI:** Full REST API documented with an OpenAPI 3.0 specification covering all four microservices. Browsable interactive docs page at `/api-docs` on the project service with "Try it out" support.
+
 - **Mobile responsive:** Calendar auto-switches to week-strip layout on phones (≤480px). Kanban and Timeline views have dedicated phone breakpoints with reduced padding and touch-friendly sizing.
+
 - **Guided tour with voice narration:** First-time users are offered an interactive walkthrough that really navigates the app — it opens the drawer, visits every view, and spotlights the notification bell, profile menu, and quick-entry bar. A friendly voice narrates each stop via the browser's speech synthesis with hands-free auto-advance paced to the narration finishing, plus a persisted mute toggle. Replayable from the dashboard or navbar.
+
 - **Public landing page:** A standalone marketing page at `/` with a split hero (typing demo + AI-generated dashboard illustration), interactive About and Feature cards with mouse-following spotlight and 3D tilt effects, animated stats counters, a "What's New" ticker, team section, and CTA. Warm beige/brown palette matches the sign-in form. The sign-in page (`/signin`) is a clean split-screen auth form with no duplicated marketing content.
-- **Enhanced notifications:** Snooze (1h / 4h / tomorrow) or dismiss individual notifications without completing the entry. Filter the history page by unread, due-soon, or overdue. Configure how far in advance to receive due-soon alerts (1 hour to 1 week). Rich HTML emails with entry cards and deep-link buttons. Browser toast notifications when new alerts arrive during an active session.
+
+- **Enhanced notifications:** Snooze (1h / 4h / tomorrow) or dismiss individual notifications without completing the entry. Filter the history page by unread, due-soon, or overdue. Configure how far in advance to receive due-soon alerts (1 hour to 1 week). Rich HTML emails with entry cards and deep-link buttons. Browser toast notifications when new alerts arrive during an active session. Timer abandonment alerts notify users when a session timer runs >2 hours or pauses >30 minutes.
+
 - **Help Centre:** Searchable knowledge base at `/help` with 9 categories and 25 articles covering Getting Started, How-To Guides, Troubleshooting, FAQ, and more. Accessible from the drawer navigation on every page. Features client-side search, keyboard shortcuts, theme-aware styling, and mobile-responsive layout.
+
 - **In-app bug report form:** Modal form in the Help Centre that sends bug reports via email to the team. Captures title, description, steps to reproduce, and auto-attaches browser info. Uses FormSubmit.co for email delivery with no backend changes required.
+
+- **Project pagination & multi-select:** When there are more than 5 projects on the home page, only the first 3 are shown with a "View N more projects" button. A multi-select mode allows batch archive and delete operations across multiple projects at once.
+
+- **Automatic email delivery:** An in-process `node-cron` scheduler sends pending notification emails every 15 minutes while the project-service is running, replacing the broken `pg_net` poke and eliminating the need for manual PowerShell invocation.
+
+- **Field display rendering fixes:** Type-safe guards prevent crashes on undefined attachment/link values, file fields now render base64 strings stored during creation, tags and entity-links display as styled pill-shaped chips, and long markdown fields truncate with a "Read more" button.
+
+- **Responsive design:** The UI adapts across desktop, tablet, and phone screens using CSS media queries at 8 breakpoints (1200px–380px). A `useIsMobile()` hook switches the Calendar to a week-strip layout on phones (≤480px). Grid layouts collapse from multi-column to single-column, navigation drawers replace inline menus, and touch targets meet the 44px minimum.
+
+- **Accessibility:** ARIA labels on interactive controls and charts. Keyboard navigation: Escape closes every modal/drawer/dropdown; `/` focuses Help Centre search; Space/P control the timer. Semantic roles (`img`, `region`, `alert`, `status`) for screen readers. Voice-narrated guided tour via Web Speech API. Focus management on dropdowns and modals.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
 
 ## Prerequisites
 
 - Node.js (LTS) and npm
+
 - A Supabase project (URL + anon key + JWKS URL)
+
 - A PostgreSQL database (or Supabase's built-in Postgres)
+
 - Git
+
 - (Optional) AI provider API keys for natural-language features
 
 ## Getting Started
@@ -107,7 +149,7 @@ See the full documentation at [https://digital-logbook-documentation-site.onrend
 ```powershell
 git clone https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook.git
 cd Digital-Logbook
-````
+```
 
 ### 2. Install dependencies for each service
 
@@ -121,6 +163,11 @@ npm install
 cd ..\profile-service
 npm install
 cd ..\..
+
+# API gateway is at the repository root
+cd api-gateway
+npm install
+cd ..
 ```
 
 ### 3. Install frontend dependencies
@@ -133,7 +180,7 @@ cd ..
 
 ### 4. Configure environment variables
 
-Create a `.env` file in each service folder and in the `frontend/` folder (see [Environment Variables](#environment-variables) below).
+Create a `.env` file in each service folder, in `api-gateway/` (using `api-gateway/.env.example` as a guide), and in `frontend/` (see [Environment Variables](#environment-variables) below).
 
 ### 5. Set up the database
 
@@ -152,7 +199,8 @@ This creates all tables, indexes, functions, triggers, and cron jobs idempotentl
 #### Option B: Manual
 
 Run the SQL files in `supabase/migrations/` in order (000–007) in the Supabase SQL Editor:
-[https://supabase.com/dashboard/project/_/sql](https://supabase.com/dashboard/project/_/sql)
+
+[https://supabase.com/dashboard/project/\_/sql](https://supabase.com/dashboard/project/\_/sql)
 
 #### Backup and restore
 
@@ -187,6 +235,15 @@ cd services\profile-service
 npm start
 ```
 
+Run the API gateway in its own terminal from the repository root:
+
+```powershell
+cd api-gateway
+npm start
+```
+
+The gateway listens on `http://localhost:4000` and routes frontend requests to the appropriate backend service. Start it alongside the four services.
+
 Run the frontend:
 
 ```powershell
@@ -196,9 +253,44 @@ npm run dev
 
 The frontend runs on `http://localhost:3000` by default.
 
+## Running the Application with Docker Compose
+
+If you encounter dependency installation problems or package compatibility issues between operating systems (such as **macOS, Linux, or Windows**), you can use **Docker Compose** instead of installing and running each service directly on your machine. Docker builds the application in consistent container environments, reducing OS-specific Node.js and package issues.
+
+**Requirements:** Install Docker Desktop (Windows/macOS) or Docker Engine with the Docker Compose plugin (Linux). Make sure Docker is running, the repository contains `docker-compose.yml`, and the required `.env` files are configured as described in [Environment Variables](#environment-variables). You still need valid Supabase/database credentials.
+
+From the **repository root**, run:
+
+```bash
+# Check that Docker Compose can read the configuration
+docker compose config
+
+# Build the images and start all containers in the background
+docker compose up --build -d
+
+# Check the status of services in this Compose project
+docker compose ps
+
+# List running Docker containers
+docker ps
+
+# Follow logs from all services
+docker compose logs -f
+
+# View logs from a specific service (example)
+docker compose logs -f api-gateway
+
+# Stop and remove the containers created by Compose
+docker compose down
+```
+
+To restart containers after stopping them, use `docker compose up -d`. After changing source code or a Dockerfile, use `docker compose up --build -d` to rebuild and restart as needed.
+
+**Note:** The commands above use the current `docker compose` syntax. On systems with the older standalone Compose installation, `docker-compose` may be used instead. The frontend's host port depends on the port mapping in `docker-compose.yml`; check `docker compose ps` for the published address. Docker avoids many OS-specific package issues, but missing environment variables, network problems, or application errors can still prevent startup.
+
 ## Environment Variables
 
-Each service and the frontend need their own `.env` file. These are listed in `.gitignore` because they contain secrets — every developer must create their own locally.
+Each service, the API gateway, and the frontend need their own `.env` file. These are listed in `.gitignore` because they contain secrets — every developer must create their own locally.
 
 ### Frontend (`frontend/.env`)
 
@@ -206,10 +298,7 @@ Each service and the frontend need their own `.env` file. These are listed in `.
 VITE_SUPABASE_URL=https://yourproject.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_SUPABASE_ANON_JWT=your_supabase_anon_jwt
-VITE_AUTH_SERVICE_URL=http://localhost:5001
-VITE_DASHBOARD_SERVICE_URL=http://localhost:5002
-VITE_PROJECT_SERVICE_URL=http://localhost:5003
-VITE_PROFILE_SERVICE_URL=http://localhost:5004
+VITE_API_GATEWAY_URL=http://localhost:4000
 ```
 
 | Variable                     | Purpose                                                          |
@@ -217,13 +306,32 @@ VITE_PROFILE_SERVICE_URL=http://localhost:5004
 | `VITE_SUPABASE_URL`          | Supabase project URL (used by the frontend Supabase client)      |
 | `VITE_SUPABASE_ANON_KEY`     | Supabase anonymous key (used for auth operations)                |
 | `VITE_SUPABASE_ANON_JWT`     | Supabase anon JWT (used for direct REST calls)                   |
-| `VITE_AUTH_SERVICE_URL`      | Auth microservice URL                                            |
-| `VITE_DASHBOARD_SERVICE_URL` | Dashboard microservice URL                                       |
-| `VITE_PROJECT_SERVICE_URL`   | Project microservice URL (falls back to deployed URL if not set) |
-| `VITE_PROFILE_SERVICE_URL`   | Profile microservice URL (falls back to deployed URL if not set) |
+| `VITE_API_GATEWAY_URL`       | API gateway URL; the frontend sends backend requests through it |
 | `VITE_DEV_BYPASS`            | (Optional) Set to `"true"` in dev to bypass auth for testing     |
 
-### Backend services — all services (`services/*/\.env`)
+### API Gateway (`api-gateway/.env`)
+
+The gateway lives at the repository root and is the single entry point for frontend backend requests. Use `api-gateway/.env.example` as the reference for the actual configuration. For local development:
+
+```dotenv
+PORT=4000
+AUTH_SERVICE_URL=http://localhost:5001
+DASHBOARD_SERVICE_URL=http://localhost:5002
+PROJECT_SERVICE_URL=http://localhost:5003
+PROFILE_SERVICE_URL=http://localhost:5004
+```
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `4000` | Gateway HTTP port |
+| `AUTH_SERVICE_URL` | Set for environment | Auth service origin |
+| `DASHBOARD_SERVICE_URL` | Set for environment | Dashboard service origin |
+| `PROJECT_SERVICE_URL` | Set for environment | Project service origin |
+| `PROFILE_SERVICE_URL` | Set for environment | Profile service origin |
+
+For Render, set `VITE_API_GATEWAY_URL=https://api-gateway-xeim.onrender.com` on the frontend and configure the gateway's four service URLs with the corresponding deployed backend origins listed above.
+
+### Backend services — all services (`services/*/.env`)
 
 Every backend service shares the same database connection:
 
@@ -258,7 +366,6 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 PORT=5003
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 SUPABASE_JWKS_URL=https://yourproject.supabase.co/auth/v1/.well-known/jwks.json
-
 # AI provider keys (at least one required for natural-language features)
 OPENROUTER_API_KEY=
 HF_API_KEY=
@@ -287,6 +394,7 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 | Service                    | Default Port |
 | -------------------------- | ------------ |
+| api-gateway                | 4000         |
 | auth-service               | 5001         |
 | dashboard-service          | 5002         |
 | project-service            | 5003         |
@@ -294,6 +402,19 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 | frontend (Vite dev server) | 3000         |
 
 Get the Supabase URL, keys, and database connection string from the team lead or Supabase project settings — **do not commit these values to the repo**.
+
+## API Gateway Routing
+
+The API gateway runs at `http://localhost:4000` and forwards frontend requests to the corresponding backend services:
+
+| Frontend route | Destination |
+| --- | --- |
+| `/api/auth` | Auth service |
+| `/api/dashboard` | Dashboard service |
+| `/api/project` | Project service |
+| `/api/profile` | Profile service |
+
+Run its tests from the repository root with `cd api-gateway` followed by `npm test`.
 
 ## Running Tests
 
@@ -326,6 +447,7 @@ The [`.gitea/workflows/ci.yml`](.gitea/workflows/ci.yml) pipeline runs lint, bui
 ## Branching Rules
 
 - `main` and `services` branches are protected — no direct pushes, changes must go through a pull request with required approvals.
+
 - Create a feature branch for your work:
 
 ```powershell
@@ -340,4 +462,5 @@ Then open a pull request on Gitea into `main` (or `services` for backend-only wo
 ## Architecture Rules
 
 - Project entries and their statistics stay scoped to that project (`project-service`).
+
 - The dashboard (`dashboard-service`) only shows cross-project summaries — it does not read individual entry tables directly.

@@ -533,11 +533,32 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 - `services/dashboard-service/` — Dashboard-specific endpoints
 
+### 28. Statistics Page (My Stats)
+
+**What it does:** A dedicated `/stats` page with per-entry and per-field analytics. It shows headline cards (Time Tracked, Due Soon, Active Projects), a Time Distribution donut and Entry Status breakdown, Time per Project / Entries per Project charts (cross-project view), a Time per Entry ranking of every timed entry's duration, and — inside a project scope — Field Insights, a drill-in analysis of every custom field (totals, averages, trends over occurrence days, grouping by another field, composition, text search).
+
+**Why it was implemented:** The project brief asks for "useful statistics about what they are doing, how much time they've spent on specific projects." Because every project can define its own custom fields, the engine is field-agnostic: it merges the project's declared field definitions with types inferred from the data and picks appropriate charts automatically, so owners get analytics for their own schema without per-project work.
+
+**How it works:**
+
+- Reads entries from the IndexedDB cache (`all_entries` store) and recomputes whenever the cache changes — no direct server or Supabase calls from the stats code; `syncAllData` keeps the cache warm (see [IndexedDB Caching](Architecture/caching.md))
+- All aggregation is done in the browser by pure functions in `frontend/src/functions/dashboard/stats.js`
+- Durations are computed from timer stamps: completed entries net out paused time (`ended_at − started_at − paused_ms`, floored at 0); running entries tick live against the page clock; entries without a start instant contribute 0
+- Daily charts bucket by the day each entry actually occurred (`started_at`, falling back to `created_at`, in UTC); the series spans every day from the oldest to the latest occurrence, with a lone occurrence getting the two prior days so a single value can still draw a line
+
+**Key files:**
+
+- `frontend/src/pages/StatsView.tsx` — The `/stats` page and its panels
+- `frontend/src/functions/dashboard/stats.js` — Field-agnostic statistics engine
+- `frontend/src/pages/__tests__/StatsView.test.tsx`, `frontend/src/functions/dashboard/__tests__/` — Engine and UI tests
+
+See [Statistics Engine](Architecture/statistics.md) for the full technical write-up.
+
 ---
 
 ## Advanced Features
 
-### 28. Voice Recording
+### 29. Voice Recording
 
 **What it does:** Record audio notes and attach them to entries.
 
@@ -555,7 +576,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `frontend/src/pages/VoiceFeature.jsx` — Voice recording UI
 - `docs-site/docs/Architecture/voice-feature.md` — Voice feature documentation
 
-### 29. Data Export
+### 30. Data Export
 
 **What it does:** Export all entries as JSON for backup or external analysis.
 
@@ -567,24 +588,35 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - Formats as JSON
 - Triggers browser download
 
-### 30. Responsive Design
+### 31. Responsive Design
 
-**What it does:** UI works seamlessly on mobile, tablet, and desktop.
+**What it does:** The UI adapts seamlessly across desktop, tablet, and phone screens using CSS media queries at 8 breakpoints and JavaScript viewport detection.
 
-**Why it was implemented:** Users access the logbook from various devices. Mobile support is essential for on-the-go logging.
+**Why it was implemented:** Users access the logbook from various devices. Mobile support is essential for on-the-go logging, and modern web standards require responsive layouts.
 
 **How it works:**
 
-- CSS media queries and flexible layouts
-- Touch-friendly buttons and controls
-- Collapsible navigation on mobile
-- Settings panel adapts to screen size
+- **Breakpoints:** CSS media queries at 1200px (desktop grid expansion), 1024px (tablet padding), 900px (landing page reflow), 768px (tablet — sidebar becomes tabs, grids go 2-column), 640px (small tablet), 560px (search row stacks), 480px (phone — single column, week-strip calendar, touch targets), and 380px (very small phones)
+- **Viewport detection:** `useIsMobile()` hook uses `window.matchMedia` at 480px to auto-switch the Calendar to a week-strip layout and the ProjectTable to a compact layout
+- **Touch targets:** Timer presets, buttons, and interactive cards meet the 44px minimum touch target guideline on mobile (iOS-compliant)
+- **Navigation:** Drawer navigation replaces inline menus on mobile; the settings panel becomes a full-width sheet; the Help Centre sidebar becomes horizontal scrollable tabs
+- **Grids:** Stats grids collapse from 4 → 3 → 1 columns; project grids from 3 → 2 → 1 columns; filter rows and search rows stack vertically
+- **Dedicated mobile layouts:** Sign-in page, landing page, Help Centre, Focus Mode, Calendar day modal, Report Bug form, Create Template, and all data views have dedicated phone breakpoints
+
+**Key files:**
+
+- `frontend/src/index.css` — Global responsive breakpoints (15+ media queries)
+- `frontend/src/pages/Calendar.tsx` — `useIsMobile()` hook, week-strip auto-switch
+- `frontend/src/Templates/ProjectTemplates/ProjectTable.tsx` — `useIsMobile()` compact layout
+- `frontend/src/pages/landing.css` — Landing page responsive reflow at 900px and 768px
+- `frontend/src/pages/HelpCentre.css` — Mobile horizontal tabs at 768px and 480px
+- `frontend/src/pages/FocusMode.css` — Phone breakpoint at 480px
 
 ---
 
 ## Security & Privacy
 
-### 31. Row-Level Security (RLS)
+### 32. Row-Level Security (RLS)
 
 **What it does:** Ensures users can only access their own data.
 
@@ -601,7 +633,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 - `supabase/setup.sql` — RLS policy definitions
 
-### 32. Environment Variable Management
+### 33. Environment Variable Management
 
 **What it does:** Secrets (API keys, database credentials) stored in environment variables, never committed to repo.
 
@@ -618,7 +650,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Developer Experience
 
-### 33. Hot Module Replacement (HMR)
+### 34. Hot Module Replacement (HMR)
 
 **What it does:** Frontend updates instantly without full page reload during development.
 
@@ -629,7 +661,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - Vite's built-in HMR
 - React Fast Refresh preserves component state
 
-### 34. Comprehensive Test Coverage
+### 35. Comprehensive Test Coverage
 
 **What it does:** Unit tests for backend functions, integration tests for API endpoints.
 
@@ -647,31 +679,44 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `services/project-service/src/__tests__/` — Test files
 - `.gitea/workflows/backend-unit-tests.yml` — Backend unit test workflow
 
-### 35. CI/CD Pipeline
+### 36. CI/CD Pipeline
 
-**What it does:** Automated testing, coverage reporting, and deployment on every push.
+**What it does:** Automated testing, linting, coverage reporting, and continuous deployment on every push and pull request.
 
-**Why it was implemented:** Ensures code quality and automates deployment.
+**Why it was implemented:** Ensures code quality gates are enforced before merge, prevents regressions across all 5 packages (frontend + 4 backend services), provides immediate feedback via status checks, and automates deployment to production on every merge to main.
 
 **How it works:**
 
-- Gitea Actions workflow runs on push to main
-- Tests run for all services in parallel
-- Coverage badges generated and committed
-- Render auto-deploys from main branch
+- **Dual CI platforms:** Workflows run on both Gitea Actions (`.gitea/workflows/`) and GitHub Actions (`.github/workflows/`) for redundancy and collaboration visibility
+- **Trigger model:** All test workflows fire on push to `main`/`hlulani` and on pull requests targeting `main`, so every commit and every PR is validated
+- **Main CI pipeline (`ci.yml`):** Single consolidated job that installs all packages with `npm ci` (reproducible builds), runs Prettier format check (`npm run format:check`), then for the frontend: installs deps, runs oxlint, runs unit tests, and runs the production Vite build; for each backend service (auth, dashboard, project, profile): installs deps and runs `npm test`
+- **Backend unit tests (`backend-unit-tests.yml`):** Runs Jest with `--coverage` for all 4 backend services (excluding integration tests via `--testPathIgnorePatterns="integration"`), then generates a combined coverage summary table via `scripts/backend-coverage-summary.js`
+- **Backend integration tests (`backend-integration-tests.yml`):** Runs Jest with `--coverage` for integration test suites only (`--testPathPattern="integration"`), collecting coverage from specific source files per service (e.g. `entries.js`, `activityLog.js`, `sseRegistry.js` for project-service)
+- **Frontend unit tests (`frontend-unit-tests.yml`):** Runs Vitest with `--coverage` excluding `src/__integration__/`, then fixes Windows path deduplication (`scripts/fix-coverage.js`) and prints a coverage summary table
+- **Frontend integration tests (`frontend-integration-tests.yml`):** Runs Vitest integration suites (`src/__integration__/`) with coverage, same path-fix and summary pipeline
+- **Keep-alive (`keep-alive.yml`):** Scheduled cron job (`*/10 * * * *`) that pings the Render health endpoint with 3 retries (15s apart), preventing free-tier instances from sleeping. Also runs on push to main/hlulani and supports manual dispatch via `workflow_dispatch`
+- **Branch sync (`sync-hlulani.yml`):** Auto-merges `main` into `hlulani` on every push to main, keeping the collaboration branch up to date
+- **Docs deployment (`docs.yml`, GitHub Actions):** On push to main with changes in `docs-site/**`, builds the MkDocs site and deploys to GitHub Pages via `mkdocs gh-deploy --force`
+- **CD via Render (`render.yaml`):** Infrastructure-as-code manifest defining 6 services — frontend (static/Vite), 4 Node.js backend microservices (auth 5001, dashboard 5002, project 5003, profile 5004), and docs-site (Python/MkDocs). Render auto-deploys from main: on every successful merge, the new code is built and rolled out automatically. Environment variables are configured as `sync: false` (manual) for secrets
+- **npm ci everywhere:** All CI workflows use `npm ci` instead of `npm install` for deterministic, lockfile-accurate dependency resolution
 
 **Key files:**
 
-- `.gitea/workflows/ci.yml` — CI workflow
-- `.gitea/workflows/backend-unit-tests.yml` — Backend unit test workflow
-- `.gitea/workflows/backend-integration-tests.yml` — Backend integration test workflow
-- `render.yaml` — Render deployment manifest
+- `.gitea/workflows/ci.yml` — Main CI pipeline (format, lint, test, build)
+- `.gitea/workflows/backend-unit-tests.yml` — Backend unit test coverage
+- `.gitea/workflows/backend-integration-tests.yml` — Backend integration test coverage
+- `.gitea/workflows/frontend-unit-tests.yml` — Frontend unit test coverage
+- `.gitea/workflows/frontend-integration-tests.yml` — Frontend integration test coverage
+- `.gitea/workflows/keep-alive.yml` — Render keep-alive ping (every 10 min)
+- `.gitea/workflows/sync-hlulani.yml` — Auto-sync main → hlulani
+- `.github/workflows/docs.yml` — Docs deployment to GitHub Pages
+- `render.yaml` — Render infrastructure-as-code (6 services)
 
 ---
 
 ## Onboarding & Guidance
 
-### 36. Guided Tour with Live Navigation & Voice Narration
+### 37. Guided Tour with Live Navigation & Voice Narration
 
 **What it does:** An interactive walkthrough that shows new users around the real app. The tour opens the navigation drawer, visits every view (Home, Kanban, Timeline, Calendar, My Stats, Import & Export), walks through creating a project, and points out the notification bell, profile menu, and quick-entry bar — with the spotlight following real UI elements. It really navigates: routes change and the drawer opens and closes as the tour describes them. A friendly voice narrates each stop aloud using the browser's built-in speech synthesis, and hands-free auto-advance moves the tour on when the narration finishes (or after a paced reading delay when muted), shown with a draining progress bar. A speaker toggle in the popover mutes or unmutes narration and the preference persists, hovering the popover pauses the countdown, and clicking Back hands control back to the user.
 
@@ -693,7 +738,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `frontend/src/components/NavBar.tsx` — Replay entry point
 - `frontend/src/index.css` — Tour popover, progress-bar, and voice-toggle styles
 
-### 37. Sign-In Landing Sections & Themed Page Identity
+### 38. Sign-In Landing Sections & Themed Page Identity
 
 **What it does:** The public sign-in page extends beyond the authentication form with three scrollable content sections — **About** (three feature cards), **About Us** (team member profiles), and **Features** (eight feature highlights with a "NEW" badge on the latest additions) — plus a footer. Navigation links to each section are displayed on the left panel under the tagline. The entire page is wrapped in a scoped theme override that renders in a warm beige palette (`#f5f1e6`, `#ece4d1`, `#fffdf6`) with dark-brown text, independently of the user's app-side theme setting.
 
@@ -717,7 +762,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Notifications & Alerts
 
-### 38. Notification Enhancements — Snooze, Dismiss, Filters, Lead Time & Rich Emails
+### 39. Notification Enhancements — Snooze, Dismiss, Filters, Lead Time & Rich Emails
 
 **What it does:** Extends the notification system with five user-facing improvements: (1) **Snooze** — hide a notification for 1 hour, 4 hours, or until tomorrow 8 am, after which it re-surfaces as unread; (2) **Dismiss** — soft-delete a notification without marking the underlying entry done; (3) **Filter tabs** on the /notifications history page — All, Unread, Due soon, Overdue — with server-side filtering; (4) **Configurable lead time** — users choose when to be notified before a deadline (1 h, 24 h, 48 h, 1 week) via a Settings dropdown; (5) **Rich HTML emails** with a colored status banner, entry card, project badge, and deep-link button; (6) **Browser toast notifications** via the Notification API when new unread items arrive during an active session.
 
@@ -747,7 +792,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
-### 39. Timer Enhancements — Presets, Auto-Stop, Analytics, Shortcuts & Mobile UX
+### 40. Timer Enhancements — Presets, Auto-Stop, Analytics, Shortcuts & Mobile UX
 
 **What it does:** Fourteen improvements to the session timer: (1) **Manual Time Entry** — log time without running the live timer via Duration or Time Range modes; (2) **Auto-Stop at Target** — automatically stops countdown timers at zero with a completion sound; (3) **Timer Presets** — quick-start buttons for 25m (Pomodoro), 1h, 2h, and 4h sessions; (4) **Visual Feedback** — progress bar, color-coded urgency (green → yellow → red), and pulsing animation; (5) **Sound Notifications** — distinct audio cues for start, stop, pause, completion, and a 5-minute warning; (6) **Edit After Stop** — adjust recorded time via a modal pre-populated with original values; (7) **Running Timer Persistence** — server-authoritative timestamps with a "Restored" badge on page reload; (8) **Timer Analytics** — StatsView panel showing session count, average/longest/shortest duration; (9) **Keyboard Shortcuts** — Space to start/stop, P to pause/resume; (10) **Mobile Experience** — 44px touch targets, 2-column preset layout, full-width buttons; (11) **Stop Confirmation** — modal dialog prevents accidental stops; (12) **Paused Duration Display** — live counter showing how long the timer has been paused; (13) **Idle Detection** — tracks user activity and shows an "Idle Xm" badge after 5 minutes of inactivity; (14) **Batch Timer Actions** — pause-all and stop-all controls when multiple timers are running; (15) **Export Timer Data** — CSV download of all timer sessions from the Stats page.
 
@@ -784,7 +829,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ## Onboarding & Support
 
-### 40. Help Centre
+### 41. Help Centre
 
 **What it does:** A full-screen `/help` page accessible from the drawer navigation on every page. Nine categories with 25 articles cover Getting Started, How-To Guides, Roles & Permissions, Troubleshooting, Account & Privacy, FAQ, Glossary, Release Notes, and Contact & Feedback. Features client-side keyword search, a category sidebar with article counts (horizontal tabs on mobile), keyboard shortcuts (`/` to focus search, `Esc` to clear), theme-aware styling, deep-link support via `?article=` and `?category=` URL params, and a "Report a Bug" button that opens an in-app form.
 
@@ -810,7 +855,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
-### 41. In-App Bug Report Form
+### 42. In-App Bug Report Form
 
 **What it does:** Replaces the external Gitea issues link with an in-app modal form that sends bug reports via email to the team. The form captures a title, description, steps to reproduce, and optional email address. Browser info (user agent, screen size, current URL) is auto-attached. On submit, FormSubmit.co forwards the report to `admin@codacaine.com`. Shows animated success/error states. Mobile-responsive bottom-sheet on phones (≤480px). Escape key closes the modal.
 
@@ -834,7 +879,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
-### 42. Public Landing Page
+### 43. Public Landing Page
 
 **What it does:** A standalone marketing landing page at `/` that introduces the Digital Logbook before sign-in. Features a split hero with a typing demo that cycles natural-language phrases on the left and an AI-generated isometric dashboard illustration on the right. Below the hero: three interactive About cards (Plan visually, Never miss a deadline, Own your data) with mouse-following spotlight and 3D tilt effects, a "What's New" infinite ticker, six feature cards with the same interactive effects, animated stats counters, a team section, a call-to-action box, and a footer. All styled with the warm beige/brown palette to match the sign-in form. The sign-in page (`/signin`) is a clean split-screen auth form with no duplicated marketing content.
 
@@ -859,6 +904,224 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 ---
 
+### 44. Project Pagination & Multi-Select
+
+**What it does:** When a user has more than 5 projects on the home page, only the first 3 are shown with a "View N more projects" button to expand the full list. A multi-select mode lets users batch-archive or batch-delete several projects at once.
+
+**Why it was implemented:** Users with many projects found the home page overwhelming. Pagination keeps the initial view focused, while multi-select avoids the tedium of archiving or deleting projects one at a time.
+
+**How it works:**
+
+- A `displayedProjects` memo slices `visibleProjects` to the first 3 when there are more than 5 and the user has not expanded the list
+- The "View N more projects" button toggles `showAllProjects`; the button text switches to "Show fewer projects" when expanded
+- A "Select" button in the projects toolbar enters select mode; each card shows a checkbox and clicking toggles selection instead of navigating
+- Card actions (Edit / Pin / Archive / Delete) are hidden in select mode to prevent accidental clicks
+- Batch action buttons appear when items are selected: Select all, Clear, Archive selected, Delete selected
+- Selected cards receive an accent outline highlight
+
+**Key files:**
+
+- `frontend/src/pages/Dashboard.tsx` — Project pagination, select mode, batch actions
+- `frontend/src/index.css` — Projects toolbar, select button, batch actions, card selection styles
+
+---
+
+### 45. Automatic Email Delivery (node-cron)
+
+**What it does:** Sends pending notification emails automatically every 15 minutes while the project-service is running, without requiring users to open the app or manual PowerShell invocation.
+
+**Why it was implemented:** The original automatic trigger — a `pg_net` HTTP poke from the Supabase `pg_cron` job — was broken because `pg_net` is unavailable on this Supabase project. Emails were only delivered when a user opened the notification bell (opportunistic flush) or the admin manually called the endpoint. The in-process scheduler closes that gap.
+
+**How it works:**
+
+- `node-cron` schedules `sendPendingEmails()` every 15 minutes (`*/15 * * * *`, Africa/Johannesburg timezone) inside the project-service process
+- The existing `FOR UPDATE OF n SKIP LOCKED` clause ensures concurrent calls (this timer, an external cron, or a bell-triggered flush) never double-send the same notification
+- Logs `[cron:email-flush] sent=N skipped=N` for monitoring in Render logs
+- For full 24/7 coverage on Render's free tier (which sleeps after ~15 minutes of inactivity), an external cron service such as cron-job.org can POST `/service/notifications/sendPending` to keep the service awake
+
+**Key files:**
+
+- `services/project-service/src/index.js` — node-cron scheduler setup
+- `services/project-service/src/functions/notifications/notifications.js` — `sendPendingEmails()` with Brevo sender
+- `services/project-service/package.json` — `node-cron` dependency
+
+---
+
+### 46. Field Display Rendering & Bug Fixes
+
+**What it does:** Fixes three rendering bugs in the field display system and adds proper visual styling for tags, entity-links, and file attachments.
+
+**Why it was implemented:** (1) A runtime crash (`Cannot read properties of undefined (reading 'slice')`) occurred when file, image, or entity-link fields had undefined values — the destructured `attachmentId` or `link` was passed to `.slice()` without type guards. (2) The `file` field type only rendered `{ attachmentId }` objects (from the upload-and-finalize path when editing existing entries) but rejected base64 strings stored during entry creation via AddEntry, so file content was invisible. (3) Tags like "school" and "life" appeared concatenated as one word because the CSS classes `.field-display-tag`, `.field-display-tags`, and `.field-display-entity-links` had no CSS rules anywhere in the codebase. (4) The timer pause/resume/stop controls were broken because `validateEntryDates` stripped timer-specific columns (`started_at`, `ended_at`, `paused_at`, `paused_ms`) from the entry update payload. (5) Long markdown field values had no truncation or "Read more" affordance.
+
+**How it works:**
+
+- `FieldDisplay.tsx` now checks `typeof attachmentId !== 'string'` before calling `.slice()` in file and image cases, and `typeof link === 'string'` in the entity_link case — returning an em-dash fallback when the value is unexpected
+- The file case handles base64 strings: image-like data renders as a thumbnail, other strings show a "File attached" chip
+- `fields.css` gains flex-wrap container rules for `.field-display-tags` and `.field-display-entity-links` (gap: 0.35rem), pill-shaped `.field-display-tag` chips with soft blue backgrounds for tags and soft green for entity-links, and a grey `.field-display-attachment` chip for file indicators
+- `validateEntryDates` preserves timer columns (`started_at`, `ended_at`, `paused_at`, `paused_ms`, `target_duration_ms`) so timer state survives entry updates
+- `SafeMarkdown.tsx` truncates long rendered markdown at 200px height with a fade gradient and a "Read more" expand button
+
+**Key files:**
+
+- `frontend/src/components/fields/FieldDisplay.tsx` — Type guards, base64 file handling
+- `frontend/src/components/fields/fields.css` — Tag chip, entity-link chip, and attachment chip styles
+- `frontend/src/components/SafeMarkdown.tsx` — Read-more truncation
+- `frontend/src/lib/newEntryDates.ts` — Timer column preservation in `validateEntryDates`
+
+---
+
+### 47. Accessibility
+
+**What it does:** The application conforms to modern accessibility standards with ARIA landmarks, keyboard navigation, semantic roles, focus management, and voice narration.
+
+**Why it was implemented:** Modern web applications must be usable by people with diverse abilities, including those relying on screen readers, keyboard-only navigation, or assistive technologies. Accessibility is a core requirement of contemporary web standards.
+
+**How it works:**
+
+- **ARIA landmarks:** `aria-label` on navigation (`nav`), OAuth buttons ("Continue with Google", "Continue with GitHub"), zoom controls ("Zoom in", "Zoom out"), chart regions, and interactive icons
+- **Keyboard navigation:** Escape key closes every modal, drawer, panel, dropdown, and the guided tour (14+ components handle Escape); `/` focuses the Help Centre search bar; Space/P start and pause the timer
+- **Semantic roles:** `role="img"` with descriptive `aria-label` on SVG charts (donut, trend, bar); `role="region"` with `tabIndex={0}` on scrollable data tables for keyboard scrolling; `role="alert"` on error messages; `role="status"` on loading indicators and live counts
+- **Focus management:** Dropdown menus (ProfileMenu, ToolbarDropdown, NotificationsBell) handle focus trap and release on close; modal overlays capture focus; Escape returns focus to the trigger
+- **Voice narration:** The guided tour uses the Web Speech API (`speechSynthesis`) with a persisted mute toggle; auto-advance is paced to the utterance `onend` event so speech is never cut off
+- **Chart legends:** `aria-label="Chart legend"` on legend lists for screen reader context
+- **Form labels:** All form inputs have associated `<label>` elements; OAuth buttons include both `aria-label` and `title` attributes
+- **Data tables:** Scrollable analysis regions use `role="region"` with `aria-label` describing the content, making them discoverable by screen readers
+
+**Key files:**
+
+- `frontend/src/pages/StatsView.tsx` — ARIA roles on charts, regions, and status indicators
+- `frontend/src/pages/Timeline.tsx` — `aria-label` on zoom controls, `role="alert"` on errors
+- `frontend/src/pages/SignIn.tsx` — `aria-label` on OAuth buttons
+- `frontend/src/components/ProfileMenu.tsx` — Escape key handling, focus management
+- `frontend/src/lib/tour.ts` — Voice narration via Web Speech API
+- `frontend/src/pages/HelpCentre.tsx` — `/` keyboard shortcut for search focus
+
+---
+
+### 48. Non-Monolithic Architecture
+
+**What it does:** The application is built as a set of independently deployable services — one React frontend and four Node.js/Express backend microservices — rather than a single monolithic codebase.
+
+**Why it was implemented:** A non-monolithic architecture allows each service to be developed, tested, deployed, and scaled independently. It enforces clear separation of concerns.
+
+**How it works:**
+
+- **Frontend (1 package):** React + Vite SPA in `frontend/`, deployed as a static site on Render. Communicates with the backend exclusively over HTTP REST APIs via `VITE_*_SERVICE_URL` environment variables
+- **Backend (4 independent microservices):** Each runs as its own Node.js process on its own port with its own `package.json`, dependencies, and Render deployment: Auth Service (5001), Dashboard Service (5002), Project Service (5003), Profile Service (5004)
+- **Database (separate):** Supabase PostgreSQL accessed by backend services via `node-postgres` (`pg`), not embedded in any service
+- **No shared code between services:** Each backend service is self-contained; services never import each other's code
+- **Independent scaling:** Each Render service can be scaled, restarted, or redeployed independently via `render.yaml` infrastructure-as-code
+
+**Key files:**
+
+- `frontend/src/lib/api.ts` — HTTP client with auth token, all backend calls
+- `frontend/src/lib/supabase.ts` — Supabase client (auth only, no data calls)
+- `services/auth-service/src/index.js` — Auth service entry point (port 5001)
+- `services/dashboard-service/src/index.js` — Dashboard service entry point (port 5002)
+- `services/project-service/src/index.js` — Project service entry point (port 5003)
+- `services/profile-service/src/index.js` — Profile service entry point (port 5004)
+- `render.yaml` — Infrastructure-as-code defining 6 independent Render services
+
+### 49. Hand-Written API
+
+**What it does:** All API endpoints are manually designed and implemented in Express.js route handlers. No framework or platform auto-generates endpoints.
+
+**Why it was implemented:** The project requirement states: "You must design and implement your API. You may not use a system that generates API endpoints." Supabase is used only for authentication and as a PostgreSQL database provider; the data API layer is entirely hand-written.
+
+**How it works:**
+
+- **11+ hand-coded route files** across 4 Express services in `services/*/src/Routes/`
+- **RPC-style POST dispatch:** Each route module exposes a single POST endpoint that dispatches on a `{ function, values }` body payload
+- **Supabase is NOT the API:** The frontend never calls Supabase's auto-generated `/rest/v1/` for data
+- **OpenAPI 3 spec is documentation, not generation:** `openapi.yaml` is a hand-written specification documenting existing routes
+- **Every endpoint is manually implemented:** `app.post(...)` → handler → `pg` query → `res.json(...)`
+
+**Key files:**
+
+- `services/project-service/src/Routes/entries.js` — Entry CRUD, search, stats, timer operations
+- `services/project-service/src/Routes/projects.js` — Project CRUD, archive
+- `services/project-service/src/Routes/ai.js` — AI natural-language entry creation
+- `services/dashboard-service/src/Routes/search.js` — Cross-project search
+- `services/profile-service/src/Routes/profile.js` — Profile CRUD
+- `services/project-service/docs/openapi.yaml` — Hand-written OpenAPI 3.0 specification
+- `frontend/src/lib/api.ts` — Frontend HTTP client calling hand-written endpoints
+
+---
+
+### 50. Authentication & Security (Supabase Auth)
+
+**What it does:** Users can sign up, sign in, reset their passwords, and delete their accounts. The entire authentication system is provided by **Supabase Auth** — an established, widely-used authentication service — not custom-written code.
+
+**Why it was implemented:** The project requirement states: "You may not write your own authentication system, instead you must rely on established practices and libraries." Supabase Auth handles password hashing, session management, OAuth handshakes, email verification, and token lifecycle.
+
+**How it works:**
+
+- **Sign up:** Email/password via Supabase `signUp()`. Live password checklist gates submit. Email validation rejects malformed addresses, disposable domains, and typos
+- **Sign in:** Google OAuth, GitHub OAuth, and email/password via Supabase SDK. Sessions persist until manual sign-out
+- **Password reset:** Supabase `resetPasswordForEmail()` sends a magic link; new password set via `/auth/update-password` with strength meter
+- **Account deletion:** Soft-delete via Supabase RPC `delete_user()`. 30-day grace period. Email-link restoration via `restore_user()`. Permanent purge via `purge_deleted_users()`
+- **Session management:** `AuthContext.tsx` wraps all Supabase auth methods in React context
+- **No custom auth code:** No JWT validation, password hashing, session tokens, or OAuth handshake code — Supabase handles all of these
+- **Row-Level Security (RLS):** Supabase RLS policies on all tables enforce data isolation at the database level
+- **Environment variable security:** All secrets in `.env` files (`.gitignore`), production via Render dashboard
+
+**Key files:**
+
+- `frontend/src/lib/supabase.ts` — Supabase client initialisation
+- `frontend/src/context/AuthContext.tsx` — React context wrapping Supabase auth methods
+- `frontend/src/pages/SignIn.tsx` — OAuth buttons, email/password, password checklist, email validation
+- `frontend/src/pages/ResetPassword.tsx` — Password reset request
+- `frontend/src/pages/UpdatePassword.tsx` — New password with strength meter
+- `frontend/src/pages/AuthRestore.tsx` — Email-link account restoration
+- `frontend/src/lib/validation.ts` — Email format, disposable-domain, typo-correction helpers
+- `supabase/setup.sql` — RLS policies, `delete_user()` / `restore_user()` / `purge_deleted_users()` RPCs
+- `supabase/migrations/004_account_deletion_grace_period.sql` — 30-day grace period schema
+
+---
+
+### 51. External API Integration
+
+**What it does:** The application integrates with multiple relevant external API services for email delivery, AI-powered features, and bug reporting.
+
+**Why it was implemented:** The project requirement states: "You must integrate with a relevant external API service in some manner." The Digital Logbook integrates with six external API providers.
+
+**How it works:**
+
+- **Brevo API:** Transactional notification emails via `POST https://api.brevo.com/v3/smtp/email`
+- **OpenRouter / Gemini / Cerebras / Groq / HuggingFace APIs:** 5 AI LLM providers for natural-language entry creation with fallback chain
+- **FormSubmit.co:** Bug report email delivery — no backend changes or API keys required
+- **Supabase:** Authentication (OAuth, email/password) and PostgreSQL database
+- **API key management:** All keys in environment variables, configured in Render dashboard
+
+**Key files:**
+
+- `services/project-service/src/functions/notifications/notifications.js` — Brevo API email sender
+- `services/project-service/src/Routes/ai.js` — AI provider integration with fallback chain
+- `frontend/src/components/BugReportModal.tsx` — FormSubmit.co integration
+- `render.yaml` — External API key environment variable declarations
+
+### 52. Documentation Website
+
+**What it does:** A publicly available documentation website built with MkDocs and deployed via static hosting.
+
+**Why it was implemented:** The project requirement states: "Your project must have a publicly available website that has your documentation. Avoid platforms that require an account." The site uses MkDocs (markdown-based) deployed on Render static hosting and GitHub Pages — no account required.
+
+**How it works:**
+
+- **MkDocs:** Python-based static site generator for markdown documentation
+- **Render deployment:** Publicly accessible at [https://digital-logbook-documentation-site.onrender.com](https://digital-logbook-documentation-site.onrender.com)
+- **GitHub Pages:** Mirror deployed via `.github/workflows/docs.yml` on push to main
+- **No account required:** Neither platform requires an account to view
+
+**Key files:**
+
+- `docs-site/mkdocs.yml` — MkDocs configuration
+- `docs-site/docs/` — All documentation markdown files
+- `.github/workflows/docs.yml` — GitHub Pages deployment
+- `render.yaml` — Render static site deployment
+
+---
+
 ## Summary
 
-The Digital Logbook implements 42 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics, security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 52 features across authentication & security (Supabase Auth: sign up, sign in with Google/GitHub/email, password reset, account deletion with 30-day grace period, email validation, session management, RLS), profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), developer experience (OpenAPI 3 spec, CI/CD pipeline with 7 Gitea Actions workflows + GitHub Actions mirror + Render auto-deploy), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), non-monolithic architecture (1 React frontend + 4 independent Express microservices, each independently deployable on Render), hand-written API (11+ manually coded route files across 4 services, RPC-style POST dispatch, Supabase used for auth and database only — not as an API generator), external API integration (Brevo email API, 5 AI LLM providers, FormSubmit.co, Supabase), documentation website (MkDocs static site on Render + GitHub Pages, publicly accessible, no account required), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.

@@ -3,6 +3,10 @@ site_description: Documentation for the COMS3011A Digital Logbook project
 repo_url: https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook
 repo_name: codacaine/Digital-Logbook
 
+# Never copy the unredacted feedback originals into the built site
+exclude_docs: |
+  assets/user-feedback-sprint3/_originals/*
+
 theme:
   name: material
   palette:
@@ -82,6 +86,7 @@ nav:
       - SSE Real-Time Updates: Architecture/sse.md
       - Keep-Alive Daemons: Architecture/daemon.md
       - Entry Summaries: Architecture/entry-summaries.md
+      - Statistics Engine: Architecture/statistics.md
       - UML Architecture Diagrams: Architecture/uml-diagrams.md
       - Third-Party Dependencies: Architecture/third-party.md
   - Roadmap: roadmap.md
@@ -89,6 +94,7 @@ nav:
       - Sprint 1: Meetings/sprint-one-meetings.md
       - Sprint 2: Meetings/sprint-two-meetings.md
       - Sprint 3: Meetings/sprint-three-meetings.md
+      - Sprint 4: Meetings/sprint-four-meetings.md
   - Stakeholder Interactions:
       - Sprint 1: Stakeholder_Interactions/sprint-one.md
       - Sprint 2: Stakeholder_Interactions/sprint-two.md
@@ -107,3 +113,4 @@ nav:
   - Testing:
       - Code Quality Tools: Testing/code-quality.md
       - Testing & User Feedback: Testing/testing.md
+      - Sprint 3 User Feedback: Testing/user-feedback-sprint3.md
