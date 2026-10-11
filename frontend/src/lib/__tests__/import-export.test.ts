@@ -596,7 +596,7 @@ describe('iCalendar export', () => {
 
     expect(ics).toContain('SUMMARY:0');
     expect(ics).toContain('SUMMARY:false');
-    expect(ics).toContain('SUMMARY:["Legacy task"]');
+    expect(ics).toContain('SUMMARY:Legacy task');
   });
 
   it('uses all-day format for entries with only due_date', () => {

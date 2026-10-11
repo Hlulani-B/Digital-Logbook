@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
 import { updateEntry } from '@/functions/project/entries.js';
 import { isOverdue } from '@/functions/dashboard/overdue.js';
 import { type CalendarEntry, getEntryTitle } from '@/lib/calendar';
@@ -8,19 +7,14 @@ import {
   type EntryStatus,
   STATUS_LABELS,
   STATUS_ORDER,
-  filterEntries,
   getEntryStatus,
   groupEntriesByStatus,
 } from '@/lib/kanban';
 import './Kanban.css';
-import { NavBar } from '@/components/NavBar';
-import { Header } from '@/components/Header';
-import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
-import { syncAllData } from '@/CacheFunctions';
-import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
+import { resolveProjectColor } from '@/lib/projectColorMap';
 import { formatDueDateTime } from '@/lib/dueDateDisplay';
 import { pinFirst } from '@/lib/entryFilters';
-import { PinScopeProvider, useEntryPinScope } from '@/lib/entryPins';
+import { useEntryPinScope } from '@/lib/entryPins';
 
 function getPriorityClass(priority: string | null): string {
   if (!priority) return '';
@@ -270,204 +264,5 @@ export function KanbanBoardView({ entries, email, colorMap, onUpdated }: KanbanB
         </div>
       )}
     </>
-  );
-}
-
-export function KanbanPage() {
-  const { user } = useAuth();
-  const email = user?.email ?? '';
-
-  const [entries, setEntries] = useState<CalendarEntry[]>([]);
-  const [projects, setProjects] = useState<{ project_name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [projectFilter, setProjectFilter] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Guard against overlapping loadData calls — mount effect, three
-  // cacheSubscribe listeners, SSE and visibilitychange all fire this
-  // function concurrently; only the newest invocation may commit state.
-  const loadSeq = useRef(0);
-
-  const loadData = useCallback(async () => {
-    if (!email) return;
-    const seq = ++loadSeq.current;
-    setError(null);
-
-    // Read ONLY from IndexedDB. Mutations update it directly.
-    try {
-      const [cachedEntries, cachedProjects] = await Promise.all([
-        cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-        cacheGet(CACHE_STORES.PROJECTS, email),
-      ]);
-      if (seq !== loadSeq.current) return;
-      if (cachedEntries?.data) {
-        const data = (Array.isArray(cachedEntries.data) ? cachedEntries.data : []).filter(
-          (e: CalendarEntry) => !e.archived
-        );
-        setEntries(data);
-      }
-      if (cachedProjects?.data || cachedProjects?.projects) {
-        const rawProjects = cachedProjects.data || cachedProjects.projects || [];
-        setProjects(
-          (Array.isArray(rawProjects) ? rawProjects : []).filter(
-            (p: { archived?: boolean }) => !p.archived
-          )
-        );
-      }
-      if (!cachedEntries?.data && !cachedProjects?.data && !cachedProjects?.projects) {
-        // First visit ever — trigger initial sync
-        await syncAllData(email);
-        const [freshEntries, freshProjects] = await Promise.all([
-          cacheGet(CACHE_STORES.ALL_ENTRIES, email),
-          cacheGet(CACHE_STORES.PROJECTS, email),
-        ]);
-        if (seq !== loadSeq.current) return;
-        if (freshEntries?.data) {
-          const data = (Array.isArray(freshEntries.data) ? freshEntries.data : []).filter(
-            (e: CalendarEntry) => !e.archived
-          );
-          setEntries(data);
-        }
-        if (freshProjects?.data || freshProjects?.projects) {
-          const rawProjects = freshProjects.data || freshProjects.projects || [];
-          setProjects(
-            (Array.isArray(rawProjects) ? rawProjects : []).filter(
-              (p: { archived?: boolean }) => !p.archived
-            )
-          );
-        }
-      }
-    } catch (err) {
-      console.error('[Kanban] Failed to load data:', err);
-    } finally {
-      if (seq === loadSeq.current) setLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Subscribe to cache changes — re-render when syncAllData or a mutation writes new rows.
-  // Shared callback so a batched invalidation reloads exactly once, not per store.
-  const reload = useCallback(() => {
-    void loadData();
-  }, [loadData]);
-  useEffect(() => {
-    if (!email) return;
-    const unsubs = [
-      cacheSubscribe(CACHE_STORES.ALL_ENTRIES, email, reload),
-      cacheSubscribe(CACHE_STORES.PROJECTS, email, reload),
-    ];
-    return () => unsubs.forEach((u) => u());
-  }, [email, reload]);
-
-  const filteredEntries = useMemo(
-    () => filterEntries(entries, projectFilter, searchQuery),
-    [entries, projectFilter, searchQuery]
-  );
-
-  const colorMap = useMemo(
-    () => buildProjectColorMap(projects as Array<Record<string, unknown>>),
-    [projects]
-  );
-
-  return (
-    <div className="dash-layout">
-      <div className="bg-mesh" />
-      <NavBar entries={entries as unknown as Array<Record<string, unknown>>} activeView="all" />
-      <main className="dash-main">
-        <div className="kanban-page" data-tour="page-kanban">
-          <Header
-            title="Kanban Board"
-            entries={entries as unknown as Array<Record<string, unknown>>}
-            projects={projects as Array<Record<string, unknown>>}
-          />
-
-          <div className="kanban-toolbar">
-            <div className="kanban-filter">
-              <label htmlFor="project-filter" className="kanban-filter-label">
-                Project
-              </label>
-              <select
-                id="project-filter"
-                className="kanban-select"
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-              >
-                <option value="">All projects</option>
-                {projects.map((p) => (
-                  <option key={p.project_name} value={p.project_name}>
-                    {p.project_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="kanban-filter kanban-filter--grow">
-              <label htmlFor="search-filter" className="kanban-filter-label">
-                Search
-              </label>
-              <input
-                id="search-filter"
-                type="text"
-                className="kanban-search"
-                placeholder="Search entries…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setProjectFilter('');
-                setSearchQuery('');
-              }}
-            >
-              Clear filters
-            </button>
-          </div>
-
-          {error && (
-            <div className="kanban-error" role="alert">
-              {error}
-              <button type="button" className="kanban-error-close" onClick={() => setError(null)}>
-                Dismiss
-              </button>
-            </div>
-          )}
-
-          {loading ? (
-            <div className="kanban-loading">
-              <span className="kanban-spinner" />
-              Loading board…
-            </div>
-          ) : filteredEntries.length === 0 ? (
-            <div className="kanban-empty">
-              <p>No entries match the current filter.</p>
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setProjectFilter('');
-                  setSearchQuery('');
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            <PinScopeProvider email={email} scope="entries">
-              <KanbanBoardView
-                entries={filteredEntries}
-                email={email}
-                colorMap={colorMap}
-                onUpdated={reload}
-              />
-            </PinScopeProvider>
-          )}
-        </div>
-      </main>
-    </div>
   );
 }

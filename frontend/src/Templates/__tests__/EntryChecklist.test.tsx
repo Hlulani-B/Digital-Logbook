@@ -69,7 +69,7 @@ describe('ChecklistEntryCard', () => {
   it('renders opaque historical payloads when no summary is available', () => {
     const legacyEntry = { ...sampleEntry, summary: null, entries: ['Legacy task'] };
     renderCard(legacyEntry);
-    expect(screen.getByText('["Legacy task"]')).toBeTruthy();
+    expect(screen.getByText('Legacy task')).toBeTruthy();
   });
 
   it('renders the due date', () => {

@@ -64,13 +64,22 @@ describe('SignIn', () => {
     expect(screen.getByText('Sign in to continue to your logbook')).toBeTruthy();
   });
 
-  it('advertises supported views without Today or Tracker', () => {
+  it('keeps view names and marketing captions off the sign-in card', () => {
+    // The sign-in card is a plain credential form: no view advertising (the
+    // standalone Kanban/Timeline/Today/Tracker pages are retired; those views
+    // now live on the Entries page) and no marketing caption.
     renderSignIn();
-    expect(screen.queryByRole('heading', { name: 'Today', exact: true })).toBeNull();
-    expect(screen.queryByRole('heading', { name: /^(Project )?Tracker$/ })).toBeNull();
-    for (const name of ['Calendar', 'Kanban', 'Timeline', 'Statistics']) {
-      expect(screen.getByRole('heading', { name, exact: true })).toBeTruthy();
+    for (const name of [
+      'Today',
+      'Tracker',
+      'Calendar',
+      'Kanban',
+      'Timeline',
+      'Statistics',
+    ]) {
+      expect(screen.queryByRole('heading', { name, exact: true })).toBeNull();
     }
+    expect(screen.queryByText('Track your time, own your progress')).toBeNull();
   });
 
   it('renders email and password fields', () => {
@@ -113,12 +122,6 @@ describe('SignIn', () => {
     renderSignIn();
     fireEvent.click(screen.getByText("Don't have an account? Create one"));
     expect(screen.queryByText('Forgot password?')).toBeNull();
-  });
-
-  it('renders the Plannar caption', () => {
-    renderSignIn();
-    expect(screen.getByText('Plannar')).toBeTruthy();
-    expect(screen.getByText('Track your time, own your progress')).toBeTruthy();
   });
 
   it('has correct input types', () => {

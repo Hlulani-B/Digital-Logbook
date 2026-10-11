@@ -447,7 +447,7 @@ export function AllEntriesPage() {
 
           {/* View + Sort sit together opposite the Entries/Projects toggle,
               mirroring the search/AI bar row's layout. */}
-          <div className="page-switcher-controls">
+          <div className="page-switcher-controls" data-tour="entries-views">
             <div className="feed-view-group">
               <span className="feed-view-label">View:</span>
               <ToolbarDropdown

@@ -6,8 +6,6 @@ import {
   useMemo,
   type CSSProperties,
 } from 'react';
-import { useNotes } from '@/context/NotesContext';
-import { FiEdit } from 'react-icons/fi';
 import { EntryQuickActions, loadProjectFields } from '@/components/EntryQuickActions';
 import {
   classifyEntryPayload,
@@ -128,7 +126,14 @@ function entryFieldColumns(rows: any[]): EntryFieldColumn[] {
 }
 
 function fieldColumnLabel(column: EntryFieldColumn) {
-  return column.kind === 'legacy' ? 'Legacy content' : column.name;
+  if (column.kind === 'legacy') return 'Legacy content';
+  // Real field names are shown exactly as stored; only reserved keys
+  // (leading underscore, e.g. "_project_ref") get a tidy human label.
+  if (!column.name.startsWith('_')) return column.name;
+  return column.name
+    .replace(/^_+/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Grid for the scrollable part of a row: content columns | Priority | Due | Status.
@@ -211,6 +216,31 @@ function EditableText({
   );
 }
 
+/**
+ * Table cells show the value itself, never a "key: value" dump: a project
+ * reference reads as just the project name and a single-value wrapper (how
+ * number fields are sometimes stored) reads as just the number.
+ */
+function formatCellText(value: unknown): string {
+  if (value == null) return 'Not recorded';
+  if (isBase64Image(value)) return '[Image]';
+
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (typeof record.project_name === 'string' && record.project_name) {
+      return record.project_name;
+    }
+    const scalars = Object.values(record).filter(
+      (item) => typeof item === 'string' || typeof item === 'number'
+    );
+    if (Object.keys(record).length === 1 && scalars.length === 1) {
+      return String(scalars[0]);
+    }
+  }
+
+  return formatEntryValue(value);
+}
+
 function EntryFieldValue({
   column,
   payload,
@@ -228,7 +258,7 @@ function EntryFieldValue({
         {payload.kind === 'object' ? (
           <span className="ptt-placeholder">Not recorded</span>
         ) : (
-          formatEntryValue(payload.value)
+          formatCellText(payload.value)
         )}
       </span>
     );
@@ -297,7 +327,7 @@ function EntryFieldValue({
     );
   }
 
-  return <span className="ptt-readonly-value">{formatEntryValue(value)}</span>;
+  return <span className="ptt-readonly-value">{formatCellText(value)}</span>;
 }
 
 // ── Inline editable date cell ──────────────────────────────
@@ -476,6 +506,7 @@ function TaskRow({
   selected,
   onToggle,
   projectColor,
+  onRowScroll,
 }: {
   entry: any;
   fieldColumns: EntryFieldColumn[];
@@ -485,6 +516,8 @@ function TaskRow({
   selected: boolean;
   onToggle: (id: string) => void;
   projectColor?: string;
+  /** Reports this row's horizontal offset so the column labels can follow it. */
+  onRowScroll?: (scrollLeft: number) => void;
 }) {
   const payload = classifyEntryPayload(entry.entries);
 
@@ -527,8 +560,12 @@ function TaskRow({
         </div>
       </div>
 
-      {/* One horizontal scrollbar per entry for the remaining fields */}
-      <div className="ptt-row__scroll">
+      {/* One horizontal scrollbar per entry for the remaining fields; the
+          column labels ride along with whichever row is being scrolled. */}
+      <div
+        className="ptt-row__scroll"
+        onScroll={(e) => onRowScroll?.(e.currentTarget.scrollLeft)}
+      >
         <div className="ptt-row__inner" style={{ gridTemplateColumns: gridTemplate }}>
           {viewMode === 'summary' ? (
             <div className="ptt-cell ptt-cell-summary">
@@ -620,6 +657,9 @@ function ProjectGroup({
   projectColor?: string;
 }) {
   const [open, setOpen] = useState(true);
+  // Horizontal offset of the last row the reader scrolled, so the column
+  // labels scroll together with the values underneath them.
+  const [headerScroll, setHeaderScroll] = useState(0);
   // Schema columns — project fields no row has filled in yet still get a
   // column so unfilled non-required fields stay visible and editable.
   const [schemaFields, setSchemaFields] = useState<string[]>([]);
@@ -734,7 +774,13 @@ function ProjectGroup({
                 <div className="ptt-col ptt-col-actions">Actions</div>
               </div>
               <div className="ptt-columns__scroll">
-                <div className="ptt-columns__inner" style={{ gridTemplateColumns: gridTemplate }}>
+                <div
+                  className="ptt-columns__inner"
+                  style={{
+                    gridTemplateColumns: gridTemplate,
+                    transform: `translateX(-${headerScroll}px)`,
+                  }}
+                >
                   {viewMode === 'summary' ? (
                     <div className="ptt-col ptt-col-summary">Summary</div>
                   ) : (
@@ -766,6 +812,7 @@ function ProjectGroup({
                   selected={selectedIds.has(entry.id)}
                   onToggle={onToggleSelect}
                   projectColor={projectColor}
+                  onRowScroll={setHeaderScroll}
                 />
               ))}
             </div>
@@ -801,14 +848,6 @@ export default function ProjectTaskTable({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { openNotes } = useNotes();
-
-  // Find the single selected entry for notes actions
-  const singleSelectedEntry = useMemo(() => {
-    if (selectedIds.size !== 1) return null;
-    const id = Array.from(selectedIds)[0];
-    return rows.find((r) => r.id === id) || null;
-  }, [selectedIds, rows]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -867,18 +906,6 @@ export default function ProjectTaskTable({
       {selectedIds.size > 0 && (
         <div className="ptt-bulk-bar">
           <span className="ptt-bulk-bar__count">{selectedIds.size} selected</span>
-          {singleSelectedEntry && (
-            <>
-              <button
-                type="button"
-                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
-                onClick={() => openNotes(singleSelectedEntry)}
-              >
-                <FiEdit />
-                View Notes
-              </button>
-            </>
-          )}
           <button
             type="button"
             className="ptt-bulk-bar__btn ptt-bulk-bar__btn--delete"

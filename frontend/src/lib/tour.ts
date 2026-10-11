@@ -289,19 +289,12 @@ function buildSteps(): DriveStep[] {
       align: 'start',
     }),
     liveStep({
-      path: '/kanban',
-      element: '[data-tour="page-kanban"]',
-      title: 'Kanban',
+      path: '/entries',
+      element: '[data-tour="entries-views"]',
+      title: 'One page, every view',
       description:
-        'Drag entries between Up next, In motion, and Done &amp; dusted to track progress at a glance.',
-      side: 'top',
-      align: 'start',
-    }),
-    liveStep({
-      path: '/timeline',
-      element: '[data-tour="page-timeline"]',
-      title: 'Timeline',
-      description: 'Your entries laid out over time, including dependencies between them.',
+        'Cards, Checklist, Board, Table, Kanban and Timeline all live on this page — pick one ' +
+        'from the View menu and sort the list beside it.',
       side: 'top',
       align: 'start',
     }),

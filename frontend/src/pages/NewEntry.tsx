@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotes } from '@/context/NotesContext';
-import { FiEdit } from 'react-icons/fi';
 import { updateEntry, deleteEntryById, getEntries } from '../functions/project/entries.js';
 import { archiveEntry, unarchiveEntry } from '../functions/project/archives.js';
 import { getFields } from '../functions/project/fields.js';
@@ -155,7 +153,6 @@ export function EntryBox({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { openNotes } = useNotes();
   // Cards start collapsed — the bottom toggle reveals the rest of the fields.
   const [collapsed, setCollapsed] = useState(true);
 
@@ -757,35 +754,13 @@ export function EntryBox({
               <div className="entry-box__menu">
                 {/* Archived entries are read-only: delete or unarchive only. */}
                 {!archived && (
-                  <>
-                    <button
-                      type="button"
-                      className="entry-box__menu-item"
-                      onClick={handleEnterEdit}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="entry-box__menu-item"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        openNotes(entry);
-                      }}
-                    >
-                      View Notes
-                    </button>
-                    <button
-                      type="button"
-                      className="entry-box__menu-item"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        openNotes(entry);
-                      }}
-                    >
-                      Add Note
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    className="entry-box__menu-item"
+                    onClick={handleEnterEdit}
+                  >
+                    Edit
+                  </button>
                 )}
                 <button
                   type="button"
@@ -1137,20 +1112,8 @@ export function EntryBox({
           </div>
         </div>
 
-        {/* View Notes button - secondary action on its own line (hidden when archived) */}
-        {!archived && (
-          <button
-            type="button"
-            className="entry-box__view-notes-btn"
-            onClick={() => openNotes(entry)}
-          >
-            <FiEdit className="entry-box__view-notes-icon" />
-            View Notes
-          </button>
-        )}
-
         {/* Collapse toggle — sits at the bottom of the card and hides or
-            reveals the field table, timer controls and notes button. */}
+            reveals the field table and timer controls. */}
         {!archived && (
           <div className="entry-box__collapse-row">
             {isCollapsed && dueLabel && (

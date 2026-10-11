@@ -292,7 +292,7 @@ describe('EntryBox inline edit layout', () => {
     const { container, onUpdated } = renderBox(entry);
     openEdit();
     const body = element(container, '.entry-form__body');
-    expect(within(body).getByText('["Historical task"]')).toBeInTheDocument();
+    expect(within(body).getByText('Historical task')).toBeInTheDocument();
     expect(within(body).queryByRole('textbox')).not.toBeInTheDocument();
     const saveButton = screen.getByRole('button', { name: 'Save Changes' });
     // The save button stays disabled until the project fields finish loading.
@@ -343,7 +343,7 @@ describe('EntryBox inline edit layout', () => {
     );
   });
 
-  it('leaves ordinary card styling, notes, priority, and archive callbacks unchanged', async () => {
+  it('leaves ordinary card styling, priority, and archive callbacks unchanged', async () => {
     const { container, onPriorityChanged, onArchiveToggled } = renderBox();
     await waitFor(() => expect(container.querySelector('.field-display')).not.toBeNull());
     const card = element(container, '.entry-box');
@@ -352,8 +352,10 @@ describe('EntryBox inline edit layout', () => {
     ).toBeNull();
     expect(card.style.getPropertyValue('--tint')).toBe('#12345618');
     expect(within(card).getByRole('table')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'View Notes' }));
-    expect(mocks.openNotes).toHaveBeenCalledExactlyOnceWith(sampleEntry);
+    // No View Notes / Add Note buttons sit next to Edit any more.
+    expect(screen.queryByRole('button', { name: 'View Notes' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Note' })).toBeNull();
+    expect(mocks.openNotes).not.toHaveBeenCalled();
     fireEvent.change(element(card, '.entry-box__priority-select'), { target: { value: '2' } });
     expect(onPriorityChanged).toHaveBeenCalledExactlyOnceWith(
       sampleEntry.id,

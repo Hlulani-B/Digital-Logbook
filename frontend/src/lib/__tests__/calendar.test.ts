@@ -238,7 +238,7 @@ describe('calendar entry helpers', () => {
 
       expect(getEntryTitle({ ...baseEntry, entries: 0 })).toBe('0');
       expect(getEntryTitle({ ...baseEntry, entries: false })).toBe('false');
-      expect(getEntryTitle({ ...baseEntry, entries: ['Legacy task'] })).toBe('["Legacy task"]');
+      expect(getEntryTitle({ ...baseEntry, entries: ['Legacy task'] })).toBe('Legacy task');
     });
 
     it('returns untitled for empty entries', () => {
