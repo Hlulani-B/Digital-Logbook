@@ -94,8 +94,37 @@ The frontend uses Supabase Auth for identity management and supports multiple si
 - **Field display rendering fixes:** Type-safe guards prevent crashes on undefined attachment/link values, file fields now render base64 strings stored during creation, tags and entity-links display as styled pill-shaped chips, and long markdown fields truncate with a "Read more" button.
 - **Responsive design:** The UI adapts across desktop, tablet, and phone screens using CSS media queries at 8 breakpoints (1200px–380px). A `useIsMobile()` hook switches the Calendar to a week-strip layout on phones (≤480px). Grid layouts collapse from multi-column to single-column, navigation drawers replace inline menus, and touch targets meet the 44px minimum.
 - **Accessibility:** ARIA labels on interactive controls and charts. Keyboard navigation: Escape closes every modal/drawer/dropdown; `/` focuses Help Centre search; Space/P control the timer. Semantic roles (`img`, `region`, `alert`, `status`) for screen readers. Voice-narrated guided tour via Web Speech API. Focus management on dropdowns and modals.
+- **CI/CD pipeline:** 7 Gitea Actions workflows (main CI, backend unit tests, backend integration tests, frontend unit tests, frontend integration tests, keep-alive, branch sync) plus GitHub Actions mirror. Every push and PR triggers format checks, linting, unit tests, integration tests, and a production build. Render auto-deploys from main via `render.yaml` infrastructure-as-code (6 services). Docs deploy to GitHub Pages on merge.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
+
+## CI/CD Pipeline
+
+The project uses a comprehensive continuous integration and deployment pipeline running on both **Gitea Actions** and **GitHub Actions**:
+
+### Continuous Integration (7 workflows)
+
+| Workflow | Trigger | What it does |
+| :--- | :--- | :--- |
+| **CI Pipeline** (`ci.yml`) | Push to main/hlulani, PRs to main | Format check (Prettier), frontend lint (oxlint), frontend test + production build, all 4 backend services install + test |
+| **Backend Unit Tests** | Push to main/hlulani, PRs to main | Jest `--coverage` for auth, dashboard, project, profile services (unit tests only) |
+| **Backend Integration Tests** | Push to main/hlulani, PRs to main | Jest `--coverage` for integration suites across all 4 backend services |
+| **Frontend Unit Tests** | Push to main/hlulani, PRs to main | Vitest `--coverage` for frontend (excluding integration) |
+| **Frontend Integration Tests** | Push to main/hlulani, PRs to main | Vitest `--coverage` for frontend integration suites |
+| **Keep-Alive** | Every 10 min (cron), push, manual | Pings Render health endpoint with 3 retries to prevent free-tier cold starts |
+| **Branch Sync** | Push to main | Auto-merges main → hlulani to keep the collaboration branch current |
+
+### Continuous Deployment
+
+- **Render auto-deploy:** `render.yaml` defines 6 services (frontend, 4 backend microservices, docs-site). On every merge to main, Render automatically builds and deploys the updated code.
+- **Docs deployment:** GitHub Actions workflow (`docs.yml`) builds the MkDocs site and deploys to GitHub Pages when `docs-site/**` changes.
+- **Deterministic builds:** All CI workflows use `npm ci` for lockfile-accurate dependency resolution.
+
+### Key files
+
+- `.gitea/workflows/` — 7 Gitea Actions workflow files
+- `.github/workflows/` — 7 GitHub Actions workflow files (mirror + docs deploy)
+- `render.yaml` — Render infrastructure-as-code manifest
 
 ## Prerequisites
 

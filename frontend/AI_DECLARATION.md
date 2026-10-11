@@ -88,6 +88,7 @@ I am the sole person responsible for the frontend authentication work. All featu
 - I reported that long markdown fields had no truncation or "Read more" affordance
 - I requested that the application conform to modern responsive design standards across all device sizes
 - I requested that the application conform to modern accessibility standards including ARIA labels, keyboard navigation, and semantic roles
+- I requested that the CI/CD pipeline be documented comprehensively across all documentation surfaces
 
 ### 2. Code Generation (AI-Assisted)
 
@@ -151,6 +152,15 @@ The AI generated the following code based on my instructions:
 | `services/project-service/src/index.js`                       | Project-service entry point with node-cron scheduled email flush every 15 minutes                                | AI generated from my requirements     |
 | `frontend/src/index.css` (responsive sections)                | 15+ media queries at 8 breakpoints for responsive grid, navigation, and mobile layouts                           | AI generated from my design direction |
 | `frontend/src/pages/Calendar.tsx` (useIsMobile)               | `useIsMobile()` hook using `window.matchMedia` for viewport-aware layout switching                               | AI generated from my requirements     |
+| `.gitea/workflows/ci.yml`                                     | Main CI pipeline: format, lint, test, build for frontend + 4 backend services                                    | AI documented from team setup         |
+| `.gitea/workflows/backend-unit-tests.yml`                     | Backend unit test coverage workflow for all 4 services                                                           | AI documented from team setup         |
+| `.gitea/workflows/backend-integration-tests.yml`              | Backend integration test coverage workflow for all 4 services                                                    | AI documented from team setup         |
+| `.gitea/workflows/frontend-unit-tests.yml`                    | Frontend unit test coverage workflow with Vitest                                                                 | AI documented from team setup         |
+| `.gitea/workflows/frontend-integration-tests.yml`             | Frontend integration test coverage workflow with Vitest                                                          | AI documented from team setup         |
+| `.gitea/workflows/keep-alive.yml`                             | Render keep-alive ping every 10 minutes to prevent cold starts                                                   | AI documented from team setup         |
+| `.gitea/workflows/sync-hlulani.yml`                           | Auto-merge main → hlulani on every push to main                                                                  | AI documented from team setup         |
+| `.github/workflows/docs.yml`                                  | Docs deployment to GitHub Pages via MkDocs                                                                       | AI documented from team setup         |
+| `render.yaml`                                                 | Render infrastructure-as-code manifest (6 services)                                                              | AI documented from team setup         |
 | `.env.example`                                                | Environment variable template                                                                                    | AI generated                          |
 
 ### 3. Configuration and DevOps (AI-Executed Under My Direction)
@@ -201,6 +211,7 @@ I made all configuration decisions and directed the AI to execute the following:
 | Notification emails required manual PowerShell invocation        | Me (student, requested)                | AI (added node-cron scheduler to project-service for automatic 15-minute email flush)                                             |
 | Responsive design needed to meet modern standards                | Me (student, requested)                | AI (expanded section 31 with 8 breakpoints, `useIsMobile()` hook, 44px touch targets, dedicated mobile layouts)                   |
 | Accessibility needed to meet modern standards                    | Me (student, requested)                | AI (added ARIA labels, keyboard navigation, semantic roles, focus management, voice narration across 14+ components)              |
+| CI/CD pipeline needed comprehensive documentation                | Me (student, requested)                | AI (expanded section 36 with all 7 workflows, dual CI platforms, Render auto-deploy, and key files)                               |
 
 ---
 

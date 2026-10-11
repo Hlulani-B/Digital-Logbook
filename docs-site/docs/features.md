@@ -681,23 +681,36 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ### 36. CI/CD Pipeline
 
-**What it does:** Automated testing, coverage reporting, and deployment on every push.
+**What it does:** Automated testing, linting, coverage reporting, and continuous deployment on every push and pull request.
 
-**Why it was implemented:** Ensures code quality and automates deployment.
+**Why it was implemented:** Ensures code quality gates are enforced before merge, prevents regressions across all 5 packages (frontend + 4 backend services), provides immediate feedback via status checks, and automates deployment to production on every merge to main.
 
 **How it works:**
 
-- Gitea Actions workflow runs on push to main
-- Tests run for all services in parallel
-- Coverage badges generated and committed
-- Render auto-deploys from main branch
+- **Dual CI platforms:** Workflows run on both Gitea Actions (`.gitea/workflows/`) and GitHub Actions (`.github/workflows/`) for redundancy and collaboration visibility
+- **Trigger model:** All test workflows fire on push to `main`/`hlulani` and on pull requests targeting `main`, so every commit and every PR is validated
+- **Main CI pipeline (`ci.yml`):** Single consolidated job that installs all packages with `npm ci` (reproducible builds), runs Prettier format check (`npm run format:check`), then for the frontend: installs deps, runs oxlint, runs unit tests, and runs the production Vite build; for each backend service (auth, dashboard, project, profile): installs deps and runs `npm test`
+- **Backend unit tests (`backend-unit-tests.yml`):** Runs Jest with `--coverage` for all 4 backend services (excluding integration tests via `--testPathIgnorePatterns="integration"`), then generates a combined coverage summary table via `scripts/backend-coverage-summary.js`
+- **Backend integration tests (`backend-integration-tests.yml`):** Runs Jest with `--coverage` for integration test suites only (`--testPathPattern="integration"`), collecting coverage from specific source files per service (e.g. `entries.js`, `activityLog.js`, `sseRegistry.js` for project-service)
+- **Frontend unit tests (`frontend-unit-tests.yml`):** Runs Vitest with `--coverage` excluding `src/__integration__/`, then fixes Windows path deduplication (`scripts/fix-coverage.js`) and prints a coverage summary table
+- **Frontend integration tests (`frontend-integration-tests.yml`):** Runs Vitest integration suites (`src/__integration__/`) with coverage, same path-fix and summary pipeline
+- **Keep-alive (`keep-alive.yml`):** Scheduled cron job (`*/10 * * * *`) that pings the Render health endpoint with 3 retries (15s apart), preventing free-tier instances from sleeping. Also runs on push to main/hlulani and supports manual dispatch via `workflow_dispatch`
+- **Branch sync (`sync-hlulani.yml`):** Auto-merges `main` into `hlulani` on every push to main, keeping the collaboration branch up to date
+- **Docs deployment (`docs.yml`, GitHub Actions):** On push to main with changes in `docs-site/**`, builds the MkDocs site and deploys to GitHub Pages via `mkdocs gh-deploy --force`
+- **CD via Render (`render.yaml`):** Infrastructure-as-code manifest defining 6 services — frontend (static/Vite), 4 Node.js backend microservices (auth 5001, dashboard 5002, project 5003, profile 5004), and docs-site (Python/MkDocs). Render auto-deploys from main: on every successful merge, the new code is built and rolled out automatically. Environment variables are configured as `sync: false` (manual) for secrets
+- **npm ci everywhere:** All CI workflows use `npm ci` instead of `npm install` for deterministic, lockfile-accurate dependency resolution
 
 **Key files:**
 
-- `.gitea/workflows/ci.yml` — CI workflow
-- `.gitea/workflows/backend-unit-tests.yml` — Backend unit test workflow
-- `.gitea/workflows/backend-integration-tests.yml` — Backend integration test workflow
-- `render.yaml` — Render deployment manifest
+- `.gitea/workflows/ci.yml` — Main CI pipeline (format, lint, test, build)
+- `.gitea/workflows/backend-unit-tests.yml` — Backend unit test coverage
+- `.gitea/workflows/backend-integration-tests.yml` — Backend integration test coverage
+- `.gitea/workflows/frontend-unit-tests.yml` — Frontend unit test coverage
+- `.gitea/workflows/frontend-integration-tests.yml` — Frontend integration test coverage
+- `.gitea/workflows/keep-alive.yml` — Render keep-alive ping (every 10 min)
+- `.gitea/workflows/sync-hlulani.yml` — Auto-sync main → hlulani
+- `.github/workflows/docs.yml` — Docs deployment to GitHub Pages
+- `render.yaml` — Render infrastructure-as-code (6 services)
 
 ---
 
@@ -987,4 +1000,4 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ## Summary
 
-The Digital Logbook implements 47 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 47 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline with 7 Gitea Actions workflows + GitHub Actions mirror + Render auto-deploy), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
