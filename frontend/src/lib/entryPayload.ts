@@ -72,26 +72,31 @@ export function formatEntryValue(value: unknown): string {
   
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   
-  // Handle arrays
+  // Handle arrays - format as comma-separated list
   if (Array.isArray(value)) {
     try {
-      // Format each item in the array
       const formatted = value.map(item => formatEntryValue(item));
-      return JSON.stringify(formatted);
+      // If it's a simple array of primitives, show as comma-separated
+      if (formatted.every(item => !item.includes(':') && !item.includes('{'))) {
+        return formatted.join(', ');
+      }
+      // Otherwise show as JSON array
+      return '[' + formatted.join(', ') + ']';
     } catch {
       return 'Not recorded';
     }
   }
 
-  // Handle objects (including nested objects)
+  // Handle objects - format as key: value pairs
   if (typeof value === 'object') {
     try {
-      // Format each value in the object
-      const formatted: Record<string, string> = {};
-      for (const [key, val] of Object.entries(value)) {
-        formatted[key] = formatEntryValue(val);
-      }
-      return JSON.stringify(formatted);
+      const entries = Object.entries(value);
+      // For simple objects with primitive values, show as "key: value, key: value"
+      const formatted = entries.map(([key, val]) => {
+        const formattedVal = formatEntryValue(val);
+        return `${key}: ${formattedVal}`;
+      });
+      return formatted.join(', ');
     } catch {
       return 'Not recorded';
     }
