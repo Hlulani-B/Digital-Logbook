@@ -20,9 +20,15 @@ export class Fields {
         }
       }
 
+      // Entity-link fields require link_target_table (CHECK constraint in migration 018).
+      // Default to the current project table when not explicitly provided.
+      const isEntityLink = data_type === 'entity_link';
+      const linkTargetTable = isEntityLink ? table_name : null;
+      const linkAllowMultiple = false;
+
       await pool.query(
-        `INSERT INTO fields (user_email, table_name, field_name, data_type, is_required, field_permissions, visibility)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO fields (user_email, table_name, field_name, data_type, is_required, field_permissions, visibility, link_target_table, link_allow_multiple)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           user_email,
           table_name,
@@ -31,6 +37,8 @@ export class Fields {
           is_required,
           field_permissions ? JSON.stringify(field_permissions) : '{}',
           visibility ? JSON.stringify(visibility) : null,
+          linkTargetTable,
+          linkAllowMultiple,
         ]
       );
 
@@ -58,6 +66,13 @@ export class Fields {
 
         const updateFields = ['data_type = $1', 'is_required = $2'];
         const params = [data_type, is_required];
+
+        // Entity-link fields require link_target_table (CHECK constraint in migration 018).
+        const isEntityLink = data_type === 'entity_link';
+        updateFields.push('link_target_table = $' + (params.length + 1));
+        params.push(isEntityLink ? table_name : null);
+        updateFields.push('link_allow_multiple = $' + (params.length + 1));
+        params.push(false);
 
         // Add field_permissions update if provided
         if (field_permissions !== undefined) {
@@ -148,8 +163,9 @@ export class Fields {
          RETURNING id`,
         [old_field_name, field_name, user_email, table_name]
       );
+      const isEntityLinkRename = data_type === 'entity_link';
       const { rows } = await client.query(
-        `UPDATE fields SET field_name = $1, data_type = $2, is_required = $3, field_permissions = $4, visibility = $5
+        `UPDATE fields SET field_name = $1, data_type = $2, is_required = $3, field_permissions = $4, visibility = $5, link_target_table = $7, link_allow_multiple = $8
          WHERE id = $6
          RETURNING *`,
         [
@@ -159,6 +175,8 @@ export class Fields {
           field_permissions ? JSON.stringify(field_permissions) : '{}',
           visibility ? JSON.stringify(visibility) : null,
           sourceFields[0].id,
+          isEntityLinkRename ? table_name : null,
+          false,
         ]
       );
 

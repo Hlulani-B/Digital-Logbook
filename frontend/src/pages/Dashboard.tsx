@@ -285,6 +285,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
   // Project card delete flow — inline confirm per card
   const [confirmDeleteProject, setConfirmDeleteProject] = useState<string | null>(null);
   const [deletingProject, setDeletingProject] = useState<string | null>(null);
+  // Project pagination — show first 3 when there are more than 5
+  const [showAllProjects, setShowAllProjects] = useState(false);
+  // Multi-select mode for batch operations on projects
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
@@ -795,6 +800,16 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     fieldTypes,
   ]);
 
+  // Project pagination: when there are more than 5 visible projects, show only
+  // the first 3 unless the user has expanded the full list.
+  const PROJECT_PREVIEW_COUNT = 3;
+  const hasMoreProjects = visibleProjects.length > 5;
+  const displayedProjects =
+    hasMoreProjects && !showAllProjects
+      ? visibleProjects.slice(0, PROJECT_PREVIEW_COUNT)
+      : visibleProjects;
+  const remainingProjectCount = visibleProjects.length - PROJECT_PREVIEW_COUNT;
+
   // In-progress entries (started but not ended). Drives the live dashboard timer.
   const inProgressEntries = useMemo(
     () => entries.filter((e) => e.started_at && !e.ended_at),
@@ -1140,6 +1155,55 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     try {
       localStorage.setItem(`dl_archived_${email}`, JSON.stringify([...next]));
     } catch {}
+  };
+
+  // ── Multi-select helpers ───────────────────────────────────────────────────
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => {
+      if (prev) setSelectedProjects(new Set()); // exiting — clear selection
+      return !prev;
+    });
+  };
+
+  const toggleProjectSelection = (name: string) => {
+    setSelectedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    setSelectedProjects(new Set(displayedProjects.map((p) => p.project_name as string)));
+  };
+
+  const clearSelection = () => setSelectedProjects(new Set());
+
+  const handleBatchArchive = async () => {
+    if (!email || selectedProjects.size === 0) return;
+    for (const name of selectedProjects) {
+      try {
+        await handleArchiveProject(name);
+      } catch {}
+    }
+    setSelectedProjects(new Set());
+    setSelectMode(false);
+    await loadData();
+  };
+
+  const handleBatchDelete = async () => {
+    if (!email || selectedProjects.size === 0 || deletingProject) return;
+    for (const name of selectedProjects) {
+      try {
+        const { deleteProject } = await import('@/functions/project/project.js');
+        await deleteProject(email, name);
+      } catch {}
+    }
+    setProjects((prev) => prev.filter((p) => !selectedProjects.has(p.project_name as string)));
+    setSelectedProjects(new Set());
+    setSelectMode(false);
+    await loadData();
   };
 
   const PRIORITY_LABELS: Record<string, string> = {
@@ -1954,6 +2018,47 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
               <div className="dash-split__main">
                 {/* Projects — inline card grid with quick actions */}
                 <section className="home-projects animate-in" data-tour="home-projects">
+                  {/* Projects toolbar: Select toggle + batch actions */}
+                  <div className="projects-toolbar">
+                    <button
+                      type="button"
+                      className={`projects-select-btn ${selectMode ? 'active' : ''}`}
+                      onClick={toggleSelectMode}
+                      title={selectMode ? 'Exit select mode' : 'Select multiple projects'}
+                    >
+                      {selectMode ? 'Cancel' : 'Select'}
+                    </button>
+                    {selectMode && displayedProjects.length > 0 && (
+                      <div className="projects-batch-actions">
+                        <button type="button" onClick={selectAllVisible} className="batch-btn">
+                          Select all ({displayedProjects.length})
+                        </button>
+                        {selectedProjects.size > 0 && (
+                          <>
+                            <button type="button" onClick={clearSelection} className="batch-btn">
+                              Clear ({selectedProjects.size})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleBatchArchive}
+                              className="batch-btn batch-btn--archive"
+                              title="Archive selected projects"
+                            >
+                              <FiArchive size={13} /> Archive
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleBatchDelete}
+                              className="batch-btn batch-btn--delete"
+                              title="Delete selected projects"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="projects-grid">
                     {/* Create-new-project card leads the grid so it is always first. */}
                     <button
@@ -1968,7 +2073,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       </span>
                       <span className="project-card-add-label">Add New Project</span>
                     </button>
-                    {visibleProjects.map((project) => {
+                    {displayedProjects.map((project) => {
                       const name = project.project_name as string;
                       const count = entries.filter((e) => e.project_name === name).length;
                       const inMotionCount = entries.filter(
@@ -1980,24 +2085,58 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                       const isPinned = pinnedProjects.has(name);
                       const isConfirmingDelete = confirmDeleteProject === name;
                       const cardAccent = resolveProjectColor(name, dashColorMap);
+                      const isSelected = selectedProjects.has(name);
+                      const cardClasses = [
+                        'project-card',
+                        'project-card--actionable',
+                        isPinned ? 'is-pinned' : '',
+                        isSelected ? 'is-selected' : '',
+                        selectMode ? 'is-select-mode' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ');
                       return (
                         <div
                           key={name}
-                          className={`project-card project-card--actionable ${isPinned ? 'is-pinned' : ''}`}
+                          className={cardClasses}
                           style={{
                             borderLeft: `3px solid ${cardAccent}`,
                             background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
                           }}
                           role="button"
                           tabIndex={0}
-                          onClick={() => navigate(`/project/${encodeURIComponent(name)}`)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
+                          onClick={() => {
+                            if (selectMode) {
+                              toggleProjectSelection(name);
+                            } else {
                               navigate(`/project/${encodeURIComponent(name)}`);
                             }
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              if (selectMode) {
+                                toggleProjectSelection(name);
+                              } else {
+                                navigate(`/project/${encodeURIComponent(name)}`);
+                              }
+                            }
+                          }}
                         >
+                          {/* Checkbox shown in select mode */}
+                          {selectMode && (
+                            <div
+                              className="project-card-checkbox"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleProjectSelection(name)}
+                                aria-label={`Select ${name}`}
+                              />
+                            </div>
+                          )}
                           <div className="project-card-header">
                             <h3 className="project-card-name">{name}</h3>
                             <span className="project-card-count">{count} entries</span>
@@ -2014,96 +2153,112 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                               </span>
                             )}
                           </div>
-                          {isConfirmingDelete ? (
-                            <div
-                              className="project-card-confirm"
-                              role="group"
-                              aria-label="Confirm project deletion"
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            >
-                              <span className="project-card-confirm-text">
-                                Delete this project?
-                              </span>
-                              <button
-                                type="button"
-                                className="project-card-confirm-yes"
-                                disabled={deletingProject === name}
-                                onClick={() => handleDeleteProject(name)}
+                          {/* Card actions — hidden in select mode */}
+                          {!selectMode &&
+                            (isConfirmingDelete ? (
+                              <div
+                                className="project-card-confirm"
+                                role="group"
+                                aria-label="Confirm project deletion"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
                               >
-                                {deletingProject === name ? 'Deleting…' : 'Yes, delete'}
-                              </button>
-                              <button
-                                type="button"
-                                className="project-card-confirm-cancel"
-                                onClick={() => setConfirmDeleteProject(null)}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div
-                              className="project-card-actions"
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                className="project-card-action-btn"
-                                onClick={() => {
-                                  setSettingsProjectName(name);
-                                  setProjectSettingsOpen(true);
-                                }}
-                                title="Edit project"
-                              >
-                                <FiEdit2 size={12} />
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
-                                aria-pressed={isPinned}
-                                onClick={() => togglePinProject(name)}
-                                title={isPinned ? 'Unpin project' : 'Pin project'}
-                              >
-                                <svg
-                                  width="13"
-                                  height="13"
-                                  viewBox="0 0 24 24"
-                                  fill={isPinned ? 'currentColor' : 'none'}
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
+                                <span className="project-card-confirm-text">
+                                  Delete this project?
+                                </span>
+                                <button
+                                  type="button"
+                                  className="project-card-confirm-yes"
+                                  disabled={deletingProject === name}
+                                  onClick={() => handleDeleteProject(name)}
                                 >
-                                  <line x1="12" y1="17" x2="12" y2="22" />
-                                  <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
-                                </svg>
-                                {isPinned ? 'Pinned' : 'Pin'}
-                              </button>
-                              <button
-                                type="button"
-                                className="project-card-action-btn"
-                                onClick={() => handleArchiveProject(name)}
-                                title="Archive project"
+                                  {deletingProject === name ? 'Deleting…' : 'Yes, delete'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="project-card-confirm-cancel"
+                                  onClick={() => setConfirmDeleteProject(null)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                className="project-card-actions"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
                               >
-                                <FiArchive size={12} />
-                                Archive
-                              </button>
-                              <button
-                                type="button"
-                                className="project-card-action-btn project-card-action-btn--danger"
-                                onClick={() => setConfirmDeleteProject(name)}
-                                title="Delete project"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
+                                <button
+                                  type="button"
+                                  className="project-card-action-btn"
+                                  onClick={() => {
+                                    setSettingsProjectName(name);
+                                    setProjectSettingsOpen(true);
+                                  }}
+                                  title="Edit project"
+                                >
+                                  <FiEdit2 size={12} />
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`project-card-action-btn project-card-pin-btn ${isPinned ? 'is-pinned' : ''}`}
+                                  aria-pressed={isPinned}
+                                  onClick={() => togglePinProject(name)}
+                                  title={isPinned ? 'Unpin project' : 'Pin project'}
+                                >
+                                  <svg
+                                    width="13"
+                                    height="13"
+                                    viewBox="0 0 24 24"
+                                    fill={isPinned ? 'currentColor' : 'none'}
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <line x1="12" y1="17" x2="12" y2="22" />
+                                    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+                                  </svg>
+                                  {isPinned ? 'Pinned' : 'Pin'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="project-card-action-btn"
+                                  onClick={() => handleArchiveProject(name)}
+                                  title="Archive project"
+                                >
+                                  <FiArchive size={12} />
+                                  Archive
+                                </button>
+                                <button
+                                  type="button"
+                                  className="project-card-action-btn project-card-action-btn--danger"
+                                  onClick={() => setConfirmDeleteProject(name)}
+                                  title="Delete project"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ))}
                         </div>
                       );
                     })}
                   </div>
+                  {/* View more / Show less toggle */}
+                  {hasMoreProjects && (
+                    <div className="projects-view-more-row">
+                      <button
+                        type="button"
+                        className="projects-view-more-btn"
+                        onClick={() => setShowAllProjects((prev) => !prev)}
+                      >
+                        {showAllProjects
+                          ? 'Show fewer projects'
+                          : `View ${remainingProjectCount} more project${remainingProjectCount !== 1 ? 's' : ''}`}
+                      </button>
+                    </div>
+                  )}
                   {visibleProjects.length === 0 && (
                     <p className="projects-empty-note">No projects match your search or filters.</p>
                   )}
