@@ -885,6 +885,26 @@ export function EntryBox({
 
         {safeSummary && <p className="entry-box__summary">{safeSummary}</p>}
 
+        {/* Preview: show first field value when collapsed so users can identify entries */}
+        {isCollapsed && entryFields.length > 0 && (
+          <div className="entry-box__preview">
+            <span className="entry-box__preview-key">{formatFieldKey(entryFields[0][0])}:</span>
+            <span className="entry-box__preview-value">
+              {fieldDefs[entryFields[0][0]] ? (
+                <FieldDisplay field={fieldDefs[entryFields[0][0]]} value={entryFields[0][1]} />
+              ) : (
+                formatEntryValue(entryFields[0][1])
+              )}
+            </span>
+            {entryFields.length > 1 && (
+              <span className="entry-box__preview-more">
+                {' '}
+                +{entryFields.length - 1} more
+              </span>
+            )}
+          </div>
+        )}
+
         {entryFields.length > 0 && (
           <table className="entry-box__table">
             <tbody>
