@@ -6,12 +6,12 @@ This repository uses AI-assisted development for the frontend authentication mod
 
 ## Quick Reference
 
-| Item                        | Location                                                                                                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                                                                                                                                   |
-| **Student**                 | Nasiphi Ntontela (2673619)                                                                                                                                                                                   |
-| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                                                                                                                      |
-| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration, Help Centre & bug report form, public landing page, notification system activation & troubleshooting |
+| Item                        | Location                                                                                                                                                                                                                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                                                                                                                                                                                                                                     |
+| **Student**                 | Nasiphi Ntontela (2673619)                                                                                                                                                                                                                                                                                     |
+| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                                                                                                                                                                                                                        |
+| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration, Help Centre & bug report form, public landing page, notification system activation & troubleshooting, project pagination & multi-select, automatic email delivery, field display rendering & bug fixes |
 
 ---
 
@@ -51,6 +51,10 @@ The following frontend features were implemented with AI acting as a code-genera
   - In-app bug report form modal that sends reports via email to admin@codacaine.com using FormSubmit.co, with auto-captured browser info, success/error states, and mobile bottom-sheet
   - Public landing page at `/` with split hero (typing demo + AI-generated dashboard illustration), interactive About and Feature cards with mouse-following spotlight and 3D tilt effects, animated stats counters, "What's New" ticker, team section, CTA, and footer — warm beige/brown palette matching the sign-in form
   - Sign-in page cleanup: removed duplicated marketing sections (About, About Us, Features) now shown on the landing page, leaving a clean split-screen auth form
+  - Project pagination & multi-select: when more than 5 projects exist, show first 3 with "View N more projects" button; select mode with batch archive/delete
+  - Automatic email delivery: `node-cron` scheduler in project-service sends pending emails every 15 minutes, replacing the broken `pg_net` poke
+  - Field display rendering: type-safe guards against undefined `attachmentId`/`link` values, base64 file string handling, tag/entity-link CSS chip styling, markdown read-more truncation
+  - Timer pause/resume/stop fix: `validateEntryDates` now preserves timer columns (`started_at`, `ended_at`, `paused_at`, `paused_ms`) so timer state survives entry updates
 - **Supabase integration**
   - Auth context and client setup
   - RPC functions for account scheduling/restoration/purging (`delete_user`, `restore_user`, `purge_deleted_users`)
