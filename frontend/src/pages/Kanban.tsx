@@ -19,6 +19,8 @@ import { cacheGet, cacheSubscribe, CACHE_STORES } from '@/lib/cache';
 import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { formatDueDateTime } from '@/lib/dueDateDisplay';
+import { pinFirst } from '@/lib/entryFilters';
+import { PinScopeProvider, useEntryPinScope } from '@/lib/entryPins';
 
 function getPriorityClass(priority: string | null): string {
   if (!priority) return '';
@@ -46,6 +48,9 @@ function KanbanCard({
   });
   const overdue = isOverdue(entry.due_date ?? null, status);
   const priorityClass = getPriorityClass(entry.priority ?? null);
+  // Pin — shown only where the page provides its own private pin scope.
+  const pinApi = useEntryPinScope();
+  const isPinned = pinApi ? pinApi.isPinned(entry.id) : false;
 
   return (
     <div
@@ -66,6 +71,34 @@ function KanbanCard({
       }}
       style={projectColor ? { borderLeft: `3px solid ${projectColor}` } : undefined}
     >
+      {pinApi && (
+        <button
+          type="button"
+          className={`kanban-card-pin${isPinned ? ' is-pinned' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            pinApi.togglePin(entry.id);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          aria-pressed={isPinned}
+          aria-label={isPinned ? 'Unpin entry' : 'Pin entry'}
+          title={isPinned ? 'Unpin: back to the normal order' : 'Pin to the top of this column'}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill={isPinned ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="17" x2="12" y2="22" />
+            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+          </svg>
+        </button>
+      )}
       {(entry as CalendarEntry & { _timerPending?: boolean })._timerPending && (
         <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
       )}
@@ -162,7 +195,11 @@ export function KanbanBoardView({ entries, email, colorMap, onUpdated }: KanbanB
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const pinApi = useEntryPinScope();
   const groupedEntries = useMemo(() => groupEntriesByStatus(entries), [entries]);
+  // Pinned entries rise to the top of the column they are in (this page's pins).
+  const orderedEntries = (status: EntryStatus) =>
+    pinFirst(groupedEntries[status], pinApi?.pinned);
 
   const handleDrop = async (targetStatus: EntryStatus) => {
     if (!dragging || !email) return;
@@ -216,7 +253,7 @@ export function KanbanBoardView({ entries, email, colorMap, onUpdated }: KanbanB
           <KanbanColumn
             key={status}
             status={status}
-            entries={groupedEntries[status]}
+            entries={orderedEntries(status)}
             dragging={dragging}
             onDragStart={setDragging}
             onDrop={handleDrop}
@@ -420,12 +457,14 @@ export function KanbanPage() {
               </button>
             </div>
           ) : (
-            <KanbanBoardView
-              entries={filteredEntries}
-              email={email}
-              colorMap={colorMap}
-              onUpdated={reload}
-            />
+            <PinScopeProvider email={email} scope="entries">
+              <KanbanBoardView
+                entries={filteredEntries}
+                email={email}
+                colorMap={colorMap}
+                onUpdated={reload}
+              />
+            </PinScopeProvider>
           )}
         </div>
       </main>

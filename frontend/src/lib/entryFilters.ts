@@ -42,17 +42,27 @@ export function getPayloadObject(row: Record<string, unknown>): Record<string, u
   return state.kind === 'object' ? state.value : {};
 }
 
-/** Pinned entries carry a reserved `_pinned` key inside the entries payload. */
-export function isPinnedEntry(row: Record<string, unknown>): boolean {
-  return getPayloadObject(row)._pinned === true;
-}
-
-/** Pinned entries first, everything else keeps its existing order. */
-export function pinFirst<T extends Record<string, unknown>>(rows: T[]): T[] {
+/**
+ * Pinned ids first, everything else keeps its existing order. Pins are
+ * private per page (see lib/entryPins), so callers pass the pinned-id set of
+ * their own scope; without one nothing is reordered.
+ */
+export function pinFirst<T extends { id?: unknown }>(
+  rows: T[],
+  pinnedIds?: ReadonlySet<string> | readonly string[]
+): T[] {
+  if (!pinnedIds) return rows;
+  const has =
+    pinnedIds instanceof Set
+      ? (id: string) => pinnedIds.has(id)
+      : (() => {
+          const lookup = new Set(pinnedIds);
+          return (id: string) => lookup.has(id);
+        })();
   const pinned: T[] = [];
   const rest: T[] = [];
   for (const row of rows) {
-    if (isPinnedEntry(row)) pinned.push(row);
+    if (has(String(row.id))) pinned.push(row);
     else rest.push(row);
   }
   return [...pinned, ...rest];

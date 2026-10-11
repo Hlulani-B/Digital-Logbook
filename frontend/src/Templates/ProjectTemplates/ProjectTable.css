@@ -95,10 +95,11 @@
   width: 100%;
 }
 
-/* Column headers — grid template set inline per project */
+/* Column headers — fixed left column + scrolling field columns */
 .ptt-columns {
-  display: grid;
-  gap: 0.75rem; /* Increased from 0.5rem for better spacing */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 0;
   border-bottom: 2.5px solid var(--border, #111111);
   font-size: 0.78rem;
@@ -106,6 +107,33 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text, #111111);
+}
+
+/* Checkbox + pin/archive — same width as the rows' fixed column. */
+.ptt-columns__fixed,
+.ptt-row__fixed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  width: 168px;
+}
+
+.ptt-col-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ptt-columns__scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ptt-columns__inner {
+  display: grid;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .ptt-col {
@@ -126,13 +154,15 @@
 }
 
 .ptt-row {
-  display: grid;
+  display: flex;
   align-items: center;
   padding: 0.55rem 0;
   border-bottom: 1.5px solid var(--border, #111111);
   font-size: 0.9rem;
   font-weight: 400;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  /* Project colour tint — same treatment as Cards, Checklist and Board. */
+  background: linear-gradient(0deg, var(--tint, transparent), var(--tint, transparent));
 }
 
 .ptt-row:last-child {
@@ -140,7 +170,43 @@
 }
 
 .ptt-row:hover {
-  background: var(--bg-subtle, #f5f5f5);
+  background:
+    linear-gradient(0deg, var(--tint, transparent), var(--tint, transparent)),
+    var(--bg-subtle, #f5f5f5);
+}
+
+/* Left column of a row — never scrolls, so pin/archive stay visible. */
+.ptt-row__fixed {
+  overflow: hidden;
+}
+
+/* One horizontal scrollbar per entry, for the fields further right. */
+.ptt-row__scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.ptt-row__scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.ptt-row__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ptt-row__scroll::-webkit-scrollbar-thumb {
+  background: var(--border, #d4d4d4);
+  border-radius: 3px;
+}
+
+.ptt-row__inner {
+  display: grid;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 /* All cells — wrap text, grow row as needed */
@@ -427,6 +493,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
 }
 
 .ptt-col-checkbox {

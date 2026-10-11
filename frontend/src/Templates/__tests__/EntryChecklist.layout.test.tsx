@@ -200,7 +200,7 @@ describe('Checklist edit dialog layout', () => {
   });
 
   it.each(['up_next', 'done_and_dusted'] as const)(
-    'keeps ordinary %s card styling, notes, and checkbox behavior',
+    'keeps ordinary %s card styling, no notes buttons, and checkbox behavior',
     async (status) => {
       const { container, entry, onUpdated } = renderCard(status);
       const card = element(container, '.checklist-card');
@@ -210,8 +210,10 @@ describe('Checklist edit dialog layout', () => {
       expect(card).toHaveAttribute('data-status', status);
       expect(card.classList.contains('checklist-card--done')).toBe(status === 'done_and_dusted');
       expect(card.style.getPropertyValue('--tint')).toBe('#12345618');
-      fireEvent.click(screen.getAllByRole('button', { name: 'View Notes' })[0]);
-      expect(mocks.openNotes).toHaveBeenCalledExactlyOnceWith(entry);
+      // The checklist view no longer shows View Notes / Add Note buttons.
+      expect(screen.queryByRole('button', { name: 'View Notes' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Add Note' })).toBeNull();
+      expect(mocks.openNotes).not.toHaveBeenCalled();
       const checkbox = screen.getByRole('checkbox');
       expect(checkbox).toHaveAttribute('aria-checked', String(status === 'done_and_dusted'));
       fireEvent.click(checkbox);

@@ -2,7 +2,20 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listTemplates, type Template } from '@/lib/templateApi';
 import { SELECTABLE_FIELD_TYPES } from '@/lib/fieldSchema';
+import { localBuiltInTemplates } from '@/lib/builtInTemplates';
 import './TemplatePicker.css';
+
+/**
+ * The template service is the source of truth for the built-in scope; the app's
+ * own ready-made templates are appended after it (de-duplicated by id) so they
+ * ship with the frontend instead of waiting on a service deploy. An empty or
+ * failed response keeps its genuine empty / error state.
+ */
+function withLocalBuiltIns(scope: Template['scope'], results: Template[]): Template[] {
+  if (scope !== 'built_in' || results.length === 0) return results;
+  const seen = new Set(results.map((template) => template.id));
+  return [...results, ...localBuiltInTemplates.filter((template) => !seen.has(template.id))];
+}
 
 interface TemplatePickerProps {
   onSelect: (template: Template) => void;
@@ -26,7 +39,7 @@ export function TemplatePicker({ onSelect, onCancel }: TemplatePickerProps) {
     async function loadTemplates() {
       try {
         const results = await listTemplates(activeTab);
-        if (!cancelled) setTemplates(results);
+        if (!cancelled) setTemplates(withLocalBuiltIns(activeTab, results));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load templates');

@@ -43,6 +43,7 @@ import {
   pinFirst,
   type FieldFilters,
 } from '@/lib/entryFilters';
+import { PinScopeProvider, projectPinScope, useEntryPins } from '@/lib/entryPins';
 
 /** Parse AI response — handles JSON or plain text */
 function parseAIResponse(response: string): string {
@@ -114,6 +115,11 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const email = user?.email || '';
+
+  // Pins are private to THIS project page: they never appear on the All
+  // Entries page or the main page, and pins made elsewhere never show here.
+  const pinScope = projectPinScope(projectName || '');
+  const pins = useEntryPins(email, pinScope);
 
   // Settings
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
@@ -463,9 +469,16 @@ export function ProjectDetailPage() {
       searchResults !== null
         ? searchResults.filter((entry) => isActiveEntry(entry, projectArchived))
         : [...dueSoonEntries, ...otherEntries];
-    // Pinned entries on top, then the project's field filters
-    return applyFieldFilters(pinFirst(source), fieldFilters);
-  }, [searchResults, dueSoonEntries, otherEntries, fieldFilters, projectArchived]);
+    // Pinned entries (this project page's own pins) on top, then field filters
+    return applyFieldFilters(pinFirst(source, pins.pinned), fieldFilters);
+  }, [
+    searchResults,
+    dueSoonEntries,
+    otherEntries,
+    fieldFilters,
+    projectArchived,
+    pins.pinned,
+  ]);
 
   // The default (non-search) views select from this instead of the raw cache
   // rows: archived/deleted entries must not linger in Table, Checklist, Board
@@ -478,8 +491,8 @@ export function ProjectDetailPage() {
 
   // The unsplit feed for the main view: pinned first, field filters applied
   const feedEntries = useMemo(
-    () => applyFieldFilters(pinFirst(activeEntries), fieldFilters),
-    [activeEntries, fieldFilters]
+    () => applyFieldFilters(pinFirst(activeEntries, pins.pinned), fieldFilters),
+    [activeEntries, fieldFilters, pins.pinned]
   );
 
   // Priority handler
@@ -758,6 +771,8 @@ export function ProjectDetailPage() {
         {/* Search results */}
         {searchQuery && (
           <>
+            {/* Search results share this page's private pin scope. */}
+            <PinScopeProvider email={email} scope={pinScope}>
             {filteredEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
@@ -830,6 +845,7 @@ export function ProjectDetailPage() {
                 ))}
               </div>
             )}
+            </PinScopeProvider>
           </>
         )}
 
@@ -837,6 +853,8 @@ export function ProjectDetailPage() {
         {/* All entries */}
         {!searchQuery && (
           <div className="project-content">
+            {/* Every view below shares this project page's private pin scope. */}
+            <PinScopeProvider email={email} scope={pinScope}>
             {!loading && activeEntries.length === 0 ? (
               <div className="empty-state animate-in">
                 <div className="empty-icon">
@@ -1012,6 +1030,7 @@ export function ProjectDetailPage() {
                 ))}
               </div>
             )}
+            </PinScopeProvider>
           </div>
         )}
               </div>

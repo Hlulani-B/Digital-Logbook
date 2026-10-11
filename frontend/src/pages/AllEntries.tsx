@@ -33,6 +33,7 @@ import {
   pinFirst,
   type ProjectFilters,
 } from '@/lib/entryFilters';
+import { PinScopeProvider, useEntryPins } from '@/lib/entryPins';
 import { usePref, setPref } from '@/functions/preferences';
 import { isActiveEntry } from '@/functions/dashboard/overdue.js';
 import { getEffectiveArchivedProjectNames } from '@/functions/project/archiveState.js';
@@ -97,6 +98,10 @@ export function AllEntriesPage() {
   const aiPlaceholder = 'Capture quick entry';
 
   const email = user?.email || '';
+
+  // Pins are private to this page: 'entries' pins never leak to the main page
+  // or to any individual project page.
+  const pins = useEntryPins(email, 'entries');
 
   // Safety check for deleted accounts
   useEffect(() => {
@@ -320,7 +325,8 @@ export function AllEntriesPage() {
       });
     }
 
-    return pinFirst(filtered);
+    // Pinned entries (this page's own pins) rise to the top of every view.
+    return pinFirst(filtered, pins.pinned);
   }, [
     entries,
     archivedProjectNames,
@@ -330,6 +336,7 @@ export function AllEntriesPage() {
     entryCounts,
     fieldCounts,
     fieldTypes,
+    pins.pinned,
   ]);
 
   // Entries due within the next 3 days — the same window the home page uses;
@@ -482,6 +489,8 @@ export function AllEntriesPage() {
             the right. */}
         <div className="dash-split">
           <div className="dash-split__main">
+            {/* Every entry view below shares this page's private pin scope. */}
+            <PinScopeProvider email={email} scope="entries">
         {/* Loading */}
         {loading && (
           <div className="feed-loading">
@@ -617,6 +626,7 @@ export function AllEntriesPage() {
             ))}
           </div>
         )}
+            </PinScopeProvider>
               </div>
 
               <DueSoonRail entries={dueSoonEntries} />

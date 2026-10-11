@@ -27,6 +27,7 @@ import { syncAllData } from '@/CacheFunctions';
 import { buildProjectColorMap, resolveProjectColor } from '@/lib/projectColorMap';
 import { normalizeField } from '@/lib/fieldSchema';
 import { EntryBox } from '@/pages/NewEntry';
+import { useEntryPins } from '@/lib/entryPins';
 import { DueSoonRail } from '@/components/DueSoonRail';
 import { AddEntry } from '@/pages/AddEntry';
 import VoiceFeature from '@/pages/VoiceFeature';
@@ -297,6 +298,10 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
 
   // Derived early so the deleted-account safety check can use it.
   const email = user?.email || '';
+
+  // Pins are private to the main page: pinning something on the All Entries
+  // page or inside a project never reorders anything here, and vice versa.
+  const pins = useEntryPins(email, 'dashboard');
 
   // Safety check: soft-deleted accounts should not access the dashboard.
   // They are redirected to the sign-in restore prompt.
@@ -755,7 +760,8 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
       fieldTypes,
     });
 
-    return pinFirst(filtered);
+    // Pinned entries (this page's own pins) rise to the top.
+    return pinFirst(filtered, pins.pinned);
   }, [
     entries,
     activeView,
@@ -765,6 +771,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
     entryCounts,
     fieldCounts,
     fieldTypes,
+    pins.pinned,
   ]);
 
   // In-progress entries (started but not ended). Drives the live dashboard timer.
@@ -1344,7 +1351,7 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
                   return (
                     <div
                       key={`archived-${name}-${i}`}
-                      className="project-card project-card--actionable"
+                      className="project-card project-card--actionable project-card--archived"
                       style={{
                         borderLeft: `3px solid ${cardAccent}`,
                         background: `linear-gradient(0deg, ${cardAccent}18, ${cardAccent}18), var(--surface)`,
@@ -1418,9 +1425,11 @@ export function Dashboard({ defaultView = 'all' }: DashboardProps) {
             ) : (
               <div className="entries-feed">
                 {archiveEntries.map((row, i) => (
+                  // Entries of an archived project keep their own entry flag, so
+                  // the archived state is forced here: read-only and faded.
                   <EntryBox
                     key={`archived-entry-${row.id || i}`}
-                    entry={row as any}
+                    entry={{ ...(row as any), archived: true }}
                     onUpdated={() => loadData()}
                     onPriorityChanged={handleSetPriority}
                     onArchiveToggled={(entryId, isArchived) => {

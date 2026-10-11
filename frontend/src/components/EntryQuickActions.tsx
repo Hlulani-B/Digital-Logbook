@@ -5,17 +5,19 @@ import { archiveEntry, unarchiveEntry } from '@/functions/project/archives.js';
 import { getFields } from '@/functions/project/fields.js';
 import { classifyEntryPayload } from '@/lib/entryPayload';
 import { normalizeField, type FieldDefinition } from '@/lib/fieldSchema';
+import { useEntryPinScope } from '@/lib/entryPins';
 
 /*
   EntryQuickActions
   -----------------
   Pin / Calculate / Archive controls for the compact entry views (Checklist,
-  Board and Table rows). The Cards view (EntryBox) keeps its own copies of
-  these actions; this component deliberately reuses the same reserved entry
-  keys — `_pinned` and `_calc_<field>` — so state stays consistent across
-  every view. Writes go through updateEntry/archiveEntry, whose optimistic
-  IndexedDB updates notify the page-level cache subscriptions, so hosts do
-  not need to wire refresh callbacks (onUpdated is only a best-effort ping).
+  Board and Table rows). Pins are private per page: state comes from the
+  enclosing PinScopeProvider (lib/entryPins) and toggling never touches the
+  entry itself. Calculation results still live on the entry under
+  `_calc_<field>` with writes going through updateEntry/archiveEntry, whose
+  optimistic IndexedDB updates notify the page-level cache subscriptions, so
+  hosts do not need to wire refresh callbacks (onUpdated is only a
+  best-effort ping).
 */
 
 function formatFieldKey(key: string): string {
@@ -88,10 +90,9 @@ export function EntryQuickActions({
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   const [error, setError] = useState<string | null>(null);
 
-  // Pin — reserved `_pinned` key in the entries payload (same as EntryBox).
-  const [pinPending, setPinPending] = useState(false);
-  const [pinOverride, setPinOverride] = useState<boolean | null>(null);
-  const isPinned = pinOverride !== null ? pinOverride : parsedEntries._pinned === true;
+  // Pin — private to this page's scope; instant, no server round-trip.
+  const pinApi = useEntryPinScope();
+  const isPinned = pinApi ? pinApi.isPinned(id) : false;
 
   const [archiving, setArchiving] = useState(false);
 
@@ -125,25 +126,11 @@ export function EntryQuickActions({
   ) as Record<string, { type: string; value: number }>;
   const calcResults = { ...payloadCalc, ...calcOverride };
 
-  const togglePin = async () => {
-    if (!user_email || !project_name || pinPending || opaque) return;
-    const next = !isPinned;
-    setPinPending(true);
-    setError(null);
-    setPinOverride(next);
-    const newEntries: Record<string, unknown> = { ...parsedEntries };
-    if (next) newEntries._pinned = true;
-    else delete newEntries._pinned;
-    try {
-      const result = await updateEntry(user_email, project_name, id, newEntries);
-      if (result?.success !== true) throw new Error(result?.message || 'Failed to update pin');
-      onUpdated?.();
-    } catch (err) {
-      setPinOverride(null);
-      setError(err instanceof Error ? err.message : 'Failed to update pin');
-    } finally {
-      setPinPending(false);
-    }
+  const togglePin = () => {
+    if (!pinApi || opaque) return;
+    // Synchronous local toggle — the pin never waits on (or fails with) a
+    // server write, which is what used to leave the button stuck.
+    pinApi.togglePin(id);
   };
 
   const toggleArchive = async () => {
@@ -200,7 +187,7 @@ export function EntryQuickActions({
     });
   };
 
-  const showPin = !opaque && !archived;
+  const showPin = !opaque && !archived && pinApi !== null;
   const showCalc = !opaque && numberFields.length > 0;
 
   return (
@@ -215,7 +202,6 @@ export function EntryQuickActions({
           type="button"
           className={`entry-quick-actions__btn${isPinned ? ' is-pinned' : ''}`}
           onClick={togglePin}
-          disabled={pinPending}
           aria-pressed={isPinned}
           title={isPinned ? 'Unpin — back to the normal order' : 'Pin to the top of the list'}
         >

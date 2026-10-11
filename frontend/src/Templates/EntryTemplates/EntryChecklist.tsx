@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNotes } from '@/context/NotesContext';
-import { FiEdit } from 'react-icons/fi';
 import { EntryQuickActions, loadProjectFields } from '@/components/EntryQuickActions';
+import { useEntryPinScope } from '@/lib/entryPins';
+import { pinFirst } from '@/lib/entryFilters';
 import { updateEntry } from '@/functions/project/entries.js';
 import { setPriority } from '@/functions/project/priority.js';
 import { isOverdue, getOverdueText } from '@/functions/dashboard/overdue.js';
@@ -102,7 +102,6 @@ export default function ChecklistEntryCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { openNotes } = useNotes();
 
   const payloadState = classifyEntryPayload(entry.entries);
   const parsedEntries = payloadState.kind === 'object' ? payloadState.value : {};
@@ -383,17 +382,6 @@ export default function ChecklistEntryCard({
           </select>
         </div>
 
-        <button
-          type="button"
-          className="checklist-card-notes-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            openNotes(entry);
-          }}
-        >
-          <FiEdit className="checklist-card-notes-icon" />
-          View Notes
-        </button>
         {/* Context menu for edit/delete (shown on hover) */}
         <div className="checklist-card-menu">
           <button
@@ -406,27 +394,7 @@ export default function ChecklistEntryCard({
           >
             Edit
           </button>
-          <button
-            className="checklist-card-menu-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              openNotes(entry);
-            }}
-            title="View Notes"
-          >
-            View Notes
-          </button>
-          <button
-            className="checklist-card-menu-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              openNotes(entry);
-            }}
-            title="Add Note"
-          >
-            Add Note
-          </button>
-          {/* Pin / Calculate / Archive — same entry keys as the Cards view */}
+          {/* Pin / Calculate / Archive — pins are private to this page's scope */}
           <EntryQuickActions entry={entry} onUpdated={onUpdated} />
           <button
             className="checklist-card-menu-btn checklist-card-menu-btn--delete"
@@ -583,6 +551,8 @@ interface ChecklistViewProps {
 }
 
 export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: ChecklistViewProps) {
+  const pinApi = useEntryPinScope();
+
   if (!entries || entries.length === 0) {
     return (
       <div className="checklist-empty">
@@ -599,9 +569,13 @@ export function ChecklistView({ entries, onUpdated, onDelete, colorMap }: Checkl
     return a.due_date.localeCompare(b.due_date);
   });
 
+  // Pinned entries rise to the top of the list; everything else keeps the
+  // due-date order above.
+  const orderedEntries = pinFirst(sortedEntries, pinApi?.pinned);
+
   return (
     <div className="checklist-list">
-      {sortedEntries.map((entry) => (
+      {orderedEntries.map((entry) => (
         <ChecklistEntryCard
           key={entry.id}
           entry={entry}

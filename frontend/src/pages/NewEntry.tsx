@@ -20,6 +20,7 @@ import {
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
 import { useTimerActions } from '@/hooks/useTimerActions';
+import { useEntryPinScope } from '@/lib/entryPins';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -165,11 +166,9 @@ export function EntryBox({
   const [refEntries, setRefEntries] = useState<any[]>([]);
   const [calcField, setCalcField] = useState<string | null>(null);
 
-  // Pin — reserved `_pinned` key in the entries payload; pinned entries sort to the top
-  const [pinPending, setPinPending] = useState(false);
-  const [pinOverride, setPinOverride] = useState<boolean | null>(null);
-  const pinnedValue = parsedEntries._pinned === true;
-  const isPinned = pinOverride !== null ? pinOverride : pinnedValue;
+  // Pin — private to this page's scope (lib/entryPins); instant, no server write.
+  const pinApi = useEntryPinScope();
+  const isPinned = pinApi ? pinApi.isPinned(id) : false;
 
   const [fieldDefs, setFieldDefs] = useState<Record<string, FieldDefinition>>({});
   const [fieldsReady, setFieldsReady] = useState(false);
@@ -507,26 +506,11 @@ export function EntryBox({
     }
   };
 
-  const togglePin = async () => {
-    if (!user_email || !project_name || pinPending) return;
-    // Opaque payloads (legacy strings) have no key space to store the pin in
+  const togglePin = () => {
+    // Pins are page-private and local, so this is synchronous: the button can
+    // never get stuck waiting on (or failing with) a server write.
     if (payloadState.kind === 'opaque') return;
-    const next = !isPinned;
-    setPinPending(true);
-    setPinOverride(next);
-    const newEntries: Record<string, unknown> = { ...parsedEntries };
-    if (next) newEntries._pinned = true;
-    else delete newEntries._pinned;
-    try {
-      const result = await updateEntry(user_email, project_name, id, newEntries);
-      if (result?.success !== true) throw new Error(result?.message || 'Failed to update pin');
-      onUpdated?.({ ...entry, entries: newEntries });
-    } catch (err) {
-      setPinOverride(null);
-      setError(err instanceof Error ? err.message : 'Failed to update pin');
-    } finally {
-      setPinPending(false);
-    }
+    pinApi?.togglePin(id);
   };
 
   const openCalcPicker = async (fieldName: string) => {
@@ -715,7 +699,7 @@ export function EntryBox({
           <p role="status">Pending sync — timer timing takes effect on synchronization.</p>
         )}
         <div className="entry-box__top-row">
-          {payloadState.kind !== 'opaque' && !archived && (
+          {payloadState.kind !== 'opaque' && !archived && pinApi !== null && (
             <button
               type="button"
               className={`entry-box__pin-btn ${isPinned ? 'is-pinned' : ''}`}
@@ -723,7 +707,6 @@ export function EntryBox({
                 e.stopPropagation();
                 togglePin();
               }}
-              disabled={pinPending}
               aria-pressed={isPinned}
               title={isPinned ? 'Unpin — back to the normal order' : 'Pin to the top of the list'}
             >
@@ -754,29 +737,38 @@ export function EntryBox({
             </button>
             {menuOpen && (
               <div className="entry-box__menu">
-                <button type="button" className="entry-box__menu-item" onClick={handleEnterEdit}>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    openNotes(entry);
-                  }}
-                >
-                  View Notes
-                </button>
-                <button
-                  type="button"
-                  className="entry-box__menu-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    openNotes(entry);
-                  }}
-                >
-                  Add Note
-                </button>
+                {/* Archived entries are read-only: delete or unarchive only. */}
+                {!archived && (
+                  <>
+                    <button
+                      type="button"
+                      className="entry-box__menu-item"
+                      onClick={handleEnterEdit}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="entry-box__menu-item"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        openNotes(entry);
+                      }}
+                    >
+                      View Notes
+                    </button>
+                    <button
+                      type="button"
+                      className="entry-box__menu-item"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        openNotes(entry);
+                      }}
+                    >
+                      Add Note
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="entry-box__menu-item entry-box__menu-item--danger"
@@ -852,6 +844,7 @@ export function EntryBox({
                 value={toRawPriorityValue(priority)}
                 onChange={(e) => onPriorityChanged(id, project_name, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={saving || archived}
               >
                 <option value="0">Urgent & important</option>
                 <option value="1">Urgent, not important</option>
@@ -913,7 +906,7 @@ export function EntryBox({
                         ) : (
                           formatEntryValue(value)
                         )}
-                        {fieldDef && fieldDef.data_type === 'number' && (
+                        {!archived && fieldDef && fieldDef.data_type === 'number' && (
                           <button
                             type="button"
                             className="entry-box__calc-btn"
@@ -1070,7 +1063,7 @@ export function EntryBox({
                       ? 'Failed to stop — tap to retry'
                       : '■ End Task'}
                 </button>
-                {target_duration_ms == null && (
+                {!archived && target_duration_ms == null && (
                   <span className="entry-box__target-set">
                     <input
                       type="number"
@@ -1117,15 +1110,17 @@ export function EntryBox({
           </div>
         </div>
 
-        {/* View Notes button - secondary action on its own line */}
-        <button
-          type="button"
-          className="entry-box__view-notes-btn"
-          onClick={() => openNotes(entry)}
-        >
-          <FiEdit className="entry-box__view-notes-icon" />
-          View Notes
-        </button>
+        {/* View Notes button - secondary action on its own line (hidden when archived) */}
+        {!archived && (
+          <button
+            type="button"
+            className="entry-box__view-notes-btn"
+            onClick={() => openNotes(entry)}
+          >
+            <FiEdit className="entry-box__view-notes-icon" />
+            View Notes
+          </button>
+        )}
 
         {/* Collapse toggle — sits at the bottom of the card and hides or
             reveals the field table, timer controls and notes button. */}

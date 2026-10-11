@@ -8532,11 +8532,14 @@ img {
    pointer affordance and no hover lift — only the Unarchive action. */
 .project-card--archived {
   cursor: default;
+  /* Faded, like archived entries, so it reads as archived at a glance. */
+  opacity: 0.72;
 }
 .project-card--archived:hover {
   border-color: var(--border);
   box-shadow: none;
   transform: none;
+  opacity: 1;
 }
 .project-card--actionable.is-pinned {
   border-color: var(--accent);

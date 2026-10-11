@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  type CSSProperties,
+} from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
 import { EntryQuickActions } from '@/components/EntryQuickActions';
@@ -124,21 +131,22 @@ function fieldColumnLabel(column: EntryFieldColumn) {
   return column.kind === 'legacy' ? 'Legacy content' : column.name;
 }
 
-// Grid: checkbox | content columns | Priority | Due | Status | Actions
-const TRAILING_COLS = '180px 120px 140px 110px'; // Priority | Due | Status | Actions
+// Grid for the scrollable part of a row: content columns | Priority | Due | Status.
+// The checkbox plus the pin/archive controls sit in a fixed left column that
+// never scrolls, so they stay put instead of running under the due-soon rail.
+const TRAILING_COLS = '180px 120px 140px'; // Priority | Due | Status
 
 function buildGridTemplate(viewMode: string, customFieldCount: number) {
-  let template = '32px '; // checkbox column
   if (viewMode === 'summary') {
-    template += 'minmax(150px, 2fr)';
-  } else {
-    const parts = [];
-    for (let i = 0; i < customFieldCount; i++) {
-      parts.push('minmax(80px, 1fr)');
-    }
-    template += parts.join(' ');
+    return 'minmax(150px, 2fr) ' + TRAILING_COLS;
   }
-  return template + ' ' + TRAILING_COLS;
+  const parts: string[] = [];
+  for (let i = 0; i < customFieldCount; i++) {
+    parts.push('minmax(140px, 1fr)');
+  }
+  // A row with no fields still needs one content column to scroll.
+  if (parts.length === 0) parts.push('minmax(140px, 1fr)');
+  return parts.join(' ') + ' ' + TRAILING_COLS;
 }
 
 // ── Inline editable text cell ──────────────────────────────
@@ -453,6 +461,7 @@ function TaskRow({
   onUpdate,
   selected,
   onToggle,
+  projectColor,
 }: {
   entry: any;
   fieldColumns: EntryFieldColumn[];
@@ -461,6 +470,7 @@ function TaskRow({
   onUpdate: (id: string, patch: Record<string, any>) => void;
   selected: boolean;
   onToggle: (id: string) => void;
+  projectColor?: string;
 }) {
   const payload = classifyEntryPayload(entry.entries);
 
@@ -472,89 +482,101 @@ function TaskRow({
     [entry.id, onUpdate, payload]
   );
 
+  // Project colour, exactly like the Cards / Checklist / Board views.
+  const rowStyle: CSSProperties | undefined = projectColor
+    ? ({
+        '--tint': `${projectColor}18`,
+        boxShadow: `inset 3px 0 0 0 ${projectColor}`,
+      } as CSSProperties)
+    : undefined;
+
   return (
     <div
       className={`ptt-row${selected ? ' ptt-row--selected' : ''}`}
       data-status={friendlyStatus(entry.status)}
       data-priority={friendlyPriority(entry.priority)}
-      style={{ gridTemplateColumns: gridTemplate }}
+      style={rowStyle}
     >
-      {/* Checkbox column */}
-      <div className="ptt-cell ptt-cell-checkbox">
-        <input
-          type="checkbox"
-          className="ptt-checkbox"
-          checked={selected}
-          onChange={() => onToggle(entry.id)}
-        />
-      </div>
-
-      {/* Content columns — left side */}
-      {viewMode === 'summary' ? (
-        <div className="ptt-cell ptt-cell-summary">
-          <EditableText
-            value={cleanSummaryText(entry.summary) ?? ''}
-            onSave={(val) => onUpdate(entry.id, { summary: val })}
-            className="ptt-summary-text"
+      {/* Fixed left column — selection + pin/archive never scroll away */}
+      <div className="ptt-row__fixed">
+        <div className="ptt-cell ptt-cell-checkbox">
+          <input
+            type="checkbox"
+            className="ptt-checkbox"
+            checked={selected}
+            onChange={() => onToggle(entry.id)}
           />
         </div>
-      ) : (
-        fieldColumns.map((column) => (
-          <div
-            className="ptt-cell ptt-cell-custom"
-            key={column.kind === 'legacy' ? 'legacy-content' : column.name}
-          >
-            <EntryFieldValue column={column} payload={payload} onSave={handleFieldEdit} />
+        <div className="ptt-cell ptt-cell-actions">
+          <EntryQuickActions entry={entry} compact />
+        </div>
+      </div>
+
+      {/* One horizontal scrollbar per entry for the remaining fields */}
+      <div className="ptt-row__scroll">
+        <div className="ptt-row__inner" style={{ gridTemplateColumns: gridTemplate }}>
+          {viewMode === 'summary' ? (
+            <div className="ptt-cell ptt-cell-summary">
+              <EditableText
+                value={cleanSummaryText(entry.summary) ?? ''}
+                onSave={(val) => onUpdate(entry.id, { summary: val })}
+                className="ptt-summary-text"
+              />
+            </div>
+          ) : (
+            fieldColumns.map((column) => (
+              <div
+                className="ptt-cell ptt-cell-custom"
+                key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+              >
+                <EntryFieldValue column={column} payload={payload} onSave={handleFieldEdit} />
+              </div>
+            ))
+          )}
+
+          {/* Priority — dropdown */}
+          <div className="ptt-cell ptt-cell-priority">
+            <select
+              className="ptt-select ptt-select-priority"
+              value={toRawPriority(entry.priority)}
+              onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {friendlyPriority(p)}
+                </option>
+              ))}
+            </select>
           </div>
-        ))
-      )}
 
-      {/* Priority — dropdown */}
-      <div className="ptt-cell ptt-cell-priority">
-        <select
-          className="ptt-select ptt-select-priority"
-          value={toRawPriority(entry.priority)}
-          onChange={(e) => onUpdate(entry.id, { priority: e.target.value })}
-        >
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {friendlyPriority(p)}
-            </option>
-          ))}
-        </select>
-      </div>
+          {/* Due date — editable date */}
+          <div className="ptt-cell ptt-cell-due">
+            <EditableDate
+              value={entry.due_date}
+              onSave={(val) => onUpdate(entry.id, { due_date: val })}
+            />
+            {isOverdue(entry.due_date ?? null, entry.status, entry.archived) && (
+              <span className="ptt-overdue-badge">
+                {getOverdueText(entry.due_date ?? null, entry.status, entry.archived)}
+              </span>
+            )}
+          </div>
 
-      {/* Due date — editable date */}
-      <div className="ptt-cell ptt-cell-due">
-        <EditableDate
-          value={entry.due_date}
-          onSave={(val) => onUpdate(entry.id, { due_date: val })}
-        />
-        {isOverdue(entry.due_date ?? null, entry.status, entry.archived) && (
-          <span className="ptt-overdue-badge">
-            {getOverdueText(entry.due_date ?? null, entry.status, entry.archived)}
-          </span>
-        )}
-      </div>
-
-      {/* Status — dropdown (far right) */}
-      <div className="ptt-cell ptt-cell-status">
-        <select
-          className="ptt-select ptt-select-status"
-          value={entry.status || STATUSES[0]}
-          onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {friendlyStatus(s)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Row actions — pin / calculate / archive, same semantics as Cards view */}
-      <div className="ptt-cell ptt-cell-actions">
-        <EntryQuickActions entry={entry} compact />
+          {/* Status — dropdown */}
+          <div className="ptt-cell ptt-cell-status">
+            <select
+              className="ptt-select ptt-select-status"
+              value={entry.status || STATUSES[0]}
+              onChange={(e) => onUpdate(entry.id, { status: e.target.value })}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {friendlyStatus(s)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -663,24 +685,30 @@ function ProjectGroup({
         ) : (
           /* ── Desktop: table ── */
           <div className="ptt-table">
-            <div className="ptt-columns" style={{ gridTemplateColumns: gridTemplate }}>
-              <div className="ptt-col ptt-col-checkbox"></div>
-              {viewMode === 'summary' ? (
-                <div className="ptt-col ptt-col-summary">Summary</div>
-              ) : (
-                fieldColumns.map((column) => (
-                  <div
-                    className="ptt-col ptt-col-custom"
-                    key={column.kind === 'legacy' ? 'legacy-content' : column.name}
-                  >
-                    {fieldColumnLabel(column)}
-                  </div>
-                ))
-              )}
-              <div className="ptt-col">Priority</div>
-              <div className="ptt-col">Due</div>
-              <div className="ptt-col">Status</div>
-              <div className="ptt-col">Actions</div>
+            <div className="ptt-columns">
+              <div className="ptt-columns__fixed">
+                <div className="ptt-col ptt-col-checkbox"></div>
+                <div className="ptt-col ptt-col-actions">Actions</div>
+              </div>
+              <div className="ptt-columns__scroll">
+                <div className="ptt-columns__inner" style={{ gridTemplateColumns: gridTemplate }}>
+                  {viewMode === 'summary' ? (
+                    <div className="ptt-col ptt-col-summary">Summary</div>
+                  ) : (
+                    fieldColumns.map((column) => (
+                      <div
+                        className="ptt-col ptt-col-custom"
+                        key={column.kind === 'legacy' ? 'legacy-content' : column.name}
+                      >
+                        {fieldColumnLabel(column)}
+                      </div>
+                    ))
+                  )}
+                  <div className="ptt-col">Priority</div>
+                  <div className="ptt-col">Due</div>
+                  <div className="ptt-col">Status</div>
+                </div>
+              </div>
             </div>
 
             <div className="ptt-rows">
@@ -694,6 +722,7 @@ function ProjectGroup({
                   onUpdate={onUpdate}
                   selected={selectedIds.has(entry.id)}
                   onToggle={onToggleSelect}
+                  projectColor={projectColor}
                 />
               ))}
             </div>
@@ -804,14 +833,6 @@ export default function ProjectTaskTable({
               >
                 <FiEdit />
                 View Notes
-              </button>
-              <button
-                type="button"
-                className="ptt-bulk-bar__btn ptt-bulk-bar__btn--notes"
-                onClick={() => openNotes(singleSelectedEntry)}
-              >
-                <FiEdit />
-                Add Note
               </button>
             </>
           )}
