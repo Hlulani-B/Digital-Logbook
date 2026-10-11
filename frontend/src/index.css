@@ -4197,6 +4197,19 @@ img {
   outline: none;
   border-color: var(--text, #37352f);
 }
+/* Fix greyed-out time portion in datetime-local inputs (Chrome/Edge) */
+.entry-box__field-input::-webkit-datetime-edit,
+.entry-box__field-input::-webkit-datetime-edit-fields-wrapper,
+.entry-box__field-input::-webkit-datetime-edit-text,
+.entry-box__field-input::-webkit-datetime-edit-month-field,
+.entry-box__field-input::-webkit-datetime-edit-day-field,
+.entry-box__field-input::-webkit-datetime-edit-year-field,
+.entry-box__field-input::-webkit-datetime-edit-hour-field,
+.entry-box__field-input::-webkit-datetime-edit-minute-field,
+.entry-box__field-input::-webkit-datetime-edit-ampm-field {
+  color: var(--text, #37352f);
+  opacity: 1;
+}
 .entry-box__priority-select,
 .entry-box__status-select {
   font-family: var(--font-body, 'Lora', serif);

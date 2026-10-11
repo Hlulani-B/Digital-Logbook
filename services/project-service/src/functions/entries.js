@@ -245,7 +245,13 @@ export class Entries {
         now: new Date(),
       });
       if (!dateValidation.success) return dateValidation;
-      ({ due_date, started_at, ended_at, paused_at } = dateValidation.dates);
+      // Preserve system-generated timer timestamps that validateEntryDates strips
+      // (it only returns due_date in .dates, so destructuring would lose paused_at).
+      const _savedTimer = { started_at, ended_at, paused_at };
+      ({ due_date } = dateValidation.dates);
+      started_at = _savedTimer.started_at;
+      ended_at = _savedTimer.ended_at;
+      paused_at = _savedTimer.paused_at;
       entry_object = dateValidation.values;
       const insertData = { user_email, project_name, entries: entry_object };
       if (due_date !== undefined && due_date !== null) insertData.due_date = due_date;
@@ -374,7 +380,13 @@ export class Entries {
         now,
       });
       if (!dateValidation.success) return dateValidation;
-      ({ due_date, started_at, ended_at, paused_at } = dateValidation.dates);
+      // Preserve system-generated timer timestamps that validateEntryDates strips
+      // (it only returns due_date in .dates, so destructuring would lose paused_at).
+      const _savedTimer = { started_at, ended_at, paused_at };
+      ({ due_date } = dateValidation.dates);
+      started_at = _savedTimer.started_at;
+      ended_at = _savedTimer.ended_at;
+      paused_at = _savedTimer.paused_at;
       new_entry = dateValidation.values;
       const statusAction =
         status !== previous.status
@@ -1288,14 +1300,40 @@ Respond with ONLY this JSON, nothing else:`;
       );
 
       let aiResponse;
-      console.log('[Natural_language.entry] About to call AI() with prompt length:', prompt?.length);
+      console.log(
+        '[Natural_language.entry] About to call AI() with prompt length:',
+        prompt?.length
+      );
       console.log('[Natural_language.entry] Prompt preview:', prompt?.slice(0, 300));
       console.log('[Natural_language.entry] Checking AI provider env keys:');
-      console.log('  HF_API_KEY:', process.env.HF_API_KEY ? 'SET (' + process.env.HF_API_KEY.slice(0, 8) + '...)' : 'NOT SET');
-      console.log('  OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'SET (' + process.env.OPENROUTER_API_KEY.slice(0, 12) + '...)' : 'NOT SET');
-      console.log('  CEREBRAS_API_KEY:', process.env.CEREBRAS_API_KEY ? 'SET (' + process.env.CEREBRAS_API_KEY.slice(0, 8) + '...)' : 'NOT SET');
-      console.log('  GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'SET (' + process.env.GEMINI_API_KEY.slice(0, 10) + '...)' : 'NOT SET');
-      console.log('  GROQ_API_KEY:', process.env.GROQ_API_KEY ? 'SET (' + process.env.GROQ_API_KEY.slice(0, 8) + '...)' : 'NOT SET');
+      console.log(
+        '  HF_API_KEY:',
+        process.env.HF_API_KEY ? 'SET (' + process.env.HF_API_KEY.slice(0, 8) + '...)' : 'NOT SET'
+      );
+      console.log(
+        '  OPENROUTER_API_KEY:',
+        process.env.OPENROUTER_API_KEY
+          ? 'SET (' + process.env.OPENROUTER_API_KEY.slice(0, 12) + '...)'
+          : 'NOT SET'
+      );
+      console.log(
+        '  CEREBRAS_API_KEY:',
+        process.env.CEREBRAS_API_KEY
+          ? 'SET (' + process.env.CEREBRAS_API_KEY.slice(0, 8) + '...)'
+          : 'NOT SET'
+      );
+      console.log(
+        '  GEMINI_API_KEY:',
+        process.env.GEMINI_API_KEY
+          ? 'SET (' + process.env.GEMINI_API_KEY.slice(0, 10) + '...)'
+          : 'NOT SET'
+      );
+      console.log(
+        '  GROQ_API_KEY:',
+        process.env.GROQ_API_KEY
+          ? 'SET (' + process.env.GROQ_API_KEY.slice(0, 8) + '...)'
+          : 'NOT SET'
+      );
       try {
         aiResponse = await AI(prompt);
         console.log(
@@ -1319,8 +1357,12 @@ Respond with ONLY this JSON, nothing else:`;
         console.error(
           '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown.'
         );
-        console.error('[Natural_language.entry] This means ALL of these failed: HuggingFace, OpenRouter, Cerebras, Gemini, Groq');
-        console.error('[Natural_language.entry] Check the [AI] logs above to see which providers were tried and why they failed');
+        console.error(
+          '[Natural_language.entry] This means ALL of these failed: HuggingFace, OpenRouter, Cerebras, Gemini, Groq'
+        );
+        console.error(
+          '[Natural_language.entry] Check the [AI] logs above to see which providers were tried and why they failed'
+        );
         return {
           success: false,
           message:
