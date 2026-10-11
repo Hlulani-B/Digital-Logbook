@@ -8,6 +8,7 @@ import {
   EmailNotifications,
   NotificationLeadTime,
   TimerAbandonmentNotifications,
+  WeeklyDigest,
 } from '../functions/profile.js';
 
 const router = express.Router();
@@ -20,7 +21,8 @@ let username,
   profile,
   emailNotifications,
   notificationLeadTime,
-  timerAbandonmentNotifications;
+  timerAbandonmentNotifications,
+  weeklyDigest;
 try {
   username = new Username();
   email = new Email();
@@ -30,6 +32,7 @@ try {
   emailNotifications = new EmailNotifications();
   notificationLeadTime = new NotificationLeadTime();
   timerAbandonmentNotifications = new TimerAbandonmentNotifications();
+  weeklyDigest = new WeeklyDigest();
 } catch (err) {
   console.error('Failed to instantiate profile handlers:', err);
 }
@@ -115,6 +118,20 @@ router.post('/profile', async (req, res) => {
           return res.status(400).json({ error: 'Missing email parameter or enabled flag' });
         }
         const result = await timerAbandonmentNotifications.set(userEmail, enabled);
+        return res.json(result);
+      }
+      case 'weeklyDigest': {
+        const { email: userEmail, enabled, day } = values;
+        if (!userEmail || typeof enabled !== 'boolean') {
+          return res.status(400).json({ error: 'Missing email parameter or enabled flag' });
+        }
+        const result = await weeklyDigest.set(userEmail, enabled, day);
+        return res.json(result);
+      }
+      case 'getWeeklyDigest': {
+        const { email: userEmail } = values;
+        if (!userEmail) return res.status(400).json({ error: 'Missing email parameter' });
+        const result = await weeklyDigest.get(userEmail);
         return res.json(result);
       }
       case 'deleteProfile': {
