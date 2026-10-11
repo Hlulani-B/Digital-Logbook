@@ -211,6 +211,8 @@ function EntryFieldValue({
   payload: ReturnType<typeof classifyEntryPayload>;
   onSave: (fieldName: string, value: string) => void;
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
   if (column.kind === 'legacy') {
     return (
       <span className="ptt-readonly-value">
@@ -248,11 +250,22 @@ function EntryFieldValue({
       typeof value === 'string' && value.startsWith('data:image/')
         ? value
         : `data:image/jpeg;base64,${String(value)}`;
+    if (imgFailed) {
+      return (
+        <span
+          className="ptt-readonly-value"
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted, #6b7280)' }}
+        >
+          📎 Image
+        </span>
+      );
+    }
     return (
       <span className="ptt-readonly-value">
         <img
           src={src}
           alt="Entry image"
+          onError={() => setImgFailed(true)}
           style={{
             maxWidth: '60px',
             maxHeight: '60px',
