@@ -194,6 +194,67 @@ export class TimerAbandonmentNotifications {
 }
 
 /**
+ * Persists the user's weekly digest preferences.
+ * Controls whether a summary email is sent and which day of week.
+ */
+const VALID_DIGEST_DAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+export class WeeklyDigest {
+  async set(email, enabled, day) {
+    try {
+      if (!pool) return { success: false, message: 'Database not connected' };
+      if (day && !VALID_DIGEST_DAYS.includes(day)) {
+        return { success: false, message: `Invalid digest day: ${day}` };
+      }
+      const updates = [`weekly_digest_enabled = $1`];
+      const params = [Boolean(enabled), email];
+      if (day) {
+        updates.push(`weekly_digest_day = $${params.length}`);
+        params.push(day);
+      }
+      params.push(email);
+      await pool.query(
+        `UPDATE users SET ${updates.join(', ')} WHERE email = $${params.length}`,
+        params
+      );
+      return { success: true, message: 'Weekly digest preference updated' };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async get(email) {
+    try {
+      if (!pool) return { success: false, message: 'Database not connected' };
+      const { rows } = await pool.query(
+        `SELECT weekly_digest_enabled, weekly_digest_day FROM users WHERE email = $1`,
+        [email]
+      );
+      if (rows.length === 0) return { success: false, message: 'User not found' };
+      return {
+        success: true,
+        data: {
+          enabled: rows[0].weekly_digest_enabled,
+          day: rows[0].weekly_digest_day,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: error.message };
+    }
+  }
+}
+
+/**
  * Aggregates read/delete operations for a user profile.
  */
 export class Profile {
