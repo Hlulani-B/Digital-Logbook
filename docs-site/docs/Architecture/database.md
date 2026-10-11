@@ -686,11 +686,11 @@ Supabase enforces Row Level Security on all tables. The backend services use the
 
 ### Scheduled Jobs
 
-| Job                      | Schedule                         | Purpose                                                                                                            |
-| ------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `purge-deleted-users`    | `0 0 * * *` (midnight UTC daily) | Permanently removes soft-deleted accounts past the 30-day grace period                                             |
-| `due-notification-cycle` | `7 * * * *` (hourly)             | Inserts due-soon (24h) / overdue notification rows, then pokes project-service to send pending emails via `pg_net` |
+| Job                      | Schedule                         | Purpose                                                                                                                                                                                                                                           |
+| ------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `purge-deleted-users`    | `0 0 * * *` (midnight UTC daily) | Permanently removes soft-deleted accounts past the 30-day grace period                                                                                                                                                                            |
+| `due-notification-cycle` | `7 * * * *` (hourly)             | Inserts due-soon (24h) / overdue / timer-abandonment notification rows via `generate_due_notifications()` and `generate_timer_abandonment_notifications()`; emails are flushed by the bell-triggered opportunistic `sendPendingEmails()` endpoint |
 
 Requires the `pg_cron` Supabase extension. The job calls `purge_deleted_users()`, which hard-deletes from all tables and removes the `auth.users` row.
 
-The notification cycle uses `pg_net` (best-effort — if project-service is asleep on Render's free tier the POST fails silently and the next hourly run retries, since pending rows keep `emailed = false`). Any active app session also flushes pending emails opportunistically on its bell polls.
+The notification cycle is pg_net-free: `run_due_notification_cycle()` calls both generators and RAISE NOTICEs the pending count, but makes no HTTP call. Email delivery happens via the opportunistic flush — when a user opens the notifications bell, the frontend poll triggers `POST /service/notifications/sendPending` on project-service, which sends pending emails via the Brevo REST API and marks rows `emailed = true` only after Brevo accepts. This design avoids the Render free-tier cold-start problem (pg_net's 30s timeout often expires before the service wakes) and the hardcoded project-service URL in migration 011 (`project-service-96ml.onrender.com`) which drifts on redeploy.

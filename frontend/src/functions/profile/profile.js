@@ -375,6 +375,48 @@ export async function setTimerAbandonmentNotifications(email, enabled) {
 }
 
 /**
+ * Persist the "Weekly digest" preference server-side.
+ * Controls whether a summary email is sent and which day of week.
+ */
+export async function setWeeklyDigest(email, enabled, day) {
+  if (!navigator.onLine) {
+    console.log('[setWeeklyDigest] Offline, skipping server sync');
+    return { success: true, skipped: true };
+  }
+
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'weeklyDigest',
+        values: { email, enabled: Boolean(enabled), day },
+      }),
+    });
+  } catch (err) {
+    console.error('[setWeeklyDigest] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * Fetch the current weekly digest preference from the server.
+ */
+export async function getWeeklyDigest(email) {
+  try {
+    return await request(`${PROFILE_URL}/service/profile`, {
+      method: 'POST',
+      body: JSON.stringify({
+        function: 'getWeeklyDigest',
+        values: { email },
+      }),
+    });
+  } catch (err) {
+    console.error('[getWeeklyDigest] Failed:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
  * Delete profile.
  * Clears all caches, then syncs to server.
  */
