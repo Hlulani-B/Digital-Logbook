@@ -305,9 +305,22 @@ export function EntryBox({
     '_project_ref',
     '_pinned',
   ]);
-  const entryFields = Object.entries(parsedEntries || {}).filter(
-    ([key]) => !SKIP_FIELDS.has(key) && !key.startsWith('_calc_')
-  );
+  // View-mode field rows: every visible project field (so unfilled
+  // non-required fields still show, blank, and stay fillable) plus payload
+  // keys that no longer have a schema definition.
+  const entryFields: Array<[string, unknown]> = [];
+  const seenEntryFields = new Set<string>();
+  for (const [key, fieldDef] of Object.entries(fieldDefs)) {
+    if (SKIP_FIELDS.has(key) || key.startsWith('_calc_')) continue;
+    if (!evaluateVisibility(fieldDef, parsedEntries)) continue;
+    if (resolveFieldPermission(fieldDef, 'owner') === 'hidden') continue;
+    entryFields.push([key, parsedEntries[key]]);
+    seenEntryFields.add(key);
+  }
+  for (const [key, value] of Object.entries(parsedEntries || {})) {
+    if (seenEntryFields.has(key) || SKIP_FIELDS.has(key) || key.startsWith('_calc_')) continue;
+    entryFields.push([key, value]);
+  }
   const dueLabel = formatDueDateTime(due_date, {
     dateOptions: { month: 'short', day: 'numeric', year: 'numeric' },
   });
@@ -342,8 +355,13 @@ export function EntryBox({
     setError(null);
 
     try {
+      // Legacy opaque content stays untouched; empty payloads only write
+      // once the user actually fills something in.
+      const draftFieldKeys = Object.keys(draftFields);
       const newEntryObject: Record<string, unknown> | undefined =
-        payloadState.kind === 'opaque' ? undefined : { ...draftFields };
+        payloadState.kind === 'opaque' || draftFieldKeys.length === 0
+          ? undefined
+          : { ...draftFields };
 
       // Convert priority index to label string (or null for "No priority")
       const newPriorityLabel =
@@ -592,7 +610,7 @@ export function EntryBox({
           {error && <div className="entry-box__error">{error}</div>}
 
           <div className="entry-box__fields--editing">
-            {payloadState.kind !== 'object' ? (
+            {payloadState.kind === 'opaque' ? (
               <div className="entry-box__field--editing">
                 <label className="entry-box__field-key">Entry content</label>
                 <span>{formatEntryValue(payloadState.value)}</span>

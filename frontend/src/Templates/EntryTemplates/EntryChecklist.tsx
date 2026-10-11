@@ -9,11 +9,13 @@ import { toLocalDateTime, dateOnlyDueToISO } from '@/lib/newEntryDates';
 import {
   type EntryPayload,
   classifyEntryPayload,
+  formatEntryValue,
   getEntryPayloadTitle,
   cleanSummaryText,
 } from '@/lib/entryPayload';
 import { resolveProjectColor } from '@/lib/projectColorMap';
 import { formatDueDateTime } from '@/lib/dueDateDisplay';
+import { FieldDisplay } from '@/components/fields/FieldDisplay';
 import { FieldEditor } from '@/components/fields/FieldEditors';
 import { evaluateVisibility } from '@/lib/fieldVisibility';
 import { resolveFieldPermission } from '@/hooks/useFieldPermissions';
@@ -90,6 +92,24 @@ function getSummary(entry: ChecklistEntry): string {
   return summary === 'Not recorded' ? `${entry.project_name} entry` : summary;
 }
 
+/** Reserved payload keys that never render as fields in the details panel. */
+const SKIP_FIELDS = new Set([
+  'created',
+  'started',
+  'ended',
+  'duration',
+  'created_at',
+  'started_at',
+  'ended_at',
+  '_entry_ref',
+  '_project_ref',
+  '_pinned',
+]);
+
+function formatFieldKey(key: string): string {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function ChecklistEntryCard({
   entry,
   onUpdated,
@@ -138,6 +158,27 @@ export default function ChecklistEntryCard({
   useEffect(() => {
     setStatusOverride(null);
   }, [entry.status]);
+
+  // Card details — collapsed by default so the action buttons and toggles can
+  // never push past the card border; the outlined panel below expands
+  // downward only (it never reaches into the Due Soon rail's column).
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Every visible project field (so unfilled non-required fields still show,
+  // blank and ready to fill in) plus payload keys without a schema anymore.
+  const detailsFields: Array<[string, FieldDefinition | undefined, unknown]> = [];
+  const detailsSeen = new Set<string>();
+  for (const [key, fieldDef] of Object.entries(fieldDefs)) {
+    if (SKIP_FIELDS.has(key) || key.startsWith('_calc_')) continue;
+    if (!evaluateVisibility(fieldDef, parsedEntries)) continue;
+    if (resolveFieldPermission(fieldDef, 'owner') === 'hidden') continue;
+    detailsFields.push([key, fieldDef, parsedEntries[key]]);
+    detailsSeen.add(key);
+  }
+  for (const [key, value] of Object.entries(parsedEntries)) {
+    if (detailsSeen.has(key) || SKIP_FIELDS.has(key) || key.startsWith('_calc_')) continue;
+    detailsFields.push([key, undefined, value]);
+  }
 
   // Edit state
   const [draftSummary, setDraftSummary] = useState(getSummary(entry));
@@ -257,8 +298,16 @@ export default function ChecklistEntryCard({
     setError(null);
 
     try {
+      // Object and empty payloads can carry field values; legacy opaque
+      // content stays untouched. Empty payloads only write once the user
+      // actually adds a value.
+      const draftFieldKeys = Object.keys(draftFields);
       const newEntryObject =
-        fieldsReady && payloadState.kind === 'object' ? { ...draftFields } : undefined;
+        fieldsReady &&
+        payloadState.kind !== 'opaque' &&
+        !(payloadState.kind === 'empty' && draftFieldKeys.length === 0)
+          ? { ...draftFields }
+          : undefined;
       const newPriorityLabel =
         draftPriorityValue === '3' ? null : (PRIORITY_LABELS[draftPriorityValue] ?? null);
       const result = await updateEntry(
@@ -351,61 +400,115 @@ export default function ChecklistEntryCard({
           </div>
         </div>
 
-        {/* Status / Priority dropdowns — same actions as the Cards view */}
-        <div className="checklist-card-controls">
-          <select
-            className={`checklist-control-select checklist-status-select checklist-status-${statusValue}`}
-            value={statusValue}
-            onChange={(e) => handleStatusSelect(e.target.value as EntryStatus)}
-            onClick={(e) => e.stopPropagation()}
-            disabled={checking || statusPending || entry._timerPending}
-            aria-label="Status"
+        {/* Collapse toggle — the card ships collapsed so wide button rows and
+            toggles can never spill past the border; Show details unfolds the
+            outlined panel below. */}
+        <div className="checklist-card-collapse-row">
+          <button
+            type="button"
+            className={`checklist-card-collapse-btn ${detailsOpen ? '' : 'is-collapsed'}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDetailsOpen((prev) => !prev);
+            }}
+            aria-expanded={detailsOpen}
+            title={detailsOpen ? 'Hide details' : 'Show details'}
           >
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="checklist-control-select checklist-priority-select"
-            value={priorityValue}
-            onChange={(e) => handlePrioritySelect(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            disabled={priorityPending || entry._timerPending}
-            aria-label="Priority"
-          >
-            <option value="0">Urgent & important</option>
-            <option value="1">Urgent, not important</option>
-            <option value="2">Not urgent</option>
-            <option value="3">No priority</option>
-          </select>
+            <span>{detailsOpen ? 'Hide details' : 'Show details'}</span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
         </div>
 
-        {/* Context menu for edit/delete (shown on hover) */}
-        <div className="checklist-card-menu">
-          <button
-            className="checklist-card-menu-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCardClick();
-            }}
-            title="Edit"
-          >
-            Edit
-          </button>
-          {/* Pin / Calculate / Archive — pins are private to this page's scope */}
-          <EntryQuickActions entry={entry} onUpdated={onUpdated} />
-          <button
-            className="checklist-card-menu-btn checklist-card-menu-btn--delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteOpen(true);
-            }}
-            title="Delete"
-          >
-            Delete
-          </button>
+        {/* Outlined details panel — expands downward inside the card, so it
+            never overlaps the Due Soon column. */}
+        <div className={`checklist-card-details ${detailsOpen ? 'is-open' : ''}`}>
+          {/* Status / Priority dropdowns — same actions as the Cards view */}
+          <div className="checklist-card-controls">
+            <select
+              className={`checklist-control-select checklist-status-select checklist-status-${statusValue}`}
+              value={statusValue}
+              onChange={(e) => handleStatusSelect(e.target.value as EntryStatus)}
+              onClick={(e) => e.stopPropagation()}
+              disabled={checking || statusPending || entry._timerPending}
+              aria-label="Status"
+            >
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="checklist-control-select checklist-priority-select"
+              value={priorityValue}
+              onChange={(e) => handlePrioritySelect(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              disabled={priorityPending || entry._timerPending}
+              aria-label="Priority"
+            >
+              <option value="0">Urgent & important</option>
+              <option value="1">Urgent, not important</option>
+              <option value="2">Not urgent</option>
+              <option value="3">No priority</option>
+            </select>
+          </div>
+
+          {/* Every visible project field — unfilled ones stay blank so they
+              can be filled in from the edit dialog. */}
+          {detailsFields.length > 0 && (
+            <div className="checklist-card-fields">
+              {detailsFields.map(([key, fieldDef, value]) => (
+                <div className="checklist-card-field" key={key}>
+                  <span className="checklist-card-field-key">{formatFieldKey(key)}</span>
+                  <span className="checklist-card-field-value">
+                    {fieldDef ? (
+                      <FieldDisplay field={fieldDef} value={value} />
+                    ) : (
+                      formatEntryValue(value)
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action row — wraps inside the panel so buttons never spill past
+              the card border. */}
+          <div className="checklist-card-menu">
+            <button
+              className="checklist-card-menu-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCardClick();
+              }}
+              title="Edit"
+            >
+              Edit
+            </button>
+            {/* Pin / Calculate / Archive — same entry keys as the Cards view */}
+            <EntryQuickActions entry={entry} onUpdated={onUpdated} />
+            <button
+              className="checklist-card-menu-btn checklist-card-menu-btn--delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteOpen(true);
+              }}
+              title="Delete"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </div>
 
@@ -461,7 +564,7 @@ export default function ChecklistEntryCard({
                 />
               </div>
 
-              {payloadState.kind === 'object' &&
+              {payloadState.kind !== 'opaque' &&
                 Object.entries(fieldDefs).map(([key, fieldDef]) => {
                   // Visibility rules and permissions mirror the Cards view
                   if (!evaluateVisibility(fieldDef, draftFields)) return null;

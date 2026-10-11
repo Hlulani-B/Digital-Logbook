@@ -214,6 +214,93 @@ describe('ChecklistEntryCard', () => {
     );
     expect(onUpdated).toHaveBeenCalled();
   });
+
+  it('keeps the details panel collapsed until Show details is pressed', () => {
+    const { container } = renderCard(sampleEntry);
+    const details = container.querySelector('.checklist-card-details');
+    expect(details).not.toBeNull();
+    expect(details?.classList.contains('is-open')).toBe(false);
+    const toggle = screen.getByRole('button', { name: 'Show details' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(
+      container.querySelector('.checklist-card-details')?.classList.contains('is-open')
+    ).toBe(true);
+    expect(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Hide details' }));
+    expect(
+      container.querySelector('.checklist-card-details')?.classList.contains('is-open')
+    ).toBe(false);
+  });
+
+  it('shows unfilled project fields blank in the details panel', async () => {
+    vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
+      data: [{ field_name: 'notes', data_type: 'text', is_required: false }],
+    } as any);
+    const entry = {
+      ...sampleEntry,
+      id: 'entry-blank-fields',
+      project_name: 'BlankFieldsProject',
+      entries: null,
+    };
+    const { container } = render(
+      <NotesProvider>
+        <ChecklistEntryCard entry={entry} />
+      </NotesProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    await waitFor(() =>
+      expect(container.querySelector('.checklist-card-field-key')?.textContent).toBe('Notes')
+    );
+    expect(
+      container.querySelector('.checklist-card-field-value .field-display-empty')?.textContent
+    ).toBe('—');
+  });
+
+  it('adds values to an empty payload from the edit dialog', async () => {
+    vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
+      data: [{ field_name: 'notes', data_type: 'text', is_required: false }],
+    } as any);
+    const entry = {
+      ...sampleEntry,
+      id: 'entry-empty-payload',
+      project_name: 'EmptyPayloadProject',
+      entries: null,
+    };
+    const onUpdated = vi.fn();
+    render(
+      <NotesProvider>
+        <ChecklistEntryCard entry={entry} onUpdated={onUpdated} />
+      </NotesProvider>
+    );
+    fireEvent.click(screen.getByText('Fix login bug'));
+    const label = await screen.findByText('notes');
+    const input = label.parentElement?.querySelector('input') as HTMLInputElement;
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: 'added value' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() =>
+      expect(vi.mocked(updateEntry)).toHaveBeenCalledExactlyOnceWith(
+        'test@test.com',
+        'EmptyPayloadProject',
+        'entry-empty-payload',
+        { notes: 'added value' },
+        undefined,
+        null,
+        'up_next',
+        undefined,
+        undefined,
+        undefined,
+        'Fix login bug'
+      )
+    );
+    expect(onUpdated).toHaveBeenCalled();
+  });
 });
 
 describe('ChecklistView', () => {

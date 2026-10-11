@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { useNotes } from '@/context/NotesContext';
 import { FiEdit } from 'react-icons/fi';
-import { EntryQuickActions } from '@/components/EntryQuickActions';
+import { EntryQuickActions, loadProjectFields } from '@/components/EntryQuickActions';
 import {
   classifyEntryPayload,
   formatEntryValue,
@@ -232,7 +232,7 @@ function EntryFieldValue({
     );
   }
 
-  if (payload.kind !== 'object') {
+  if (payload.kind === 'opaque') {
     return (
       <span className="ptt-readonly-value">
         <span className="ptt-placeholder">Not recorded</span>
@@ -240,7 +240,7 @@ function EntryFieldValue({
     );
   }
 
-  const value = payload.value[column.name];
+  const value = payload.kind === 'object' ? payload.value[column.name] : undefined;
   if (value == null) {
     return (
       <EditableText
@@ -358,8 +358,9 @@ function MobileCard({
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
-      if (payload.kind !== 'object') return;
-      onUpdate(entry.id, { entries: { ...payload.value, [fieldName]: newVal } });
+      if (payload.kind === 'opaque') return;
+      const base = payload.kind === 'object' ? payload.value : {};
+      onUpdate(entry.id, { entries: { ...base, [fieldName]: newVal } });
     },
     [entry.id, onUpdate, payload]
   );
@@ -476,8 +477,9 @@ function TaskRow({
 
   const handleFieldEdit = useCallback(
     (fieldName: string, newVal: string) => {
-      if (payload.kind !== 'object') return;
-      onUpdate(entry.id, { entries: { ...payload.value, [fieldName]: newVal } });
+      if (payload.kind === 'opaque') return;
+      const base = payload.kind === 'object' ? payload.value : {};
+      onUpdate(entry.id, { entries: { ...base, [fieldName]: newVal } });
     },
     [entry.id, onUpdate, payload]
   );
@@ -605,7 +607,35 @@ function ProjectGroup({
   projectColor?: string;
 }) {
   const [open, setOpen] = useState(true);
-  const fieldColumns = entryFieldColumns(project.entries);
+  // Schema columns — project fields no row has filled in yet still get a
+  // column so unfilled non-required fields stay visible and editable.
+  const [schemaFields, setSchemaFields] = useState<string[]>([]);
+  const schemaUserEmail = project.entries.find((e: any) => e.user_email)?.user_email;
+  useEffect(() => {
+    if (!schemaUserEmail) return;
+    let cancelled = false;
+    loadProjectFields(schemaUserEmail, project.name).then((defs) => {
+      if (!cancelled) setSchemaFields(Object.keys(defs));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [schemaUserEmail, project.name]);
+
+  const fieldColumns = useMemo(() => {
+    const base = entryFieldColumns(project.entries);
+    const existing = new Set(
+      base
+        .filter(
+          (column): column is { kind: 'field'; name: string } => column.kind === 'field'
+        )
+        .map((column) => column.name)
+    );
+    const extras = schemaFields
+      .filter((name) => !existing.has(name) && name !== 'started_at' && name !== 'description')
+      .map((name) => ({ kind: 'field' as const, name }));
+    return [...base, ...extras];
+  }, [project.entries, schemaFields]);
   const colCount = viewMode === 'summary' ? 1 : fieldColumns.length;
   const gridTemplate = buildGridTemplate(viewMode, colCount);
 

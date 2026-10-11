@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ProjectTaskTable from '../ProjectTemplates/ProjectTable';
 import { NotesProvider } from '@/context/NotesContext';
+
+vi.mock('@/functions/project/fields.js', () => ({
+  getFields: vi.fn().mockResolvedValue({ success: true, data: [] }),
+}));
 
 const mockOnUpdate = vi.fn();
 
@@ -151,5 +155,63 @@ describe('ProjectTaskTable', () => {
 
     fireEvent.click(legacyValue);
     expect(mockOnUpdate).not.toHaveBeenCalled();
+  });
+
+  it('adds columns for schema fields no row has filled in yet', async () => {
+    const { getFields } = await import('@/functions/project/fields.js');
+    vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
+      data: [{ field_name: 'owner_notes', data_type: 'text', is_required: false }],
+    } as any);
+    const rows = [
+      {
+        ...sampleRows[0],
+        id: 'schema-row',
+        user_email: 'schema@test.com',
+        project_name: 'SchemaProject',
+        entries: { task: 'Build feature X' },
+      },
+    ];
+    renderTable(rows);
+    await waitFor(() => {
+      const labels = Array.from(document.querySelectorAll('.ptt-col-custom')).map(
+        (el) => el.textContent
+      );
+      expect(labels).toContain('owner_notes');
+    });
+  });
+
+  it('lets unfilled schema columns be filled in from an empty payload', async () => {
+    const { getFields } = await import('@/functions/project/fields.js');
+    vi.mocked(getFields).mockResolvedValueOnce({
+      success: true,
+      data: [{ field_name: 'task', data_type: 'text', is_required: false }],
+    } as any);
+    const rows = [
+      {
+        ...sampleRows[0],
+        id: 'empty-row',
+        user_email: 'empty@test.com',
+        project_name: 'EmptyTableProject',
+        entries: null,
+      },
+    ];
+    renderTable(rows);
+    await waitFor(() =>
+      expect(
+        Array.from(document.querySelectorAll('.ptt-col-custom')).map((el) => el.textContent)
+      ).toContain('task')
+    );
+    const placeholders = await screen.findAllByText('Not recorded');
+    const editable = placeholders
+      .map((el) => el.closest('.ptt-editable'))
+      .find((el): el is HTMLElement => el !== null)!;
+    fireEvent.click(editable);
+    const input = document.querySelector('.ptt-inline-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Filled from table' } });
+    fireEvent.blur(input);
+    expect(mockOnUpdate).toHaveBeenCalledExactlyOnceWith('empty-row', {
+      entries: { task: 'Filled from table' },
+    });
   });
 });
