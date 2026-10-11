@@ -50,6 +50,36 @@ export function FieldDisplay({ field, value }: FieldDisplayProps) {
       );
     }
     case 'file': {
+      // Base64 string stored during entry creation
+      if (typeof value === 'string') {
+        // If it looks like an image, show a thumbnail
+        if (value.startsWith('data:image/') || /^[A-Za-z0-9+/]+=*$/.test(value.slice(0, 40))) {
+          const src = value.startsWith('data:')
+            ? value
+            : `data:application/octet-stream;base64,${value}`;
+          return (
+            <div className="field-display field-display-image">
+              <img
+                src={src}
+                alt="File preview"
+                style={{
+                  maxWidth: '80px',
+                  maxHeight: '80px',
+                  objectFit: 'cover',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border, #e5e7eb)',
+                }}
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="field-display field-display-attachment">
+            <span>📎 File attached</span>
+          </div>
+        );
+      }
+      // { attachmentId } object from upload-and-finalize
       if (typeof value !== 'object' || value === null)
         return <div className="field-display">—</div>;
       const { attachmentId } = value as any;
