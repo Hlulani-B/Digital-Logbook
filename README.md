@@ -19,121 +19,124 @@ The backend microservices are deployed on Render:
 
 test: https://digital-logbook-bjev.onrender.com
 
-# Backend
-
-```markdown
-# Codacaine - Plannar
+# Codacaine - Planner
 
 A microservices-based digital planning app built with React (frontend) and Node.js/Express (backend services), using Supabase for auth and database.
 
 ## Architecture
 
 This is a monorepo containing independent backend services and a React frontend. Each service runs as its own process on its own port.
-```
 
+```text
 codacaine/
-├── frontend/ # React app (Vite)
-│ └── src/
+├── frontend/                     # React app (Vite)
+│   └── src/
+├── api-gateway/                  # Entry point for backend API requests
+│   ├── src/
+│   │   └── index.js
+│   ├── Dockerfile
+│   ├── package.json
+│   └── .env
 ├── services/
-│ ├── auth-service/ # Handles login/signup via Supabase Auth (port 5001)
-│ │ ├── src/index.js
-│ │ ├── package.json
-│ │ └── .env
-│ ├── dashboard-service/ # Cross-project summaries & search (port 5002)
-│ │ ├── src/index.js
-│ │ ├── package.json
-│ │ └── .env
-│ ├── project-service/ # Project entries, timeline, search, stats, AI (port 5003)
-│ │ ├── src/index.js
-│ │ ├── package.json
-│ │ └── .env
-│ └── profile-service/ # User profiles, avatars, preferences (port 5004)
-│ ├── src/index.js
-│ ├── package.json
-│ └── .env
-├── scripts/ # Database backup, restore, and migration tools
+│   ├── auth-service/             # Authentication (port 5001)
+│   │   ├── src/
+│   │   │   └── index.js
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── .env
+│   ├── dashboard-service/        # Cross-project summaries and search (port 5002)
+│   │   ├── src/
+│   │   │   └── index.js
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── .env
+│   ├── project-service/          # Entries, timeline, search, stats, AI (port 5003)
+│   │   ├── src/
+│   │   │   └── index.js
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── .env
+│   └── profile-service/          # User profiles and preferences (port 5004)
+│       ├── src/
+│       │   └── index.js
+│       ├── Dockerfile
+│       ├── package.json
+│       └── .env
+├── scripts/                      # Database backup, restore and migration tools
 ├── supabase/
-│ ├── setup.sql # One-shot Supabase setup
-│ └── migrations/ # Versioned SQL migrations (000–007+)
-├── docs/ # User stories and project documentation
-├── docs-site/ # MkDocs documentation site source
-├── badges/ # Auto-generated coverage badge SVGs
-├── render.yaml # Render deployment manifest
-├── package.json # Root monorepo config (npm scripts for db tools)
+│   ├── setup.sql                 # Initial Supabase setup
+│   └── migrations/               # Versioned SQL migrations (000–007+)
+├── docs/                         # Project documentation and user stories
+├── docs-site/                    # MkDocs documentation source
+├── badges/                       # Generated coverage badges
+├── render.yaml                   # Render deployment configuration
+├── package.json                  # Root monorepo scripts
 ├── .gitignore
 └── README.md
-
-````
+```
 
 ## Authentication & Security
 
 The frontend uses Supabase Auth for identity management and supports multiple sign-in methods:
 
 - **OAuth:** Google and GitHub one-click sign-in
+
 - **Email/password:** Sign-up with email confirmation and password reset
+
 - **Email validation:** Malformed addresses, disposable domains, and common typos are rejected before submission
+
 - **Session management:** Users remain signed in until they manually sign out
+
 - **Account deletion:** Soft-deleted accounts enter a 30-day grace period with email-link restoration
 
 ## Features
 
 - **Calendar view:** Month and week calendars place entries on their due dates, with overdue entries highlighted and completed entries shown in green. Entries can be dragged to another day to reschedule them, and days with many tasks collapse gracefully into a "+N more" indicator.
+
 - **Kanban board:** Three status columns (Up Next, In Motion, Done & Dusted) show entries as cards that can be dragged between columns to change status. The board supports project and search filters, and a failed save reverts the card to its original column.
+
 - **Timeline:** Horizontal time view with bars spanning start to due date, dependency arrows between linked tasks, zoom/scroll controls, and an empty state when no dated tasks exist.
+
 - **Import & Export:** Export all projects and entries (including archived) to JSON, CSV, Markdown, or iCalendar (.ics), and import them back in. Round-trip safe with malformed-row reporting. iCalendar export opens in Google Calendar, Outlook, and Apple Calendar.
+
 - **Backup, Restore & Migrations:** One-command `pg_dump`/`pg_restore` backup and restore, plus versioned schema migrations that upgrade an existing database without dropping and recreating it.
+
 - **OpenAPI 3 & Swagger UI:** Full REST API documented with an OpenAPI 3.0 specification covering all four microservices. Browsable interactive docs page at `/api-docs` on the project service with "Try it out" support.
+
 - **Mobile responsive:** Calendar auto-switches to week-strip layout on phones (≤480px). Kanban and Timeline views have dedicated phone breakpoints with reduced padding and touch-friendly sizing.
+
 - **Guided tour with voice narration:** First-time users are offered an interactive walkthrough that really navigates the app — it opens the drawer, visits every view, and spotlights the notification bell, profile menu, and quick-entry bar. A friendly voice narrates each stop via the browser's speech synthesis with hands-free auto-advance paced to the narration finishing, plus a persisted mute toggle. Replayable from the dashboard or navbar.
+
 - **Public landing page:** A standalone marketing page at `/` with a split hero (typing demo + AI-generated dashboard illustration), interactive About and Feature cards with mouse-following spotlight and 3D tilt effects, animated stats counters, a "What's New" ticker, team section, and CTA. Warm beige/brown palette matches the sign-in form. The sign-in page (`/signin`) is a clean split-screen auth form with no duplicated marketing content.
+
 - **Enhanced notifications:** Snooze (1h / 4h / tomorrow) or dismiss individual notifications without completing the entry. Filter the history page by unread, due-soon, or overdue. Configure how far in advance to receive due-soon alerts (1 hour to 1 week). Rich HTML emails with entry cards and deep-link buttons. Browser toast notifications when new alerts arrive during an active session. Timer abandonment alerts notify users when a session timer runs >2 hours or pauses >30 minutes.
+
 - **Help Centre:** Searchable knowledge base at `/help` with 9 categories and 25 articles covering Getting Started, How-To Guides, Troubleshooting, FAQ, and more. Accessible from the drawer navigation on every page. Features client-side search, keyboard shortcuts, theme-aware styling, and mobile-responsive layout.
+
 - **In-app bug report form:** Modal form in the Help Centre that sends bug reports via email to the team. Captures title, description, steps to reproduce, and auto-attaches browser info. Uses FormSubmit.co for email delivery with no backend changes required.
+
 - **Project pagination & multi-select:** When there are more than 5 projects on the home page, only the first 3 are shown with a "View N more projects" button. A multi-select mode allows batch archive and delete operations across multiple projects at once.
+
 - **Automatic email delivery:** An in-process `node-cron` scheduler sends pending notification emails every 15 minutes while the project-service is running, replacing the broken `pg_net` poke and eliminating the need for manual PowerShell invocation.
+
 - **Field display rendering fixes:** Type-safe guards prevent crashes on undefined attachment/link values, file fields now render base64 strings stored during creation, tags and entity-links display as styled pill-shaped chips, and long markdown fields truncate with a "Read more" button.
+
 - **Responsive design:** The UI adapts across desktop, tablet, and phone screens using CSS media queries at 8 breakpoints (1200px–380px). A `useIsMobile()` hook switches the Calendar to a week-strip layout on phones (≤480px). Grid layouts collapse from multi-column to single-column, navigation drawers replace inline menus, and touch targets meet the 44px minimum.
+
 - **Accessibility:** ARIA labels on interactive controls and charts. Keyboard navigation: Escape closes every modal/drawer/dropdown; `/` focuses Help Centre search; Space/P control the timer. Semantic roles (`img`, `region`, `alert`, `status`) for screen readers. Voice-narrated guided tour via Web Speech API. Focus management on dropdowns and modals.
-- **CI/CD pipeline:** 7 Gitea Actions workflows (main CI, backend unit tests, backend integration tests, frontend unit tests, frontend integration tests, keep-alive, branch sync) plus GitHub Actions mirror. Every push and PR triggers format checks, linting, unit tests, integration tests, and a production build. Render auto-deploys from main via `render.yaml` infrastructure-as-code (6 services). Docs deploy to GitHub Pages on merge.
-- **Non-monolithic architecture:** One React frontend + four independent Express microservices (auth, dashboard, project, profile), each running as its own process on its own port with its own `package.json` and Render deployment. No shared code between services; HTTP-only communication via `fetch()` through `frontend/src/lib/api.ts`.
-- **Hand-written API:** 11+ manually coded route files across 4 services with RPC-style POST dispatch (`{ function, values }` body). Supabase provides auth and database only — the frontend never calls Supabase's auto-generated `/rest/v1/` for data. All data endpoints are hand-implemented Express handlers using `node-postgres` (`pg`). OpenAPI 3 spec is documentation, not code generation.
 
 See the full documentation at [https://digital-logbook-documentation-site.onrender.com/features/](https://digital-logbook-documentation-site.onrender.com/features/).
-
-## CI/CD Pipeline
-
-The project uses a comprehensive continuous integration and deployment pipeline running on both **Gitea Actions** and **GitHub Actions**:
-
-### Continuous Integration (7 workflows)
-
-| Workflow | Trigger | What it does |
-| :--- | :--- | :--- |
-| **CI Pipeline** (`ci.yml`) | Push to main/hlulani, PRs to main | Format check (Prettier), frontend lint (oxlint), frontend test + production build, all 4 backend services install + test |
-| **Backend Unit Tests** | Push to main/hlulani, PRs to main | Jest `--coverage` for auth, dashboard, project, profile services (unit tests only) |
-| **Backend Integration Tests** | Push to main/hlulani, PRs to main | Jest `--coverage` for integration suites across all 4 backend services |
-| **Frontend Unit Tests** | Push to main/hlulani, PRs to main | Vitest `--coverage` for frontend (excluding integration) |
-| **Frontend Integration Tests** | Push to main/hlulani, PRs to main | Vitest `--coverage` for frontend integration suites |
-| **Keep-Alive** | Every 10 min (cron), push, manual | Pings Render health endpoint with 3 retries to prevent free-tier cold starts |
-| **Branch Sync** | Push to main | Auto-merges main → hlulani to keep the collaboration branch current |
-
-### Continuous Deployment
-
-- **Render auto-deploy:** `render.yaml` defines 6 services (frontend, 4 backend microservices, docs-site). On every merge to main, Render automatically builds and deploys the updated code.
-- **Docs deployment:** GitHub Actions workflow (`docs.yml`) builds the MkDocs site and deploys to GitHub Pages when `docs-site/**` changes.
-- **Deterministic builds:** All CI workflows use `npm ci` for lockfile-accurate dependency resolution.
-
-### Key files
-
-- `.gitea/workflows/` — 7 Gitea Actions workflow files
-- `.github/workflows/` — 7 GitHub Actions workflow files (mirror + docs deploy)
-- `render.yaml` — Render infrastructure-as-code manifest
 
 ## Prerequisites
 
 - Node.js (LTS) and npm
+
 - A Supabase project (URL + anon key + JWKS URL)
+
 - A PostgreSQL database (or Supabase's built-in Postgres)
+
 - Git
+
 - (Optional) AI provider API keys for natural-language features
 
 ## Getting Started
@@ -143,7 +146,7 @@ The project uses a comprehensive continuous integration and deployment pipeline 
 ```powershell
 git clone https://sdp.ms.wits.ac.za/codacaine/Digital-Logbook.git
 cd Digital-Logbook
-````
+```
 
 ### 2. Install dependencies for each service
 
@@ -156,7 +159,7 @@ cd ..\project-service
 npm install
 cd ..\profile-service
 npm install
-cd ..\..
+cd ..\\..
 ```
 
 ### 3. Install frontend dependencies
@@ -188,7 +191,8 @@ This creates all tables, indexes, functions, triggers, and cron jobs idempotentl
 #### Option B: Manual
 
 Run the SQL files in `supabase/migrations/` in order (000–007) in the Supabase SQL Editor:
-[https://supabase.com/dashboard/project/_/sql](https://supabase.com/dashboard/project/_/sql)
+
+[https://supabase.com/dashboard/project/\_/sql](https://supabase.com/dashboard/project/\_/sql)
 
 #### Backup and restore
 
@@ -259,12 +263,12 @@ VITE_PROFILE_SERVICE_URL=http://localhost:5004
 | `VITE_PROFILE_SERVICE_URL`   | Profile microservice URL (falls back to deployed URL if not set) |
 | `VITE_DEV_BYPASS`            | (Optional) Set to `"true"` in dev to bypass auth for testing     |
 
-### Backend services — all services (`services/*/\.env`)
+### Backend services — all services (`services/*/\\.env`)
 
 Every backend service shares the same database connection:
 
 ```
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+DATABASE_URL=postgresql://user:password\@host:5432/dbname
 ```
 
 | Variable       | Used by      | Purpose                                                          |
@@ -276,7 +280,7 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 ```
 PORT=5001
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+DATABASE_URL=postgresql://user:password\@host:5432/dbname
 SUPABASE_URL=https://yourproject.supabase.co
 SUPABASE_KEY=your_supabase_key
 ```
@@ -285,16 +289,15 @@ SUPABASE_KEY=your_supabase_key
 
 ```
 PORT=5002
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+DATABASE_URL=postgresql://user:password\@host:5432/dbname
 ```
 
 ### Project Service (`services/project-service/.env`)
 
 ```
 PORT=5003
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+DATABASE_URL=postgresql://user:password\@host:5432/dbname
 SUPABASE_JWKS_URL=https://yourproject.supabase.co/auth/v1/.well-known/jwks.json
-
 # AI provider keys (at least one required for natural-language features)
 OPENROUTER_API_KEY=
 HF_API_KEY=
@@ -316,7 +319,7 @@ GROQ_API_KEY=
 
 ```
 PORT=5004
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+DATABASE_URL=postgresql://user:password\@host:5432/dbname
 ```
 
 ### Port Summary
@@ -362,6 +365,7 @@ The [`.gitea/workflows/ci.yml`](.gitea/workflows/ci.yml) pipeline runs lint, bui
 ## Branching Rules
 
 - `main` and `services` branches are protected — no direct pushes, changes must go through a pull request with required approvals.
+
 - Create a feature branch for your work:
 
 ```powershell
@@ -376,4 +380,5 @@ Then open a pull request on Gitea into `main` (or `services` for backend-only wo
 ## Architecture Rules
 
 - Project entries and their statistics stay scoped to that project (`project-service`).
+
 - The dashboard (`dashboard-service`) only shows cross-project summaries — it does not read individual entry tables directly.
