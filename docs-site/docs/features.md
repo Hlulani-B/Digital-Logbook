@@ -541,7 +541,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 
 **How it works:**
 
-- Reads entries from the IndexedDB cache (`all_entries` store) and recomputes whenever the cache changes — no direct server or Supabase calls from the stats code; `syncAllData` keeps the cache warm (see [IndexedDB Caching](architecture/caching.md))
+- Reads entries from the IndexedDB cache (`all_entries` store) and recomputes whenever the cache changes — no direct server or Supabase calls from the stats code; `syncAllData` keeps the cache warm (see [IndexedDB Caching](Architecture/caching.md))
 - All aggregation is done in the browser by pure functions in `frontend/src/functions/dashboard/stats.js`
 - Durations are computed from timer stamps: completed entries net out paused time (`ended_at − started_at − paused_ms`, floored at 0); running entries tick live against the page clock; entries without a start instant contribute 0
 - Daily charts bucket by the day each entry actually occurred (`started_at`, falling back to `created_at`, in UTC); the series spans every day from the oldest to the latest occurrence, with a lone occurrence getting the two prior days so a single value can still draw a line
@@ -552,7 +552,7 @@ The Today and Tracker views have been removed. Existing `/today` and `/tracker` 
 - `frontend/src/functions/dashboard/stats.js` — Field-agnostic statistics engine
 - `frontend/src/pages/__tests__/StatsView.test.tsx`, `frontend/src/functions/dashboard/__tests__/` — Engine and UI tests
 
-See [Statistics Engine](architecture/statistics.md) for the full technical write-up.
+See [Statistics Engine](Architecture/statistics.md) for the full technical write-up.
 
 ---
 
