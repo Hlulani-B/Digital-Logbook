@@ -6,12 +6,12 @@ This repository uses AI-assisted development for the frontend authentication mod
 
 ## Quick Reference
 
-| Item                        | Location                                                                                                                                                   |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                                                                                 |
-| **Student**                 | Nasiphi Ntontela (2673619)                                                                                                                                 |
-| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                                                                    |
-| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration, Help Centre & bug report form, public landing page |
+| Item                        | Location                                                                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Detailed AI declaration** | [`frontend/AI_DECLARATION.md`](frontend/AI_DECLARATION.md)                                                                                                                                                   |
+| **Student**                 | Nasiphi Ntontela (2673619)                                                                                                                                                                                   |
+| **AI tool**                 | Qoder (AI Coding Assistant for VS Code)                                                                                                                                                                      |
+| **Scope of AI use**         | Frontend authentication, profile/settings UI, Supabase auth integration, guided tour & voice narration, Help Centre & bug report form, public landing page, notification system activation & troubleshooting |
 
 ---
 
@@ -43,6 +43,8 @@ The following frontend features were implemented with AI acting as a code-genera
   - OpenAPI 3.0 specification (`docs/openapi.yaml`) covering all four microservices, served as browsable Swagger UI at `/api-docs`
   - Mobile-responsive layouts for Calendar (week-strip on phones ≤480px), Kanban, Today, and Timeline views with dedicated phone breakpoints
   - Due-date notification system: hourly pg_cron scan (`generate_due_notifications()`), per-entry due-soon (24h) and overdue email alerts via Brevo API, and an in-app bell feed with unread badge in the dashboard header
+  - Timer abandonment notifications: alerts when timers run >2 hours or pause >30 minutes (`generate_timer_abandonment_notifications()`), integrated into the notification cycle
+  - Notification pipeline activation: resolved pg_net unavailability by replacing `run_due_notification_cycle()` with a pg_net-free version, applied migration 021 (timer abandonment schema), configured Brevo API key and IP whitelisting in Render dashboard, verified end-to-end email delivery (78 notifications sent)
   - Live password-requirements checklist on sign-up (length, uppercase, lowercase, number, explicit special-character set) with disabled submit until all rules pass
   - Guided tour (driver.js) with element-anchored steps and live navigation between views, friendly voice narration via the Web Speech API with a persisted mute toggle, and auto-advance paced to the narration finishing so speech is never cut off
   - Help Centre (`/help`) with 9 categories, 25 articles, client-side keyword search, category sidebar with emoji icons, keyboard shortcuts (`/` focus, `Esc` clear), theme-aware styling, deep-link URL params, and mobile-responsive layout
