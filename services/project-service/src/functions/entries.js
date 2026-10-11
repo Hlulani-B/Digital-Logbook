@@ -1288,6 +1288,14 @@ Respond with ONLY this JSON, nothing else:`;
       );
 
       let aiResponse;
+      console.log('[Natural_language.entry] About to call AI() with prompt length:', prompt?.length);
+      console.log('[Natural_language.entry] Prompt preview:', prompt?.slice(0, 300));
+      console.log('[Natural_language.entry] Checking AI provider env keys:');
+      console.log('  HF_API_KEY:', process.env.HF_API_KEY ? 'SET (' + process.env.HF_API_KEY.slice(0, 8) + '...)' : 'NOT SET');
+      console.log('  OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'SET (' + process.env.OPENROUTER_API_KEY.slice(0, 12) + '...)' : 'NOT SET');
+      console.log('  CEREBRAS_API_KEY:', process.env.CEREBRAS_API_KEY ? 'SET (' + process.env.CEREBRAS_API_KEY.slice(0, 8) + '...)' : 'NOT SET');
+      console.log('  GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'SET (' + process.env.GEMINI_API_KEY.slice(0, 10) + '...)' : 'NOT SET');
+      console.log('  GROQ_API_KEY:', process.env.GROQ_API_KEY ? 'SET (' + process.env.GROQ_API_KEY.slice(0, 8) + '...)' : 'NOT SET');
       try {
         aiResponse = await AI(prompt);
         console.log(
@@ -1309,8 +1317,10 @@ Respond with ONLY this JSON, nothing else:`;
 
       if (!aiResponse || aiResponse.trim() === '') {
         console.error(
-          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown. Check ai_provider_cooldowns table in Supabase.'
+          '[Natural_language.entry] AI returned empty — every provider failed or is on cooldown.'
         );
+        console.error('[Natural_language.entry] This means ALL of these failed: HuggingFace, OpenRouter, Cerebras, Gemini, Groq');
+        console.error('[Natural_language.entry] Check the [AI] logs above to see which providers were tried and why they failed');
         return {
           success: false,
           message:
