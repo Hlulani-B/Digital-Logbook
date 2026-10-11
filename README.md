@@ -67,13 +67,21 @@ codacaine/
 
 ## Authentication & Security
 
-The frontend uses Supabase Auth for identity management and supports multiple sign-in methods:
+The project uses **Supabase Auth** — an established, widely-used authentication service — for all identity management. No custom authentication code was written; the project relies entirely on Supabase's managed auth infrastructure for password hashing, session management, OAuth handshakes, email verification, and token lifecycle.
 
-- **OAuth:** Google and GitHub one-click sign-in
-- **Email/password:** Sign-up with email confirmation and password reset
-- **Email validation:** Malformed addresses, disposable domains, and common typos are rejected before submission
-- **Session management:** Users remain signed in until they manually sign out
-- **Account deletion:** Soft-deleted accounts enter a 30-day grace period with email-link restoration
+### Authentication flows
+
+- **Sign up:** Email/password registration via Supabase `signUp()`. Live password-requirements checklist gates the submit button. Email validation rejects malformed addresses, disposable domains, and common typos before submission
+- **Sign in:** Three methods — Google OAuth, GitHub OAuth, and email/password — all via Supabase SDK methods. Sessions persist until manual sign-out
+- **Password reset:** Supabase `resetPasswordForEmail()` sends a magic link; user sets a new password via `/auth/update-password` with a live strength meter
+- **Account deletion:** Soft-delete via Supabase RPC `delete_user()`. 30-day grace period with email-link restoration. Permanent purge after 30 days
+
+### Security measures
+
+- **Row-Level Security (RLS):** Supabase RLS policies on all database tables ensure users can only access their own data
+- **Session management:** `AuthContext.tsx` wraps Supabase auth methods in a React context; `getSession()` checks auth state on every protected route
+- **Email validation:** `validation.ts` provides format checking, disposable-domain detection, and typo correction — all client-side
+- **No custom auth code:** The project never implements JWT validation, password hashing, session tokens, OAuth handshake flows, or email verification
 
 ## Features
 

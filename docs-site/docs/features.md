@@ -1048,6 +1048,37 @@ See [Statistics Engine](Architecture/statistics.md) for the full technical write
 
 ---
 
+### 50. Authentication & Security (Supabase Auth)
+
+**What it does:** Users can sign up, sign in, reset their passwords, and delete their accounts. The entire authentication system is provided by **Supabase Auth** — an established, widely-used authentication service — not custom-written code.
+
+**Why it was implemented:** The project requirement states: "You may not write your own authentication system, instead you must rely on established practices and libraries." Supabase Auth handles password hashing, session management, OAuth handshakes, email verification, and token lifecycle.
+
+**How it works:**
+
+- **Sign up:** Email/password via Supabase `signUp()`. Live password checklist gates submit. Email validation rejects malformed addresses, disposable domains, and typos
+- **Sign in:** Google OAuth, GitHub OAuth, and email/password via Supabase SDK. Sessions persist until manual sign-out
+- **Password reset:** Supabase `resetPasswordForEmail()` sends a magic link; new password set via `/auth/update-password` with strength meter
+- **Account deletion:** Soft-delete via Supabase RPC `delete_user()`. 30-day grace period. Email-link restoration via `restore_user()`. Permanent purge via `purge_deleted_users()`
+- **Session management:** `AuthContext.tsx` wraps all Supabase auth methods in React context
+- **No custom auth code:** No JWT validation, password hashing, session tokens, or OAuth handshake code — Supabase handles all of these
+- **Row-Level Security (RLS):** Supabase RLS policies on all tables enforce data isolation at the database level
+- **Environment variable security:** All secrets in `.env` files (`.gitignore`), production via Render dashboard
+
+**Key files:**
+
+- `frontend/src/lib/supabase.ts` — Supabase client initialisation
+- `frontend/src/context/AuthContext.tsx` — React context wrapping Supabase auth methods
+- `frontend/src/pages/SignIn.tsx` — OAuth buttons, email/password, password checklist, email validation
+- `frontend/src/pages/ResetPassword.tsx` — Password reset request
+- `frontend/src/pages/UpdatePassword.tsx` — New password with strength meter
+- `frontend/src/pages/AuthRestore.tsx` — Email-link account restoration
+- `frontend/src/lib/validation.ts` — Email format, disposable-domain, typo-correction helpers
+- `supabase/setup.sql` — RLS policies, `delete_user()` / `restore_user()` / `purge_deleted_users()` RPCs
+- `supabase/migrations/004_account_deletion_grace_period.sql` — 30-day grace period schema
+
+---
+
 ## Summary
 
-The Digital Logbook implements 49 features across authentication, profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), security, developer experience (OpenAPI 3 spec, CI/CD pipeline with 7 Gitea Actions workflows + GitHub Actions mirror + Render auto-deploy), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), non-monolithic architecture (1 React frontend + 4 independent Express microservices, each independently deployable on Render), hand-written API (11+ manually coded route files across 4 services, RPC-style POST dispatch, Supabase used for auth and database only — not as an API generator), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
+The Digital Logbook implements 50 features across authentication & security (Supabase Auth: sign up, sign in with Google/GitHub/email, password reset, account deletion with 30-day grace period, email validation, session management, RLS), profile management, dashboard navigation (calendar, kanban, today, timeline views), project tracking, natural language entry, data portability (JSON/CSV/Markdown/iCalendar export), analytics (the My Stats page with per-entry durations and field-agnostic field analysis), developer experience (OpenAPI 3 spec, CI/CD pipeline with 7 Gitea Actions workflows + GitHub Actions mirror + Render auto-deploy), onboarding (public landing page with typing demo and interactive cards, guided tour with voice narration, themed sign-in), notifications (snooze/dismiss, configurable lead time, rich emails, browser toasts, automatic email delivery via node-cron), timer enhancements (presets, auto-stop, visual feedback, sound notifications, keyboard shortcuts, mobile UX, analytics, idle detection, batch actions, CSV export), field display rendering (type-safe guards, base64 file handling, tag/entity-link chip styling, markdown read-more), project management (pagination with view-more, multi-select with batch archive/delete), responsive design (8 breakpoints, viewport detection, touch targets, mobile layouts), accessibility (ARIA landmarks, keyboard navigation, semantic roles, focus management, voice narration), non-monolithic architecture (1 React frontend + 4 independent Express microservices, each independently deployable on Render), hand-written API (11+ manually coded route files across 4 services, RPC-style POST dispatch, Supabase used for auth and database only — not as an API generator), and user support (searchable Help Centre with 9 categories and 25 articles, in-app bug report form with email delivery). Each feature was designed with user experience, security, and maintainability in mind, following microservices architecture principles and modern web development best practices.
