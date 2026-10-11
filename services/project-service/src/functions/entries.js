@@ -1864,15 +1864,4 @@ export async function getProjectProgress(user_email) {
         total_entries: parseInt(total),
         completed_entries: parseInt(completed),
         overdue_entries: parseInt(past_due),
-        completion_percentage: completionPercentage,
-        upcoming_deadlines: upcomingDeadlines,
-        recent_activity: recentActivity,
-      });
-    }
-
-    return { success: true, data: progressData };
-  } catch (error) {
-    console.log('[getProjectProgress] FAILED:', error.message);
-    return { success: false, message: error.message };
-  }
-}
+        completion_percentage: completionP
