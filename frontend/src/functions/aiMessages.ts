@@ -44,8 +44,11 @@ function subscribe(onChange: () => void): () => void {
   window.addEventListener(AI_MESSAGES_CHANGED_EVENT, handler);
   window.addEventListener(PREFERENCES_CHANGED_EVENT, handler);
   // `storage` fires only in *other* tabs — covers multi-tab sync.
+  // Listen for both the legacy key and general preference changes.
   const onStorage = (e: StorageEvent) => {
-    if (e.key === 'dl_ai_messages' || e.key === null) onChange();
+    if (e.key === 'dl_ai_messages' || e.key === 'dl_preferences' || e.key === null) {
+      onChange();
+    }
   };
   window.addEventListener('storage', onStorage);
   return () => {

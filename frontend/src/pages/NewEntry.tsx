@@ -885,6 +885,15 @@ export function EntryBox({
 
         {safeSummary && <p className="entry-box__summary">{safeSummary}</p>}
 
+        {/* Preview: show summary when collapsed so users can identify entries */}
+        {isCollapsed && safeSummary && entryFields.length > 0 && (
+          <div className="entry-box__preview">
+            <span className="entry-box__preview-more">
+              {entryFields.length} field{entryFields.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
         {entryFields.length > 0 && (
           <table className="entry-box__table">
             <tbody>

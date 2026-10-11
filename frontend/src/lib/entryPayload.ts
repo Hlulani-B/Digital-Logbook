@@ -49,8 +49,58 @@ export function isBase64Image(value: unknown): boolean {
 export function formatEntryValue(value: unknown): string {
   if (value == null) return 'Not recorded';
   if (isBase64Image(value)) return '[Image]';
-  if (typeof value === 'string') return value.trim() || 'Not recorded';
+  
+  // If it's a string, check if it's JSON that needs parsing
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 'Not recorded';
+    
+    // Try to parse JSON strings (objects/arrays stored as strings)
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return formatEntryValue(parsed);
+      } catch {
+        // Not valid JSON, return as-is
+        return trimmed;
+      }
+    }
+    
+    return trimmed;
+  }
+  
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  
+  // Handle arrays - format as comma-separated list
+  if (Array.isArray(value)) {
+    try {
+      const formatted = value.map(item => formatEntryValue(item));
+      // If it's a simple array of primitives, show as comma-separated
+      if (formatted.every(item => !item.includes(':') && !item.includes('{'))) {
+        return formatted.join(', ');
+      }
+      // Otherwise show as JSON array
+      return '[' + formatted.join(', ') + ']';
+    } catch {
+      return 'Not recorded';
+    }
+  }
+
+  // Handle objects - format as key: value pairs
+  if (typeof value === 'object') {
+    try {
+      const entries = Object.entries(value);
+      // For simple objects with primitive values, show as "key: value, key: value"
+      const formatted = entries.map(([key, val]) => {
+        const formattedVal = formatEntryValue(val);
+        return `${key}: ${formattedVal}`;
+      });
+      return formatted.join(', ');
+    } catch {
+      return 'Not recorded';
+    }
+  }
 
   try {
     return JSON.stringify(value) || 'Not recorded';

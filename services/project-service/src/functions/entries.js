@@ -951,15 +951,29 @@ export class Natural_language {
         );
       if (!hasContent) return projectName;
 
-      const prompt = `Summarise this logbook entry in ONE sentence of max 20 words. No first-person pronouns. Neutral factual style.
+      const prompt = `You are generating a summary for a logbook entry. The summary will be stored in a TEXT column in the database.
+
+CRITICAL: The "summary" field MUST be a TEXT STRING (a sentence describing the entry), NOT the entry object itself.
 
 Project: ${projectName}
-Entry: ${JSON.stringify(entryObject)}
+Entry fields: ${JSON.stringify(entryObject)}
 
-You MUST respond with ONLY a JSON object in this exact format, nothing else:
-{"summary": "your one sentence here"}
+Read the entry fields above and write ONE sentence (max 20 words) describing what this entry is about.
 
-If the entry has no real content, use the project name as the summary.`;
+Rules:
+- The summary value MUST be a plain text string
+- NEVER return the entry object as the summary
+- Use neutral, factual language
+- No first-person pronouns (I, me, my, we)
+- Describe what was done/recorded
+
+Example entry: {"task": "Meeting", "attendees": "Team A", "duration": "1 hour"}
+Example summary: "Team A meeting held for one hour to discuss project updates"
+
+You MUST respond with ONLY a JSON object in this exact format:
+{"summary": "your text sentence here"}
+
+The value of "summary" must ALWAYS be a text string, never an object.`;
 
       const result = await AI(prompt);
       if (!result || !result.trim()) return projectName;
@@ -969,8 +983,14 @@ If the entry has no real content, use the project name as the summary.`;
       // Parse the JSON response
       try {
         const parsed = JSON.parse(raw);
+        // CRITICAL: summary must be a string, not an object
         if (parsed.summary && typeof parsed.summary === 'string' && parsed.summary.trim()) {
           return parsed.summary.trim();
+        }
+        // If summary is an object, reject it
+        if (parsed.summary && typeof parsed.summary === 'object') {
+          console.warn('[generateSummary] AI returned object as summary, rejecting');
+          return projectName;
         }
       } catch {
         // Not valid JSON — try regex extraction
@@ -985,7 +1005,9 @@ If the entry has no real content, use the project name as the summary.`;
           const retryRaw = retry.trim().replace(/^["']|["']$/g, '');
           try {
             const retryParsed = JSON.parse(retryRaw);
-            if (retryParsed.summary) return retryParsed.summary.trim();
+            if (retryParsed.summary && typeof retryParsed.summary === 'string') {
+              return retryParsed.summary.trim();
+            }
           } catch {
             const match = retryRaw.match(/\{[^}]*"summary"\s*:\s*"([^"]+)"[^}]*\}/);
             if (match) return match[1].trim();
